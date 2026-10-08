@@ -1,0 +1,108 @@
+I can’t actually open the Replit link from here, so I scanned the uploaded 2059.zip locally instead.
+
+What I checked
+	•	npm run check (TypeScript): passes
+	•	npm run build (Vite + server bundle): passes
+
+So you don’t have “silent type errors” or a broken build behind the scenes right now.
+
+⸻
+
+Bugs / gotchas worth fixing now (small, real, copy-paste fixes)
+
+1) Loot filters can silently ignore your requested slot/type
+
+In client/src/lib/combat/loot.ts, getRandomItemFromPool() does this:
+	•	filters by type/slot
+	•	if empty, it falls back to the whole pool (meaning you can accidentally get the wrong thing later when you expand pools)
+
+Fix it so it falls back safely:
+
+Find this block:
+
+  if (filtered.length > 0) {
+    return filtered[Math.floor(Math.random() * filtered.length)];
+  }
+
+  return pool[Math.floor(Math.random() * pool.length)];
+
+Replace with:
+
+  if (filtered.length > 0) {
+    return filtered[Math.floor(Math.random() * filtered.length)];
+  }
+
+  // Safer fallbacks (never ignore requested constraints silently)
+  if (type) {
+    const typeOnly = pool.filter(item => item.type === type);
+    if (typeOnly.length > 0) return typeOnly[Math.floor(Math.random() * typeOnly.length)];
+  }
+
+  // If we get here, your pools are missing something you asked for
+  throw new Error(`No items found for rarity=${rarity}, type=${type ?? "any"}, slot=${slot ?? "any"}`);
+
+This prevents “weird drops” later that feel like bugs but are actually the fallback.
+
+⸻
+
+2) Boss 1 + Boss 2 “different augmentation” isn’t actually different
+
+Not a crash bug — but it will feel like one.
+
+In generateLoot(), boss 1 and 2 both pick a random slot with no memory. If you want boss 2 to guarantee a different slot, simplest approach without adding systems:
+
+In Boss 2 section, reroll if same as boss 1 isn’t possible because boss 1 result isn’t stored.
+
+So either:
+	•	ignore for now, or
+	•	store lastGuaranteedSlot in your combat store (tiny change), then avoid it.
+
+If you want, I’ll give you the exact 6-line store change — but you said “items only” right now, so I’m not pushing it.
+
+⸻
+
+3) “Medieval” leakage (tone, not logic)
+
+These are harmless but will keep annoying you because they show up in code/comments/styles:
+	•	client/src/components/game/CombatScene.tsx has “earthy medieval colors” comments.
+	•	client/src/index.css has .medieval-card.
+
+Rename them now so the project stops feeling like a reskin:
+	•	change .medieval-card → .card (and update any uses if they exist)
+	•	change the comments to “industrial / worn / soot tones” so your future self doesn’t keep seeing “medieval” everywhere
+
+This is basically reducing technical debt (the word you were looking for). Also “refactor” / “cleanup” depending on context.
+
+⸻
+
+Streamlining (what’s “behind the scenes” heavy)
+
+Not broken, but you’re carrying weight from the template:
+	•	You have a full Express + DB/auth stack. If you’re not using login/DB yet, it’s fine to keep, but it’s extra complexity while you’re still building core gameplay.
+	•	You’ve got lots of heavy client deps (three.js, postprocessing, leaflet, etc.). Again: not broken, but it’s future performance cost.
+
+My advice: don’t delete anything yet. Just don’t build features that depend on them until the core loop is locked.
+
+⸻
+
+If you want “items only” next (clean Replit-native steps)
+
+Right now your loot.ts still generates placeholder pools (PLACEHOLDER_*). To switch to a real 2059 pool without adding zones/maps/story systems, you do exactly this:
+	1.	Create client/src/lib/combat/items2059.ts (your item list)
+	2.	In client/src/lib/combat/loot.ts, replace:
+
+export const ITEM_POOLS: Record<ItemRarity, Item[]> = generateItemPools();
+
+with:
+
+import { ITEMS_2059 } from "./items2059";
+
+export const ITEM_POOLS: Record<ItemRarity, Item[]> = {
+  common: ITEMS_2059.filter(i => i.rarity === "common"),
+  uncommon: ITEMS_2059.filter(i => i.rarity === "uncommon"),
+  rare: ITEMS_2059.filter(i => i.rarity === "rare"),
+  epic: ITEMS_2059.filter(i => i.rarity === "epic"),
+  legendary: ITEMS_ 2059.filter(i => i.rarity === "legendary"),
+};
+
+No zones. No corp logic. Just a real pool

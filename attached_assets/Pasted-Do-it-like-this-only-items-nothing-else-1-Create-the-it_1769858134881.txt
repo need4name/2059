@@ -1,0 +1,372 @@
+Do it like this, only items, nothing else.
+
+1) Create the items file
+
+In Replit file tree:
+
+client → src → lib → combat
+
+Create a new file called:
+
+items2059.ts
+
+Paste this:
+
+// client/src/lib/combat/items2059.ts
+import type { Item } from "./types";
+
+/**
+ * 2059 item templates.
+ * Keep ids UNIQUE. Keep bonuses roughly aligned with your placeholder scaling:
+ * common x1, uncommon x2, rare x3, epic x5, legendary x8
+ *
+ * Slot base bonuses (from your current placeholders):
+ * brain 2/1/5
+ * ears 1/2/3
+ * eyes 3/0/2
+ * nose 0/1/8
+ * lungs 1/1/10
+ * left_arm 4/0/0
+ * right_arm 4/0/0
+ * left_leg 1/2/5
+ * right_leg 1/2/5
+ * misc 2/2/5
+ */
+
+export const ITEMS_2059: Item[] = [
+  // ----------------
+  // COMMON
+  // ----------------
+  {
+    id: "kz_br_c_01",
+    name: "[KIZUNA] MIL-Stub (Civic Profile)",
+    rarity: "common",
+    type: "augmentation",
+    slot: "brain",
+    attackBonus: 2,
+    defenseBonus: 1,
+    hpBonus: 5,
+    icon: "🧠",
+  },
+  {
+    id: "tx_lu_c_01",
+    name: "[TIANXIA] Workforce Lung Liner",
+    rarity: "common",
+    type: "augmentation",
+    slot: "lungs",
+    attackBonus: 1,
+    defenseBonus: 1,
+    hpBonus: 10,
+    icon: "🫁",
+  },
+  {
+    id: "hx_ms_c_01",
+    name: "[HELIX] Uptime Coupler (Basic)",
+    rarity: "common",
+    type: "augmentation",
+    slot: "misc",
+    attackBonus: 2,
+    defenseBonus: 2,
+    hpBonus: 5,
+    icon: "⚙️",
+  },
+  {
+    id: "cr_ey_c_01",
+    name: "[CROWN] Sun-Filter (Clinic Surplus)",
+    rarity: "common",
+    type: "augmentation",
+    slot: "eyes",
+    attackBonus: 3,
+    defenseBonus: 0,
+    hpBonus: 2,
+    icon: "👁️",
+  },
+  {
+    id: "pr_cn_c_01",
+    name: "[PARSU] Filter-Media Brick",
+    rarity: "common",
+    type: "consumable",
+    hpBonus: 20,
+    icon: "😷",
+  },
+
+  // ----------------
+  // UNCOMMON (x2)
+  // ----------------
+  {
+    id: "kz_br_u_01",
+    name: "[KIZUNA] Compliance Kernel (Shift-Safe)",
+    rarity: "uncommon",
+    type: "augmentation",
+    slot: "brain",
+    attackBonus: 4,
+    defenseBonus: 2,
+    hpBonus: 10,
+    icon: "🧠",
+  },
+  {
+    id: "tx_er_u_01",
+    name: "[TIANXIA] Whisper-Band Ears",
+    rarity: "uncommon",
+    type: "augmentation",
+    slot: "ears",
+    attackBonus: 2,
+    defenseBonus: 4,
+    hpBonus: 6,
+    icon: "👂",
+  },
+  {
+    id: "io_nz_u_01",
+    name: "[IOA] Salt-Air Nose Gate",
+    rarity: "uncommon",
+    type: "augmentation",
+    slot: "nose",
+    attackBonus: 0,
+    defenseBonus: 2,
+    hpBonus: 16,
+    icon: "👃",
+  },
+  {
+    id: "hx_ll_u_01",
+    name: "[HELIX] Heat-Step Calibrator (L)",
+    rarity: "uncommon",
+    type: "augmentation",
+    slot: "left_leg",
+    attackBonus: 2,
+    defenseBonus: 4,
+    hpBonus: 10,
+    icon: "🦿",
+  },
+  {
+    id: "pr_hy_u_01",
+    name: "[PARSU] Electrolyte Salt-Bar",
+    rarity: "uncommon",
+    type: "consumable",
+    hpBonus: 50,
+    icon: "🧂",
+  },
+
+  // ----------------
+  // RARE (x3)
+  // ----------------
+  {
+    id: "cr_ey_r_01",
+    name: "[CROWN] Ocular Profile: Glare-Cut",
+    rarity: "rare",
+    type: "augmentation",
+    slot: "eyes",
+    attackBonus: 9,
+    defenseBonus: 0,
+    hpBonus: 6,
+    icon: "👁️",
+  },
+  {
+    id: "vk_ra_r_01",
+    name: "[VOLKOV] Strike Arm Rig (R)",
+    rarity: "rare",
+    type: "augmentation",
+    slot: "right_arm",
+    attackBonus: 12,
+    defenseBonus: 0,
+    hpBonus: 0,
+    icon: "🦾",
+  },
+  {
+    id: "tx_lu_r_01",
+    name: "[TIANXIA] Smoke-Season Lungs (V2)",
+    rarity: "rare",
+    type: "augmentation",
+    slot: "lungs",
+    attackBonus: 3,
+    defenseBonus: 3,
+    hpBonus: 30,
+    icon: "🫁",
+  },
+  {
+    id: "hx_ms_r_01",
+    name: "[HELIX] Service-Node Handshake",
+    rarity: "rare",
+    type: "augmentation",
+    slot: "misc",
+    attackBonus: 6,
+    defenseBonus: 6,
+    hpBonus: 15,
+    icon: "⚙️",
+  },
+  {
+    id: "io_in_r_01",
+    name: "[IOA] Dock-Breather Inhaler",
+    rarity: "rare",
+    type: "consumable",
+    hpBonus: 100,
+    icon: "💉",
+  },
+
+  // ----------------
+  // EPIC (x5)
+  // ----------------
+  {
+    id: "vk_br_e_01",
+    name: "[VOLKOV] Operator Override (Hot Zone)",
+    rarity: "epic",
+    type: "augmentation",
+    slot: "brain",
+    attackBonus: 10,
+    defenseBonus: 5,
+    hpBonus: 25,
+    icon: "🧠",
+  },
+  {
+    id: "cr_nz_e_01",
+    name: "[CROWN] Toxin Gate Nose Implant",
+    rarity: "epic",
+    type: "augmentation",
+    slot: "nose",
+    attackBonus: 0,
+    defenseBonus: 5,
+    hpBonus: 40,
+    icon: "👃",
+  },
+  {
+    id: "kz_ms_e_01",
+    name: "[KIZUNA] Certified Stack Spine (Audit-Grade)",
+    rarity: "epic",
+    type: "augmentation",
+    slot: "misc",
+    attackBonus: 10,
+    defenseBonus: 10,
+    hpBonus: 25,
+    icon: "📎",
+  },
+  {
+    id: "tx_la_e_01",
+    name: "[TIANXIA] Industrial Arm Actuator (L)",
+    rarity: "epic",
+    type: "augmentation",
+    slot: "left_arm",
+    attackBonus: 20,
+    defenseBonus: 0,
+    hpBonus: 0,
+    icon: "🦾",
+  },
+  {
+    id: "pr_rx_e_01",
+    name: "[PARSU] Emergency Rehydrate Kit",
+    rarity: "epic",
+    type: "consumable",
+    hpBonus: 200,
+    icon: "🧂",
+  },
+
+  // ----------------
+  // LEGENDARY (x8)
+  // ----------------
+  {
+    id: "vk_lu_l_01",
+    name: "[VOLKOV] Smoke-Run Protocol (Limiter-Bent)",
+    rarity: "legendary",
+    type: "augmentation",
+    slot: "lungs",
+    attackBonus: 8,
+    defenseBonus: 8,
+    hpBonus: 80,
+    icon: "🫁",
+  },
+  {
+    id: "cr_ey_l_01",
+    name: "[CROWN] Ocular Profile: Night-Clean",
+    rarity: "legendary",
+    type: "augmentation",
+    slot: "eyes",
+    attackBonus: 24,
+    defenseBonus: 0,
+    hpBonus: 16,
+    icon: "🌙",
+  },
+  {
+    id: "kz_br_l_01",
+    name: "[KIZUNA] Sovereign Key (Prime Profile)",
+    rarity: "legendary",
+    type: "augmentation",
+    slot: "brain",
+    attackBonus: 16,
+    defenseBonus: 8,
+    hpBonus: 40,
+    icon: "🧠",
+  },
+  {
+    id: "px_ms_l_01",
+    name: "[PIRATE] Ghost-Glass Fork (Offline UI)",
+    rarity: "legendary",
+    type: "augmentation",
+    slot: "misc",
+    attackBonus: 16,
+    defenseBonus: 16,
+    hpBonus: 40,
+    icon: "🏴‍☠️",
+  },
+  {
+    id: "io_st_l_01",
+    name: "[IOA] Black Broncho-Snap",
+    rarity: "legendary",
+    type: "consumable",
+    hpBonus: 500,
+    icon: "💉",
+  },
+];
+
+That’s your item pool. Add to it by duplicating entries.
+
+⸻
+
+2) Wire the pool into your existing loot system
+
+Open:
+
+client/src/lib/combat/loot.ts
+
+A) Add this import at the top (with the other imports)
+
+import { ITEMS_2059 } from "./items2059";
+
+B) Find this line
+
+export const ITEM_POOLS: Record<ItemRarity, Item[]> = generateItemPools();
+
+Replace it with this:
+
+export const ITEM_POOLS: Record<ItemRarity, Item[]> = {
+  common: ITEMS_2059.filter(i => i.rarity === "common"),
+  uncommon: ITEMS_2059.filter(i => i.rarity === "uncommon"),
+  rare: ITEMS_2059.filter(i => i.rarity === "rare"),
+  epic: ITEMS_2059.filter(i => i.rarity === "epic"),
+  legendary: ITEMS_2059.filter(i => i.rarity === "legendary"),
+};
+
+Save.
+
+Run.
+
+Loot will now pull from your 2059 pool.
+
+⸻
+
+3) How to “fill out” the pool properly (your workflow)
+
+When you add new items, do it like this:
+	1.	Pick a corp tag for the name: [KIZUNA] [HELIX] [TIANXIA] [CROWN] [VOLKOV] [PARSU] [IOA] [PIRATE]
+	2.	Pick slot + rarity
+	3.	Use the placeholder scaling so balance stays stable:
+	•	common x1
+	•	uncommon x2
+	•	rare x3
+	•	epic x5
+	•	legendary x8
+	4.	Give it an icon you like.
+	5.	Keep id unique.
+
+That’s it.
+
+⸻
+
+One quick question so I don’t build the next paste block wrong: do you want more variety per slot per rarity (like 5–10 “common brain” items), or do you want to keep it lean and only add new items when new corps/themes appear?
