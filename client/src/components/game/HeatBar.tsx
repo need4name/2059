@@ -33,7 +33,7 @@ return (
 {/* Bar container */}
 
   <div
-    className={`relative w-4 rounded-full overflow-hidden border border-slate-700 bg-slate-900/80 ${isCritical ? 'animate-pulse' : ''}`}
+    className={`relative w-4 rounded-full overflow-hidden bg-black/40 ring-1 ring-white/10 ${isCritical ? 'animate-pulse' : ''}`}
     style={{ height: '140px' }}
   >
     {/* Phase zone markers - subtle dividers at 40% and 70% */}
@@ -49,13 +49,13 @@ return (
   </div>
 
 {/* Heat number */}
-<span className={`text-xs font-mono font-bold ${c.label} tabular-nums`}>
+<span className={`text-sm font-bold ${c.label}`}>
 {playerHeat}
 </span>
 
 {/* Phase label */}
-<span className={`text-[9px] font-mono uppercase tracking-wider ${c.label} opacity-70`}>
-{heatPhase === 'critical' ? 'CRIT' : heatPhase.toUpperCase()}
+<span className={`text-[10px] font-semibold capitalize ${c.label} opacity-80`}>
+{heatPhase}
 </span>
 
 </div>

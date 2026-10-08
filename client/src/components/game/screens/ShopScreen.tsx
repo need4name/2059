@@ -4,26 +4,26 @@ import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout } from '@/lib/stores/useLoadout';
 import { TIER1_WEAPONS, getUpgrade } from '@/lib/combat/weapons2059';
 import type { Weapon } from '@/lib/combat/types';
-import { Screen, Label, Btn, Chip } from '../hud';
+import { Screen, Card, Label, Btn, Chip, cx } from '../hud';
 import { rangeText } from '../itemText';
 
-const MAKER: Record<string, { label: string; tone: string }> = {
-  volkov: { label: 'Volkov', tone: 'text-red-400' },
-  tianxia: { label: 'Tianxia', tone: 'text-sys' },
-  cbn: { label: 'CBN', tone: 'text-emerald-400' },
-  ioa: { label: 'IOA', tone: 'text-orange-400' },
+const MAKER: Record<string, { tone: string; glow: string }> = {
+  volkov: { tone: 'text-rose-300', glow: 'from-rose-500/15' },
+  tianxia: { tone: 'text-sys', glow: 'from-cyan-400/15' },
+  cbn: { tone: 'text-emerald-300', glow: 'from-emerald-400/15' },
+  ioa: { tone: 'text-orange-300', glow: 'from-orange-400/15' },
 };
 
 function WeaponStats({ w }: { w: Weapon }) {
   const a = w.combatAction;
   return (
-    <div className="flex flex-wrap gap-1">
-      <Chip>{w.weaponType}</Chip>
-      <Chip tone="hostile">{a.damage} dmg</Chip>
-      {a.accuracy && <Chip tone={a.accuracy === 'precise' ? 'ok' : a.accuracy === 'unreliable' ? 'hostile' : 'cred'}>{a.accuracy}</Chip>}
+    <div className="flex flex-wrap gap-1.5">
+      <Chip className="capitalize">{w.weaponType}</Chip>
+      <Chip tone="hostile">{a.damage} damage</Chip>
+      {a.accuracy && <Chip tone={a.accuracy === 'precise' ? 'ok' : a.accuracy === 'unreliable' ? 'hostile' : 'cred'} className="capitalize">{a.accuracy}</Chip>}
       <Chip tone="structure">+{a.heatGenerated ?? 0} heat</Chip>
       <Chip>{rangeText(a)}</Chip>
-      {a.bypassStructuralDefense && <Chip tone="ok">Ignores S-DEF</Chip>}
+      {a.bypassStructuralDefense && <Chip tone="ok">Ignores shielding</Chip>}
     </div>
   );
 }
@@ -41,34 +41,35 @@ export function ShopScreen() {
   };
 
   return (
-    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Leave market</Btn>}>
-      <div className="space-y-5 px-4 pb-6 pt-6">
-        <header className="flex items-end justify-between gap-3">
+    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Leave the market</Btn>}>
+      <div className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-cred/10 blur-3xl" />
+      <div className="relative space-y-5 px-4 pb-6 pt-7">
+        <header className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <Label className="text-cred">Coastal settlement</Label>
-            <h1 className="font-display text-3xl font-semibold uppercase tracking-wide text-hud-text">Arms Market</h1>
-            <p className="text-xs text-hud-dim">One weapon can be carried at a time. It takes a loadout slot.</p>
+            <div className="text-sm font-semibold text-cred">Coastal settlement</div>
+            <h1 className="font-display text-3xl font-bold text-white">Arms Market</h1>
+            <p className="text-sm text-hud-dim">You can carry one weapon. It takes up a loadout slot.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap font-display text-2xl font-semibold tabular-nums text-cred">¤ {gold}</span>
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-cred/10 px-3 py-1 font-display text-lg font-semibold text-cred">¤ {gold}</span>
         </header>
 
         {assigning && (
-          <div className="rise-in space-y-2 border border-sys/50 bg-sys/5 p-3">
-            <div className="text-sm text-hud-text">Put <span className="text-sys">{assigning.name}</span> in a loadout slot:</div>
-            <div className="grid grid-cols-4 gap-1.5">
+          <Card className="rise-in space-y-3 p-4 ring-2 ring-sys/50">
+            <div className="text-sm text-hud-text">Which slot should <span className="font-semibold text-sys">{assigning.name}</span> go in?</div>
+            <div className="grid grid-cols-4 gap-2">
               {slots.map((s, i) => (
-                <button key={i} onClick={() => putInSlot(assigning, i)} className="flex h-14 flex-col items-center justify-center border border-hud-line bg-hud-raised px-1 hover:border-sys">
-                  <span className="font-mono text-[10px] text-hud-dim">Slot {i + 1}</span>
-                  <span className="w-full truncate text-center text-[11px] text-hud-text">{s?.name ?? 'Empty'}</span>
+                <button key={i} onClick={() => putInSlot(assigning, i)} className="flex h-16 flex-col items-center justify-center rounded-2xl bg-white/[0.05] px-1 transition hover:bg-sys/15">
+                  <span className="text-[11px] text-hud-dim">Slot {i + 1}</span>
+                  <span className="w-full truncate text-center text-xs font-semibold text-hud-text">{s?.name ?? 'Empty'}</span>
                 </button>
               ))}
             </div>
             <Btn size="sm" variant="ghost" onClick={() => setAssigning(null)}>Not now</Btn>
-          </div>
+          </Card>
         )}
 
         {ownedWeapons.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <Label>Your weapons</Label>
             {ownedWeapons.map(w => {
               const upgrade = getUpgrade(w.id);
@@ -76,15 +77,14 @@ export function ShopScreen() {
               const upCost = upgrade ? upgrade.upgradePrice ?? upgrade.price : 0;
               const isEquipped = equippedWeapon?.id === w.id;
               return (
-                <div key={w.id} className={`space-y-2 border p-3 ${isEquipped ? 'border-cred/50 bg-cred/5' : 'border-hud-line bg-hud-panel'}`}>
+                <div key={w.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1', MAKER[w.manufacturer]?.glow, isEquipped ? 'ring-cred/40' : 'ring-white/[0.05]')}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`font-display text-sm font-semibold uppercase tracking-wide ${MAKER[w.manufacturer]?.tone}`}>{w.name}</span>
-                    {isEquipped && <Chip tone="cred">Carried</Chip>}
+                    <span className={cx('font-display text-base font-semibold', MAKER[w.manufacturer]?.tone)}>{w.name}</span>
+                    {isEquipped && <Chip tone="cred">Carrying</Chip>}
                   </div>
                   <WeaponStats w={w} />
-                  <div className="flex flex-wrap gap-1.5">
-                    {!isEquipped && <Btn size="sm" onClick={() => setAssigning(w)}>Carry</Btn>}
-                    {isEquipped && <Btn size="sm" onClick={() => setAssigning(w)}>Change slot</Btn>}
+                  <div className="flex flex-wrap gap-2">
+                    <Btn size="sm" onClick={() => setAssigning(w)}>{isEquipped ? 'Change slot' : 'Carry this'}</Btn>
                     {canUpgrade && upgrade && (
                       <Btn size="sm" variant="gold" disabled={gold < upCost} onClick={() => upgradeWeapon(w.id, upgrade)}>
                         Upgrade · ¤{upCost}
@@ -98,20 +98,18 @@ export function ShopScreen() {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <Label>For sale</Label>
           {TIER1_WEAPONS.filter(w => !ownedWeapons.find(o => o.id === w.id || o.upgradeOfId === w.id)).map(w => {
             const affordable = gold >= w.price;
             return (
-              <div key={w.id} className="space-y-2 border border-hud-line bg-hud-panel p-3">
+              <div key={w.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1 ring-white/[0.05]', MAKER[w.manufacturer]?.glow)}>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className={`font-display text-sm font-semibold uppercase tracking-wide ${MAKER[w.manufacturer]?.tone}`}>{w.name}</div>
-                  </div>
-                  <span className={`font-display text-base font-semibold tabular-nums ${affordable ? 'text-cred' : 'text-hud-faint'}`}>¤{w.price}</span>
+                  <span className={cx('font-display text-base font-semibold', MAKER[w.manufacturer]?.tone)}>{w.name}</span>
+                  <span className={cx('shrink-0 font-display text-base font-semibold', affordable ? 'text-cred' : 'text-hud-faint')}>¤{w.price}</span>
                 </div>
                 <WeaponStats w={w} />
-                <p className="text-xs leading-relaxed text-hud-dim">{w.description}</p>
+                <p className="text-[13px] leading-relaxed text-hud-dim">{w.description}</p>
                 <Btn
                   size="sm"
                   variant={affordable ? 'gold' : 'secondary'}

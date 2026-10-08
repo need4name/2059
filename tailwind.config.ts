@@ -6,8 +6,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Chakra Petch"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
+        display: ['"Sora"', "system-ui", "sans-serif"],
+        sans: ['"Manrope"', "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -17,13 +17,13 @@ export default {
       colors: {
         // 2059 game palette
         hud: {
-          bg: "#06080c",
-          panel: "#0b1017",
-          raised: "#111923",
-          line: "#1c2735",
-          text: "#c9d4df",
-          dim: "#6f8092",
-          faint: "#3b4859",
+          bg: "#070a12",
+          panel: "#0f1522",
+          raised: "#161e2e",
+          line: "#232d40",
+          text: "#e2e8f2",
+          dim: "#8592a8",
+          faint: "#4b566b",
         },
         sys: "#38d6f0",
         cred: "#f2b33d",

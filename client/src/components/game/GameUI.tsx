@@ -32,7 +32,7 @@ export function GameUI() {
         <>
           <button
             onClick={() => setShowDebug(true)}
-            className="fixed left-2 top-2 z-40 border border-hostile/40 bg-hud-bg/90 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-hostile/80"
+            className="fixed bottom-28 left-3 z-40 rounded-full bg-hostile/15 px-2.5 py-1 text-[11px] font-semibold text-rose-300"
           >
             Dev
           </button>

@@ -81,7 +81,7 @@ export function drawDamageNumber(
 ) {
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.font = 'bold 24px monospace';
+  ctx.font = '800 24px Sora, sans-serif';
   ctx.fillStyle = '#ef4444';
   ctx.strokeStyle = '#1f2937';
   ctx.lineWidth = 3;
@@ -110,7 +110,7 @@ export function drawFloatingMessage(
   ctx.globalAlpha = alpha;
   
   const baseSize = type === 'victory' || type === 'defeat' ? 32 : 18;
-  ctx.font = `bold ${Math.floor(baseSize * scale)}px monospace`;
+  ctx.font = `700 ${Math.floor(baseSize * scale)}px Sora, sans-serif`;
   
   const colors: Record<FloatingMessageType, { fill: string; stroke: string }> = {
     info: { fill: '#3b82f6', stroke: '#1e3a5f' },

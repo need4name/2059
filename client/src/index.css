@@ -8,11 +8,12 @@
   }
 
   html, body {
-    background: #06080c;
+    background: #070a12;
   }
 
   body {
-    @apply font-mono antialiased text-hud-text;
+    @apply font-sans antialiased text-hud-text;
+    font-variant-numeric: tabular-nums;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -31,22 +32,23 @@
   margin: 0 auto;
   left: 50%;
   transform: translateX(-50%);
-  background: #06080c;
+  background: #070a12;
   overflow: hidden;
 }
 
 /* On wide screens, frame the game column so it doesn't float in empty space */
 @media (min-width: 560px) {
   #root {
-    border-left: 1px solid #1c2735;
-    border-right: 1px solid #1c2735;
-    box-shadow: 0 0 80px rgba(56, 214, 240, 0.05);
+    box-shadow: 0 0 120px rgba(56, 214, 240, 0.06);
   }
 }
 
-/* Faint scanlines used behind menus */
-.scanlines {
-  background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(120, 140, 160, 0.035) 3px 4px);
+/* Soft ambient glow used behind menus */
+.ambient {
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(56, 214, 240, 0.10), transparent 60%),
+    radial-gradient(90% 50% at 100% 110%, rgba(208, 112, 240, 0.08), transparent 60%),
+    radial-gradient(80% 40% at 0% 100%, rgba(242, 179, 61, 0.05), transparent 60%);
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -70,7 +72,6 @@ a:focus-visible,
 [role="button"]:focus-visible {
   outline: 2px solid #38d6f0;
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
 /* Accessibility: Respect reduced motion preference */

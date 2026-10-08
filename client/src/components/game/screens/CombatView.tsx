@@ -9,7 +9,7 @@ import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
-import { Btn, Chip, Meter, ConfirmDialog, Sheet } from '../hud';
+import { Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
 import { stimInfo } from '../itemText';
 
 const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
@@ -31,57 +31,57 @@ function CombatHud() {
   if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated · can\'t move' });
 
   return (
-    <div className="relative z-10 border-b border-hud-line bg-hud-bg/95 px-3 pb-2 pt-2" style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}>
+    <div className="relative z-10 rounded-b-3xl bg-hud-panel/95 px-4 pb-3 pt-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
       <div className="flex items-start gap-3">
         {/* Player */}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className={`font-display text-[11px] font-semibold uppercase tracking-[0.16em] ${s.playerMalfunctioning ? 'text-orange-300' : 'text-sys'}`}>You</span>
-            <span className="font-mono text-xs tabular-nums text-hud-text">{player.currentHp}<span className="text-hud-faint">/{player.maxHp}</span></span>
+            <span className={`font-display text-[13px] font-semibold ${s.playerMalfunctioning ? 'text-orange-300' : 'text-sys'}`}>You</span>
+            <span className="text-[13px] font-semibold text-hud-text">{player.currentHp}<span className="text-hud-faint">/{player.maxHp}</span></span>
           </div>
           <Meter value={player.currentHp} max={player.maxHp} tone="sys" className="h-2" />
           <div className="flex items-center gap-1.5">
             <Meter value={player.currentStructuralHp} max={player.maxStructuralHp} tone="structure" className="flex-1" />
-            <span className="font-mono text-[9px] tabular-nums text-hud-dim">STR {player.currentStructuralHp}</span>
+            <span className="text-[10px] text-hud-dim">Structure {player.currentStructuralHp}</span>
           </div>
         </div>
 
         {/* Centre */}
         <div className="flex shrink-0 flex-col items-center pt-0.5">
-          <span className="font-display text-sm font-semibold text-hud-text">LV {bossLevel}</span>
+          <span className="rounded-full bg-white/[0.07] px-2.5 py-0.5 font-display text-xs font-semibold text-hud-text">Threat {bossLevel}</span>
           {grid.arenaShape && grid.arenaShape !== 'open' && (
-            <span className="font-mono text-[9px] uppercase tracking-wider text-hud-faint">{grid.arenaShape.replace('_', '-')}</span>
+            <span className="mt-0.5 text-[10px] capitalize text-hud-faint">{grid.arenaShape.replace('_', '-')}</span>
           )}
-          <button onClick={toggleMute} className="mt-0.5 font-mono text-[10px] text-hud-faint hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
-            {isMuted ? '♪ off' : '♪ on'}
+          <button onClick={toggleMute} className="mt-1 text-sm text-hud-faint hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
+            {isMuted ? '🔇' : '🔊'}
           </button>
         </div>
 
         {/* Boss */}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-mono text-xs tabular-nums text-hud-text">{boss.currentHp}<span className="text-hud-faint">/{boss.maxHp}</span></span>
-            <span className="truncate font-display text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: boss.spriteColor }} title={boss.name}>{boss.name}</span>
+            <span className="text-[13px] font-semibold text-hud-text">{boss.currentHp}<span className="text-hud-faint">/{boss.maxHp}</span></span>
+            <span className="truncate font-display text-[13px] font-semibold" style={{ color: boss.spriteColor }} title={boss.name}>{boss.name}</span>
           </div>
           <Meter value={boss.currentHp} max={boss.maxHp} tone="hostile" className="h-2" align="right" />
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[9px] tabular-nums text-hud-dim">STR {boss.currentStructuralHp}</span>
+            <span className="text-[10px] text-hud-dim">Structure {boss.currentStructuralHp}</span>
             <Meter value={boss.currentStructuralHp} max={boss.maxStructuralHp} tone="structure" className="flex-1" align="right" />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[9px] tabular-nums text-hud-dim">HEAT {bossHeat}</span>
+            <span className="text-[10px] text-hud-dim">Heat {bossHeat}</span>
             <Meter value={bossHeat} max={100} tone={bossHeat >= 70 ? 'hostile' : 'cred'} className="h-1 flex-1" align="right" />
           </div>
         </div>
       </div>
 
       {chips.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
           {chips.map(c => <Chip key={c.key} tone={c.tone} pulse={c.pulse}>{c.text}</Chip>)}
         </div>
       )}
 
-      <div className="mt-1.5 h-8 overflow-hidden font-mono text-[10px] leading-4 text-hud-dim" aria-live="polite">
+      <div className="mt-2 h-9 overflow-hidden rounded-xl bg-black/20 px-3 py-1 text-[11px] leading-[14px] text-hud-dim" aria-live="polite">
         {recent.length === 0 && <div className="text-hud-faint">› Engagement started. Close in or hold position.</div>}
         {recent.map((l, i) => (
           <div key={l.id} className={`truncate ${i === recent.length - 1 ? 'text-hud-text' : ''} ${l.type === 'critical' ? 'text-cred' : l.type === 'malfunction' ? 'text-orange-300' : ''}`}>
@@ -116,19 +116,18 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       onClick={() => setSelectedAction(selected ? null : action)}
       disabled={phase !== 'player_turn' || inputLocked}
       aria-pressed={selected}
-      className={`relative flex min-h-[72px] flex-col items-center justify-center gap-0.5 border px-1 pb-1.5 pt-3 text-center transition-colors disabled:opacity-50 ${
-        selected ? 'border-sys bg-sys/15' : 'border-hud-line bg-hud-raised hover:border-hud-dim'
-      }`}
+      className={cx('relative flex min-h-[76px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-2 pt-3.5 text-center transition disabled:opacity-50',
+        selected ? 'bg-sys/15 ring-2 ring-sys/80 shadow-[0_0_20px_rgba(56,214,240,0.25)]' : 'bg-white/[0.06] hover:bg-white/[0.1]')}
     >
-      <span className={`w-full truncate font-display text-[12px] font-semibold uppercase tracking-wide ${tone}`}>{action.name}</span>
-      {getMechanicTag(action) && <span className="font-mono text-[9px] uppercase tracking-wider text-hud-faint">{getMechanicTag(action)}</span>}
-      <span className="flex flex-wrap items-center justify-center gap-x-1.5 font-mono text-[10px] tabular-nums">
+      <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
+      {getMechanicTag(action) && <span className="text-[10px] capitalize text-hud-faint">{getMechanicTag(action)!.toLowerCase()}</span>}
+      <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">
         {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}</span>}
-        {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} grd</span> : null}
+        {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} guard</span> : null}
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
-        {crit > 0 && inRange && <span className="text-cred">{crit}%c</span>}
+        {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
       </span>
-      {isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-hud-line font-mono text-[8px] uppercase leading-3 tracking-wider text-hud-dim">out of range</span>}
+      {isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Out of range</span>}
     </button>
   );
 }
@@ -143,14 +142,14 @@ function ActionBar() {
   const myTurn = phase === 'player_turn' && !inputLocked;
 
   return (
-    <div className="relative z-10 border-t border-hud-line bg-hud-bg/95 px-3 pt-2.5" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-      <div className="grid grid-cols-4 gap-1.5">
+    <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+      <div className="grid grid-cols-4 gap-2">
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
-          <div key={`empty-${i}`} className="flex min-h-[72px] items-center justify-center border border-dashed border-hud-line font-mono text-[10px] uppercase tracking-wider text-hud-faint">Empty</div>
+          <div key={`empty-${i}`} className="flex min-h-[76px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
         ))}
       </div>
 
-      <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <Btn size="sm" disabled={!myTurn || stims.length === 0} onClick={() => setBag(true)}>
           Stims{stims.length ? ` · ${stims.length}` : ''}
         </Btn>
@@ -161,14 +160,14 @@ function ActionBar() {
       <Btn
         variant={myTurn ? 'primary' : 'secondary'}
         size="lg"
-        className="mt-1.5 w-full"
+        className="mt-2 w-full"
         disabled={!myTurn}
         onClick={endTurn}
       >
         {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
       </Btn>
       {myTurn && !selectedAction && (
-        <p className="mt-1.5 text-center font-mono text-[10px] text-hud-faint">Tap a lit tile to move, pick an action, then execute.</p>
+        <p className="mt-2 text-center text-[11px] text-hud-faint">Tap a lit tile to move, pick an action, then execute.</p>
       )}
 
       <Sheet open={bag} title="Stims" onClose={() => setBag(false)}>
@@ -183,11 +182,11 @@ function ActionBar() {
                 key={item.id}
                 disabled={disabled}
                 onClick={() => { useConsumableItem(item.id); setBag(false); }}
-                className="flex flex-col items-center gap-1 border border-hud-line bg-hud-raised p-3 transition-colors hover:border-sys disabled:opacity-40"
+                className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.05] p-3.5 transition hover:bg-sys/10 disabled:opacity-40"
               >
                 <span className="text-2xl">{info.icon}</span>
-                <span className="text-xs text-hud-text">{info.label}</span>
-                <span className="font-mono text-[10px] text-ok">{info.effect}</span>
+                <span className="text-[13px] font-semibold text-hud-text">{info.label}</span>
+                <span className="text-[11px] text-ok">{info.effect}</span>
               </button>
             );
           })}

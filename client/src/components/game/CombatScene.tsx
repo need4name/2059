@@ -32,6 +32,18 @@ targetable.add(`${row},${col}`);
 return targetable;
 }
 
+// Rounded rectangle path for the softer tile look
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+const rr = Math.min(r, w / 2, h / 2);
+ctx.beginPath();
+ctx.moveTo(x + rr, y);
+ctx.arcTo(x + w, y, x + w, y + h, rr);
+ctx.arcTo(x + w, y + h, x, y + h, rr);
+ctx.arcTo(x, y + h, x, y, rr);
+ctx.arcTo(x, y, x + w, y, rr);
+ctx.closePath();
+}
+
 interface DamageEffect {
 id: string;
 damage: number;
@@ -603,12 +615,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     if (!currentAttackPattern) return { fill: '#c04030', stroke: '#ff5040' };
     const p = currentAttackPattern;
     if (p === 'melee' || p === 'aoe' || p === 'sweep_arc')
-      return { fill: '#a06010', stroke: '#ffaa00' };  // amber
+      return { fill: 'rgba(214,138,24,0.55)', stroke: '#ffb43a' };  // amber
     if (p === 'diagonal_cross')
-      return { fill: '#107070', stroke: '#00ffee' };  // teal
+      return { fill: 'rgba(16,140,140,0.55)', stroke: '#3ff2e6' };  // teal
     if (p === 'lunge' || p === 'charge' || p === 'knockback')
-      return { fill: '#6020a0', stroke: '#cc44ff' };  // purple
-    return { fill: '#901010', stroke: '#ff3030' };     // red (ranged/line)
+      return { fill: 'rgba(120,50,190,0.55)', stroke: '#d070ff' };  // purple
+    return { fill: 'rgba(170,40,40,0.55)', stroke: '#ff6060' };     // red (ranged/line)
   };
   const attackColors = getAttackColor();
 
@@ -618,7 +630,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   } else if (isInAttackRange) {
     ctx.fillStyle = attackColors.fill;
   } else if (isInEnemyRange && !isBossTile) {
-    ctx.fillStyle = '#5a1a1a'; // danger red tint - boss can reach this tile
+    ctx.fillStyle = 'rgba(120,30,40,0.6)'; // danger red tint - boss can reach this tile
   } else if (isPlayerTile) {
     ctx.fillStyle = '#7a7a5a';
   } else if (isBossTile) {
@@ -628,40 +640,45 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fillStyle = isOdd ? '#6a6050' : '#5a5040';
   }
 
-  ctx.fillRect(pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH);
+  const gap = Math.max(2, tileW * 0.04);
+  const radius = tileW * 0.16;
+  roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
+  ctx.fill();
 
   // Tile border - vivid glow on attack range tiles
   if (isInAttackRange) {
     ctx.strokeStyle = attackColors.stroke;
-    ctx.lineWidth = 3;
-  } else if (isHovered) {
-    ctx.strokeStyle = '#a89050';
-    ctx.lineWidth = 3;
-  } else if (isInEnemyRange) {
-    ctx.strokeStyle = '#cc2222'; // vivid red border for enemy reach
     ctx.lineWidth = 2;
+  } else if (isHovered) {
+    ctx.strokeStyle = '#d8c89a';
+    ctx.lineWidth = 2;
+  } else if (isInEnemyRange) {
+    ctx.strokeStyle = 'rgba(240,82,79,0.7)'; // red border for enemy reach
+    ctx.lineWidth = 1.5;
   } else {
-    ctx.strokeStyle = '#4a4030';
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
     ctx.lineWidth = 1;
   }
-  ctx.strokeRect(pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH);
+  ctx.stroke();
 
   // Charged heavy attack danger zone
   if (heavyZone?.has(`${row},${col}`)) {
     ctx.globalAlpha = 0.35 * pulse + 0.15;
     ctx.fillStyle = '#ff7a00';
-    ctx.fillRect(pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH);
+    roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
+    ctx.fill();
     ctx.globalAlpha = 1;
     ctx.strokeStyle = '#ffb347';
     ctx.lineWidth = 2;
-    ctx.strokeRect(pos.x - tileW / 2 + 2, pos.y - tileH / 2 + 2, tileW - 4, tileH - 4);
+    ctx.stroke();
   }
 
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
     ctx.strokeStyle = 'rgba(56, 214, 240, 0.85)';
     ctx.lineWidth = 2;
-    ctx.strokeRect(pos.x - tileW / 2 + 3, pos.y - tileH / 2 + 3, tileW - 6, tileH - 6);
+    roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
+    ctx.stroke();
     ctx.fillStyle = 'rgba(56, 214, 240, 0.55)';
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
@@ -672,10 +689,10 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (isInAttackRange && currentAttackPattern && tileW > 40) {
     ctx.fillStyle = attackColors.stroke;
     ctx.globalAlpha = 0.7;
-    ctx.font = `bold ${Math.floor(tileW * 0.18)}px monospace`;
+    ctx.font = `700 ${Math.floor(tileW * 0.16)}px Manrope, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    const label = currentAttackPattern.replace('_', ' ').toUpperCase().slice(0, 6);
+    const label = currentAttackPattern.replace('_', ' ').slice(0, 7);
     ctx.fillText(label, pos.x, pos.y + tileH * 0.45);
     ctx.globalAlpha = 1.0;
   }
@@ -683,10 +700,14 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   // Draw obstacles and hazards with simple markers
   const tile = grid.tiles?.[row]?.[col];
   if (tile?.type === 'obstacle') {
-    // Draw red X for obstacles
-    ctx.strokeStyle = '#ff3333';
-    ctx.lineWidth = 4;
-    const margin = tileW * 0.2;
+    // Obstacle: a dark block with a soft X
+    roundRectPath(ctx, pos.x - tileW / 2 + gap * 2, pos.y - tileH / 2 + gap * 2, tileW - gap * 4, tileH - gap * 4, radius);
+    ctx.fillStyle = 'rgba(20,24,32,0.75)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,110,110,0.75)';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 3;
+    const margin = tileW * 0.32;
     ctx.beginPath();
     ctx.moveTo(pos.x - tileW/2 + margin, pos.y - tileH/2 + margin);
     ctx.lineTo(pos.x + tileW/2 - margin, pos.y + tileH/2 - margin);
@@ -704,12 +725,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fill();
     // Exclamation mark
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 12px monospace';
+    ctx.font = '800 12px Manrope, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('!', pos.x, pos.y);
     ctx.fillStyle = '#ffb066';
-    ctx.font = `bold ${Math.max(9, Math.floor(tileW * 0.16))}px monospace`;
+    ctx.font = `700 ${Math.max(9, Math.floor(tileW * 0.16))}px Manrope, sans-serif`;
     ctx.textBaseline = 'bottom';
     ctx.fillText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
   }
@@ -853,7 +874,7 @@ if (reachableTiles && phase === 'player_turn') {
 const bossKey = `${grid.bossPosition.row},${grid.bossPosition.col}`;
 const inRange = reachableTiles.has(bossKey);
 
-ctx.font = 'bold 13px "JetBrains Mono", monospace';
+ctx.font = '700 13px Manrope, sans-serif';
 ctx.textAlign = 'center';
 
 if (inRange) {
@@ -861,17 +882,17 @@ if (inRange) {
   ctx.fillStyle = '#22c55e';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 3;
-  const tx = Math.min(width - ctx.measureText('[TARGET]').width / 2 - 4, bossPos.x);
-  ctx.strokeText('[TARGET]', tx, bossPos.y - tileH * 0.8);
-  ctx.fillText('[TARGET]', tx, bossPos.y - tileH * 0.8);
+  const tx = Math.min(width - ctx.measureText('In range').width / 2 - 4, bossPos.x);
+  ctx.strokeText('In range', tx, bossPos.y - tileH * 0.8);
+  ctx.fillText('In range', tx, bossPos.y - tileH * 0.8);
 } else {
   // Red "OUT OF RANGE" indicator
   ctx.fillStyle = '#ef4444';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 3;
-  const ox = Math.min(width - ctx.measureText('[OUT OF RANGE]').width / 2 - 4, bossPos.x);
-  ctx.strokeText('[OUT OF RANGE]', ox, bossPos.y - tileH * 0.8);
-  ctx.fillText('[OUT OF RANGE]', ox, bossPos.y - tileH * 0.8);
+  const ox = Math.min(width - ctx.measureText('Out of range').width / 2 - 4, bossPos.x);
+  ctx.strokeText('Out of range', ox, bossPos.y - tileH * 0.8);
+  ctx.fillText('Out of range', ox, bossPos.y - tileH * 0.8);
 }
 
 }
