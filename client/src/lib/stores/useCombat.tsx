@@ -6,7 +6,7 @@ PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
 getHeatMultipliers, getFlankBonus,
 } from '../combat/types';
 import {
-createPlayer, createBoss, calculateDamage,
+createPlayer, createBoss, createPatchworkKing, calculateDamage, scaleBossAction,
 getBossStartingHeat, createCombatLog, CLASS_DEFINITIONS, BOSS_ATTACKS,
 getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
@@ -109,6 +109,12 @@ addLog: (log: CombatLog) => void;
 toggleDebugMode: () => void;
 gainXp: (xp: number) => { levelsGained: number };
 }
+
+// Fallback for bosses whose moves can't reach an adjacent player
+const CLOSE_QUARTERS: CombatAction = {
+type: 'attack', name: 'Close-Quarters Strike', description: '', damage: 12,
+accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 3, heatGenerated: 6, attackPattern: 'melee',
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -269,15 +275,19 @@ const dist = chebyshev(grid.bossPosition, grid.playerPosition);
 const filtered = roster.filter(a => {
 // Heavy attacks punish a player who runs hot
 if (a.isHeavy && playerHeat < 45) return false;
-// Shields only make sense when the boss has taken a beating or can't reach
-if (a.type === 'defend' && boss.currentHp > boss.maxHp * 0.6 && dist <= 3) return false;
+// Shields only come out when the boss is hurt, and not every time
+if (a.type === 'defend' && (boss.currentHp > boss.maxHp * 0.5 || Math.random() > 0.35)) return false;
 const pat = a.attackPattern;
 if (!pat) return true;
 if ((pat === 'charge' || pat === 'lunge') && dist < 2) return false;
 if ((pat === 'sweep_arc' || pat === 'melee') && dist > 2) return false;
 return true;
 });
-const pool = filtered.length ? filtered : roster.filter(a => a.type === 'attack');
+let pool = filtered.length ? filtered : roster.filter(a => a.type === 'attack');
+// Point blank with nothing that reaches: lash out instead of backing away
+if (dist <= 1 && !pool.some(a => a.type === 'defend' || a.isHeavy || canHitTarget(grid.bossPosition, grid.playerPosition, a.attackPattern ?? 'melee_long', grid))) {
+pool = [CLOSE_QUARTERS];
+}
 return pool[Math.floor(Math.random() * pool.length)];
 };
 
@@ -297,11 +307,7 @@ const { playerClass } = get();
 const { player, moveRange } = buildPlayer(playerClass);
 const isKing = !farm && level === 10;
 const base = createBoss(level);
-const boss = isKing
-? { ...base, name: 'Patchwork King', spriteColor: '#fbbf24',
-maxHp: 120, currentHp: 120, maxStructuralHp: 80, currentStructuralHp: 80,
-physicalAttack: 22, structuralAttack: 10, physicalDefense: 10, structuralDefense: 8 }
-: base;
+const boss = isKing ? createPatchworkKing() : base;
 const grid = generateBattlefield(level);
 set({
 ...freshFightState(grid),
@@ -606,7 +612,8 @@ return;
 }
 
 // Boss heat does NOT scale boss damage -- heat is a player-side tactic.
-const dmg = calculateDamage(boss, player, bossAction, playerDefenseBoost, 1.0, 0, chebyshev(grid.playerPosition, grid.bossPosition), bossMalfunctioning);
+const level = get().farmLevel ?? get().bossLevel;
+const dmg = calculateDamage(boss, player, scaleBossAction(bossAction, level), playerDefenseBoost, 1.0, 0, chebyshev(grid.playerPosition, grid.bossPosition), bossMalfunctioning);
 const newPlayerHp = Math.max(0, player.currentHp - dmg.bioDamage);
 const newPlayerStructuralHp = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
 const playerBecomesMalfunctioning = player.currentStructuralHp > 0 && newPlayerStructuralHp <= 0;

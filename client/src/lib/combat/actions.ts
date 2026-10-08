@@ -113,6 +113,24 @@ accuracy: 'precise',
 
 // ── Damage calculation ────────────────────────────────────────────────────────
 
+// Defence reduces damage by a percentage instead of subtracting from it, so stacking
+// defence makes you tougher without ever making an attacker useless.
+// At DEFENSE_K defence a hit is halved.
+export const DEFENSE_K = 40;
+export function mitigate(base: number, defense: number): number {
+return base * DEFENSE_K / (DEFENSE_K + Math.max(0, defense));
+}
+
+// Boss growth per threat level. Players gain a lot from implants and upgrade
+// trees, so bosses have to keep pace or fights stop mattering by level 5.
+export const BOSS_SCALING = { hpBase: 36, hpPerLevel: 17, hpQuadratic: 0.6, atkPerLevel: 3.6, defPerLevel: 1.5, moveDamagePerLevel: 0.19 };
+
+/** A boss move's base damage grows with threat level so late hits still matter. */
+export function scaleBossAction(action: CombatAction, level: number): CombatAction {
+if (!action.damage) return action;
+return { ...action, damage: Math.round(action.damage * (1 + BOSS_SCALING.moveDamagePerLevel * (level - 1))) };
+}
+
 export interface DamageResult {
 damage: number;
 bioDamage: number;
@@ -146,8 +164,8 @@ const baseStr  = Math.floor((action.damage || 0) * strRatio)  + attacker.structu
 const totalPhysDef = defender.physicalDefense  + defenseBoost;
 const totalStrDef  = (bypassStructuralDefense || action.bypassStructuralDefense) ? 0 : defender.structuralDefense;
 
-let physDamage = Math.max(2, basePhys - totalPhysDef);
-let strDamage  = Math.max(0, baseStr  - totalStrDef);
+let physDamage = Math.max(2, Math.floor(mitigate(basePhys, totalPhysDef)));
+let strDamage  = Math.max(0, Math.floor(mitigate(baseStr, totalStrDef)));
 
 // Flanking bonus applies to both channels
 const isFlank = flankBonus > 0;
@@ -205,8 +223,8 @@ const physRatio = action.physicalRatio ?? 0.7;
 const basePhys = Math.floor((action.damage || 0) * physRatio) + attacker.physicalAttack;
 const baseStr  = Math.floor((action.damage || 0) * (1 - physRatio)) + attacker.structuralAttack;
 const strDef = (opts.bypassStructuralDefense || action.bypassStructuralDefense) ? 0 : defender.structuralDefense;
-let phys = Math.max(2, basePhys - (defender.physicalDefense + (opts.defenseBoost ?? 0)));
-let str  = Math.max(0, baseStr - strDef);
+let phys = Math.max(2, Math.floor(mitigate(basePhys, defender.physicalDefense + (opts.defenseBoost ?? 0))));
+let str  = Math.max(0, Math.floor(mitigate(baseStr, strDef)));
 const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
 * (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
 phys = Math.floor(phys * mult); str = Math.floor(str * mult);
@@ -303,10 +321,24 @@ export const BOSS_DOSSIERS: Record<string, string> = {
 };
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
+// The Patchwork King is a wall: a level-10 boss with these multipliers.
+export const KING_MULT = { hp: 1.7, atk: 1.45, def: 1.25 };
+
+export function createPatchworkKing(): Character {
+const base = createBoss(10);
+const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
+const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24',
+maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
+physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
+physicalDefense: pDef, structuralDefense: sDef };
+}
+
 export function getBossPreview(level: number): { name: string; color: string; hp: number } {
-if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: 120 };
+if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(Math.floor(BOSS_SCALING.hpBase + 10 * BOSS_SCALING.hpPerLevel + 100 * BOSS_SCALING.hpQuadratic) * KING_MULT.hp) };
 const t = BOSS_TYPES[(level - 1) % BOSS_TYPES.length];
-return { name: t.name, color: t.color, hp: 30 + level * 15 };
+const S = BOSS_SCALING;
+return { name: t.name, color: t.color, hp: Math.floor(S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) };
 }
 
 // Stat profiles: [pAtk, sAtk, pDef, sDef] - Patchwork are heavily modified
@@ -325,11 +357,12 @@ const BOSS_STAT_PROFILES: Record<string, { pAtkR: number; sAtkR: number; pDefR: 
 
 export function createBoss(level: number = 1): Character {
 const bossType = BOSS_TYPES[(level - 1) % BOSS_TYPES.length];
-const bossHp      = 30 + (level * 15);
+const S = BOSS_SCALING;
+const bossHp      = Math.floor(S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic);
 // Scaling: 1.1/lvl for ATK, 0.5/lvl for DEF keeps early fights fair.
 // Boss identity (base stats) matters more than raw level scaling through level 8.
-const totalAtk    = bossType.baseAttack  + Math.floor((level - 1) * 1.1);
-const totalDef    = bossType.baseDefense + Math.floor((level - 1) * 0.5);
+const totalAtk    = bossType.baseAttack  + Math.floor((level - 1) * S.atkPerLevel);
+const totalDef    = bossType.baseDefense + Math.floor((level - 1) * S.defPerLevel);
 
 const profile = BOSS_STAT_PROFILES[bossType.name] ?? { pAtkR: 0.6, sAtkR: 0.4, pDefR: 0.6, sDefR: 0.4 };
 

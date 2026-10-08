@@ -98,7 +98,10 @@ const availableHeight = canvasHeight - topReserved - bottomReserved;
 
 // Calculate tile size to fit available space
 // Fit based on whichever dimension is more constraining
-const maxTileSizeByWidth = (canvasWidth * 0.90) / grid.cols;
+// Keep clear of the heat gauge on the left edge
+const leftReserved = 46;
+const rightReserved = 10;
+const maxTileSizeByWidth = (canvasWidth - leftReserved - rightReserved) / grid.cols;
 const maxTileSizeByHeight = availableHeight / grid.rows;
 const tileSize = Math.min(78, maxTileSizeByWidth, maxTileSizeByHeight);
 const tileW = tileSize;
@@ -107,7 +110,7 @@ const tileH = tileSize;
 // Center the grid horizontally and vertically within available space
 const gridWidth = grid.cols * tileW;
 const gridHeight = grid.rows * tileH;
-const offsetX = (canvasWidth - gridWidth) / 2;
+const offsetX = leftReserved + (canvasWidth - leftReserved - rightReserved - gridWidth) / 2;
 
 // Vertically center within the available middle space
 const middleStart = topReserved;
@@ -858,15 +861,17 @@ if (inRange) {
   ctx.fillStyle = '#22c55e';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 3;
-  ctx.strokeText('[TARGET]', bossPos.x, bossPos.y - tileH * 0.8);
-  ctx.fillText('[TARGET]', bossPos.x, bossPos.y - tileH * 0.8);
+  const tx = Math.min(width - ctx.measureText('[TARGET]').width / 2 - 4, bossPos.x);
+  ctx.strokeText('[TARGET]', tx, bossPos.y - tileH * 0.8);
+  ctx.fillText('[TARGET]', tx, bossPos.y - tileH * 0.8);
 } else {
   // Red "OUT OF RANGE" indicator
   ctx.fillStyle = '#ef4444';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 3;
-  ctx.strokeText('[OUT OF RANGE]', bossPos.x, bossPos.y - tileH * 0.8);
-  ctx.fillText('[OUT OF RANGE]', bossPos.x, bossPos.y - tileH * 0.8);
+  const ox = Math.min(width - ctx.measureText('[OUT OF RANGE]').width / 2 - 4, bossPos.x);
+  ctx.strokeText('[OUT OF RANGE]', ox, bossPos.y - tileH * 0.8);
+  ctx.fillText('[OUT OF RANGE]', ox, bossPos.y - tileH * 0.8);
 }
 
 }

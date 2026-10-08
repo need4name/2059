@@ -84,7 +84,7 @@ const dropChance = bossLevel === 1 ? 1.00  // always drop - first fight tutorial
 
 const shouldDrop = Math.random() < dropChance;
 if (!shouldDrop) {
-const baseGold = 50 * bossLevel;
+const baseGold = 20 + 15 * bossLevel;
 return { items: [], gold: baseGold + Math.floor(Math.random() * baseGold) };
 }
 
@@ -122,7 +122,7 @@ if (stim) items.push(instancedItem(stim));
 }
 }
 
-const baseGold = 50 * bossLevel;
+const baseGold = 20 + 15 * bossLevel;
 const gold = baseGold + Math.floor(Math.random() * baseGold);
 
 return { items, gold };
@@ -147,7 +147,7 @@ if (bonus) items.push(instancedItem(bonus));
 // Always drop a stim
 const stim = STIM_POOL[Math.floor(Math.random() * STIM_POOL.length)];
 if (stim) items.push(instancedItem(stim));
-const gold = 400 + Math.floor(Math.random() * 200);
+const gold = 300 + Math.floor(Math.random() * 100);
 return { items, gold };
 }
 
