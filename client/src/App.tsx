@@ -1,24 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCombat } from "./lib/stores/useCombat";
-import { CombatScene } from "./components/game/CombatScene";
+import { useAudio } from "./lib/stores/useAudio";
 import { GameUI } from "./components/game/GameUI";
-import "@fontsource/inter";
+import { TitleScreen } from "./components/game/screens/TitleScreen";
 
 function App() {
-  const { phase } = useCombat();
+  const [onTitle, setOnTitle] = useState(true);
+  const initAudio = useAudio(s => s.init);
 
-  // Log phase changes for debugging
-  useEffect(() => {
-    console.log('Combat phase:', phase);
-  }, [phase]);
+  useEffect(() => { initAudio(); }, [initAudio]);
+
+  const newGame = () => {
+    const s = useCombat.getState();
+    s.resetAll();
+    s.completeIntro();
+    setOnTitle(false);
+    s.startCombat();
+  };
 
   return (
-    <div className="w-screen h-screen relative overflow-hidden bg-gray-950">
-      {/* Combat Scene (Canvas) */}
-      {(phase === 'player_turn' || phase === 'enemy_turn') && <CombatScene />}
-      
-      {/* Game UI Overlay */}
-      <GameUI />
+    <div className="relative h-full w-full overflow-hidden bg-hud-bg">
+      {onTitle ? <TitleScreen onContinue={() => setOnTitle(false)} onNewGame={newGame} /> : <GameUI />}
     </div>
   );
 }

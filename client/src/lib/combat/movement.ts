@@ -23,7 +23,7 @@ if (!isWithinBounds(position, grid)) return true;
 if (!grid.tiles) return false;
 
 const tile = grid.tiles[position.row]?.[position.col];
-return tile?.type === 'obstacle';
+return tile?.type === 'obstacle' || tile?.type === 'void';
 }
 
 export function isTileHazard(position: TilePosition, grid: CombatGrid): boolean {

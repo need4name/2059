@@ -7,8 +7,12 @@
     @apply border-border;
   }
 
+  html, body {
+    background: #06080c;
+  }
+
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-mono antialiased text-hud-text;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -23,11 +27,36 @@
   height: 100%;
   height: 100dvh;
   position: fixed;
-  max-width: 600px;
+  max-width: 520px;
   margin: 0 auto;
   left: 50%;
   transform: translateX(-50%);
+  background: #06080c;
+  overflow: hidden;
 }
+
+/* On wide screens, frame the game column so it doesn't float in empty space */
+@media (min-width: 560px) {
+  #root {
+    border-left: 1px solid #1c2735;
+    border-right: 1px solid #1c2735;
+    box-shadow: 0 0 80px rgba(56, 214, 240, 0.05);
+  }
+}
+
+/* Faint scanlines used behind menus */
+.scanlines {
+  background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(120, 140, 160, 0.035) 3px 4px);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in { animation: rise-in 0.35s ease-out both; }
 
 canvas {
   width: 100% !important;
@@ -39,7 +68,7 @@ canvas {
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible {
-  outline: 3px solid #b8860b;
+  outline: 2px solid #38d6f0;
   outline-offset: 2px;
   border-radius: 4px;
 }

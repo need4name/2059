@@ -1,21 +1,43 @@
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
 import {
 Character, CombatPhase, CombatAction, CombatLog, LootDrop,
-PlayerClass, CombatGrid, TilePosition, TileData,
+PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
 getHeatMultipliers, getFlankBonus,
 } from '../combat/types';
 import {
 createPlayer, createBoss, calculateDamage,
-getBossAction, getBossStartingHeat, PLAYER_ACTIONS, createCombatLog, CLASS_DEFINITIONS,
+getBossStartingHeat, createCombatLog, CLASS_DEFINITIONS, BOSS_ATTACKS,
 getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { useInventory } from './useInventory';
+import { useLoadout } from './useLoadout';
+import { useAudio } from './useAudio';
 import { canHitTarget } from '../combat/patterns';
-import { isValidMove, isTileOccupied, isWithinBounds, isTileBlocked } from '../combat/movement';
+import {
+generateBattlefield, emptyGrid, getReachableTiles, stepTowardAttackPosition,
+hazardDamageAt, chebyshev, tileAt,
+} from '../combat/grid';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
+
+// Fights after which the Arms Market opens
+export const SHOP_LEVELS = [10, 14, 18];
+// Dying on this level or higher (while unclassified) unlocks class choice for good
+export const CLASS_UNLOCK_LEVEL = 11;
+
+// Pacing (ms)
+const ENEMY_TURN_DELAY = 700;
+const ENEMY_STEP_DELAY = 550;
+const TURN_HANDOFF_DELAY = 600;
+
+export interface VictorySummary {
+gold: number;
+xp: number;
+levelsGained: number;
+pointsGained: number;
+}
 
 interface CombatState {
 phase: CombatPhase;
@@ -25,10 +47,12 @@ combatLog: CombatLog[];
 playerDefenseBoost: number;
 bossDefenseBoost: number;
 currentLoot: LootDrop | null;
+lastVictory: VictorySummary | null;
+pendingShop: boolean;
 bossLevel: number;
 farmLevel: number | null;
 playerClass: PlayerClass;
-classLocked: boolean;
+classesUnlocked: boolean;
 introCompleted: boolean;
 grid: CombatGrid;
 debugMode: boolean;
@@ -37,24 +61,31 @@ originalPosition: TilePosition | null;
 selectedMovement: TilePosition | null;
 selectedAction: CombatAction | null;
 hasMoved: boolean;
+playerMoveRange: number;
+
+// Turn control: fightId changes whenever a fight starts or ends so stale timers
+// can tell they belong to a finished fight; inputLocked blocks repeat input
+// while an action resolves.
+fightId: number;
+inputLocked: boolean;
 
 // Heat system
-playerHeat: number;                        // 0-100, player starts each fight at 50
-bossHeat: number;                          // 0-100, enemy heat tracked independently
-doubleActionReady: boolean;                // true when player heat <= 15 at start of turn
-bossChargingHeavy: boolean;                // enemy tell - true = warn player this turn
-pendingBossAction: CombatAction | null;    // the telegraphed heavy attack to fire next turn
+playerHeat: number;
+bossHeat: number;
+doubleActionReady: boolean;
+bossChargingHeavy: boolean;
+pendingBossAction: CombatAction | null;
 
 // Structural / malfunction
-playerMalfunctioning: boolean;             // true when player structural HP = 0
-bossMalfunctioning: boolean;               // true when boss structural HP = 0
+playerMalfunctioning: boolean;
+bossMalfunctioning: boolean;
 
 // Consumable effects
-overclockActive: boolean;                  // next attack is guaranteed crit
-kizunaJustFired: boolean;                  // true for one turn after Kizuna passive triggers
+overclockActive: boolean;
+kizunaJustFired: boolean;
 
 // Patchwork King scripted fight
-patchworkKingTurn: number;                 // tracks which phase/action in the scripted sequence
+patchworkKingTurn: number;
 
 setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
@@ -64,186 +95,228 @@ moveTentatively: (position: TilePosition) => void;
 undoMove: () => void;
 setSelectedMovement: (position: TilePosition | null) => void;
 setSelectedAction: (action: CombatAction | null) => void;
-confirmMove: (position?: TilePosition) => boolean;
 endTurn: () => void;
 useConsumableItem: (itemId: string) => void;
 enemyTurn: () => void;
-getBestEnemyMove: () => TilePosition | null;
-executeEnemyAttack: (action?: CombatAction) => void;
+executeEnemyAttack: (action: CombatAction) => void;
 resetCombat: () => void;
 resetAll: () => void;
 rebirth: (newClass?: PlayerClass) => void;
+continueFromVictory: () => void;
 leaveShop: () => void;
+completeIntro: () => void;
 addLog: (log: CombatLog) => void;
 toggleDebugMode: () => void;
-gainXp: (xp: number) => void;
-getTotalSkillBonus: () => Record<string, number>;
+gainXp: (xp: number) => { levelsGained: number };
 }
 
-// ── Tile helpers ──────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const OBSTACLE_TYPES = [
-{ icon: '🧱', name: 'Debris' },
-{ icon: '📦', name: 'Crate' },
-{ icon: '🛢️', name: 'Barrel' },
-{ icon: '⚡', name: 'Generator' },
-];
-
-const HAZARD_TYPES = [
-{ icon: '☢️', name: 'Toxic Pool', damage: 5 },
-{ icon: '🔥', name: 'Fire',       damage: 8 },
-{ icon: '⚡', name: 'Live Wire',  damage: 6 },
-];
-
-function createEmptyTile(): TileData    { return { type: 'empty' }; }
-function createObstacleTile(): TileData {
-const o = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
-return { type: 'obstacle', icon: o.icon, name: o.name };
-}
-function createHazardTile(): TileData {
-const h = HAZARD_TYPES[Math.floor(Math.random() * HAZARD_TYPES.length)];
-return { type: 'hazard', icon: h.icon, name: h.name, hazardDamage: h.damage };
-}
-
-function generateGridSize(bossLevel: number) {
-const progress = Math.min((bossLevel - 1) / 49, 1);
-const cols = Math.min(7, Math.max(4, Math.floor(4 + Math.random() * (0.3 + progress * 0.7) * 4)));
-const rows = Math.min(5, Math.max(3, Math.floor(3 + Math.random() * (0.2 + progress * 0.8) * 3)));
-return { rows, cols };
-}
-
-// ── Arena shape masks ──────────────────────────────────────────────────────
-// Returns set of 'row,col' keys that should be void (impassable, invisible)
-function getVoidMask(shape: 'open' | 'corridor' | 'l_shape' | 'cross', rows: number, cols: number): Set<string> {
-const voids = new Set<string>();
-if (shape === 'corridor') {
-// One row wide in the middle - top and bottom rows cut
-// Keep only the middle row (or middle 2 if rows >= 4)
-const keepMin = Math.floor(rows / 2) - (rows >= 4 ? 1 : 0);
-const keepMax = Math.floor(rows / 2) + (rows >= 4 ? 1 : 0);
-for (let r = 0; r < rows; r++) {
-if (r < keepMin || r > keepMax) {
-for (let c = 0; c < cols; c++) voids.add(`${r},${c}`);
-}
-}
-} else if (shape === 'l_shape') {
-// Bottom-left quadrant cut: top-right area stays, plus bottom-left column
-const cutRow = Math.floor(rows * 0.5);
-const cutCol = Math.floor(cols * 0.5);
-for (let r = 0; r < cutRow; r++) {
-for (let c = cutCol; c < cols; c++) {
-voids.add(`${r},${c}`);
-}
-}
-} else if (shape === 'cross') {
-// Corner squares void - only center column + center row remain accessible
-const midRow = Math.floor(rows / 2);
-const midCol = Math.floor(cols / 2);
-for (let r = 0; r < rows; r++) {
-for (let c = 0; c < cols; c++) {
-if (r !== midRow && c !== midCol) voids.add(`${r},${c}`);
-}
-}
-}
-return voids;
-}
-
-function generateBattlefield(bossLevel: number): CombatGrid {
-const { rows, cols } = generateGridSize(bossLevel);
-const progress = Math.min((bossLevel - 1) / 49, 1);
-
-// Pick arena shape. Open is always available; irregular shapes unlock progressively.
-const shapeRoll = Math.random();
-let shape: 'open' | 'corridor' | 'l_shape' | 'cross';
-if (bossLevel < 3 || shapeRoll < 0.45) {
-shape = 'open';
-} else if (bossLevel < 5 || shapeRoll < 0.65) {
-shape = 'corridor';
-} else if (bossLevel < 7 || shapeRoll < 0.80) {
-shape = 'l_shape';
-} else {
-shape = 'cross';
-}
-
-const voidSet = getVoidMask(shape, rows, cols);
-
-const tiles: TileData[][] = Array.from({ length: rows }, (_, r) =>
-Array.from({ length: cols }, (_, c) => {
-if (voidSet.has(`${r},${c}`)) {
-return { type: 'void' as const };
-}
-return createEmptyTile();
-})
-);
-
-const numObstacles = Math.max(1, Math.floor(progress * 2)) +
-Math.floor(Math.random() * (2 + Math.floor(progress * 3)));
-const numHazards = Math.floor(Math.random() * Math.min(3, 1 + Math.floor(progress * 3)));
-
-const placed = new Set<string>();
-
-// Don't place obstacles on void tiles or edge columns
-let n = 0, attempts = 0;
-while (n < numObstacles && attempts < 50) {
-const r = Math.floor(Math.random() * rows);
-const c = 1 + Math.floor(Math.random() * (cols - 2));
-const k = `${r},${c}`;
-if (!placed.has(k) && !voidSet.has(k)) {
-tiles[r][c] = createObstacleTile(); placed.add(k); n++;
-}
-attempts++;
-}
-n = 0; attempts = 0;
-while (n < numHazards && attempts < 50) {
-const r = Math.floor(Math.random() * rows);
-const c = 1 + Math.floor(Math.random() * (cols - 2));
-const k = `${r},${c}`;
-if (!placed.has(k) && !voidSet.has(k)) {
-tiles[r][c] = createHazardTile(); placed.add(k); n++;
-}
-attempts++;
-}
-
-// Place player and boss on non-void rows
-const validRows = Array.from({ length: rows }, (_, i) => i)
-.filter(r => !voidSet.has(`${r},0`));
-const validBossRows = Array.from({ length: rows }, (_, i) => i)
-.filter(r => !voidSet.has(`${r},${cols - 1}`));
-const playerRow = validRows[Math.floor(Math.random() * validRows.length)] ?? 0;
-const bossRow   = Math.random() < 0.5
-? playerRow
-: (validBossRows[Math.floor(Math.random() * validBossRows.length)] ?? 0);
-
-return {
-rows, cols, tiles,
-arenaShape: shape,
-playerPosition: { row: playerRow, col: 0 },
-bossPosition:   { row: bossRow,   col: cols - 1 },
-};
-}
-
-function emptyGrid(): CombatGrid {
-return {
-rows: 3, cols: 7,
-playerPosition: { row: 1, col: 0 },
-bossPosition:   { row: 1, col: 6 },
-tiles: Array.from({ length: 3 }, () => Array.from({ length: 7 }, createEmptyTile)),
-};
-}
-
-// ── Clamp heat to 0-100 ───────────────────────────────────────────────────────
 function clampHeat(h: number) { return Math.max(0, Math.min(100, h)); }
+const isFightPhase = (p: CombatPhase) => p === 'player_turn' || p === 'enemy_turn';
 
-// ── Class unlock condition ────────────────────────────────────────────────────
-// Classes unlock only after dying on level 11 or higher
-function shouldUnlockClasses(bossLevel: number): boolean {
-return bossLevel >= 11;
+function equippedSlotList(): AugmentationSlot[] {
+const eq = useInventory.getState().equippedAugmentations;
+return (Object.keys(eq) as AugmentationSlot[]).filter(s => eq[s] !== null);
 }
+
+function buildPlayer(playerClass: PlayerClass) {
+const augBonuses = useInventory.getState().getTotalAugmentationBonuses();
+const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlotList());
+const player = createPlayer({
+...augBonuses,
+treeAttack: treeBonus.attack,
+treeDefense: treeBonus.defense,
+treeHp: treeBonus.hp,
+}, playerClass);
+return { player, moveRange: 1 + (treeBonus.moveRange ?? 0) };
+}
+
+function freshFightState(grid: CombatGrid) {
+return {
+combatLog: [] as CombatLog[],
+playerDefenseBoost: 0, bossDefenseBoost: 0,
+currentLoot: null, lastVictory: null, pendingShop: false,
+introCompleted: true,
+selectedMovement: null, selectedAction: null, hasMoved: false,
+originalPosition: { ...grid.playerPosition },
+inputLocked: false,
+playerHeat: 20, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
+playerMalfunctioning: false, bossMalfunctioning: false,
+overclockActive: false, kizunaJustFired: false, patchworkKingTurn: 0,
+};
+}
+
+const initialProgression = (): PlayerProgression => ({
+level: 1, currentXp: 0, xpToNextLevel: getXpForLevel(2), deathCount: 0,
+});
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useCombat = create<CombatState>()(
-subscribeWithSelector((set, get) => ({
+subscribeWithSelector(persist((set, get) => {
+
+// Runs fn after ms, but only if the same fight is still in progress.
+const later = (fn: () => void, ms: number) => {
+const id = get().fightId;
+setTimeout(() => {
+const s = get();
+if (s.fightId !== id || !isFightPhase(s.phase)) return;
+fn();
+}, ms);
+};
+
+const log = (message: string, type: CombatLog['type'] = 'info') => get().addLog(createCombatLog(message, type));
+
+const beginPlayerTurn = () => {
+const { grid, playerHeat } = get();
+set({
+phase: 'player_turn', inputLocked: false, hasMoved: false,
+selectedMovement: null, selectedAction: null,
+originalPosition: { ...grid.playerPosition },
+doubleActionReady: playerHeat <= 15,
+});
+};
+
+const handlePlayerDefeated = () => {
+const { bossLevel, playerClass, classesUnlocked } = get();
+const unlockNow = !classesUnlocked && playerClass === 'none' && bossLevel >= CLASS_UNLOCK_LEVEL;
+set({
+phase: 'defeat', inputLocked: true, fightId: get().fightId + 1,
+classesUnlocked: classesUnlocked || unlockNow,
+});
+};
+
+const handleBossDefeated = () => {
+const { farmLevel, bossLevel } = get();
+const level = farmLevel ?? bossLevel;
+const isKing = level === 10 && farmLevel === null;
+const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level);
+// Loot goes straight into the inventory so no screen can lose it
+useInventory.getState().addItems(loot.items);
+useInventory.getState().addGold(loot.gold);
+const xp = getXpFromBoss(level);
+if (isKing) log('PATCHWORK KING: ...well fought. Contract noted.');
+set({
+phase: 'victory', inputLocked: true, fightId: get().fightId + 1,
+currentLoot: loot,
+pendingShop: farmLevel === null && SHOP_LEVELS.includes(level),
+bossLevel: farmLevel !== null ? bossLevel : level + 1,
+patchworkKingTurn: 0, bossChargingHeavy: false, pendingBossAction: null,
+});
+const { levelsGained } = get().gainXp(xp);
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained } });
+useAudio.getState().playSuccess();
+};
+
+// Damage from the tile a combatant ends its turn on. Returns true if it was fatal.
+const applyHazard = (who: 'player' | 'boss'): boolean => {
+const { grid, player, boss } = get();
+const pos = who === 'player' ? grid.playerPosition : grid.bossPosition;
+const dmg = hazardDamageAt(pos, grid);
+if (dmg <= 0) return false;
+const name = tileAt(pos, grid)?.name ?? 'Hazard';
+if (who === 'player') {
+const hp = Math.max(0, player.currentHp - dmg);
+set({ player: { ...player, currentHp: hp } });
+log(`${name}: -${dmg} HP`, 'damage');
+if (hp <= 0) { handlePlayerDefeated(); return true; }
+} else {
+const hp = Math.max(0, boss.currentHp - dmg);
+set({ boss: { ...boss, currentHp: hp } });
+log(`${boss.name} burns on ${name}: -${dmg}`, 'damage');
+if (hp <= 0) { handleBossDefeated(); return true; }
+}
+return false;
+};
+
+// After the player's action resolves: hazard tick, then either a bonus
+// action (double action) or the enemy's turn.
+const finishPlayerAction = (allowDouble: boolean) => {
+if (applyHazard('player')) return;
+if (allowDouble && get().doubleActionReady) {
+log('DOUBLE ACTION -- cold efficiency!');
+set({ doubleActionReady: false });
+later(() => {
+const g = get().grid;
+set({ inputLocked: false, hasMoved: false, selectedMovement: null, selectedAction: null, originalPosition: { ...g.playerPosition } });
+}, 300);
+return;
+}
+set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleActionReady: false });
+later(() => get().enemyTurn(), ENEMY_TURN_DELAY);
+};
+
+const finishEnemyTurn = (delay = TURN_HANDOFF_DELAY) => {
+later(() => {
+if (applyHazard('boss')) return;
+beginPlayerTurn();
+}, delay);
+};
+
+// Boss chooses its next action from its roster, filtered by range and heat.
+const chooseBossAction = (): CombatAction => {
+const { boss, grid, playerHeat, patchworkKingTurn } = get();
+if (boss.name === 'Patchwork King') {
+const turn = patchworkKingTurn + 1;
+set({ patchworkKingTurn: turn });
+if (turn === 4) log(PATCHWORK_KING_MONOLOGUE[2]);
+if (turn === 7) log(PATCHWORK_KING_MONOLOGUE[3]);
+return getPatchworkKingAction(turn);
+}
+const roster = BOSS_ATTACKS[boss.name] ?? [];
+const dist = chebyshev(grid.bossPosition, grid.playerPosition);
+const filtered = roster.filter(a => {
+// Heavy attacks punish a player who runs hot
+if (a.isHeavy && playerHeat < 45) return false;
+// Shields only make sense when the boss has taken a beating or can't reach
+if (a.type === 'defend' && boss.currentHp > boss.maxHp * 0.6 && dist <= 3) return false;
+const pat = a.attackPattern;
+if (!pat) return true;
+if ((pat === 'charge' || pat === 'lunge') && dist < 2) return false;
+if ((pat === 'sweep_arc' || pat === 'melee') && dist > 2) return false;
+return true;
+});
+const pool = filtered.length ? filtered : roster.filter(a => a.type === 'attack');
+return pool[Math.floor(Math.random() * pool.length)];
+};
+
+const moveBossToward = (pattern: CombatAction['attackPattern']): boolean => {
+if (get().bossHeat >= 100) {
+log(`${get().boss.name}: OVERHEATED -- movement locked`);
+return false;
+}
+const step = stepTowardAttackPosition(get().grid, pattern ?? 'melee_long');
+if (!step) return false;
+set({ grid: { ...get().grid, bossPosition: step } });
+return true;
+};
+
+const startFight = (level: number, farm: boolean) => {
+const { playerClass } = get();
+const { player, moveRange } = buildPlayer(playerClass);
+const isKing = !farm && level === 10;
+const base = createBoss(level);
+const boss = isKing
+? { ...base, name: 'Patchwork King', spriteColor: '#fbbf24',
+maxHp: 120, currentHp: 120, maxStructuralHp: 80, currentStructuralHp: 80,
+physicalAttack: 22, structuralAttack: 10, physicalDefense: 10, structuralDefense: 8 }
+: base;
+const grid = generateBattlefield(level);
+set({
+...freshFightState(grid),
+phase: 'player_turn', player, boss, grid,
+playerMoveRange: moveRange,
+farmLevel: farm ? level : null,
+bossHeat: getBossStartingHeat(base.name),
+fightId: get().fightId + 1,
+combatLog: isKing
+? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
+: [],
+});
+};
+
+return {
 phase: 'menu',
 player: createPlayer(),
 boss: createBoss(1),
@@ -251,16 +324,21 @@ combatLog: [],
 playerDefenseBoost: 0,
 bossDefenseBoost: 0,
 currentLoot: null,
+lastVictory: null,
+pendingShop: false,
 bossLevel: 1,
 farmLevel: null,
 playerClass: 'none',
-classLocked: false,
+classesUnlocked: false,
 introCompleted: false,
 debugMode: false,
 originalPosition: null,
 selectedMovement: null,
 selectedAction: null,
 hasMoved: false,
+playerMoveRange: 1,
+fightId: 0,
+inputLocked: false,
 playerHeat: 20,
 bossHeat: 50,
 doubleActionReady: false,
@@ -271,669 +349,316 @@ bossMalfunctioning: false,
 overclockActive: false,
 kizunaJustFired: false,
 patchworkKingTurn: 0,
-progression: {
-level: 1,
-currentXp: 0,
-xpToNextLevel: getXpForLevel(2),
-deathCount: 0,
-},
+progression: initialProgression(),
 grid: emptyGrid(),
 
 setPlayerClass: (playerClass) => {
-if (!get().classLocked) set({ playerClass });
+if (get().classesUnlocked) set({ playerClass });
 },
 
-startCombat: () => {
-const { bossLevel, playerClass } = get();
-const augBonuses = useInventory.getState().getTotalAugmentationBonuses();
-// Merge augment tree stat bonuses (path progression) into combat stats.
-// getTreeStatBonuses reads the chosen path tiers for all equipped slots.
-const equippedSlots = Object.keys(useInventory.getState().equippedAugmentations).filter(
-slot => (useInventory.getState().equippedAugmentations as any)[slot] !== null
-) as import('../combat/types').AugmentationSlot[];
-const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlots);
-const mergedBonuses = {
-...augBonuses,
-treeAttack:  treeBonus.attack,
-treeDefense: treeBonus.defense,
-treeHp:      treeBonus.hp,
-};
-const player = createPlayer(mergedBonuses, playerClass);
-// Patchwork King at level 10 - always use King boss type
-const isPatchworkKing = bossLevel === 10;
-const boss = isPatchworkKing
-? createBoss(10) // createBoss at 10 will use BOSS_TYPES[9 % 7] - we override below
-: createBoss(bossLevel);
-// Force King name/color when at level 10
-const finalBoss = isPatchworkKing
-? { ...boss, name: 'Patchwork King', spriteColor: '#fbbf24',
-maxHp: 120, currentHp: 120, maxStructuralHp: 80, currentStructuralHp: 80,
-physicalAttack: 22, structuralAttack: 10, physicalDefense: 10, structuralDefense: 8 }
-: boss;
-const grid = generateBattlefield(bossLevel);
-// Build intro log - Patchwork King gets monologue
-const introLog: CombatLog[] = isPatchworkKing
-? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) =>
-({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
-: [];
-set({
-phase: 'player_turn', player, boss: finalBoss, grid,
-combatLog: introLog,
-playerDefenseBoost: 0, bossDefenseBoost: 0,
-currentLoot: null, classLocked: true, introCompleted: true,
-selectedMovement: null, selectedAction: null, hasMoved: false,
-farmLevel: null, originalPosition: { ...grid.playerPosition },
-playerHeat: 20, bossHeat: getBossStartingHeat(boss.name), doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null, playerMalfunctioning: false, bossMalfunctioning: false,
-overclockActive: false, kizunaJustFired: false, patchworkKingTurn: 0,
-});
-},
-
-startFarmCombat: (level) => {
-const { playerClass } = get();
-const augBonuses = useInventory.getState().getTotalAugmentationBonuses();
-const equippedSlots = Object.keys(useInventory.getState().equippedAugmentations).filter(
-slot => (useInventory.getState().equippedAugmentations as any)[slot] !== null
-) as import('../combat/types').AugmentationSlot[];
-const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlots);
-const mergedBonuses = {
-...augBonuses,
-treeAttack:  treeBonus.attack,
-treeDefense: treeBonus.defense,
-treeHp:      treeBonus.hp,
-};
-const player = createPlayer(mergedBonuses, playerClass);
-const boss   = createBoss(level);
-const grid   = generateBattlefield(level);
-set({
-phase: 'player_turn', player, boss, grid,
-combatLog: [],
-playerDefenseBoost: 0, bossDefenseBoost: 0,
-currentLoot: null, classLocked: true, introCompleted: true,
-selectedMovement: null, selectedAction: null, hasMoved: false,
-farmLevel: level, originalPosition: { ...grid.playerPosition },
-playerHeat: 20, bossHeat: getBossStartingHeat(boss.name), doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null, playerMalfunctioning: false, bossMalfunctioning: false,
-overclockActive: false, kizunaJustFired: false, patchworkKingTurn: 0,
-});
-},
+startCombat: () => startFight(get().bossLevel, false),
+startFarmCombat: (level) => startFight(level, true),
 
 setSelectedMovement: (pos) => set({ selectedMovement: pos }),
-setSelectedAction:   (action) => set({ selectedAction: action }),
+setSelectedAction: (action) => {
+const { phase, inputLocked } = get();
+if (phase !== 'player_turn' || inputLocked) return;
+set({ selectedAction: action });
+},
 
 moveTentatively: (position) => {
-const { phase, grid, originalPosition } = get();
-if (phase !== 'player_turn') return;
-if (!isWithinBounds(position, grid)) return;
-if (isTileOccupied(position, grid)) return;
-if (isTileBlocked(position, grid)) return;
-if (!originalPosition || !isValidMove(originalPosition, position)) return;
+const { phase, inputLocked, grid, originalPosition, playerHeat, playerMoveRange } = get();
+if (phase !== 'player_turn' || inputLocked || !originalPosition) return;
+// Tapping your starting tile undoes a move
+if (position.row === originalPosition.row && position.col === originalPosition.col) {
+get().undoMove();
+return;
+}
+if (playerHeat >= 100) {
+log('OVERHEATED -- movement locked');
+return;
+}
+const reachable = getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange);
+if (!reachable.has(`${position.row},${position.col}`)) return;
 set({ grid: { ...grid, playerPosition: position }, selectedMovement: position, hasMoved: true });
 },
 
 undoMove: () => {
-const { originalPosition, grid } = get();
-if (!originalPosition) return;
+const { originalPosition, grid, phase, inputLocked } = get();
+if (!originalPosition || phase !== 'player_turn' || inputLocked) return;
 set({ grid: { ...grid, playerPosition: originalPosition }, selectedMovement: null, hasMoved: false });
 },
 
-confirmMove: (position) => {
-const { phase, hasMoved: alreadyMoved, grid, playerHeat } = get();
-if (!position) return false;
-if (phase !== 'player_turn') return false;
-if (alreadyMoved) return false;
-// Heat >= 100: movement locked (overheated)
-if (playerHeat >= 100) {
-get().addLog(createCombatLog('OVERHEATED -- movement locked', 'info'));
-return false;
-}
-if (!isWithinBounds(position, grid)) return false;
-if (isTileOccupied(position, grid)) return false;
-if (isTileBlocked(position, grid)) return false;
-// Read moveRange from augment trees
-const equippedSlots = Object.keys(useInventory.getState().equippedAugmentations).filter(
-s => useInventory.getState().equippedAugmentations[s as any] !== null
-) as any[];
-const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlots);
-const moveRange = 1 + (treeBonus.moveRange ?? 0);
-if (!isValidMove(grid.playerPosition, position, moveRange)) return false;
-set({ grid: { ...grid, playerPosition: position }, hasMoved: true, selectedMovement: null });
-return true;
-},
-
 endTurn: () => {
-const { selectedAction, originalPosition, grid } = get();
-const hasMoved = originalPosition && (
-grid.playerPosition.row !== originalPosition.row ||
-grid.playerPosition.col !== originalPosition.col
-);
-// Do NOT write originalPosition here. It is only updated when enemy turn ends
-// (beginning of next player turn). Writing it early grants a free move whenever
-// executePlayerTurn returns early (e.g. out of range).
-set({ hasMoved: hasMoved || false, selectedMovement: null });
-// If no action is selected, pass the turn to the enemy (soft lock prevention)
+const { selectedAction, phase, inputLocked } = get();
+if (phase !== 'player_turn' || inputLocked) return;
 if (!selectedAction) {
-get().addLog(createCombatLog('-- PASS --', 'info'));
-set({ phase: 'enemy_turn', selectedAction: null });
-setTimeout(() => get().enemyTurn(), 800);
+set({ inputLocked: true });
+log('-- PASS --');
+finishPlayerAction(false);
 return;
 }
 get().executePlayerTurn();
 },
 
 useConsumableItem: (itemId) => {
-const { phase, player } = get();
-if (phase !== 'player_turn') return;
+const { phase, inputLocked, player } = get();
+if (phase !== 'player_turn' || inputLocked) return;
 const consumable = useInventory.getState().useConsumable(itemId);
 if (!consumable) return;
 
-const effect = (consumable as any).consumableEffect;
-let updatedPlayer = { ...player };
+const effect = consumable.consumableEffect;
+const updatedPlayer = { ...player };
 let newHeat = get().playerHeat;
-let overclockSet = false;
-let logMsg = '';
+let overclock = false;
+let msg = '';
 
 if (effect === 'bio_stim') {
 const heal = Math.floor(player.maxHp * 0.60);
 updatedPlayer.currentHp = Math.min(player.maxHp, player.currentHp + heal);
-logMsg = `BIO-STIM -- +${heal} HP`;
+msg = `BIO-STIM -- +${heal} HP`;
 } else if (effect === 'structural_patch') {
 const repair = Math.floor(player.maxStructuralHp * 0.60);
 updatedPlayer.currentStructuralHp = Math.min(player.maxStructuralHp, player.currentStructuralHp + repair);
-// Clear malfunction if structural is now positive
-if (updatedPlayer.currentStructuralHp > 0) {
-get().addLog(createCombatLog('STRUCTURAL PATCH -- integrity restored', 'info'));
-}
-logMsg = `STRUCTURAL PATCH -- +${repair} structural HP`;
+msg = `STRUCTURAL PATCH -- +${repair} structural HP`;
 } else if (effect === 'heat_flush') {
 newHeat = 0;
-logMsg = 'HEAT FLUSH -- thermal systems purged to zero';
+msg = 'HEAT FLUSH -- thermal systems purged to zero';
 } else if (effect === 'overclock') {
-overclockSet = true;
-logMsg = 'OVERCLOCK -- next attack is guaranteed critical';
+overclock = true;
+msg = 'OVERCLOCK -- next attack is guaranteed critical';
 } else {
-// Legacy consumable: hpBonus only
 const heal = consumable.hpBonus || 0;
 updatedPlayer.currentHp = Math.min(player.maxHp, player.currentHp + heal);
 newHeat = clampHeat(newHeat - 10);
-logMsg = `STIM -- +${heal} HP`;
+msg = `STIM -- +${heal} HP`;
 }
+log(msg, effect === 'bio_stim' ? 'heal' : 'info');
 
-get().addLog(createCombatLog(logMsg, 'info'));
-
-const nowMalfunctioning = updatedPlayer.currentStructuralHp <= 0;
 set({
 player: updatedPlayer,
-playerMalfunctioning: nowMalfunctioning,
-phase: overclockSet ? 'player_turn' : 'enemy_turn', // overclock doesn't end your turn
+playerMalfunctioning: updatedPlayer.currentStructuralHp <= 0,
 selectedAction: null, selectedMovement: null,
 playerHeat: newHeat,
-overclockActive: overclockSet,
+overclockActive: overclock || get().overclockActive,
 });
-if (!overclockSet) {
-setTimeout(() => get().enemyTurn(), 800);
+// Overclock doesn't use up your turn; other stims do.
+if (!overclock) {
+set({ inputLocked: true });
+finishPlayerAction(false);
 }
 },
 
 executePlayerTurn: () => {
-const { player, boss, bossDefenseBoost, grid, playerClass, selectedAction, playerHeat, playerMalfunctioning } = get();
-if (!selectedAction) return;
+const { player, boss, bossDefenseBoost, grid, playerClass, selectedAction, playerHeat, playerMalfunctioning, phase, inputLocked } = get();
+if (!selectedAction || phase !== 'player_turn' || inputLocked) return;
 const action = selectedAction;
 
-// ── BRACE (replaces Defend) ──────────────────────────────────────────────
+// ── BRACE ────────────────────────────────────────────────────────────────
 if (action.type === 'brace' || action.type === 'defend') {
-const heatDelta = action.heatGenerated ?? -25;
-const newHeat   = clampHeat(playerHeat + heatDelta);
-// Brace repairs structural HP (always, even from 0)
-const structuralRepair = 35; // generous repair - brace should meaningfully fight malfunction
-const newStructuralHp = Math.min(player.maxStructuralHp, player.currentStructuralHp + structuralRepair);
+set({ inputLocked: true });
+const newHeat = clampHeat(playerHeat + (action.heatGenerated ?? -25));
 const wasMalfunctioning = player.currentStructuralHp <= 0;
-const nowMalfunctioning = newStructuralHp <= 0;
-const updatedPlayer = { ...player, currentStructuralHp: newStructuralHp };
+const newStructuralHp = Math.min(player.maxStructuralHp, player.currentStructuralHp + 35);
 set({
-player: updatedPlayer,
+player: { ...player, currentStructuralHp: newStructuralHp },
 playerDefenseBoost: action.defenseBoost || 8,
-playerMalfunctioning: nowMalfunctioning,
-phase: 'enemy_turn',
+playerMalfunctioning: newStructuralHp <= 0,
 selectedAction: null,
 playerHeat: newHeat,
 });
-if (wasMalfunctioning && !nowMalfunctioning) {
-get().addLog(createCombatLog('STRUCTURAL INTEGRITY RESTORED -- system nominal', 'info'));
-}
-setTimeout(() => get().enemyTurn(), 800);
+if (wasMalfunctioning && newStructuralHp > 0) log('STRUCTURAL INTEGRITY RESTORED -- system nominal');
+log(`${action.name.toUpperCase()} -- guard up`);
+finishPlayerAction(false);
 return;
 }
 
 // ── ATTACK / SPECIAL ─────────────────────────────────────────────────────
-if (action.type === 'attack' || action.type === 'special') {
-// Read attackPattern from the action first; only fall back to class special or melee_long.
-const attackPattern = (action as any).attackPattern
-?? (action.type === 'special'
-? (CLASS_DEFINITIONS[playerClass]?.specialAbility?.attackPattern || 'ranged')
-: 'melee_long');
-
-const shouldCheckRange =
-action.type === 'attack' ||
-!CLASS_DEFINITIONS[playerClass]?.specialAbility?.ignoreRange;
-
-if (shouldCheckRange) {
-const canHit = canHitTarget(grid.playerPosition, grid.bossPosition, attackPattern, grid);
-if (!canHit) {
-get().addLog(createCombatLog('Out of range! Move closer.', 'info'));
+const attackPattern = action.attackPattern
+?? (action.type === 'special' ? (CLASS_DEFINITIONS[playerClass]?.specialAbility?.attackPattern || 'ranged') : 'melee_long');
+const ignoresRange = action.ignoreRange || (action.type === 'special' && CLASS_DEFINITIONS[playerClass]?.specialAbility?.ignoreRange);
+if (!ignoresRange && !canHitTarget(grid.playerPosition, grid.bossPosition, attackPattern, grid)) {
+log('Out of range! Move closer.');
 return;
 }
-}
+set({ inputLocked: true });
 
-// Heat modifiers
-const heatMult  = getHeatMultipliers(playerHeat);
+const heatMult = getHeatMultipliers(playerHeat);
 const flankBonus = getFlankBonus(grid.playerPosition, grid.bossPosition);
-const tileDistance = Math.abs(grid.playerPosition.row - grid.bossPosition.row)
-
-- Math.abs(grid.playerPosition.col - grid.bossPosition.col);
+const tileDistance = chebyshev(grid.playerPosition, grid.bossPosition);
 
 // Kizuna cold-start: first strike at cool heat fires as 'precise'
-const kizunaActive = (player as any).hasKizuna && playerHeat <= 20;
-const kizunaFiredNow = kizunaActive && !get().kizunaJustFired;
-// Overclock: guaranteed crit - force precise + override crit in calculateDamage
+const kizunaFiredNow = !!player.hasKizuna && playerHeat <= 20 && !get().kizunaJustFired;
 const { overclockActive } = get();
 let finalAction = kizunaFiredNow ? { ...action, accuracy: 'precise' as const } : action;
-if (overclockActive) {
-finalAction = { ...finalAction, accuracy: 'precise' as const };
-}
-const damageResult = calculateDamage(
+if (overclockActive) finalAction = { ...finalAction, accuracy: 'precise' as const };
+const dmg = calculateDamage(
 player, boss, finalAction, bossDefenseBoost,
-overclockActive ? 2.0 : heatMult.dealt,  // overclock: force 2x damage multiplier
+overclockActive ? 2.0 : heatMult.dealt,
 flankBonus, tileDistance, playerMalfunctioning,
-overclockActive ? 100 : playerHeat,       // overclock: pass heat=100 to guarantee crit roll
-(player as any).bypassStructuralDefense ?? false
+overclockActive ? 100 : playerHeat,
+player.bypassStructuralDefense ?? false,
 );
-if (kizunaFiredNow) {
-get().addLog(createCombatLog('KIZUNA ACTIVE -- cold-start precision lock', 'info'));
-}
+if (kizunaFiredNow) log('KIZUNA ACTIVE -- cold-start precision lock');
+if (playerMalfunctioning) log('MALFUNCTION', 'malfunction');
 
-// Apply split damage to boss
-const newBossHp = Math.max(0, boss.currentHp - damageResult.bioDamage);
-const newBossStructuralHp = Math.max(0, boss.currentStructuralHp - damageResult.structuralDamage);
+const newBossHp = Math.max(0, boss.currentHp - dmg.bioDamage);
+const newBossStructuralHp = Math.max(0, boss.currentStructuralHp - dmg.structuralDamage);
 const bossBecomesMalfunctioning = boss.currentStructuralHp > 0 && newBossStructuralHp <= 0;
-const updatedBoss = { ...boss, currentHp: newBossHp, currentStructuralHp: newBossStructuralHp };
 
-// Heat generated by this attack (self) + heat transferred to boss
-const heatDelta = action.heatGenerated ?? 15;
-const adjacentHeat = (Math.abs(grid.playerPosition.row - grid.bossPosition.row) +
-Math.abs(grid.playerPosition.col - grid.bossPosition.col)) === 1 ? 2 : 0;
-const newHeat = clampHeat(playerHeat + heatDelta + adjacentHeat);
-
-// Apply heat transfer to boss
+const adjacentHeat = tileDistance === 1 ? 2 : 0;
+const newHeat = clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat);
 const bossHeatDelta = action.heatTransfer ?? 0;
 const newBossHeat = clampHeat(get().bossHeat + bossHeatDelta);
 
-// Healing
-let updatedPlayer = { ...player };
-if (playerClass === 'necromancer' && action.type === 'special') {
-const heal = Math.floor(damageResult.bioDamage * 0.5);
-updatedPlayer.currentHp = Math.min(player.maxHp, player.currentHp + heal);
-} else if (action.healing && action.healing > 0) {
+const updatedPlayer = { ...player };
+if (action.healing && action.healing > 0) {
 updatedPlayer.currentHp = Math.min(player.maxHp, player.currentHp + action.healing);
 }
 
-// Malfunction flag on player (if already malfunctioning, log it)
-if (playerMalfunctioning) {
-get().addLog(createCombatLog('MALFUNCTION', 'malfunction'));
-}
-
-// Defense boost from special abilities
-const newPlayerDefenseBoost = (action.defenseBoost && action.defenseBoost > 0)
-? action.defenseBoost : 0;
-
-// Double action: if doubleActionReady was true, consume it and stay on player_turn
-const wasDoubleReady = get().doubleActionReady;
-
 set({
 player: updatedPlayer,
-boss: updatedBoss,
-bossMalfunctioning: bossBecomesMalfunctioning || (boss.currentStructuralHp <= 0),
+boss: { ...boss, currentHp: newBossHp, currentStructuralHp: newBossStructuralHp },
+bossMalfunctioning: newBossStructuralHp <= 0,
 bossDefenseBoost: 0,
-playerDefenseBoost: newPlayerDefenseBoost,
+playerDefenseBoost: action.defenseBoost && action.defenseBoost > 0 ? action.defenseBoost : 0,
 overclockActive: false,
 kizunaJustFired: kizunaFiredNow || get().kizunaJustFired,
 selectedAction: null,
 playerHeat: newHeat,
 bossHeat: newBossHeat,
-doubleActionReady: false,
 });
+useAudio.getState().playHit();
 
-if (bossBecomesMalfunctioning) {
-get().addLog(createCombatLog(`${boss.name}: MALFUNCTION`, 'malfunction'));
-}
-
-// Log heat transfer to boss if nonzero
-if (bossHeatDelta !== 0) {
-get().addLog(createCombatLog(
-`${boss.name} heat: ${bossHeatDelta > 0 ? '+' : ''}${bossHeatDelta} (${newBossHeat})`,
-'info'
-));
-}
-
-get().addLog(createCombatLog(
-`Dealt ${damageResult.bioDamage} bio / ${damageResult.structuralDamage} structural${damageResult.isFlank ? ' [FLANK]' : ''}`,
-'damage'
-));
+if (bossBecomesMalfunctioning) log(`${boss.name}: MALFUNCTION`, 'malfunction');
+if (bossHeatDelta !== 0) log(`${boss.name} heat: ${bossHeatDelta > 0 ? '+' : ''}${bossHeatDelta} (${newBossHeat})`);
+log(`${dmg.isCrit ? 'CRITICAL! ' : ''}Dealt ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural${dmg.isFlank ? ' [FLANK]' : ''}`, dmg.isCrit ? 'critical' : 'damage');
 
 if (newBossHp <= 0) {
-const { farmLevel, bossLevel } = get();
-const currentLevel = farmLevel !== null ? farmLevel : bossLevel;
-// Patchwork King (level 10) gets special loot
-const isPatchworkKing = currentLevel === 10 && farmLevel === null;
-const loot = isPatchworkKing ? generatePatchworkKingLoot() : generateLoot(currentLevel);
-const xpGained = getXpFromBoss(currentLevel);
-const goldReward = isPatchworkKing ? 600 : 40 + (currentLevel * 10);
-useInventory.getState().addGold(goldReward);
-// Shop appears after fights 10, 14, 18
-const SHOP_LEVELS = [10, 14, 18];
-const nextPhase = SHOP_LEVELS.includes(currentLevel) ? 'shop' : 'victory';
-if (isPatchworkKing) {
-get().addLog(createCombatLog('PATCHWORK KING: ...well fought. Contract noted.', 'info'));
+handleBossDefeated();
+return;
 }
-set({
-phase: nextPhase,
-currentLoot: loot,
-bossLevel: farmLevel !== null ? bossLevel : currentLevel + 1,
-patchworkKingTurn: 0,
-});
-get().gainXp(xpGained);
-} else if (wasDoubleReady) {
-// Double action: skip enemy turn, give player another action phase
-get().addLog(createCombatLog('DOUBLE ACTION -- cold efficiency!', 'info'));
-setTimeout(() => {
-const g = get().grid;
-// Check if boss heat >= 100 -- boss movement locked
-const currentBossHeat = get().bossHeat;
-set({
-phase: 'player_turn',
-hasMoved: false,
-selectedMovement: null,
-selectedAction: null,
-originalPosition: g.playerPosition,
-doubleActionReady: false,
-});
-}, 300);
-} else {
-setTimeout(() => {
-set({ phase: 'enemy_turn' });
-get().enemyTurn();
-}, 800);
-}
-
-}
+finishPlayerAction(true);
 },
 
 enemyTurn: () => {
-const { boss, grid, pendingBossAction } = get();
+const { pendingBossAction, boss } = get();
 
-// ── FIRE TELEGRAPHED HEAVY ATTACK ────────────────────────────────────────
-// If there was a pending heavy attack from last turn, execute it now
+// ── FIRE TELEGRAPHED HEAVY ATTACK ──────────────────────────────────────
+// It lands only if the player is still in its pattern; stepping out dodges it.
 if (pendingBossAction) {
 set({ bossChargingHeavy: false, pendingBossAction: null });
+const g = get().grid;
+if (canHitTarget(g.bossPosition, g.playerPosition, pendingBossAction.attackPattern ?? 'melee_long', g)) {
 get().executeEnemyAttack(pendingBossAction);
+} else {
+log(`${boss.name}'s ${pendingBossAction.name} misses -- you evaded`);
+finishEnemyTurn();
+}
 return;
 }
 
-// ── ATTACK SELECTION: range-aware + heat-aware ───────────────────────────
-// Patchwork King uses scripted phases; all others use smart selection.
-const { playerHeat, patchworkKingTurn } = get();
-const tileDistToPlayer = Math.abs(grid.bossPosition.row - grid.playerPosition.row)
+const action = chooseBossAction();
 
-- Math.abs(grid.bossPosition.col - grid.playerPosition.col);
-
-let action: CombatAction;
-if (boss.name === 'Patchwork King') {
-const newKingTurn = patchworkKingTurn + 1;
-set({ patchworkKingTurn: newKingTurn });
-action = getPatchworkKingAction(newKingTurn);
-// Phase transitions get an extra monologue line
-if (newKingTurn === 4) get().addLog(createCombatLog(PATCHWORK_KING_MONOLOGUE[2], 'info'));
-if (newKingTurn === 7) get().addLog(createCombatLog(PATCHWORK_KING_MONOLOGUE[3], 'info'));
-} else {
-// Use getBossAction's pool by calling it multiple times isn't ideal,
-// but BOSS_ATTACKS isn't exported. Use a random sample approach instead:
-// Build a representative sample of the boss's actions (call 6 times, dedupe by name)
-const actionSample: CombatAction[] = [];
-const seen = new Set<string>();
-for (let _i = 0; _i < 12; _i++) {
-const a = getBossAction(boss.name);
-if (!seen.has(a.name)) { seen.add(a.name); actionSample.push(a); }
-if (actionSample.length >= 6) break;
-}
-const allActions = actionSample.length > 0 ? actionSample : null;
-// Smart selection: filter by range and heat context
-const availableActions = allActions ? (() => {
-// Heavy attacks: only when player heat is high (>= 55)
-const heatAllowsHeavy = playerHeat >= 55;
-// Range: charge/lunge when far (>= 3), sweep/melee when close (<= 1), ranged always ok
-const filtered = allActions.filter((a: CombatAction) => {
-if (a.isHeavy && !heatAllowsHeavy) return false;
-const pat = (a as any).attackPattern;
-if (!pat) return true;
-if ((pat === 'charge' || pat === 'lunge') && tileDistToPlayer < 2) return false;
-if ((pat === 'sweep_arc' || pat === 'melee') && tileDistToPlayer > 2) return false;
-return true;
-});
-return filtered.length > 0 ? filtered : allActions;
-})() : null;
-action = availableActions
-? availableActions[Math.floor(Math.random() * availableActions.length)]
-: getBossAction(boss.name);
-}
-// Use the action's own attackPattern for range check, default melee_long
-const attackPattern = (action as any).attackPattern ?? 'melee_long';
-
-// Boss overheated: skip its movement this turn (can still attack if adjacent)
-const bossIsOverheated = get().bossHeat >= 100;
-if (bossIsOverheated) {
-get().addLog(createCombatLog(`${boss.name}: OVERHEATED -- movement locked`, 'info'));
-}
-
-// ── ENEMY TELL - telegraph heavy attack ──────────────────────────────────
-if (action.isHeavy) {
-// Move toward player this turn (if not overheated), then fire heavy next turn
-const newBossPos = bossIsOverheated ? null : get().getBestEnemyMove();
-if (newBossPos) {
-set({
-grid: { ...grid, bossPosition: newBossPos },
-bossChargingHeavy: true,
-pendingBossAction: action,
-});
-} else {
-set({ bossChargingHeavy: true, pendingBossAction: action });
-}
-// End enemy turn - player now has one turn to react
-setTimeout(() => {
-const currentGrid = get().grid;
-const readyForDouble = get().playerHeat <= 15;
-set({
-phase: 'player_turn',
-hasMoved: false,
-selectedMovement: null,
-selectedAction: null,
-originalPosition: currentGrid.playerPosition,
-doubleActionReady: readyForDouble,
-});
-}, 600);
-return;
-}
-
-// ── NORMAL ATTACK ────────────────────────────────────────────────────────
 if (action.type === 'defend') {
 get().executeEnemyAttack(action);
 return;
 }
 
-const canHit = canHitTarget(grid.bossPosition, grid.playerPosition, attackPattern, grid);
-if (canHit) {
-get().executeEnemyAttack(action);
+// ── TELEGRAPH HEAVY ATTACK ─────────────────────────────────────────────
+// Move into a firing position this turn, fire next turn.
+if (action.isHeavy) {
+moveBossToward(action.attackPattern);
+set({ bossChargingHeavy: true, pendingBossAction: action });
+log(`${boss.name} is charging ${action.name.toUpperCase()}!`, 'critical');
+finishEnemyTurn();
 return;
 }
 
-// Move toward player (blocked if overheated)
-const newBossPos = bossIsOverheated ? null : get().getBestEnemyMove();
-if (newBossPos &&
-(newBossPos.row !== grid.bossPosition.row || newBossPos.col !== grid.bossPosition.col)) {
-set({ grid: { ...grid, bossPosition: newBossPos } });
-setTimeout(() => {
-const updatedGrid = get().grid;
-const canHitAfterMove = canHitTarget(
-updatedGrid.bossPosition, updatedGrid.playerPosition, attackPattern, updatedGrid
-);
-if (canHitAfterMove) {
+// ── NORMAL ATTACK ──────────────────────────────────────────────────────
+const pattern = action.attackPattern ?? 'melee_long';
+const hits = () => { const g = get().grid; return canHitTarget(g.bossPosition, g.playerPosition, pattern, g); };
+if (hits()) {
 get().executeEnemyAttack(action);
-} else {
-setTimeout(() => {
-const g = get().grid;
-const readyForDouble = get().playerHeat <= 15;
-set({ phase: 'player_turn', hasMoved: false, selectedMovement: null, selectedAction: null, originalPosition: g.playerPosition, doubleActionReady: readyForDouble });
-}, 600);
+return;
 }
-}, 600);
+if (moveBossToward(pattern)) {
+later(() => {
+if (hits()) get().executeEnemyAttack(action);
+else finishEnemyTurn(0);
+}, ENEMY_STEP_DELAY);
 } else {
-setTimeout(() => {
-const g = get().grid;
-const readyForDouble = get().playerHeat <= 15;
-set({ phase: 'player_turn', hasMoved: false, selectedMovement: null, selectedAction: null, originalPosition: g.playerPosition, doubleActionReady: readyForDouble });
-}, 600);
+finishEnemyTurn();
 }
 },
 
-getBestEnemyMove: () => {
-const { grid: { playerPosition, bossPosition, rows, cols } } = get();
-const offsets = [
-{ row: -1, col: 0 }, { row: 1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 },
-{ row: -1, col: -1 }, { row: -1, col: 1 }, { row: 1, col: -1 }, { row: 1, col: 1 },
-];
-let best: TilePosition | null = null;
-let bestDist = Infinity;
-for (const o of offsets) {
-const np = { row: bossPosition.row + o.row, col: bossPosition.col + o.col };
-if (np.row < 0 || np.row >= rows || np.col < 0 || np.col >= cols) continue;
-if (np.row === playerPosition.row && np.col === playerPosition.col) continue;
-if (isTileBlocked(np, get().grid)) continue;
-const dist = Math.abs(np.row - playerPosition.row) + Math.abs(np.col - playerPosition.col);
-if (dist < bestDist) { bestDist = dist; best = np; }
-}
-return best;
-},
-
-executeEnemyAttack: (action) => {
-const { player, boss, playerDefenseBoost, grid, playerMalfunctioning, bossMalfunctioning } = get();
-const bossAction = action || getBossAction(boss.name);
+executeEnemyAttack: (bossAction) => {
+const { player, boss, playerDefenseBoost, grid, bossMalfunctioning } = get();
 
 if (bossAction.type === 'defend') {
-// Boss defends: apply its self-cool if specified
-const bossHeatDelta = bossAction.heatGenerated ?? 0;
-const newBossHeat = clampHeat(get().bossHeat + bossHeatDelta);
-set({ bossDefenseBoost: bossAction.defenseBoost || 0, bossHeat: newBossHeat });
-} else {
-const bossTileDistance = Math.abs(grid.playerPosition.row - grid.bossPosition.row)
-
-- Math.abs(grid.playerPosition.col - grid.bossPosition.col);
+set({
+bossDefenseBoost: bossAction.defenseBoost || 0,
+bossHeat: clampHeat(get().bossHeat + (bossAction.heatGenerated ?? 0)),
+});
+log(`${boss.name}: ${bossAction.name.toUpperCase()} -- guard up`);
+finishEnemyTurn();
+return;
+}
 
 // Boss heat does NOT scale boss damage -- heat is a player-side tactic.
-// Boss heat only matters for movement lock and heatTransfer to player.
-const damageResult = calculateDamage(boss, player, bossAction, playerDefenseBoost, 1.0, 0, bossTileDistance, bossMalfunctioning);
-
-// Apply split damage to player
-const newPlayerHp = Math.max(0, player.currentHp - damageResult.bioDamage);
-const newPlayerStructuralHp = Math.max(0, player.currentStructuralHp - damageResult.structuralDamage);
+const dmg = calculateDamage(boss, player, bossAction, playerDefenseBoost, 1.0, 0, chebyshev(grid.playerPosition, grid.bossPosition), bossMalfunctioning);
+const newPlayerHp = Math.max(0, player.currentHp - dmg.bioDamage);
+const newPlayerStructuralHp = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
 const playerBecomesMalfunctioning = player.currentStructuralHp > 0 && newPlayerStructuralHp <= 0;
-const nowMalfunctioning = playerBecomesMalfunctioning || (player.currentStructuralHp <= 0);
 
-// Boss self-heat + heat transfer to player
-const bossHeatDelta = bossAction.heatGenerated ?? 15;
-const newBossHeat = clampHeat(get().bossHeat + bossHeatDelta);
-const playerHeatTransfer = bossAction.heatTransfer ?? 0;
-const newPlayerHeat = clampHeat(get().playerHeat + playerHeatTransfer);
-
-// Check if player heat >= 100 triggers an overheated warning
-if (newPlayerHeat >= 100 && get().playerHeat < 100) {
-get().addLog(createCombatLog('OVERHEATED -- movement locked next turn', 'info'));
-}
-// Check if double action becomes available after cooling
-const newDoubleReady = newPlayerHeat <= 15;
+const newBossHeat = clampHeat(get().bossHeat + (bossAction.heatGenerated ?? 15));
+const newPlayerHeat = clampHeat(get().playerHeat + (bossAction.heatTransfer ?? 0));
+if (newPlayerHeat >= 100 && get().playerHeat < 100) log('OVERHEATED -- movement locked next turn');
 
 set({
 player: { ...player, currentHp: newPlayerHp, currentStructuralHp: newPlayerStructuralHp },
-playerMalfunctioning: nowMalfunctioning,
+playerMalfunctioning: newPlayerStructuralHp <= 0,
 playerDefenseBoost: 0,
 playerHeat: newPlayerHeat,
 bossHeat: newBossHeat,
-doubleActionReady: newDoubleReady,
 });
+useAudio.getState().playHit();
 
-get().addLog(createCombatLog(`${boss.name}: ${damageResult.bioDamage} bio / ${damageResult.structuralDamage} structural`, 'damage'));
-
-if (playerBecomesMalfunctioning) {
-get().addLog(createCombatLog('MALFUNCTION', 'malfunction'));
-}
+log(`${boss.name} -- ${bossAction.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage');
+if (playerBecomesMalfunctioning) log('MALFUNCTION', 'malfunction');
 
 if (newPlayerHp <= 0) {
-const { bossLevel } = get();
-const classesUnlocked = shouldUnlockClasses(bossLevel);
-set({ phase: 'defeat', classLocked: false });
-// Store whether classes should be offered on the defeat screen
-// This is read by ClassSelector / rebirth logic
-if (classesUnlocked) {
-// Trigger class selection on next rebirth call
-set({ introCompleted: true });
-}
+handlePlayerDefeated();
 return;
 }
-
-}
-
-setTimeout(() => {
-const g = get().grid;
-set({
-phase: 'player_turn', hasMoved: false,
-selectedMovement: null, selectedAction: null,
-originalPosition: g.playerPosition,
-bossChargingHeavy: false,
-});
-}, 800);
+finishEnemyTurn(800);
 },
 
 resetCombat: () => {
-set({ phase: 'menu', combatLog: [] });
+// Abandoning a fight: bump fightId so pending timers can't drag you back in
+set({ phase: 'menu', combatLog: [], inputLocked: false, fightId: get().fightId + 1, bossChargingHeavy: false, pendingBossAction: null });
+},
+
+continueFromVictory: () => {
+set({ phase: get().pendingShop ? 'shop' : 'menu', pendingShop: false, currentLoot: null });
 },
 
 leaveShop: () => {
 set({ phase: 'menu', currentLoot: null });
 },
 
+completeIntro: () => set({ introCompleted: true }),
+
 rebirth: (newClass) => {
-const { progression, bossLevel } = get();
-const newDeathCount = progression.deathCount + 1;
+const { progression, classesUnlocked, playerClass } = get();
+const finalClass: PlayerClass = classesUnlocked
+? (newClass && newClass !== 'none' ? newClass : (playerClass !== 'none' ? playerClass : 'melee'))
+: 'none';
 
-// Class unlock: only offer classes if player died on level 11+
-const classesUnlocked = shouldUnlockClasses(bossLevel);
-
-let finalClass: PlayerClass = 'none';
-if (classesUnlocked && newClass && (newClass === 'melee' || newClass === 'ranged')) {
-finalClass = newClass;
-} else if (!classesUnlocked) {
-finalClass = 'none';
-} else {
-const current = get().playerClass;
-if (current === 'melee' || current === 'ranged') finalClass = current;
-}
-
+// A new body: implants, credits, weapons, loadout and upgrade trees all start fresh.
 useInventory.getState().clearInventory();
-
-const newProgression: PlayerProgression = {
-level: 1,
-currentXp: 0,
-xpToNextLevel: getXpForLevel(2),
-deathCount: newDeathCount,
-};
-
-const hasClass = finalClass === 'melee' || finalClass === 'ranged';
+useLoadout.getState().resetLoadout();
+useAugmentTrees.getState().resetTrees();
 
 set({
 phase: 'menu',
@@ -941,35 +666,41 @@ player: createPlayer(undefined, finalClass),
 boss: createBoss(1),
 combatLog: [],
 playerDefenseBoost: 0, bossDefenseBoost: 0,
-currentLoot: null, bossLevel: 1,
-playerClass: finalClass, classLocked: false,
-introCompleted: hasClass,
-selectedMovement: null, selectedAction: null, hasMoved: false,
-progression: newProgression,
+currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
+playerClass: finalClass,
+introCompleted: true,
+selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
+progression: { ...initialProgression(), deathCount: progression.deathCount + 1 },
 grid: emptyGrid(),
-playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null, playerMalfunctioning: false, bossMalfunctioning: false,
+fightId: get().fightId + 1,
+playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
+playerMalfunctioning: false, bossMalfunctioning: false,
 });
 },
 
 resetAll: () => {
 useInventory.getState().clearInventory();
+useLoadout.getState().resetLoadout();
+useAugmentTrees.getState().resetTrees();
 set({
 phase: 'menu',
 player: createPlayer(),
 boss: createBoss(1),
 combatLog: [],
 playerDefenseBoost: 0, bossDefenseBoost: 0,
-currentLoot: null, bossLevel: 1,
-playerClass: 'none', classLocked: false, introCompleted: false,
-selectedMovement: null, selectedAction: null, hasMoved: false,
-progression: { level: 1, currentXp: 0, xpToNextLevel: getXpForLevel(2), deathCount: 0 },
+currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
+playerClass: 'none', classesUnlocked: false, introCompleted: false,
+selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
+progression: initialProgression(),
 grid: emptyGrid(),
-playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null, playerMalfunctioning: false, bossMalfunctioning: false,
+fightId: get().fightId + 1,
+playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
+playerMalfunctioning: false, bossMalfunctioning: false,
 });
 },
 
-addLog: (log) => {
-set((state) => ({ combatLog: [...state.combatLog.slice(-5), log] }));
+addLog: (entry) => {
+set((state) => ({ combatLog: [...state.combatLog.slice(-7), entry] }));
 },
 
 toggleDebugMode: () => set((state) => ({ debugMode: !state.debugMode })),
@@ -978,24 +709,37 @@ gainXp: (xp) => {
 const { progression } = get();
 let newXp = progression.currentXp + xp;
 let newLevel = progression.level;
-let leveledUp = false;
 let levelsGained = 0;
 while (newXp >= getXpForLevel(newLevel + 1)) {
 newXp -= getXpForLevel(newLevel + 1);
 newLevel++;
-leveledUp = true;
 levelsGained++;
 }
 set({ progression: { ...progression, level: newLevel, currentXp: newXp, xpToNextLevel: getXpForLevel(newLevel + 1) } });
-if (leveledUp) {
+if (levelsGained > 0) {
 const msg = getAwarenessMessage(newLevel);
-if (msg) get().addLog(createCombatLog(`SYSTEM: ${msg}`, 'info'));
-// Award 1 augment tree upgrade point per level gained
+if (msg) log(`SYSTEM: ${msg}`);
+// 1 augment tree upgrade point per level gained
 useAugmentTrees.getState().addPoints(levelsGained);
 }
+return { levelsGained };
 },
-
-getTotalSkillBonus: () => ({}),
-
+};
+}, {
+name: '2059-combat',
+version: 1,
+// Only between-fight progress is saved. Reloading mid-fight returns you to base.
+partialize: (s) => ({
+phase: isFightPhase(s.phase) ? 'menu' : s.phase,
+boss: s.boss,
+currentLoot: s.currentLoot,
+lastVictory: s.lastVictory,
+pendingShop: s.pendingShop,
+bossLevel: s.bossLevel,
+playerClass: s.playerClass,
+classesUnlocked: s.classesUnlocked,
+introCompleted: s.introCompleted,
+progression: s.progression,
+}),
 }))
 );

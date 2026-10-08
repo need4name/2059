@@ -7,6 +7,19 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 **Theme:** Near-future cyberpunk with body augmentation
 **Core Mechanic:** Roguelike rebirth progression with permanent class unlocks
 
+## Current Rules (Oct 2026)
+
+- **Turn flow:** an action locks input until it resolves. Every delayed step checks a `fightId`, so leaving or finishing a fight cancels anything still pending.
+- **Loot:** granted in the store the moment a boss dies (`handleBossDefeated`), not by a screen. Fights 10, 14 and 18 show Victory, then the Arms Market.
+- **Arenas:** `lib/combat/grid.ts` builds battlefields (void tiles are impassable and not drawn, and the generator guarantees a path to the boss). It also handles pathfinding for boss movement and player move range.
+- **Hazards:** a combatant standing on a hazard at the end of its turn takes its damage. Bosses route around hazards.
+- **Heavy attacks:** telegraphed one turn ahead; the orange tiles show where it lands. Stepping out dodges it.
+- **Overheat (100 heat):** movement locked. Move-range tree upgrades apply to tile taps.
+- **Classes:** start Unclassified. Dying at threat level 11+ unlocks Enforcer/Operative permanently; after that every death lets you pick a profile.
+- **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps reboot count and class unlock.
+- **Saving:** combat, inventory, loadout and trees persist to localStorage (`2059-*` keys). Reloading mid-fight returns to base.
+- **UI:** screens live in `client/src/components/game/screens/`, shared pieces in `hud.tsx`. Dev builds show a Dev button on the base screen for test tools.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -21,7 +34,6 @@ Preferred communication style: Simple, everyday language.
 - TailwindCSS for styling with a custom design system
 - Radix UI for accessible component primitives
 - Zustand for client-side state management
-- React Three Fiber for 3D rendering capabilities (installed but not actively used in current implementation)
 
 **State Management:**
 - Zustand stores manage game state in isolated domains:

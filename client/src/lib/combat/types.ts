@@ -119,9 +119,7 @@ timestamp: number;
 type: 'info' | 'damage' | 'heal' | 'critical' | 'malfunction';
 }
 
-export type PlayerClass =
-| 'none' | 'melee' | 'ranged'
-| 'warrior' | 'mage' | 'rogue' | 'paladin' | 'ranger' | 'necromancer';
+export type PlayerClass = 'none' | 'melee' | 'ranged';
 
 export interface ClassStats {
 name: string;

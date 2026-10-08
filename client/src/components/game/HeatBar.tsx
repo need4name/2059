@@ -3,7 +3,7 @@ import { getHeatPhase } from '@/lib/combat/types';
 import { useEffect, useRef } from 'react';
 
 export function HeatBar() {
-const { playerHeat, phase, bossChargingHeavy } = useCombat();
+const { playerHeat, phase } = useCombat();
 const heatPhase = getHeatPhase(playerHeat);
 const prevHeat  = useRef(playerHeat);
 
@@ -28,14 +28,7 @@ const isHot      = heatPhase === 'hot' || isCritical;
 
 return (
 
-<div className="fixed left-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 pointer-events-none select-none">
-
-{/* Charging warning - appears above bar when boss telegraphs heavy */}
-{bossChargingHeavy && (
-<div className="mb-1 animate-pulse">
-<span className="text-red-400 text-lg">⚠️</span>
-</div>
-)}
+<div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-1 pointer-events-none select-none">
 
 {/* Bar container */}
 
@@ -61,7 +54,7 @@ return (
 </span>
 
 {/* Phase label */}
-<span className={`text-xs font-mono uppercase tracking-wider ${c.label} opacity-70`}>
+<span className={`text-[9px] font-mono uppercase tracking-wider ${c.label} opacity-70`}>
 {heatPhase === 'critical' ? 'CRIT' : heatPhase.toUpperCase()}
 </span>
 

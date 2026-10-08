@@ -1,8 +1,9 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon } from '../combat/types';
 
 // Equipped augmentations for each body slot
-type EquippedAugmentations = Record<AugmentationSlot, Item | null>;
+export type EquippedAugmentations = Record<AugmentationSlot, Item | null>;
 
 interface InventoryState {
 items: Item[];
@@ -35,7 +36,7 @@ slots[slot] = null;
 return slots as EquippedAugmentations;
 }
 
-export const useInventory = create<InventoryState>()((set, get) => ({
+export const useInventory = create<InventoryState>()(persist((set, get) => ({
 items: [],
 gold: 0,
 equippedAugmentations: createEmptyAugmentations(),
@@ -226,4 +227,4 @@ equipWeapon: (weapon: Weapon | null) => {
 set({ equippedWeapon: weapon });
 },
 
-}));
+}), { name: '2059-inventory', version: 1 }));

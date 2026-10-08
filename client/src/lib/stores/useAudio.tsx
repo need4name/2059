@@ -5,70 +5,54 @@ interface AudioState {
   hitSound: HTMLAudioElement | null;
   successSound: HTMLAudioElement | null;
   isMuted: boolean;
-  
-  // Setter functions
-  setBackgroundMusic: (music: HTMLAudioElement) => void;
-  setHitSound: (sound: HTMLAudioElement) => void;
-  setSuccessSound: (sound: HTMLAudioElement) => void;
-  
-  // Control functions
+
+  init: () => void;
   toggleMute: () => void;
   playHit: () => void;
   playSuccess: () => void;
 }
 
-export const useAudio = create<AudioState>((set, get) => ({
+// Sound starts muted: browsers only allow audio after the player taps something,
+// and the mute toggle is that tap.
+export const useAudio = create<AudioState>()((set, get) => ({
   backgroundMusic: null,
   hitSound: null,
   successSound: null,
-  isMuted: true, // Start muted by default
-  
-  setBackgroundMusic: (music) => set({ backgroundMusic: music }),
-  setHitSound: (sound) => set({ hitSound: sound }),
-  setSuccessSound: (sound) => set({ successSound: sound }),
-  
-  toggleMute: () => {
-    const { isMuted } = get();
-    const newMutedState = !isMuted;
-    
-    // Just update the muted state
-    set({ isMuted: newMutedState });
-    
-    // Log the change
-    console.log(`Sound ${newMutedState ? 'muted' : 'unmuted'}`);
+  isMuted: true,
+
+  init: () => {
+    if (get().backgroundMusic || typeof Audio === "undefined") return;
+    const music = new Audio("/sounds/background.mp3");
+    music.loop = true;
+    music.volume = 0.25;
+    set({
+      backgroundMusic: music,
+      hitSound: new Audio("/sounds/hit.mp3"),
+      successSound: new Audio("/sounds/success.mp3"),
+    });
   },
-  
+
+  toggleMute: () => {
+    const isMuted = !get().isMuted;
+    set({ isMuted });
+    const music = get().backgroundMusic;
+    if (!music) return;
+    if (isMuted) music.pause();
+    else music.play().catch(() => {});
+  },
+
   playHit: () => {
     const { hitSound, isMuted } = get();
-    if (hitSound) {
-      // If sound is muted, don't play anything
-      if (isMuted) {
-        console.log("Hit sound skipped (muted)");
-        return;
-      }
-      
-      // Clone the sound to allow overlapping playback
-      const soundClone = hitSound.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.3;
-      soundClone.play().catch(error => {
-        console.log("Hit sound play prevented:", error);
-      });
-    }
+    if (!hitSound || isMuted) return;
+    const clone = hitSound.cloneNode() as HTMLAudioElement;
+    clone.volume = 0.3;
+    clone.play().catch(() => {});
   },
-  
+
   playSuccess: () => {
     const { successSound, isMuted } = get();
-    if (successSound) {
-      // If sound is muted, don't play anything
-      if (isMuted) {
-        console.log("Success sound skipped (muted)");
-        return;
-      }
-      
-      successSound.currentTime = 0;
-      successSound.play().catch(error => {
-        console.log("Success sound play prevented:", error);
-      });
-    }
-  }
+    if (!successSound || isMuted) return;
+    successSound.currentTime = 0;
+    successSound.play().catch(() => {});
+  },
 }));

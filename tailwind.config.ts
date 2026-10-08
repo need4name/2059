@@ -5,12 +5,31 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Chakra Petch"', "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // 2059 game palette
+        hud: {
+          bg: "#06080c",
+          panel: "#0b1017",
+          raised: "#111923",
+          line: "#1c2735",
+          text: "#c9d4df",
+          dim: "#6f8092",
+          faint: "#3b4859",
+        },
+        sys: "#38d6f0",
+        cred: "#f2b33d",
+        hostile: "#f0524f",
+        aug: "#d070f0",
+        ok: "#4ad295",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

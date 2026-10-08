@@ -3,7 +3,8 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
-import { CLASS_DEFINITIONS, BOSS_ATTACKS } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, getBossRoster } from '@/lib/combat/actions';
+import { getReachableTiles } from '@/lib/combat/grid';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
 // Helper to get all tiles that can be TARGETED from a position with a given pattern
@@ -66,7 +67,7 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, pendingBossAction } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, pendingBossAction, inputLocked, originalPosition, playerMoveRange } = useCombat();
 const damageEffectsRef = useRef<DamageEffect[]>([]);
 const floatingEffectsRef = useRef<FloatingEffect[]>([]);
 const animationRef = useRef<number>();
@@ -90,19 +91,16 @@ const bossAnimator = useRef(new SpriteAnimator(true)); // slow idle for drunkard
 // Helper function to convert grid position to screen position (rectangular grid)
 // Mobile-first: accounts for HUD at top (~60px) and action bar at bottom (~140px)
 const gridToScreen = (row: number, col: number, canvasWidth: number, canvasHeight: number) => {
-const isPortrait = canvasHeight > canvasWidth;
-
-// Reserve space for UI elements (HUD bar and action bar)
-// HUD: ~40px, Action bar: ~120px on mobile
-const topReserved = 50;
-const bottomReserved = isPortrait ? 150 : 100;
+// The canvas sits between the HUD and the action bar, so only a small margin is needed
+const topReserved = 28;
+const bottomReserved = 28;
 const availableHeight = canvasHeight - topReserved - bottomReserved;
 
 // Calculate tile size to fit available space
 // Fit based on whichever dimension is more constraining
 const maxTileSizeByWidth = (canvasWidth * 0.90) / grid.cols;
 const maxTileSizeByHeight = availableHeight / grid.rows;
-const tileSize = Math.min(55, maxTileSizeByWidth, maxTileSizeByHeight); // Cap at 55px max
+const tileSize = Math.min(78, maxTileSizeByWidth, maxTileSizeByHeight);
 const tileW = tileSize;
 const tileH = tileSize;
 
@@ -552,8 +550,8 @@ reachableTiles = getTargetableTiles(grid.playerPosition, currentAttackPattern, g
 
 // Pre-calculate enemy attack range: union of ALL patterns this boss can use.
 // This ensures every tile the boss might hit is shown as a danger zone.
-const enemyReachableTiles = phase === 'player_turn' ? (() => {
-const bossActions = BOSS_ATTACKS[boss.name] || [];
+const enemyReachableTiles = phase === 'player_turn' && !pendingBossAction ? (() => {
+const bossActions = getBossRoster(boss.name);
 const union = new Set<string>();
 // Collect all unique attack patterns this boss has
 const patterns = new Set<AttackPatternType>();
@@ -571,10 +569,20 @@ tiles.forEach(k => union.add(k));
 return union;
 })() : null;
 
+// Tiles the player can still move to this turn
+const moveTiles = phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition
+? getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange)
+: null;
+
+// Where a charged heavy attack will land next turn - step out of it to dodge
+const heavyZone = pendingBossAction ? getTargetableTiles(grid.bossPosition, (pendingBossAction.attackPattern ?? 'melee_long') as AttackPatternType, grid) : null;
+const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
+
 // Draw tiles (rectangular grid) with industrial worn tones
 for (let row = 0; row < grid.rows; row++) {
 for (let col = 0; col < grid.cols; col++) {
 const pos = gridToScreen(row, col, width, height);
+if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   const isPlayerTile = grid.playerPosition.row === row && grid.playerPosition.col === col;
   const isBossTile = grid.bossPosition.row === row && grid.bossPosition.col === col;
@@ -635,6 +643,28 @@ const pos = gridToScreen(row, col, width, height);
   }
   ctx.strokeRect(pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH);
 
+  // Charged heavy attack danger zone
+  if (heavyZone?.has(`${row},${col}`)) {
+    ctx.globalAlpha = 0.35 * pulse + 0.15;
+    ctx.fillStyle = '#ff7a00';
+    ctx.fillRect(pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#ffb347';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pos.x - tileW / 2 + 2, pos.y - tileH / 2 + 2, tileW - 4, tileH - 4);
+  }
+
+  // Movement options: a soft cyan marker on each reachable tile
+  if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
+    ctx.strokeStyle = 'rgba(56, 214, 240, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pos.x - tileW / 2 + 3, pos.y - tileH / 2 + 3, tileW - 6, tileH - 6);
+    ctx.fillStyle = 'rgba(56, 214, 240, 0.55)';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Pattern label on attack range tiles - small text showing pattern type
   if (isInAttackRange && currentAttackPattern && tileW > 40) {
     ctx.fillStyle = attackColors.stroke;
@@ -675,6 +705,10 @@ const pos = gridToScreen(row, col, width, height);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('!', pos.x, pos.y);
+    ctx.fillStyle = '#ffb066';
+    ctx.font = `bold ${Math.max(9, Math.floor(tileW * 0.16))}px monospace`;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
   }
 }
 
@@ -816,7 +850,7 @@ if (reachableTiles && phase === 'player_turn') {
 const bossKey = `${grid.bossPosition.row},${grid.bossPosition.col}`;
 const inRange = reachableTiles.has(bossKey);
 
-ctx.font = 'bold 14px Inter, sans-serif';
+ctx.font = 'bold 13px "JetBrains Mono", monospace';
 ctx.textAlign = 'center';
 
 if (inRange) {
@@ -893,7 +927,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, pendingBossAction, inputLocked, originalPosition, playerMoveRange]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -918,6 +952,7 @@ const y = clientY - rect.top;
 // Check which tile is being hovered
 for (let row = 0; row < grid.rows; row++) {
 for (let col = 0; col < grid.cols; col++) {
+if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 const pos = gridToScreen(row, col, rect.width, rect.height);
 const tileW = pos.tileW;
 const tileH = pos.tileH;
@@ -948,7 +983,7 @@ setHoveredTile(null);
 // Handle tile clicks for movement
 const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
 const canvas = canvasRef.current;
-if (!canvas || phase !== 'player_turn') return;
+if (!canvas || phase !== 'player_turn' || inputLocked) return;
 
 const rect = canvas.getBoundingClientRect();
 const clientX = 'touches' in event ? event.touches[0]?.clientX : event.clientX;
@@ -962,6 +997,7 @@ const y = clientY - rect.top;
 // Check which tile was clicked (rectangular hitbox)
 for (let row = 0; row < grid.rows; row++) {
 for (let col = 0; col < grid.cols; col++) {
+if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 const pos = gridToScreen(row, col, rect.width, rect.height);
 const tileW = pos.tileW;
 const tileH = pos.tileH;

@@ -76,98 +76,6 @@ ignoreRange: true,
 physicalRatio: 0.80,
 },
 },
-warrior: {
-name: 'Rageborn',
-description: 'High-output physical frame. Unstable but effective.',
-icon: '⚔️',
-baseHp: 120,
-baseAttack: 12,
-baseDefense: 8,
-specialAbility: {
-name: 'Primal Fury',
-description: '200% damage.',
-damage: 2.0,
-attackPattern: 'melee_long',
-physicalRatio: 0.85,
-},
-},
-mage: {
-name: 'Signal Caster',
-description: 'Experimental signal-weapon hybrid.',
-icon: '🔮',
-baseHp: 80,
-baseAttack: 18,
-baseDefense: 4,
-specialAbility: {
-name: 'Signal Volley',
-description: '250% area damage.',
-damage: 2.5,
-attackPattern: 'aoe',
-physicalRatio: 0.10,
-},
-},
-rogue: {
-name: 'Shadowblade',
-description: 'Stealth augmentation suite. Critical strike specialist.',
-icon: '🗡️',
-baseHp: 100,
-baseAttack: 15,
-baseDefense: 6,
-specialAbility: {
-name: 'Ghost Strike',
-description: '180% damage. +15 HP siphon.',
-damage: 1.8,
-healing: 15,
-attackPattern: 'melee',
-physicalRatio: 0.85,
-},
-},
-paladin: {
-name: 'Hardframe',
-description: 'Reinforced defensive chassis with discharge capability.',
-icon: '🛡️',
-baseHp: 110,
-baseAttack: 10,
-baseDefense: 10,
-specialAbility: {
-name: 'Discharge Burst',
-description: '+30 HP, boost defense.',
-healing: 30,
-defenseBoost: 5,
-},
-},
-ranger: {
-name: 'Pathfinder',
-description: 'Mobile long-range platform.',
-icon: '🏹',
-baseHp: 90,
-baseAttack: 16,
-baseDefense: 5,
-specialAbility: {
-name: 'Sweep Shot',
-description: '220% damage from any range.',
-damage: 2.2,
-attackPattern: 'ranged',
-ignoreRange: true,
-physicalRatio: 0.80,
-},
-},
-necromancer: {
-name: 'Deathmancer',
-description: 'Life-drain architecture. Feeds on damage output.',
-icon: '💀',
-baseHp: 85,
-baseAttack: 17,
-baseDefense: 4,
-specialAbility: {
-name: 'Soul Drain',
-description: '200% damage. Heals 50% of damage dealt.',
-damage: 2.0,
-healing: 0,
-attackPattern: 'diagonal_cross',
-physicalRatio: 0.95,
-},
-},
 };
 
 // ── Player actions ────────────────────────────────────────────────────────────
@@ -285,6 +193,32 @@ const totalDamage = physDamage + strDamage;
 return { damage: totalDamage, bioDamage: physDamage, structuralDamage: strDamage, isCrit, isFlank };
 }
 
+// Expected damage range for an action, ignoring crits. Mirrors calculateDamage so the
+// numbers on the action buttons match what actually lands.
+export function estimateDamage(
+attacker: Character,
+defender: Character,
+action: CombatAction,
+opts: { defenseBoost?: number; heatMultiplier?: number; flankBonus?: number; tileDistance?: number; isMalfunctioning?: boolean; bypassStructuralDefense?: boolean } = {},
+): { min: number; max: number } {
+const physRatio = action.physicalRatio ?? 0.7;
+const basePhys = Math.floor((action.damage || 0) * physRatio) + attacker.physicalAttack;
+const baseStr  = Math.floor((action.damage || 0) * (1 - physRatio)) + attacker.structuralAttack;
+const strDef = (opts.bypassStructuralDefense || action.bypassStructuralDefense) ? 0 : defender.structuralDefense;
+let phys = Math.max(2, basePhys - (defender.physicalDefense + (opts.defenseBoost ?? 0)));
+let str  = Math.max(0, baseStr - strDef);
+const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
+* (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
+phys = Math.floor(phys * mult); str = Math.floor(str * mult);
+const tier = opts.isMalfunctioning ? 'unreliable' : (action.accuracy ?? 'variable');
+const [lo, hi] = tier === 'precise' ? [1, 1] : tier === 'unreliable' ? [0.25, 0.70] : [0.60, 0.85];
+const roll = (v: number) => Math.floor(phys * v);
+return {
+min: Math.max(3, roll(lo)) + Math.floor(str * lo),
+max: Math.max(3, roll(hi)) + Math.floor(str * hi),
+};
+}
+
 // ── Player creation ───────────────────────────────────────────────────────────
 
 export interface AugmentationBonuses {
@@ -356,6 +290,24 @@ const BOSS_TYPES = [
 { name: 'Patchwork Scrapper',       color: '#7c3aed', baseAttack: 10, baseDefense: 4,  startingHeat: 72 },
 { name: 'Patchwork Ghost',          color: '#e11d48', baseAttack: 14, baseDefense: 1,  startingHeat: 28 },
 ];
+
+// Short dossier lines shown on the base screen before a fight
+export const BOSS_DOSSIERS: Record<string, string> = {
+'Helix Security Unit MK-4': 'Corporate patrol frame. Shock baton up close, pursuit charge from range.',
+'Tianxia Compliance Node':  'Neural disruptor. Fights from range and cools your systems to slow you down.',
+'Patchwork Raider':         'Boarding-hook scavenger. Erratic, hits hard when it connects.',
+'CBN Extraction Agent':     'Heavily armoured retrieval unit. Slow, precise and hard to crack.',
+'Patchwork Scrapper':       'Industrial salvage brute. Wide sweeps and an area-wide graft surge.',
+'Patchwork Ghost':          'Signal-bleed specialist. Strikes structure, not flesh. Fragile.',
+'Patchwork King':           'Sovereign of the scrap fleets. Three phases. He has already counted what you carry.',
+};
+
+/** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
+export function getBossPreview(level: number): { name: string; color: string; hp: number } {
+if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: 120 };
+const t = BOSS_TYPES[(level - 1) % BOSS_TYPES.length];
+return { name: t.name, color: t.color, hp: 30 + level * 15 };
+}
 
 // Stat profiles: [pAtk, sAtk, pDef, sDef] - Patchwork are heavily modified
 // Raider: SCAR limbs, boarding hooks - high S-DEF (cybernetic chassis), balanced attack
@@ -505,6 +457,12 @@ const PATCHWORK_KING_PHASES: CombatAction[][] = [
     { type: 'attack', name: "The King's Due",   description: '', damage: 40, isHeavy: true, accuracy: 'precise',  physicalRatio: 0.75, heatTransfer: +18, heatGenerated: 22, attackPattern: 'charge' },
   ],
 ];
+
+/** Every attack an enemy can use (the King's scripted phases included). */
+export function getBossRoster(bossName: string): CombatAction[] {
+if (bossName === 'Patchwork King') return PATCHWORK_KING_PHASES.flat();
+return BOSS_ATTACKS[bossName] ?? [];
+}
 
 export function getPatchworkKingAction(turnCount: number): CombatAction {
   const phaseIndex = turnCount <= 3 ? 0 : turnCount <= 6 ? 1 : 2;

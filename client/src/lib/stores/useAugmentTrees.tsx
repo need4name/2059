@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { AugmentationSlot, AUGMENTATION_SLOTS } from '../combat/types';
 import { AUGMENT_TREES, TreePath, TreeTier } from '../combat/augmentTrees';
 import { LoadoutAction } from './useLoadout';
@@ -35,13 +36,14 @@ attack: number; defense: number; hp: number; moveRange: number;
 resetTrees: () => void;
 }
 
-export const useAugmentTrees = create<AugmentTreeState>()((set, get) => ({
+export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => ({
 progress: {},
 availablePoints: 0,
 
 unlockSlot: (slot) => {
-// Called when equipping an augment. Always resets progress for this slot
-// so replacing an augment clears the old path choice.
+// Called when equipping an augment. Swapping in a new implant keeps the
+// slot's existing path and tier so invested points aren't lost.
+if (get().progress[slot]) return;
 set((state) => ({
 progress: {
 ...state.progress,
@@ -110,7 +112,7 @@ if (!tierData.combatAction) continue;
 
 actions.push({
 ...tierData.combatAction,
-key: `aug_${slot}_${prog.chosenPath}_t${prog.tier}`,
+key: `aug_${slot}_${prog.chosenPath}`,
 unlocked: true,
 source: 'augment',
 } as LoadoutAction);
@@ -146,4 +148,4 @@ return { attack, defense, hp, moveRange };
 },
 
 resetTrees: () => set({ progress: {}, availablePoints: 0 }),
-}));
+}), { name: '2059-trees', version: 1 }));
