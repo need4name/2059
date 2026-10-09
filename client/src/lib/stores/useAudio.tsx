@@ -22,13 +22,13 @@ export const useAudio = create<AudioState>()((set, get) => ({
 
   init: () => {
     if (get().backgroundMusic || typeof Audio === "undefined") return;
-    const music = new Audio("/sounds/background.mp3");
+    const music = new Audio(`${import.meta.env.BASE_URL}sounds/background.mp3`);
     music.loop = true;
     music.volume = 0.25;
     set({
       backgroundMusic: music,
-      hitSound: new Audio("/sounds/hit.mp3"),
-      successSound: new Audio("/sounds/success.mp3"),
+      hitSound: new Audio(`${import.meta.env.BASE_URL}sounds/hit.mp3`),
+      successSound: new Audio(`${import.meta.env.BASE_URL}sounds/success.mp3`),
     });
   },
 
