@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CONDITION_MULT, structureOf, healthCostOf } from '../combat/augments';
 import { persist } from 'zustand/middleware';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon } from '../combat/types';
 
@@ -20,7 +21,7 @@ clearInventory: () => void;
 equipAugmentation: (item: Item) => void;
 unequipAugmentation: (slot: AugmentationSlot) => void;
 useConsumable: (itemId: string) => Item | null;
-getTotalAugmentationBonuses: () => { physicalAttack: number; structuralAttack: number; physicalDefense: number; structuralDefense: number; hp: number; evasion: number; bypassStructuralDefense: boolean; hasKizuna: boolean; treeAttack: number; treeDefense: number; treeHp: number };
+getTotalAugmentationBonuses: () => { physicalAttack: number; structuralAttack: number; physicalDefense: number; structuralDefense: number; hp: number; evasion: number; structure: number; hpCost: number; bypassStructuralDefense: boolean; hasKizuna: boolean; treeAttack: number; treeDefense: number; treeHp: number };
 buyWeapon: (weapon: Weapon) => boolean;
 upgradeWeapon: (tier1Id: string, tier2Weapon: Weapon) => boolean;
 sellWeapon: (weaponId: string) => void;
@@ -151,34 +152,30 @@ let evasion = 0;
 let bypassStructuralDefense = false;
 let hasKizuna = false;
 
-// Condition multipliers apply only to that item's own bonuses
-// corroded is negative - the item actively fights you
-const conditionMultiplier = (condition: import('../combat/types').ItemCondition | undefined): number => {
-switch (condition) {
-case 'worn':     return 0.70;
-case 'degraded': return 0.45;
-case 'corroded': return -0.25;
-default:         return 1.0;
-}
-};
+let structure = 0;
+let hpCost = 0;
 
 for (const slot of AUGMENTATION_SLOTS) {
 const item = state.equippedAugmentations[slot];
 if (item) {
-const m = conditionMultiplier(item.condition);
-physicalAttack    += Math.floor((item.attackBonus            || 0) * m);
-structuralAttack  += Math.floor((item.structuralAttackBonus  || 0) * m);
-physicalDefense   += Math.floor((item.defenseBonus           || 0) * m);
-structuralDefense += Math.floor((item.structuralDefenseBonus || 0) * m);
-hp                += Math.floor((item.hpBonus                || 0) * m);
-evasion           += Math.floor((item.evasionBonus           || 0) * m);
+// Worn parts work at reduced strength; a part never subtracts stats
+const m = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
+const add = (n?: number) => (n && n > 0 ? Math.round(n * m) : 0);
+physicalAttack    += add(item.attackBonus);
+structuralAttack  += add(item.structuralAttackBonus);
+physicalDefense   += add(item.defenseBonus);
+structuralDefense += add(item.structuralDefenseBonus);
+hp                += add(item.hpBonus);
+evasion           += add(item.evasionBonus);
+structure         += structureOf(item);
+hpCost            += healthCostOf(item);
 // Passive effects - condition does not suppress manufacturer traits
 if (item.passiveEffect === 'bypass_sdef')      bypassStructuralDefense = true;
 if (item.passiveEffect === 'kizuna_coldstart') hasKizuna = true;
 }
 }
 
-return { physicalAttack, structuralAttack, physicalDefense, structuralDefense, hp, evasion, bypassStructuralDefense, hasKizuna, treeAttack: 0, treeDefense: 0, treeHp: 0 };
+return { physicalAttack, structuralAttack, physicalDefense, structuralDefense, hp, evasion, structure, hpCost, bypassStructuralDefense, hasKizuna, treeAttack: 0, treeDefense: 0, treeHp: 0 };
 
 },
 

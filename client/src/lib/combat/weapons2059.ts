@@ -1,4 +1,4 @@
-import { Weapon } from './types';
+import { Weapon, WeaponType, AttackPatternType } from './types';
 
 // ── WEAPONS 2059 ──────────────────────────────────────────────────────────────
 // 4 manufacturers x 3 weapon types x 2 tiers = 24 weapons
@@ -11,7 +11,7 @@ import { Weapon } from './types';
 // Tier 2 ids = tier 1 id + '_mk2'
 // Sell price = ~40% of buy price (rounded to nearest 10)
 
-export const WEAPONS_2059: Weapon[] = [
+const BASE_WEAPONS: Weapon[] = [
 
 // ── VOLKOV ────────────────────────────────────────────────────────────────────
 
@@ -557,6 +557,15 @@ rangeOptimal: 'close',
 ];
 
 // Helper: get all tier-1 weapons (available to buy fresh)
+// Each weapon type fires its own shape: sidearms and revolvers reach across
+// the arena, shotgun-class frames spray a cone in front of you.
+const WEAPON_PATTERN: Record<WeaponType, AttackPatternType> = { pistol: 'ranged', revolver: 'ranged', shotgun: 'cone' };
+
+export const WEAPONS_2059: Weapon[] = BASE_WEAPONS.map(w => ({
+...w,
+combatAction: { ...w.combatAction, attackPattern: w.combatAction.attackPattern ?? WEAPON_PATTERN[w.weaponType] },
+}));
+
 export const TIER1_WEAPONS = WEAPONS_2059.filter(w => w.tier === 1);
 
 // Helper: get tier-2 upgrade for a given tier-1 weapon id

@@ -70,15 +70,24 @@ export const AUGMENTATION_SLOTS: AugmentationSlot[] = [
 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc',
 ];
 
+// Active implants give you something to do in a fight (they add a combat action).
+// Passive implants only change your stats or add an always-on effect.
+export const ACTIVE_SLOTS: AugmentationSlot[] = ['left_arm', 'right_arm', 'left_leg', 'right_leg', 'eyes'];
+export const PASSIVE_SLOTS: AugmentationSlot[] = ['brain', 'ears', 'nose', 'lungs', 'misc'];
+export type AugmentKind = 'active' | 'passive';
+export function augmentKind(slot: AugmentationSlot | undefined): AugmentKind {
+  return slot && ACTIVE_SLOTS.includes(slot) ? 'active' : 'passive';
+}
+
 export const AUGMENTATION_SLOT_NAMES: Record<AugmentationSlot, string> = {
 brain: 'Brain', ears: 'Ears', eyes: 'Eyes', nose: 'Nose', lungs: 'Lungs',
 left_arm: 'Left Arm', right_arm: 'Right Arm',
-left_leg: 'Left Leg', right_leg: 'Right Leg', misc: 'Misc',
+left_leg: 'Left Leg', right_leg: 'Right Leg', misc: 'Spine',
 };
 
 export const AUGMENTATION_SLOT_ICONS: Record<AugmentationSlot, string> = {
 brain: '🧠', ears: '👂', eyes: '👁️', nose: '👃', lungs: '🫁',
-left_arm: '💪', right_arm: '🦾', left_leg: '🦵', right_leg: '🦿', misc: '⚙️',
+left_arm: '💪', right_arm: '🦾', left_leg: '🦵', right_leg: '🦿', misc: '🦴',
 };
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -194,21 +203,16 @@ case 'critical': return { dealt: 1.50, received: 1.75 };
 // ── Flanking ──────────────────────────────────────────────────────────────────
 
 /**
-
-- Boss always spawns on the right side facing left.
-- Getting to its side or behind it gives a bonus.
-- Behind = player col > boss col (wrapped around)
-- Side    = player is primarily above/below boss
-  */
-  export function getFlankBonus(
+ * The enemy starts on the top edge facing down the arena.
+ * Getting above it (behind) or level with it (side) gives a bonus.
+ */
+export function getFlankBonus(
   playerPos: TilePosition,
   bossPos: TilePosition
-  ): number {
-  const colDiff = playerPos.col - bossPos.col;
-  const rowDiff = Math.abs(playerPos.row - bossPos.row);
-  const colAbs  = Math.abs(colDiff);
-
-if (colDiff > 0) return 0.30;              // behind - 30% bonus
-if (rowDiff > 0 && rowDiff >= colAbs) return 0.15; // side - 15% bonus
-return 0;                                  // frontal - no bonus
+): number {
+  const rowDiff = playerPos.row - bossPos.row;   // negative = player is above (behind)
+  const colAbs = Math.abs(playerPos.col - bossPos.col);
+  if (rowDiff < 0) return 0.30;                         // behind - 30% bonus
+  if (colAbs > 0 && colAbs >= Math.abs(rowDiff)) return 0.15; // side - 15% bonus
+  return 0;                                             // frontal - no bonus
 }

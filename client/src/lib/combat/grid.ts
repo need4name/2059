@@ -3,17 +3,19 @@ import { canHitTarget } from './patterns';
 
 // ── Tile helpers ──────────────────────────────────────────────────────────────
 
+// Cover found on the plastic archipelago and the platforms tethered to it
 const OBSTACLE_TYPES = [
-  { icon: '🧱', name: 'Debris' },
-  { icon: '📦', name: 'Crate' },
-  { icon: '🛢️', name: 'Barrel' },
-  { icon: '⚡', name: 'Generator' },
+  { icon: '🧱', name: 'Debris bale' },
+  { icon: '📦', name: 'Salvage crate' },
+  { icon: '🛢️', name: 'Pump drum' },
+  { icon: '⚙️', name: 'Turbine strut' },
+  { icon: '🧵', name: 'Cable spool' },
 ];
 
 const HAZARD_TYPES = [
-  { icon: '☢️', name: 'Toxic Pool', damage: 5 },
-  { icon: '🔥', name: 'Fire',       damage: 8 },
-  { icon: '⚡', name: 'Live Wire',  damage: 6 },
+  { icon: '☣️', name: 'Leachate pool', damage: 5 },
+  { icon: '🔥', name: 'Fuel fire',     damage: 8 },
+  { icon: '⚡', name: 'Stolen power tap', damage: 6 },
 ];
 
 const NEIGHBOURS = [
@@ -133,34 +135,42 @@ export function stepTowardAttackPosition(grid: CombatGrid, pattern: AttackPatter
 }
 
 // ── Battlefield generation ───────────────────────────────────────────────────
+// Arenas are portrait (taller than wide) to fit a phone. The player starts on the
+// bottom edge and the enemy on the top edge, so there is ground to cover.
 
 type ArenaShape = NonNullable<CombatGrid['arenaShape']>;
 
 function generateGridSize(bossLevel: number) {
-  const progress = Math.min((bossLevel - 1) / 49, 1);
-  const cols = Math.min(7, Math.max(4, Math.floor(4 + Math.random() * (0.3 + progress * 0.7) * 4)));
-  const rows = Math.min(5, Math.max(3, Math.floor(3 + Math.random() * (0.2 + progress * 0.8) * 3)));
-  return { rows, cols };
+  // Grows from about 7x9 on the first fights to 9x13 by threat 12
+  const progress = Math.min((bossLevel - 1) / 11, 1);
+  const cols = Math.round(7 + progress * 2 - Math.random() * 0.8);
+  const rows = Math.round(9 + progress * 4 - Math.random() * 1.2);
+  return { cols: Math.max(7, Math.min(9, cols)), rows: Math.max(9, Math.min(13, rows)) };
 }
 
 // Returns set of 'row,col' keys that are void (impassable, not drawn)
 function getVoidMask(shape: ArenaShape, rows: number, cols: number): Set<string> {
   const voids = new Set<string>();
+  const add = (r: number, c: number) => voids.add(`${r},${c}`);
   if (shape === 'corridor') {
-    const keepMin = Math.floor(rows / 2) - (rows >= 4 ? 1 : 0);
-    const keepMax = Math.floor(rows / 2) + (rows >= 4 ? 1 : 0);
-    for (let r = 0; r < rows; r++) {
-      if (r < keepMin || r > keepMax) for (let c = 0; c < cols; c++) voids.add(`${r},${c}`);
-    }
+    // A walkway three tiles wide running top to bottom, like a gantry between platforms
+    const keepMin = Math.floor((cols - 3) / 2);
+    const keepMax = keepMin + 2;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (c < keepMin || c > keepMax) add(r, c);
   } else if (shape === 'l_shape') {
-    const cutRow = Math.floor(rows * 0.5);
-    const cutCol = Math.floor(cols * 0.5);
-    for (let r = 0; r < cutRow; r++) for (let c = cutCol; c < cols; c++) voids.add(`${r},${c}`);
+    // One corner of the deck has collapsed into the sea
+    const cutRows = Math.floor(rows * 0.45);
+    const cutCols = Math.floor(cols * 0.5);
+    const left = Math.random() < 0.5;
+    for (let r = Math.floor((rows - cutRows) / 2); r < Math.floor((rows - cutRows) / 2) + cutRows; r++)
+      for (let c = 0; c < cutCols; c++) add(r, left ? c : cols - 1 - c);
   } else if (shape === 'cross') {
-    const midRow = Math.floor(rows / 2);
-    const midCol = Math.floor(cols / 2);
+    // Two crossing walkways two tiles wide
+    const midRow = Math.floor(rows / 2), midCol = Math.floor(cols / 2);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      if (r !== midRow && c !== midCol) voids.add(`${r},${c}`);
+      const onRow = r === midRow || r === midRow - 1;
+      const onCol = c === midCol || c === midCol - 1;
+      if (!onRow && !onCol) add(r, c);
     }
   }
   return voids;
@@ -170,47 +180,42 @@ function pickShape(bossLevel: number): ArenaShape {
   const roll = Math.random();
   if (bossLevel < 3 || roll < 0.45) return 'open';
   if (bossLevel < 5 || roll < 0.65) return 'corridor';
-  if (bossLevel < 7 || roll < 0.80) return 'l_shape';
+  if (bossLevel < 7 || roll < 0.82) return 'l_shape';
   return 'cross';
 }
 
 function randomOf<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
 export function generateBattlefield(bossLevel: number): CombatGrid {
-  let { rows, cols } = generateGridSize(bossLevel);
-  let shape = pickShape(bossLevel);
-  // A cross needs room for both arms; fall back if the grid is too small.
-  if (shape === 'cross' && (rows < 3 || cols < 5)) shape = 'corridor';
-  const progress = Math.min((bossLevel - 1) / 49, 1);
+  const { rows, cols } = generateGridSize(bossLevel);
+  const shape = pickShape(bossLevel);
   const voidSet = getVoidMask(shape, rows, cols);
 
   const tiles: TileData[][] = Array.from({ length: rows }, (_, r) =>
     Array.from({ length: cols }, (_, c) => (voidSet.has(`${r},${c}`) ? { type: 'void' as const } : { type: 'empty' as const })),
   );
 
-  // Place the two combatants first, on non-void tiles at opposite edges.
-  const playerRows = Array.from({ length: rows }, (_, i) => i).filter(r => !voidSet.has(`${r},0`));
-  const bossRows = Array.from({ length: rows }, (_, i) => i).filter(r => !voidSet.has(`${r},${cols - 1}`));
-  let playerPosition = { row: randomOf(playerRows), col: 0 };
-  let bossPosition = { row: Math.random() < 0.5 && bossRows.includes(playerPosition.row) ? playerPosition.row : randomOf(bossRows), col: cols - 1 };
-  // Cross arenas only have the middle row at each edge.
-  if (shape === 'cross') {
-    const mid = Math.floor(rows / 2);
-    playerPosition = { row: mid, col: 0 };
-    bossPosition = { row: mid, col: cols - 1 };
-  }
+  // Player on the bottom edge, enemy on the top edge, on solid tiles
+  const bottomCols = Array.from({ length: cols }, (_, i) => i).filter(c => !voidSet.has(`${rows - 1},${c}`));
+  const topCols = Array.from({ length: cols }, (_, i) => i).filter(c => !voidSet.has(`0,${c}`));
+  const playerPosition = { row: rows - 1, col: randomOf(bottomCols) };
+  const bossPosition = { row: 0, col: randomOf(topCols) };
 
   const grid: CombatGrid = { rows, cols, tiles, arenaShape: shape, playerPosition, bossPosition };
   const connected = () => stepDistances(playerPosition, grid).has(key(bossPosition));
 
-  const numObstacles = Math.max(1, Math.floor(progress * 2)) + Math.floor(Math.random() * (2 + Math.floor(progress * 3)));
-  const numHazards = Math.floor(Math.random() * Math.min(3, 1 + Math.floor(progress * 3)));
+  // Cover and hazards scale with the walkable area
+  const walkable = rows * cols - voidSet.size;
+  const progress = Math.min((bossLevel - 1) / 15, 1);
+  const numObstacles = Math.round(walkable * (0.08 + progress * 0.06) + Math.random() * 2);
+  const numHazards = bossLevel < 2 ? 0 : Math.round(walkable * (0.02 + progress * 0.04) + Math.random());
 
   const place = (count: number, make: () => TileData, mustStayConnected: boolean) => {
     let n = 0;
-    for (let attempts = 0; n < count && attempts < 60; attempts++) {
-      const r = Math.floor(Math.random() * rows);
-      const c = 1 + Math.floor(Math.random() * (cols - 2));
+    for (let attempts = 0; n < count && attempts < count * 25; attempts++) {
+      // Keep the two spawn rows clear so nobody starts boxed in
+      const r = 1 + Math.floor(Math.random() * (rows - 2));
+      const c = Math.floor(Math.random() * cols);
       if (tiles[r][c].type !== 'empty') continue;
       tiles[r][c] = make();
       if (mustStayConnected && !connected()) { tiles[r][c] = { type: 'empty' }; continue; }
@@ -226,9 +231,9 @@ export function generateBattlefield(bossLevel: number): CombatGrid {
 
 export function emptyGrid(): CombatGrid {
   return {
-    rows: 3, cols: 7,
-    playerPosition: { row: 1, col: 0 },
-    bossPosition: { row: 1, col: 6 },
-    tiles: Array.from({ length: 3 }, () => Array.from({ length: 7 }, () => ({ type: 'empty' as const }))),
+    rows: 7, cols: 6,
+    playerPosition: { row: 6, col: 2 },
+    bossPosition: { row: 0, col: 3 },
+    tiles: Array.from({ length: 7 }, () => Array.from({ length: 6 }, () => ({ type: 'empty' as const }))),
   };
 }

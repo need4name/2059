@@ -41,8 +41,14 @@ function CombatHud() {
           </div>
           <Meter value={player.currentHp} max={player.maxHp} tone="sys" className="h-2" />
           <div className="flex items-center gap-1.5">
-            <Meter value={player.currentStructuralHp} max={player.maxStructuralHp} tone="structure" className="flex-1" />
-            <span className="text-[10px] text-hud-dim">Structure {player.currentStructuralHp}</span>
+            {player.maxStructuralHp > 0 ? (
+              <>
+                <Meter value={player.currentStructuralHp} max={player.maxStructuralHp} tone="structure" className="flex-1" />
+                <span className="text-[10px] text-hud-dim">Structure {player.currentStructuralHp}</span>
+              </>
+            ) : (
+              <span className="text-[10px] text-hud-faint">No implants: nothing to absorb structural hits</span>
+            )}
           </div>
         </div>
 

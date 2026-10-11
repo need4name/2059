@@ -33,9 +33,9 @@ export function passiveText(item: Item): string | null {
 
 export function conditionText(item: Item): string | null {
   switch (item.condition) {
-    case 'worn': return 'Worn · 70% effect';
-    case 'degraded': return 'Degraded · 45% effect';
-    case 'corroded': return 'Corroded · works against you';
+    case 'worn': return 'Worn · 80% effect';
+    case 'degraded': return 'Degraded · 60% effect, small infection risk';
+    case 'corroded': return 'Corroded · 45% effect, infected';
     default: return null;
   }
 }

@@ -1,9 +1,10 @@
 import type { Item } from "./types";
+import { normaliseItem } from "./augments";
 
 // Item type extended with description for lore
 // Add `description?: string` to the Item interface in types.ts
 
-export const ITEMS_2059: Item[] = [
+const BASE_ITEMS: Item[] = [
 // --
 // COMMON
 // --
@@ -1209,4 +1210,31 @@ type: "consumable" as const,
 consumableEffect: "overclock" as const,
 icon: "⚡",
 },
+// -- Grafts and makers added for the Offshore Sector 7 market
+{ id: "cbn_la_r_01", name: "[CBN] RIG Graft Arm", description: "Cartel muscle graft grown in a BASM unit off Sector 7. Hits through implant plating. The host body never stops rejecting it.", rarity: "rare", type: "augmentation", slot: "left_arm", icon: "🦾", attackBonus: 9, structuralAttackBonus: 4, passiveEffect: 'bypass_sdef' },
+{ id: "cbn_ra_e_01", name: "[CBN] FAS Lash Graft", description: "Fast-twitch fibre lash from a cartel surgery barge. Feeds on the fight. Infection is a matter of when.", rarity: "epic", type: "augmentation", slot: "right_arm", icon: "🦾", attackBonus: 14, structuralAttackBonus: 6, passiveEffect: 'bypass_sdef' },
+{ id: "tx_ra_u_02", name: "[TIANXIA] Dockhand Grip", description: "Labour-grade hand from the Pearl River container yards. Built to hold a crate all shift.", rarity: "uncommon", type: "augmentation", slot: "right_arm", icon: "🦾", attackBonus: 4, defenseBonus: 3, hpBonus: 6 },
+{ id: "cr_la_r_01", name: "[CROWN] Concierge Arm", description: "Clinic-finished limb for executives who still like to throw the first punch. Runs cool.", rarity: "rare", type: "augmentation", slot: "left_arm", icon: "🦾", attackBonus: 7, defenseBonus: 5, hpBonus: 8 },
+{ id: "kz_ra_l_01", name: "[KIZUNA] Mediator Hand", description: "MIL-signed precision limb. Every motion is logged and approved before it lands.", rarity: "legendary", type: "augmentation", slot: "right_arm", icon: "🦾", attackBonus: 18, defenseBonus: 6, structuralAttackBonus: 6, passiveEffect: 'kizuna_coldstart' },
+{ id: "io_la_u_01", name: "[IOA] Limiter-Free Forearm", description: "Counterfeit forearm with the safety firmware stripped on a grey lane. It will tear your shoulder eventually.", rarity: "uncommon", type: "augmentation", slot: "left_arm", icon: "🦾", attackBonus: 7, structuralAttackBonus: 2 },
+{ id: "hx_la_e_01", name: "[HELIX] Bulwark Housing Arm", description: "Helix continuity hardware: a limb built to take hits for the platform. Helix makes no weapons.", rarity: "epic", type: "augmentation", slot: "left_arm", icon: "🛡️", defenseBonus: 12, structuralDefenseBonus: 8, hpBonus: 12 },
+{ id: "ps_ra_c_01", name: "[PARSU] Substrate Cudgel Arm", description: "Raw composite forearm poured in a PARSU mould. Heavy and dumb.", rarity: "common", type: "augmentation", slot: "right_arm", icon: "🦾", attackBonus: 3, structuralDefenseBonus: 1 },
+{ id: "tx_ll_c_02", name: "[TIANXIA] Loader Leg", description: "Workforce leg rated for twelve-hour standing shifts.", rarity: "common", type: "augmentation", slot: "left_leg", icon: "🦿", attackBonus: 1, defenseBonus: 2, hpBonus: 4 },
+{ id: "vk_rl_r_01", name: "[VOLKOV] Breach Strider", description: "Operator leg tuned for door breaching. The knee is louder than the gun.", rarity: "rare", type: "augmentation", slot: "right_leg", icon: "🦿", attackBonus: 8, defenseBonus: 3, hpBonus: 4 },
+{ id: "cbn_ll_e_01", name: "[CBN] SCAR Spring Graft", description: "Cartel tendon graft that stores and dumps energy. The scar tissue keeps spreading.", rarity: "epic", type: "augmentation", slot: "left_leg", icon: "🦿", attackBonus: 10, evasionBonus: 3, passiveEffect: 'bypass_sdef' },
+{ id: "kz_rl_u_01", name: "[KIZUNA] Gyro-Stable Shin", description: "Balance-stabilised shin for MIL couriers.", rarity: "uncommon", type: "augmentation", slot: "right_leg", icon: "🦿", attackBonus: 3, defenseBonus: 2, evasionBonus: 1 },
+{ id: "cr_ll_r_01", name: "[CROWN] Poise Leg", description: "Luxury clinic leg. Graceful, quiet, and kind to the hip.", rarity: "rare", type: "augmentation", slot: "left_leg", icon: "🦿", defenseBonus: 5, hpBonus: 12, evasionBonus: 1 },
+{ id: "vk_ll_l_01", name: "[VOLKOV] Operator Drive Leg", description: "Full Volkov operator suite leg. Closes distance like a thrown anchor.", rarity: "legendary", type: "augmentation", slot: "left_leg", icon: "🦿", attackBonus: 20, defenseBonus: 8, hpBonus: 8 },
+{ id: "kz_ey_e_01", name: "[KIZUNA] Signed Optic", description: "MIL-signed targeting optic. Locks never drift.", rarity: "epic", type: "augmentation", slot: "eyes", icon: "👁️", attackBonus: 12, defenseBonus: 4, structuralAttackBonus: 4, passiveEffect: 'kizuna_coldstart' },
+{ id: "vk_ey_r_01", name: "[VOLKOV] Operator Overlay", description: "Combat overlay ripped from a Volkov operator helmet and wired straight into the optic nerve.", rarity: "rare", type: "augmentation", slot: "eyes", icon: "👁️", attackBonus: 10, structuralAttackBonus: 3 },
+{ id: "io_ey_u_01", name: "[IOA] Cracked HUD", description: "Grey-lane retinal firmware. Fast aim, frequent migraines.", rarity: "uncommon", type: "augmentation", slot: "eyes", icon: "👁️", attackBonus: 6, structuralAttackBonus: 1 },
+{ id: "cbn_ms_r_01", name: "[CBN] Marrow Graft", description: "Cartel spinal marrow graft. Your hits find the seams in implant plating. Your body hates it.", rarity: "rare", type: "augmentation", slot: "misc", icon: "🦴", attackBonus: 8, structuralAttackBonus: 5, passiveEffect: 'bypass_sdef' },
+{ id: "ps_lu_u_01", name: "[PARSU] Composite Lung Mesh", description: "Substrate mesh liner. Stiff, but it keeps the fumes out.", rarity: "uncommon", type: "augmentation", slot: "lungs", icon: "🫁", defenseBonus: 4, hpBonus: 12, structuralDefenseBonus: 2 },
+{ id: "cr_br_e_01", name: "[CROWN] Restorative Kernel", description: "Crown clinic kernel that keeps the body healing between fights.", rarity: "epic", type: "augmentation", slot: "brain", icon: "🧠", defenseBonus: 8, hpBonus: 36 },
+{ id: "hx_nz_r_01", name: "[HELIX] Filter Septum", description: "Helix survival filter. Leachate fumes stop being a problem.", rarity: "rare", type: "augmentation", slot: "nose", icon: "👃", defenseBonus: 6, hpBonus: 16, structuralDefenseBonus: 3 },
+{ id: "ps_ms_e_01", name: "[PARSU] Substrate Spine", description: "A spine cast in raw composite. Almost nothing breaks it.", rarity: "epic", type: "augmentation", slot: "misc", icon: "🦴", defenseBonus: 10, structuralDefenseBonus: 10, hpBonus: 8 },
+{ id: "io_br_r_01", name: "[IOA] Grey Firmware Kernel", description: "Unlicensed brain firmware. Faster thinking, no safety rails.", rarity: "rare", type: "augmentation", slot: "brain", icon: "🧠", attackBonus: 10, structuralAttackBonus: 4 },
 ];
+
+/** All items, with implants brought into the power band for their rarity. */
+export const ITEMS_2059: Item[] = BASE_ITEMS.map(normaliseItem);

@@ -4,13 +4,13 @@ import { Screen, Card, Label, Btn, Chip, RARITY_TEXT, RARITY_GLOW, cx } from '..
 import { implantStats, stimInfo, passiveText } from '../itemText';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, pendingShop, continueFromVictory, boss, bossLevel } = useCombat();
+  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel } = useCombat();
   const items = currentLoot?.items ?? [];
 
   return (
     <Screen footer={
-      <Btn variant={pendingShop ? 'gold' : 'primary'} size="lg" className="w-full" onClick={continueFromVictory}>
-        {pendingShop ? 'Visit the Arms Market' : 'Back to base'}
+      <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
+        Back to the hideout
       </Btn>
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-ok/15 blur-3xl" />
@@ -37,9 +37,9 @@ export function VictoryScreen() {
             </div>
           </Card>
         )}
-        {lastVictory && lastVictory.levelsGained > 0 && (
+        {lastVictory && lastVictory.pointsGained > 0 && (
           <div className="rise-in rounded-2xl bg-sys/10 px-4 py-3 text-center text-sm font-semibold text-sys">
-            Level up! Spend your points in Upgrades.
+            Spend your points in Upgrades.
           </div>
         )}
 

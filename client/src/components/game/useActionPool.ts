@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
@@ -58,6 +58,9 @@ export function useLoadoutSync() {
   const pool = useActionPool();
   const phase = useCombat(s => s.phase);
   const { slots, setSlots } = useLoadout();
+  // Moves that were already available last time; only genuinely new ones auto-fill,
+  // so a slot you cleared on purpose stays empty
+  const knownKeys = useRef<string[] | null>(null);
 
   useEffect(() => {
     const byKey = new Map(pool.map(a => [a.key, a]));
@@ -75,6 +78,21 @@ export function useLoadoutSync() {
       next = [byKey.get('base_strike') ?? null, byKey.get('base_brace') ?? null, null, null];
       changed = true;
     }
+    // A newly gained move (fresh implant, weapon or class) drops into an empty slot by itself
+    if (!inFight && next.some(s => s === null)) {
+      const have = new Set(next.filter(Boolean).map(s => s!.key));
+      const seen = new Set(knownKeys.current ?? pool.map(a => a.key));
+      const fresh = pool.filter(a => !have.has(a.key) && !seen.has(a.key));
+      if (fresh.length) {
+        next = [...next] as typeof slots;
+        for (const a of fresh) {
+          const i = next.findIndex(s => s === null);
+          if (i < 0) break;
+          next[i] = a; changed = true;
+        }
+      }
+    }
+    knownKeys.current = pool.map(a => a.key);
     if (changed) setSlots(next);
   }, [pool, slots, phase, setSlots]);
 }

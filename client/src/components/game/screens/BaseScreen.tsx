@@ -6,7 +6,9 @@ import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { useAudio } from '@/lib/stores/useAudio';
 import { AUGMENT_TREES } from '@/lib/combat/augmentTrees';
 import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
-import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS } from '@/lib/combat/types';
+import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS, augmentKind } from '@/lib/combat/types';
+import { actionForItem, healthCostOf } from '@/lib/combat/augments';
+import { useTutorial } from '@/lib/stores/useTutorial';
 import { Screen, Panel, Card, Label, Btn, Chip, Meter, Stat, ConfirmDialog, Segmented, cx } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
@@ -93,7 +95,7 @@ function LoadoutTab() {
               </button>
             );
           })}
-          <p className="pt-1 text-xs text-hud-faint">More actions unlock from your class, upgrade trees and weapons bought at the Arms Market.</p>
+          <p className="pt-1 text-xs text-hud-faint">More actions come from active implants (arms, legs and eyes), your class, and weapons from the Grey Lane market.</p>
         </div>
       )}
     </div>
@@ -112,18 +114,21 @@ function UpgradesTab() {
   return (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed text-hud-dim">
-        Each implant has two paths. Picking a path is free; each tier after that costs 1 point. You earn a point every level, and swapping an implant keeps its tree.
+        Only installed implants can be upgraded. Picking a path is free; each tier after that costs 1 point. You earn points from wins and level-ups. Upgrades stay with the implant if you take it out.
       </p>
       {equipped.map(slot => {
         const tree = AUGMENT_TREES[slot];
         if (!tree) return null;
-        const prog = progress[slot];
+        const item = equippedAugmentations[slot]!;
+        const prog = progress[item.id];
+        const active = augmentKind(slot) === 'active';
+        const moveAt = (p: 'A' | 'B' | null, t: number) => actionForItem(item, { path: p, tier: t });
         const tier = prog?.tier ?? 0;
         const path = prog?.chosenPath ?? null;
         return (
           <Panel
             key={slot}
-            label={<span className="flex items-center gap-2"><span className="text-lg">{AUGMENTATION_SLOT_ICONS[slot]}</span>{tree.displayName}</span>}
+            label={<span className="flex items-center gap-2"><span className="text-lg">{AUGMENTATION_SLOT_ICONS[slot]}</span>{item.name.replace(/^\[[A-Z]+\]\s*/, '')}</span>}
             right={path ? <Chip tone={tier === 3 ? 'cred' : 'sys'}>{tree.paths[path].name.toLowerCase()} · tier {tier}</Chip> : <Chip tone="cred">Pick a path</Chip>}
           >
             {!path ? (
@@ -134,7 +139,7 @@ function UpgradesTab() {
                     <button key={p} onClick={() => choosePath(slot, p)} className="flex flex-col gap-1 rounded-2xl bg-white/[0.05] p-3.5 text-left transition hover:bg-sys/10 hover:ring-1 hover:ring-sys/40">
                       <span className="font-display text-[15px] font-semibold capitalize text-hud-text">{tree.paths[p].name.toLowerCase()}</span>
                       <span className="text-[13px] leading-snug text-hud-dim">{tree.paths[p].description}</span>
-                      <span className="text-xs text-sys">Tier 1: {first.augmentLabel}{first.combatAction ? ` · unlocks ${first.combatAction.name}` : ''}</span>
+                      <span className="text-xs text-sys">Tier 1: {first.augmentLabel}{active ? ` · ${p === 'A' ? 'harder hitting, hotter' : 'cooler, more accurate'}` : ''}</span>
                     </button>
                   );
                 })}
@@ -161,7 +166,7 @@ function UpgradesTab() {
                     <div className={cx('space-y-1 rounded-2xl p-3', capstone ? 'bg-gradient-to-br from-cred/15 to-transparent' : 'bg-white/[0.04]')}>
                       <div className={cx('text-xs font-semibold', capstone ? 'text-cred' : 'text-hud-dim')}>{capstone ? '★ Capstone' : `Next: tier ${tier + 1}`}</div>
                       <div className="text-sm text-hud-text">{next.augmentLabel}</div>
-                      {next.combatAction && <div className="text-xs text-sys">Action: {next.combatAction.name}{next.combatAction.damage ? ` · ${next.combatAction.damage} damage` : ''}</div>}
+                      {active && (() => { const m = moveAt(path, tier + 1); return m ? <div className="text-xs text-sys">{m.name}: {m.damage ? `${m.damage} damage` : `+${m.defenseBoost} guard`} · {m.heatGenerated! > 0 ? '+' : ''}{m.heatGenerated} heat</div> : null; })()}
                       {stats && <div className="text-xs text-ok">{stats}</div>}
                     </div>
                   );
@@ -185,6 +190,7 @@ function StatusTab() {
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
   const { getTreeStatBonuses } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();
+  const restartTutorial = useTutorial(s => s.restart);
   const [confirmReset, setConfirmReset] = useState(false);
   const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const tree = getTreeStatBonuses(equipped);
@@ -197,14 +203,18 @@ function StatusTab() {
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
-          <Stat label="Move" value={`${1 + (tree.moveRange ?? 0)} tile${tree.moveRange ? 's' : ''}`} />
+          <Stat label="Move" value={`${2 + (tree.moveRange ?? 0)} tiles`} />
           <Stat label="Attack" value={stats.physicalAttack} tone="text-rose-300" />
           <Stat label="Disrupt" value={stats.structuralAttack} tone="text-rose-300" />
           <Stat label="Evasion" value={stats.evasion} />
           <Stat label="Armour" value={stats.physicalDefense} tone="text-sky-300" />
           <Stat label="Shielding" value={stats.structuralDefense} tone="text-sky-300" />
         </div>
-        <p className="mt-4 text-xs leading-relaxed text-hud-faint">Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up.</p>
+        {equipped.length > 0 && (() => {
+          const cost = equipped.reduce((n, sl) => n + healthCostOf(equippedAugmentations[sl]!), 0);
+          return cost > 0 ? <p className="mt-4 text-xs text-hostile">Your implants cost you {cost} max health (rejection, infection and strain).</p> : null;
+        })()}
+        <p className="mt-4 text-xs leading-relaxed text-hud-faint">Structure is your implants' own health: each part adds to it, heavier makers more. Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up.</p>
       </Panel>
 
       <Panel label="Combat profile">
@@ -229,7 +239,8 @@ function StatusTab() {
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <Btn onClick={toggleMute}>{isMuted ? 'Sound off' : 'Sound on'}</Btn>
-        <Btn variant="danger" onClick={() => setConfirmReset(true)}>Wipe save</Btn>
+        <Btn onClick={restartTutorial}>Replay tutorial</Btn>
+        <Btn className="col-span-2" variant="danger" onClick={() => setConfirmReset(true)}>Wipe save</Btn>
       </div>
 
       <ConfirmDialog
@@ -246,12 +257,12 @@ function StatusTab() {
 }
 
 export function BaseScreen() {
-  const { playerClass, progression, bossLevel, startCombat } = useCombat();
+  const { playerClass, progression, bossLevel, startCombat, openMarket } = useCombat();
   const { gold, items } = useInventory();
   const { availablePoints } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();
   const [tab, setTab] = useState<Tab>('loadout');
-  const target = getBossPreview(bossLevel);
+  const target = getBossPreview(bossLevel, progression.deathCount === 0);
   const isKing = target.name === 'Patchwork King';
   const spare = items.filter(i => i.type === 'augmentation').length;
 
@@ -289,6 +300,15 @@ export function BaseScreen() {
           <p className="relative mt-1.5 text-sm leading-relaxed text-hud-text/80">{BOSS_DOSSIERS[target.name]}</p>
           <div className="relative mt-3 text-xs text-hud-dim">About {target.hp} HP</div>
         </div>
+
+        <button onClick={openMarket} className="flex w-full items-center gap-3 rounded-3xl bg-cred/[0.07] p-4 text-left ring-1 ring-cred/20 transition hover:bg-cred/10">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cred/10 text-xl">🛒</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-[15px] font-semibold text-hud-text">Grey Lane market</span>
+            <span className="block text-xs text-hud-dim">Buy and sell implants, stims and weapons</span>
+          </span>
+          <span className="text-hud-dim">›</span>
+        </button>
 
         <Segmented
           value={tab}

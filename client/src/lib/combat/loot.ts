@@ -1,4 +1,4 @@
-import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS } from './types';
+import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
 
 // STIM items are pulled by id so they always exist regardless of rarity filtering
@@ -17,11 +17,11 @@ id: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 // Full item pools by rarity
 // Crown items (cr_) are locked to rare+ per manufacturer design - filtered from early pools
 export const ITEM_POOLS: Record<ItemRarity, Item[]> = {
-common:    ITEMS_2059.filter(i => i.rarity === 'common'    && !i.id.startsWith('cr_')),
-uncommon:  ITEMS_2059.filter(i => i.rarity === 'uncommon'  && !i.id.startsWith('cr_')),
-rare:      ITEMS_2059.filter(i => i.rarity === 'rare'),
-epic:      ITEMS_2059.filter(i => i.rarity === 'epic'),
-legendary: ITEMS_2059.filter(i => i.rarity === 'legendary'),
+common:    ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'common'),
+uncommon:  ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'uncommon'),
+rare:      ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'rare'),
+epic:      ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'epic'),
+legendary: ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'legendary'),
 };
 
 // All levels use the same item pool.
@@ -35,8 +35,10 @@ if (bossLevel === 3) return { common: 75, uncommon: 22, rare: 3,  epic: 0, legen
 if (bossLevel === 4) return { common: 60, uncommon: 33, rare: 7,  epic: 0, legendary: 0 };
 if (bossLevel === 5) return { common: 45, uncommon: 40, rare: 13, epic: 2, legendary: 0 };
 if (bossLevel <= 7)  return { common: 30, uncommon: 38, rare: 22, epic: 8, legendary: 2 };
-// Boss 8 (Patchwork King) - full table
-return { common: 15, uncommon: 30, rare: 35, epic: 15, legendary: 5 };
+if (bossLevel <= 9)  return { common: 15, uncommon: 30, rare: 35, epic: 15, legendary: 5 };
+// Past the King the odds keep improving until commons stop dropping
+const t = Math.min(10, bossLevel - 9);
+return { common: Math.max(0, 10 - t), uncommon: Math.max(8, 26 - 2 * t), rare: 36, epic: 18 + 1.5 * t, legendary: 6 + 1.2 * t };
 }
 
 function rollRarity(bossLevel: number): ItemRarity {
@@ -62,8 +64,26 @@ if (pool.length === 0) return null;
 return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export function generateLoot(bossLevel: number = 1): LootDrop {
+function pick<T>(list: T[]): T { return list[Math.floor(Math.random() * list.length)]; }
+
+/**
+ * First life only: the first win hands you an active implant (a new combat
+ * move) and the second a passive one, so both kinds get introduced early.
+ */
+function firstRunTeachingDrop(bossLevel: number): Item | null {
+if (bossLevel === 1) return getRandomItemFromPool('common', ITEM_POOLS, pick(['left_arm', 'right_arm'] as AugmentationSlot[]));
+if (bossLevel === 2) return getRandomItemFromPool('uncommon', ITEM_POOLS, pick(PASSIVE_SLOTS));
+return null;
+}
+
+export function generateLoot(bossLevel: number = 1, firstRun = false): LootDrop {
 const items: Item[] = [];
+const teach = firstRun ? firstRunTeachingDrop(bossLevel) : null;
+if (teach) {
+const gold = 20 + 15 * bossLevel;
+const extra = bossLevel === 2 ? STIM_POOL.find(s => s.id === 'stim_bio') : undefined;
+return { items: [instancedItem(teach), ...(extra ? [instancedItem(extra)] : [])], gold };
+}
 
 // All levels draw from the full item pool.
 const pools = ITEM_POOLS;
@@ -89,10 +109,12 @@ return { items: [], gold: baseGold + Math.floor(Math.random() * baseGold) };
 }
 
 // Item count - mostly 1, occasionally 2 from boss 5+, boss 8 gets 2-3
-const maxItems = bossLevel >= 8 ? 3
+const maxItems = bossLevel >= 14 ? 4 : bossLevel >= 8 ? 3
 : bossLevel >= 5 ? 2
 : 1;
-const numItems = bossLevel >= 8
+const numItems = bossLevel >= 14
+? 3 + (Math.random() < 0.35 ? 1 : 0)
+: bossLevel >= 8
 ? 2 + (Math.random() < 0.5 ? 1 : 0)
 : bossLevel >= 5
 ? (Math.random() < 0.40 ? 2 : 1)
@@ -128,26 +150,21 @@ const gold = baseGold + Math.floor(Math.random() * baseGold);
 return { items, gold };
 }
 
-// Patchwork King (level 10) drops a guaranteed rare augment + stim
+// Patchwork King (level 10): always better than a normal threat-9 drop.
+// A guaranteed epic, a rare, a 35% shot at a legendary, a stim and a big purse.
 export function generatePatchworkKingLoot(): LootDrop {
-const pool = ITEM_POOLS;
 const items: Item[] = [];
-// Guaranteed rare augment
-const slot = AUGMENTATION_SLOTS[Math.floor(Math.random() * AUGMENTATION_SLOTS.length)];
-const rareItem = getRandomItemFromPool('rare', pool, slot)
-|| getRandomItemFromPool('uncommon', pool, slot);
-if (rareItem) items.push(instancedItem(rareItem));
-// Bonus roll - 50% chance of epic
-if (Math.random() < 0.50) {
-const bonusSlot = AUGMENTATION_SLOTS[Math.floor(Math.random() * AUGMENTATION_SLOTS.length)];
-const bonus = getRandomItemFromPool('epic', pool, bonusSlot)
-|| getRandomItemFromPool('rare', pool, bonusSlot);
-if (bonus) items.push(instancedItem(bonus));
+const epic = getRandomItemFromPool('epic', ITEM_POOLS, pick(AUGMENTATION_SLOTS));
+const rare = getRandomItemFromPool('rare', ITEM_POOLS, pick(ACTIVE_SLOTS));
+if (epic) items.push(instancedItem(epic));
+if (rare) items.push(instancedItem(rare));
+if (Math.random() < 0.35) {
+const leg = getRandomItemFromPool('legendary', ITEM_POOLS, pick(AUGMENTATION_SLOTS));
+if (leg) items.push(instancedItem(leg));
 }
-// Always drop a stim
-const stim = STIM_POOL[Math.floor(Math.random() * STIM_POOL.length)];
+const stim = pick(STIM_POOL);
 if (stim) items.push(instancedItem(stim));
-const gold = 300 + Math.floor(Math.random() * 100);
+const gold = 320 + Math.floor(Math.random() * 120);
 return { items, gold };
 }
 

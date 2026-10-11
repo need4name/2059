@@ -7,12 +7,14 @@ import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { DebugPanel } from './DebugPanel';
 import { useLoadoutSync } from './useActionPool';
+import { TutorialHint, useTutorialTriggers } from './Tutorial';
 
 /** Routes to the screen for the current game phase. */
 export function GameUI() {
   const phase = useCombat(s => s.phase);
   const [showDebug, setShowDebug] = useState(false);
   useLoadoutSync();
+  useTutorialTriggers();
 
   let screen;
   switch (phase) {
@@ -27,6 +29,7 @@ export function GameUI() {
   return (
     <>
       {screen}
+      <TutorialHint />
       {/* Test tools, only in development builds */}
       {import.meta.env.DEV && phase === 'menu' && (
         <>

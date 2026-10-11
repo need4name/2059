@@ -22,10 +22,13 @@ hazardDamageAt, chebyshev, tileAt,
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
-// Fights after which the Arms Market opens
-export const SHOP_LEVELS = [10, 14, 18];
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
+
+// Movement and heat
+const PLAYER_BASE_MOVE = 2;
+const BOSS_MOVE = 2;
+const PASSIVE_COOLING = 6;
 
 // Pacing (ms)
 const ENEMY_TURN_DELAY = 700;
@@ -104,6 +107,7 @@ resetAll: () => void;
 rebirth: (newClass?: PlayerClass) => void;
 continueFromVictory: () => void;
 leaveShop: () => void;
+openMarket: () => void;
 completeIntro: () => void;
 addLog: (log: CombatLog) => void;
 toggleDebugMode: () => void;
@@ -118,6 +122,7 @@ accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 3, heatGenerated: 6, att
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const isMalfunctioning = (c: Character) => c.maxStructuralHp > 0 && c.currentStructuralHp <= 0;
 function clampHeat(h: number) { return Math.max(0, Math.min(100, h)); }
 const isFightPhase = (p: CombatPhase) => p === 'player_turn' || p === 'enemy_turn';
 
@@ -135,7 +140,7 @@ treeAttack: treeBonus.attack,
 treeDefense: treeBonus.defense,
 treeHp: treeBonus.hp,
 }, playerClass);
-return { player, moveRange: 1 + (treeBonus.moveRange ?? 0) };
+return { player, moveRange: PLAYER_BASE_MOVE + (treeBonus.moveRange ?? 0) };
 }
 
 function freshFightState(grid: CombatGrid) {
@@ -175,11 +180,15 @@ fn();
 const log = (message: string, type: CombatLog['type'] = 'info') => get().addLog(createCombatLog(message, type));
 
 const beginPlayerTurn = () => {
-const { grid, playerHeat } = get();
+const { grid } = get();
+// Systems shed a little heat every round on their own
+const playerHeat = clampHeat(get().playerHeat - PASSIVE_COOLING);
 set({
 phase: 'player_turn', inputLocked: false, hasMoved: false,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
+playerHeat,
+bossHeat: clampHeat(get().bossHeat - PASSIVE_COOLING),
 doubleActionReady: playerHeat <= 15,
 });
 };
@@ -197,7 +206,8 @@ const handleBossDefeated = () => {
 const { farmLevel, bossLevel } = get();
 const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null;
-const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level);
+const firstRun = get().progression.deathCount === 0 && farmLevel === null;
+const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(loot.items);
 useInventory.getState().addGold(loot.gold);
@@ -206,12 +216,15 @@ if (isKing) log('PATCHWORK KING: ...well fought. Contract noted.');
 set({
 phase: 'victory', inputLocked: true, fightId: get().fightId + 1,
 currentLoot: loot,
-pendingShop: farmLevel === null && SHOP_LEVELS.includes(level),
+pendingShop: false,
 bossLevel: farmLevel !== null ? bossLevel : level + 1,
 patchworkKingTurn: 0, bossChargingHeavy: false, pendingBossAction: null,
 });
 const { levelsGained } = get().gainXp(xp);
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained } });
+// A point for every new threat cleared, on top of the level-up points
+const winPoint = farmLevel === null ? 1 : 0;
+if (winPoint) useAugmentTrees.getState().addPoints(winPoint);
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint } });
 useAudio.getState().playSuccess();
 };
 
@@ -296,17 +309,22 @@ if (get().bossHeat >= 100) {
 log(`${get().boss.name}: OVERHEATED -- movement locked`);
 return false;
 }
+// Enemies cover up to BOSS_MOVE tiles a turn, stopping once they can strike
+let moved = false;
+for (let i = 0; i < BOSS_MOVE; i++) {
 const step = stepTowardAttackPosition(get().grid, pattern ?? 'melee_long');
-if (!step) return false;
+if (!step) break;
 set({ grid: { ...get().grid, bossPosition: step } });
-return true;
+moved = true;
+}
+return moved;
 };
 
 const startFight = (level: number, farm: boolean) => {
 const { playerClass } = get();
 const { player, moveRange } = buildPlayer(playerClass);
 const isKing = !farm && level === 10;
-const base = createBoss(level);
+const base = createBoss(level, !farm && get().progression.deathCount === 0);
 const boss = isKing ? createPatchworkKing() : base;
 const grid = generateBattlefield(level);
 set({
@@ -443,7 +461,7 @@ log(msg, effect === 'bio_stim' ? 'heal' : 'info');
 
 set({
 player: updatedPlayer,
-playerMalfunctioning: updatedPlayer.currentStructuralHp <= 0,
+playerMalfunctioning: isMalfunctioning(updatedPlayer),
 selectedAction: null, selectedMovement: null,
 playerHeat: newHeat,
 overclockActive: overclock || get().overclockActive,
@@ -464,12 +482,12 @@ const action = selectedAction;
 if (action.type === 'brace' || action.type === 'defend') {
 set({ inputLocked: true });
 const newHeat = clampHeat(playerHeat + (action.heatGenerated ?? -25));
-const wasMalfunctioning = player.currentStructuralHp <= 0;
-const newStructuralHp = Math.min(player.maxStructuralHp, player.currentStructuralHp + 35);
+const wasMalfunctioning = isMalfunctioning(player);
+const newStructuralHp = Math.min(player.maxStructuralHp, player.currentStructuralHp + Math.ceil(player.maxStructuralHp * 0.4));
 set({
 player: { ...player, currentStructuralHp: newStructuralHp },
 playerDefenseBoost: action.defenseBoost || 8,
-playerMalfunctioning: newStructuralHp <= 0,
+playerMalfunctioning: player.maxStructuralHp > 0 && newStructuralHp <= 0,
 selectedAction: null,
 playerHeat: newHeat,
 });
@@ -614,7 +632,9 @@ return;
 // Boss heat does NOT scale boss damage -- heat is a player-side tactic.
 const level = get().farmLevel ?? get().bossLevel;
 const dmg = calculateDamage(boss, player, scaleBossAction(bossAction, level), playerDefenseBoost, 1.0, 0, chebyshev(grid.playerPosition, grid.bossPosition), bossMalfunctioning);
-const newPlayerHp = Math.max(0, player.currentHp - dmg.bioDamage);
+// No implants means nothing to absorb structural hits: half of it lands on flesh
+const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * 0.5);
+const newPlayerHp = Math.max(0, player.currentHp - dmg.bioDamage - spill);
 const newPlayerStructuralHp = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
 const playerBecomesMalfunctioning = player.currentStructuralHp > 0 && newPlayerStructuralHp <= 0;
 
@@ -624,14 +644,16 @@ if (newPlayerHeat >= 100 && get().playerHeat < 100) log('OVERHEATED -- movement 
 
 set({
 player: { ...player, currentHp: newPlayerHp, currentStructuralHp: newPlayerStructuralHp },
-playerMalfunctioning: newPlayerStructuralHp <= 0,
+playerMalfunctioning: player.maxStructuralHp > 0 && newPlayerStructuralHp <= 0,
 playerDefenseBoost: 0,
 playerHeat: newPlayerHeat,
 bossHeat: newBossHeat,
 });
 useAudio.getState().playHit();
 
-log(`${boss.name} -- ${bossAction.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage');
+log(spill
+  ? `${boss.name} -- ${bossAction.name}: ${dmg.bioDamage + spill} damage (no implants to absorb it)`
+  : `${boss.name} -- ${bossAction.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage');
 if (playerBecomesMalfunctioning) log('MALFUNCTION', 'malfunction');
 
 if (newPlayerHp <= 0) {
@@ -647,11 +669,15 @@ set({ phase: 'menu', combatLog: [], inputLocked: false, fightId: get().fightId +
 },
 
 continueFromVictory: () => {
-set({ phase: get().pendingShop ? 'shop' : 'menu', pendingShop: false, currentLoot: null });
+set({ phase: 'menu', pendingShop: false, currentLoot: null });
 },
 
 leaveShop: () => {
 set({ phase: 'menu', currentLoot: null });
+},
+
+openMarket: () => {
+if (get().phase === 'menu') set({ phase: 'shop' });
 },
 
 completeIntro: () => set({ introCompleted: true }),

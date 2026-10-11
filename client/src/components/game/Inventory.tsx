@@ -4,11 +4,17 @@ import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AUGMENTATION_SLOT_ICONS, AugmentationSlot, Item } from '@/lib/combat/types';
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, cx } from './hud';
 import { implantStats, passiveText, conditionText, stimInfo } from './itemText';
+import { augmentKind } from '@/lib/combat/types';
+import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO } from '@/lib/combat/augments';
 
 function ImplantRow({ item, action }: { item: Item; action: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const passive = passiveText(item);
   const condition = conditionText(item);
+  const kind = item.slot ? augmentKind(item.slot) : 'passive';
+  const move = actionForItem(item);
+  const cost = healthCostOf(item);
+  const maker = MAKER_INFO[makerOf(item)];
   return (
     <div className={cx('overflow-hidden rounded-2xl bg-gradient-to-r to-transparent ring-1 ring-white/[0.05]', RARITY_GLOW[item.rarity])}>
       <div className="flex items-center gap-3 px-3 py-3">
@@ -18,7 +24,10 @@ function ImplantRow({ item, action }: { item: Item; action: React.ReactNode }) {
           </span>
           <span className="min-w-0 flex-1">
             <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}</span>
-            <span className="block text-xs text-hud-dim">{implantStats(item)}</span>
+            <span className="flex items-center gap-1.5 text-xs text-hud-dim">
+              <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
+              <span className="truncate">{implantStats(item)}{cost > 0 && <span className="text-hostile"> · −{cost} HP</span>}</span>
+            </span>
           </span>
         </button>
         {action}
@@ -29,6 +38,15 @@ function ImplantRow({ item, action }: { item: Item; action: React.ReactNode }) {
             <span className={cx('h-1.5 w-1.5 rounded-full', RARITY_DOT[item.rarity])} />
             {item.rarity} · {item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''}
           </div>
+          {move && (
+            <div className="text-ok">
+              Combat move: <span className="font-semibold">{move.name}</span>
+              {move.damage ? ` · ${move.damage} damage` : ` · +${move.defenseBoost} guard`} · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat
+            </div>
+          )}
+          {kind === 'passive' && <div className="text-hud-dim">Passive: always-on stats, no combat move.</div>}
+          <div className="text-hud-dim">Adds {structureOf(item)} structure{cost > 0 ? <span className="text-hostile"> · costs {cost} max health</span> : null}</div>
+          <div className={cx('text-xs', maker.tone)}>{maker.label}: <span className="text-hud-dim">{maker.blurb}</span></div>
           {passive && <div className="text-sys">{passive}</div>}
           {condition && <div className="text-orange-300">{condition}</div>}
           {item.description && <p className="italic text-hud-dim">{item.description}</p>}
