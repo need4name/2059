@@ -117,6 +117,14 @@ accuracy: 'precise',
 // Defence reduces damage by a percentage instead of subtracting from it, so stacking
 // defence makes you tougher without ever making an attacker useless.
 // At DEFENSE_K defence a hit is halved.
+/**
+ * Share of the rolled damage that lands, per accuracy tier. Unreliable moves
+ * can match a precise hit on a good roll; malfunctioning hardware can't.
+ */
+export const ACCURACY_RANGE: Record<'precise' | 'variable' | 'unreliable' | 'malfunction', [number, number]> = {
+precise: [1, 1], variable: [0.7, 0.95], unreliable: [0.5, 1.0], malfunction: [0.25, 0.6],
+};
+
 export const DEFENSE_K = 40;
 export function mitigate(base: number, defense: number): number {
 return base * DEFENSE_K / (DEFENSE_K + Math.max(0, defense));
@@ -196,14 +204,11 @@ physDamage = Math.floor(physDamage * rangeMult);
 strDamage  = Math.floor(strDamage  * rangeMult);
 }
 
-// Accuracy-tier variance (malfunction overrides to unreliable)
+// Accuracy-tier variance (malfunction has its own, harsher range)
 // Evasion shifts the variance floor down per point, capped at -0.30
 const evasionPenalty = Math.min(0.30, (defender.evasion || 0) * 0.015);
-const tier = isMalfunctioning ? 'unreliable' : (action.accuracy ?? 'variable');
-let lo: number, hi: number;
-if (tier === 'precise')         { lo = 1.00; hi = 1.00; }
-else if (tier === 'unreliable') { lo = 0.25; hi = 0.70; }
-else                            { lo = 0.60; hi = 0.85; }
+const tier = isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
+let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
 const variance = lo + Math.random() * (hi - lo);
 physDamage = Math.max(3, Math.floor(physDamage * variance)); // floor 3 prevents brick-wall fights
@@ -236,8 +241,8 @@ let str  = Math.max(0, Math.floor(mitigate(baseStr, strDef)));
 const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
 * (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
 phys = Math.floor(phys * mult); str = Math.floor(str * mult);
-const tier = opts.isMalfunctioning ? 'unreliable' : (action.accuracy ?? 'variable');
-const [lo, hi] = tier === 'precise' ? [1, 1] : tier === 'unreliable' ? [0.25, 0.70] : [0.60, 0.85];
+const tier = opts.isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
+const [lo, hi] = ACCURACY_RANGE[tier];
 const roll = (v: number) => Math.floor(phys * v);
 return {
 min: Math.max(3, roll(lo)) + Math.floor(str * lo),

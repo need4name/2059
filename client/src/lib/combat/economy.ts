@@ -53,6 +53,11 @@ export function generateMarketStock(level: number): Item[] {
     usedTemplates.add(pick.id);
     stock.push(instancedItem(pick));
   }
+  // From threat 12 the stall sometimes has a legendary, so a missing piece can be bought instead of farmed
+  if (level >= 12 && Math.random() < Math.min(0.6, 0.25 + 0.03 * (level - 12))) {
+    const legs = augments.filter(i => i.rarity === 'legendary' && !usedTemplates.has(i.id));
+    if (legs.length) stock.unshift(instancedItem(legs[Math.floor(Math.random() * legs.length)]));
+  }
   for (let i = 0; i < 3 && stims.length; i++) stock.push(instancedItem(stims[Math.floor(Math.random() * stims.length)]));
   return stock;
 }

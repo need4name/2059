@@ -561,9 +561,14 @@ rangeOptimal: 'close',
 // the arena, shotgun-class frames spray a cone in front of you.
 const WEAPON_PATTERN: Record<WeaponType, AttackPatternType> = { pistol: 'ranged', revolver: 'ranged', shotgun: 'cone' };
 
+// Shotguns are hard to line up (a short cone), so they hit steadier and run cooler than listed.
 export const WEAPONS_2059: Weapon[] = BASE_WEAPONS.map(w => ({
 ...w,
-combatAction: { ...w.combatAction, attackPattern: w.combatAction.attackPattern ?? WEAPON_PATTERN[w.weaponType] },
+combatAction: {
+...w.combatAction,
+attackPattern: w.combatAction.attackPattern ?? WEAPON_PATTERN[w.weaponType],
+...(w.weaponType === 'shotgun' ? { accuracy: 'variable' as const, heatGenerated: Math.round((w.combatAction.heatGenerated ?? 20) * 0.68) } : {}),
+},
 }));
 
 export const TIER1_WEAPONS = WEAPONS_2059.filter(w => w.tier === 1);

@@ -161,7 +161,8 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
   }
 
   let damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond;
-  let heat = t.heat;
+  // Guaranteed full damage costs extra heat
+  let heat = t.heat + (t.accuracy === 'precise' ? 3 : 0);
   let accuracy = t.accuracy ?? 'variable';
   if (mod.path === 'A') { damage *= 1 + 0.18 * tierUp; heat += 2 * tierUp; }
   if (mod.path === 'B') {
