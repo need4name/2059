@@ -94,7 +94,7 @@ export function ShopScreen() {
   };
 
   return (
-    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Back to base</Btn>}>
+    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Back to the hideout</Btn>}>
       <div className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-cred/10 blur-3xl" />
       <div className="relative space-y-4 px-4 pb-6 pt-7">
         <header className="flex items-start justify-between gap-3">

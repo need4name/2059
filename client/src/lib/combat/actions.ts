@@ -33,7 +33,7 @@ const PATCHWORK_AUG_POOL = ITEMS_2059.filter(i => i.type === 'augmentation');
 export const CLASS_DEFINITIONS: Record<PlayerClass, ClassStats> = {
 none: {
 name: 'Unclassified',
-description: 'No combat profile loaded. Operating on instinct.',
+description: 'No operator firmware loaded. The host runs on instinct.',
 icon: '🚶',
 baseHp: 120,
 baseAttack: 14,
@@ -48,7 +48,7 @@ physicalRatio: 0.85,
 },
 melee: {
 name: 'Enforcer',
-description: 'Salvaged hydraulic combat frame. Built for close range.',
+description: 'Volkov operator firmware. Built for close range.',
 icon: '⚔️',
 baseHp: 140,
 baseAttack: 17,
@@ -63,7 +63,7 @@ physicalRatio: 0.60,
 },
 ranged: {
 name: 'Operative',
-description: 'Repurposed targeting optics. Precision at distance.',
+description: 'Kizuna targeting firmware. Precision at distance.',
 icon: '🎯',
 baseHp: 110,
 baseAttack: 20,

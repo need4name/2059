@@ -24,7 +24,7 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
         </h1>
         <p className="mt-3 font-display text-base font-semibold text-sys/90">The Long Convergence</p>
         <p className="mt-6 max-w-xs text-[15px] leading-relaxed text-hud-dim">
-          Hunt augmented enforcers. Take their implants and install them in your own body. When you die, your mind wakes up in a new one.
+          You are a stray signal living in grey-market brain chips. Take over a body, hunt the augmented crews of the plastic archipelago, and graft their implants into your host. When the host dies, you jump to the next.
         </p>
 
         <div className="mt-10 flex w-full max-w-xs flex-col gap-3">

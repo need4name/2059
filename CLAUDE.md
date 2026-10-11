@@ -7,6 +7,11 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 - **Commit and push straight to `main`.** No feature branches or pull requests unless asked.
 - The owner prefers plain, everyday language in explanations.
 
+## Story
+
+- The game is tied to the owner's universe notes (not in the repo; the repo is public, so don't commit lore digests). The player is a stray signal in grey-market brain chips; death means "host lost" and the signal jumps hosts. Minds can be extracted but never put back, so never write "backed up" or "restored".
+- Makers: Helix (defensive, no weapons), Volkov (operator limbs), Tianxia (labour), Kizuna (MIL/neural), Crown (luxury/restorative), CBN (cartel grafts, cost health), IOA (grey firmware), PARSU (materials), Patchwork (salvage).
+
 ## Design preferences
 
 - Soft, rounded UI. Avoid hard square boxes, heavy borders and walls of ALL-CAPS letter-spaced text.

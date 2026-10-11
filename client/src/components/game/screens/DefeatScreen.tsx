@@ -5,8 +5,8 @@ import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, cx } from '../hud';
 
 const CLASS_BLURB: Record<'melee' | 'ranged', string> = {
-  melee: 'Hydraulic limbs from old security units. Tough, and brutal up close.',
-  ranged: 'Targeting optics from orbital repair rigs. Fragile, but hits from any range.',
+  melee: 'Enforcer firmware lifted from a Volkov operator chip. The new host fights up close and takes a beating.',
+  ranged: 'Operative firmware cracked from a Kizuna targeting kernel. Fragile, but locks on from any range.',
 };
 
 export function DefeatScreen() {
@@ -18,29 +18,29 @@ export function DefeatScreen() {
   return (
     <Screen footer={
       <Btn variant="primary" size="lg" className="w-full" disabled={!canReboot} onClick={() => rebirth(choice ?? undefined)}>
-        {classesUnlocked ? (choice ? `Wake up as ${CLASS_DEFINITIONS[choice].name}` : 'Pick a profile first') : 'Wake up'}
+        {classesUnlocked ? (choice ? `Jump as ${CLASS_DEFINITIONS[choice].name}` : 'Pick firmware first') : 'Jump to a new host'}
       </Btn>
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-hostile/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
         <header className="rise-in space-y-2 text-center">
-          <div className="text-sm font-semibold text-rose-300">System failure</div>
-          <h1 className="font-display text-5xl font-bold text-white">You died</h1>
+          <div className="text-sm font-semibold text-rose-300">Host lost</div>
+          <h1 className="font-display text-5xl font-bold text-white">Flatline</h1>
           <p className="text-[15px] text-hud-dim">Taken down by <span className="text-rose-300">{boss.name}</span> at threat {bossLevel}.</p>
-          <p className="text-xs text-hud-faint">Death #{progression.deathCount + 1}</p>
+          <p className="text-xs text-hud-faint">Host #{progression.deathCount + 1} lost</p>
         </header>
 
         <Card className="space-y-1.5 p-4">
-          <div className="text-sm font-semibold text-sys">Your mind was backed up</div>
+          <div className="text-sm font-semibold text-sys">The signal survives</div>
           <p className="text-sm leading-relaxed text-hud-dim">
-            You'll wake in a fresh body back at threat 1. Implants, credits, weapons and upgrades stay with the old one.
+            You were never really this body. Your signal slips out through its brain chip and into another grey-market chip on the rafts, back at threat 1. The implants, credits, weapons and upgrades stay with the corpse.
           </p>
         </Card>
 
         {classesUnlocked ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label>Choose a combat profile</Label>
+              <Label>Load operator firmware</Label>
               {justUnlocked && <Chip tone="cred">New!</Chip>}
             </div>
             {(['melee', 'ranged'] as const).map(c => {

@@ -10,13 +10,22 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 ## Current Rules (Oct 2026)
 
 - **Turn flow:** an action locks input until it resolves. Every delayed step checks a `fightId`, so leaving or finishing a fight cancels anything still pending.
-- **Loot:** granted in the store the moment a boss dies (`handleBossDefeated`), not by a screen. Fights 10, 14 and 18 show Victory, then the Arms Market.
-- **Arenas:** `lib/combat/grid.ts` builds battlefields (void tiles are impassable and not drawn, and the generator guarantees a path to the boss). It also handles pathfinding for boss movement and player move range.
+- **Setting:** the player is a stray signal living in grey-market brain chips in Offshore Sector 7 (the plastic archipelago). Death = "host lost"; the signal jumps to a new host. Never say a mind is backed up or restored: in this universe minds can be extracted but never reinserted.
+- **Loot:** granted in the store the moment a boss dies (`handleBossDefeated`), not by a screen. Keeps improving past threat 8; the Patchwork King (threat 10) always out-drops a normal boss. On the first life, threat 1 guarantees an active implant and threat 2 a passive one.
+- **Market:** the Grey Lane (`ShopScreen`, `useMarket`, `lib/combat/economy.ts`) is opened from the hub. Buy/sell implants, stims and weapons; filter by active/passive/stim/weapon and rarity. Stock rerolls after every fight.
+- **Implants (`lib/combat/augments.ts`):** active slots (arms, legs, eyes) each give a combat move built from maker x rarity, sharpened by its upgrade path. Passive slots (brain, ears, nose, lungs, spine) give stats only. Maker is read from the `[MAKER]` name prefix. Helix gear is defensive only (its active moves are braces).
+- **Structure bar:** the sum of installed implants (slot x maker x rarity x condition). No implants = no bar; structural hits spill onto health at 50% and you can't malfunction.
+- **Health cost:** CBN, IOA and Volkov implants plus degraded/corroded parts lower max health (floor 30).
+- **Upgrades:** progress is stored per implant id, so only installed implants can be upgraded. Points: 1 per level-up plus 1 per new threat cleared.
+- **Damage:** the player's flat attack stat counts at 60% (`PLAYER_STAT_WEIGHT`). Item stats are normalised to a power band per rarity (`normaliseItem`).
+- **First run:** while `deathCount === 0`, threat 3 is a Cartel Enforcer built to kill, so new players die on the 2nd/3rd enemy and see every mechanic.
+- **Tutorial:** `Tutorial.tsx` + `useTutorial` show one-time hint cards; skippable, replayable from Status.
+- **Arenas:** portrait grids from 7x9 growing to 9x13 by threat 12; player starts at the bottom, enemy at the top. `lib/combat/grid.ts` builds battlefields (void tiles are impassable and not drawn, and the generator guarantees a path to the boss). It also handles pathfinding for boss movement and player move range.
 - **Hazards:** a combatant standing on a hazard at the end of its turn takes its damage. Bosses route around hazards.
 - **Heavy attacks:** telegraphed one turn ahead; the orange tiles show where it lands. Stepping out dodges it.
 - **Overheat (100 heat):** movement locked. Move-range tree upgrades apply to tile taps.
 - **Classes:** start Unclassified. Dying at threat level 11+ unlocks Enforcer/Operative permanently; after that every death lets you pick a profile.
-- **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps reboot count and class unlock.
+- **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps host count and class unlock.
 - **Saving:** combat, inventory, loadout and trees persist to localStorage (`2059-*` keys). Reloading mid-fight returns to base.
 - **UI:** screens live in `client/src/components/game/screens/`, shared pieces in `hud.tsx`. Dev builds show a Dev button on the base screen for test tools.
 
