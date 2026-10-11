@@ -104,3 +104,10 @@ test('Overclock does not use up the turn; other stims do', () => {
   const flush = Fight.resolveConsumable({ ...s, playerHeat: 80 }, { id: 'h', name: 'Heat Flush', rarity: 'common', type: 'consumable', consumableEffect: 'heat_flush', icon: '' });
   assert.equal(flush.endsTurn, true); assert.equal(flush.state.playerHeat, 0);
 });
+
+test('a hot player takes more damage than a cool one', () => {
+  const cool = fight({ playerHeat: 10 }), hot = fight({ playerHeat: 95 });
+  seedRandom(5); const a = Fight.resolveBossAction(cool, hitFor(30, 1), 5);
+  seedRandom(5); const b = Fight.resolveBossAction(hot, hitFor(30, 1), 5);
+  assert.ok(cool.player.currentHp - a.state.player.currentHp < hot.player.currentHp - b.state.player.currentHp);
+});

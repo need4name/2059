@@ -1,6 +1,6 @@
 # 2059
 
-Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `replit.md` for game rules and architecture.
+Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs/DESIGN.md` is the design bible: every game rule and number, kept in step with the code. `replit.md` covers architecture.
 
 ## Working agreements
 

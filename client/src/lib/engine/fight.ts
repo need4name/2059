@@ -271,8 +271,9 @@ export function resolveBossAction(s: FightState, action: CombatAction, level: nu
       events: [say(`${boss.name}: ${action.name.toUpperCase()} -- guard up`)],
     };
   }
-  // Enemy heat doesn't scale enemy damage: heat is a player-side tactic
-  const dmg = calculateDamage(boss, player, scaleBossAction(action, level), s.playerDefenseBoost, 1.0, 0, chebyshev(grid.playerPosition, grid.bossPosition), s.bossMalfunctioning);
+  // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
+  const taken = getHeatMultipliers(s.playerHeat).received;
+  const dmg = calculateDamage(boss, player, scaleBossAction(action, level), s.playerDefenseBoost, taken, 0, chebyshev(grid.playerPosition, grid.bossPosition), s.bossMalfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const hp = Math.max(0, player.currentHp - dmg.bioDamage - spill);
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
