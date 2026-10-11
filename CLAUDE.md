@@ -23,6 +23,10 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 
 - Items, weapons and enemies live in `client/src/content/*.json`, not in code. Add or change content there; `npm run check:content` rejects bad entries. Item order matters for seeded runs, so add new entries at the end.
 
+## Saves
+
+- Every persisted store writes into one versioned save (`client/src/lib/save.ts`, key `2059-save`) through `saveStorage`. A new persisted store must use `storage: createJSONStorage(() => saveStorage)` and be added to `SAVE_PARTS`. When a save's shape changes, bump `SAVE_VERSION` and add a step to `MIGRATIONS`.
+
 ## Randomness
 
 - Anything that affects play uses `random()` from `client/src/lib/engine/rng.ts`, never `Math.random()`. Each run has a seed and each fight is seeded from it, so runs can be replayed. Ids and visual effects may use `Math.random()`.

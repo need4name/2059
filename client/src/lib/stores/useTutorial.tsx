@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { saveStorage } from '../save';
 
 export type HintId =
   | 'intro' | 'move' | 'attack' | 'enemy_reach' | 'heat' | 'brace' | 'structure'
@@ -36,4 +37,4 @@ export const useTutorial = create<TutorialState>()(persist((set, get) => ({
   skipAll: () => set({ enabled: false, active: null }),
 
   restart: () => set({ enabled: true, seen: {}, active: null }),
-}), { name: '2059-tutorial', version: 1, partialize: (s) => ({ enabled: s.enabled, seen: s.seen }) }));
+}), { name: '2059-tutorial', storage: createJSONStorage(() => saveStorage), version: 1, partialize: (s) => ({ enabled: s.enabled, seen: s.seen }) }));

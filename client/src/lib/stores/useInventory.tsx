@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CONDITION_MULT, structureOf, healthCostOf } from '../combat/augments';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { saveStorage } from '../save';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon } from '../combat/types';
 
 // Equipped augmentations for each body slot
@@ -224,4 +225,10 @@ equipWeapon: (weapon: Weapon | null) => {
 set({ equippedWeapon: weapon });
 },
 
-}), { name: '2059-inventory', version: 1 }));
+}), { name: '2059-inventory', storage: createJSONStorage(() => saveStorage), version: 1,
+// A save with missing body slots (older or hand-edited) still loads: fill the gaps with empty slots
+merge: (persisted, current) => {
+const p = (persisted ?? {}) as Partial<InventoryState>;
+return { ...current, ...p, equippedAugmentations: { ...createEmptyAugmentations(), ...(p.equippedAugmentations ?? {}) } };
+},
+}));

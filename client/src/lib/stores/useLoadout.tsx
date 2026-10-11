@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { saveStorage } from '../save';
 import { CombatAction } from '../combat/types';
 
 // The pool of actions available to slot - starts with base moves,
@@ -61,7 +62,7 @@ resetLoadout: () => set({ slots: DEFAULT_SLOTS, editingSlot: null }),
 getActiveCombatActions: () => {
 return get().slots.filter((s): s is LoadoutAction => s !== null);
 },
-}), { name: '2059-loadout', version: 1, partialize: (s) => ({ slots: s.slots }) }));
+}), { name: '2059-loadout', storage: createJSONStorage(() => saveStorage), version: 1, partialize: (s) => ({ slots: s.slots }) }));
 
 // ── Gritty mechanic tags (no sci-fi gloss) ───────────────────────────────────
 // Called by UI to label what makes each action mechanically different

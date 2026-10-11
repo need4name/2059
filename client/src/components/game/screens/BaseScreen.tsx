@@ -13,6 +13,7 @@ import { Screen, Panel, Card, Label, Btn, Chip, Meter, Stat, ConfirmDialog, Segm
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText } from '../itemText';
+import { exportSave, importSave } from '@/lib/save';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status';
 
@@ -185,6 +186,52 @@ function UpgradesTab() {
   );
 }
 
+/** Copy the save out as text, or paste one in (another device, or a backup). */
+function SavePanel() {
+  const [copied, setCopied] = useState<'idle' | 'copied' | 'shown'>('idle');
+  const [shown, setShown] = useState('');
+  const [restoring, setRestoring] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [error, setError] = useState('');
+
+  const copy = async () => {
+    const text = exportSave();
+    try { await navigator.clipboard.writeText(text); setCopied('copied'); }
+    catch { setShown(text); setCopied('shown'); }
+  };
+  const restore = () => {
+    const r = importSave(pasted);
+    if (!r.ok) { setError(r.reason); return; }
+    window.location.reload();
+  };
+
+  return (
+    <Panel label="Your save">
+      <div className="space-y-3">
+        <p className="text-sm leading-relaxed text-hud-dim">Your progress is saved on this device. Copy it somewhere safe to back it up or move it to another phone.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Btn onClick={copy}>{copied === 'copied' ? 'Copied' : 'Copy save'}</Btn>
+          <Btn onClick={() => { setRestoring(r => !r); setError(''); }}>{restoring ? 'Cancel' : 'Restore a save'}</Btn>
+        </div>
+        {copied === 'shown' && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-hud-dim">Couldn't copy automatically. Select this text and copy it:</p>
+            <textarea id="save-export" readOnly value={shown} onFocus={e => e.currentTarget.select()} className="h-20 w-full resize-none rounded-2xl bg-black/30 p-3 text-xs text-hud-text outline-none ring-1 ring-white/10 focus:ring-sys/60" />
+          </div>
+        )}
+        {restoring && (
+          <div className="space-y-2">
+            <label htmlFor="save-import" className="block text-xs text-hud-dim">Paste a save. It replaces your current progress.</label>
+            <textarea id="save-import" value={pasted} onChange={e => { setPasted(e.target.value); setError(''); }} placeholder="2059SAVE:..." className="h-20 w-full resize-none rounded-2xl bg-black/30 p-3 text-xs text-hud-text outline-none ring-1 ring-white/10 focus:ring-sys/60" />
+            {error && <p className="text-xs text-hostile">{error}</p>}
+            <Btn className="w-full" variant="primary" disabled={!pasted.trim()} onClick={restore}>Load this save</Btn>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 function StatusTab() {
   const { playerClass, resetAll, progression, bossLevel } = useCombat();
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
@@ -233,9 +280,11 @@ function StatusTab() {
         <div className="grid grid-cols-3 gap-4">
           <Stat label="Threat" value={bossLevel} />
           <Stat label="Level" value={progression.level} />
-          <Stat label="Reboots" value={progression.deathCount} />
+          <Stat label="Hosts lost" value={progression.deathCount} />
         </div>
       </Panel>
+
+      <SavePanel />
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <Btn onClick={toggleMute}>{isMuted ? 'Sound off' : 'Sound on'}</Btn>
@@ -246,7 +295,7 @@ function StatusTab() {
       <ConfirmDialog
         open={confirmReset}
         title="Wipe all progress?"
-        body="This deletes your save: level, implants, credits, reboots and unlocked classes. It can't be undone."
+        body="This deletes your save: level, implants, credits, host count and unlocked classes. It can't be undone. Copy your save first if you might want it back."
         confirmLabel="Wipe save"
         danger
         onCancel={() => setConfirmReset(false)}
@@ -282,7 +331,7 @@ export function BaseScreen() {
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="rounded-full bg-cred/10 px-3 py-1 font-display text-base font-semibold text-cred">¤ {gold}</span>
-            <span className="text-[11px] text-hud-faint">{progression.deathCount} reboot{progression.deathCount === 1 ? '' : 's'}</span>
+            <span className="text-[11px] text-hud-faint">{progression.deathCount} host{progression.deathCount === 1 ? '' : 's'} lost</span>
             <button onClick={toggleMute} className="text-[11px] font-semibold text-hud-dim hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
               {isMuted ? '🔇 Sound off' : '🔊 Sound on'}
             </button>

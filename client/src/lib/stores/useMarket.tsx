@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { saveStorage } from '../save';
 import type { Item } from '../combat/types';
 import { generateMarketStock, buyPrice, sellPrice } from '../combat/economy';
 import { useInventory } from './useInventory';
@@ -47,4 +48,4 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
   },
 
   reset: () => set({ stockKey: '', stock: [] }),
-}), { name: '2059-market', version: 1 }));
+}), { name: '2059-market', storage: createJSONStorage(() => saveStorage), version: 1 }));

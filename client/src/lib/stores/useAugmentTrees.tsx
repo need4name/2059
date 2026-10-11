@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { saveStorage } from '../save';
 import { AugmentationSlot, augmentKind } from '../combat/types';
 import { AUGMENT_TREES, TreePath, TreeTier } from '../combat/augmentTrees';
 import { actionForItem } from '../combat/augments';
@@ -107,7 +108,7 @@ return { attack, defense, hp, moveRange };
 
 resetTrees: () => set({ progress: {}, availablePoints: 0 }),
 }), {
-name: '2059-trees',
+name: '2059-trees', storage: createJSONStorage(() => saveStorage),
 version: 2,
 // v1 kept progress per body slot; refund those points instead of guessing which part they belonged to
 migrate: (old: unknown) => {

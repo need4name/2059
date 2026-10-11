@@ -33,7 +33,7 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
               <Btn variant="primary" size="lg" onClick={onContinue}>Continue</Btn>
               <Btn size="md" onClick={() => setConfirmNew(true)}>New game</Btn>
               <div className="mt-1 text-xs text-hud-faint">
-                Threat {bossLevel} · {progression.deathCount} reboot{progression.deathCount === 1 ? '' : 's'}
+                Threat {bossLevel} · {progression.deathCount} host{progression.deathCount === 1 ? '' : 's'} lost
               </div>
             </>
           ) : (

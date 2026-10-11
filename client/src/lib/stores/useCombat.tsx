@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
+import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
+import { saveStorage } from '../save';
 import {
 Character, CombatPhase, CombatAction, CombatLog, LootDrop,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
@@ -557,7 +558,7 @@ return { levelsGained };
 },
 };
 }, {
-name: '2059-combat',
+name: '2059-combat', storage: createJSONStorage(() => saveStorage),
 version: 1,
 // Only between-fight progress is saved. Reloading mid-fight returns you to base.
 partialize: (s) => ({

@@ -28,7 +28,7 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 - **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps host count and class unlock.
 - **Seeds:** every run has a `runSeed`; each fight reseeds from `runSeed` + fight number, and each market visit from `runSeed` + its stock key (`lib/engine/rng.ts`).
 - **Checks:** `npm run verify` (typecheck, `tests/`, `scripts/sim.ts --check`) gates every deploy.
-- **Saving:** combat, inventory, loadout and trees persist to localStorage (`2059-*` keys). Reloading mid-fight returns to base.
+- **Saving:** all stores persist into one versioned save (`2059-save`, `lib/save.ts`); older six-key saves move over on first load. Players can copy the save as text and restore it from the Status tab. Reloading mid-fight returns to base.
 - **UI:** screens live in `client/src/components/game/screens/`, shared pieces in `hud.tsx`. Dev builds show a Dev button on the base screen for test tools.
 
 ## User Preferences
