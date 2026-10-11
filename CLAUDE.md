@@ -19,6 +19,10 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 - Fight rules live in `client/src/lib/engine/fight.ts` as pure functions (state in, state + events out). The combat store only handles timing, sound and inventory. Put new rules in the engine and test them in `tests/fight.test.ts`.
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
 
+## Content
+
+- Items, weapons and enemies live in `client/src/content/*.json`, not in code. Add or change content there; `npm run check:content` rejects bad entries. Item order matters for seeded runs, so add new entries at the end.
+
 ## Randomness
 
 - Anything that affects play uses `random()` from `client/src/lib/engine/rng.ts`, never `Math.random()`. Each run has a seed and each fight is seeded from it, so runs can be replayed. Ids and visual effects may use `Math.random()`.
@@ -35,6 +39,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 - `npx tsc --noEmit` — typecheck (keep at 0 errors)
 - `npm test` — rule tests (Node's built-in runner, files in `tests/`)
 - `npm run sim` — balance simulator report (seeded, same result every run); `npm run sim -- --check` fails if a number leaves its range
-- `npm run verify` — typecheck + tests + simulator check; the publish workflow runs this before deploying
+- `npm run check:content` — checks the content files (shapes, allowed values, ids, cross-references)
+- `npm run verify` — typecheck + content check + tests + simulator check; the publish workflow runs this before deploying
 - `npm run build` — production build
 - `npm run build:pages` — build for GitHub Pages (base `/2059/`)

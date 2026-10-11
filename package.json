@@ -10,7 +10,8 @@
     "check": "tsc",
     "test": "node --import tsx --test tests/*.test.ts",
     "sim": "tsx scripts/sim.ts",
-    "verify": "tsc --noEmit && npm test && tsx scripts/sim.ts --check",
+    "check:content": "tsx scripts/check-content.ts",
+    "verify": "tsc --noEmit && tsx scripts/check-content.ts && npm test && tsx scripts/sim.ts --check",
     "db:push": "drizzle-kit push",
     "build:pages": "vite build --base=/2059/"
   },

@@ -34,7 +34,7 @@ isInnate?: boolean;
 heatGenerated?: number;   // self-heat delta (positive = heat up, negative = cool down)
 heatTransfer?: number;    // heat applied to TARGET (positive = heats them, negative = cools them)
 isHeavy?: boolean;        // boss telegraphs this one turn before using it
-accuracy?: AccuracyTier;  // PRECISE 95-100%, VARIABLE 60-85%, UNRELIABLE 25-70%
+accuracy?: AccuracyTier;  // see ACCURACY_RANGE in actions.ts
 rangeOptimal?: RangeBand; // which range band deals full damage
 physicalRatio?: number;   // 0.0-1.0: proportion of attack that is physical vs structural. defaults 0.7
 bypassStructuralDefense?: boolean; // CBN weapons: structural channel ignores enemy S-DEF

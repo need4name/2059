@@ -1,0 +1,669 @@
+{
+  "rotation": [
+    "Limbic Cartel Scavenger",
+    "SALV Boarder",
+    "Pump-Fleet Cadre",
+    "Ghost-MIL Infiltrator",
+    "Non-Continuous Raider",
+    "CBN Extraction Surgeon",
+    "IOA Interdiction Officer",
+    "Tianxia Compliance Unit",
+    "Helix Continuity Warden",
+    "Volkov Operator"
+  ],
+  "specials": [
+    "Cartel Enforcer",
+    "Unregistered Operator"
+  ],
+  "enemies": {
+    "Limbic Cartel Scavenger": {
+      "color": "#fb7185",
+      "baseAttack": 8,
+      "baseDefense": 2,
+      "startingHeat": 45,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Raft scavenger with cheap SCAR grafts and a PLM calm in his eyes. Wants the implants in your new body.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Graft Hook",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Calm-Haze Rush",
+          "description": "",
+          "damage": 18,
+          "isHeavy": true,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "PLM Numbing",
+          "description": "",
+          "defenseBoost": 6,
+          "heatGenerated": -6
+        }
+      ]
+    },
+    "SALV Boarder": {
+      "color": "#f59e0b",
+      "baseAttack": 7,
+      "baseDefense": 3,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.4,
+        "sDefR": 0.6
+      },
+      "dossier": "Bay of Bengal boarding crew, fused to crane limbs and spinal clamps. Sweeps wide, then hooks you in.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Crane Sweep",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 6,
+          "heatGenerated": 9,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Boarding Clamp",
+          "description": "",
+          "damage": 18,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 9,
+          "heatGenerated": 12,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "defend",
+          "name": "Spinal Lock",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -5
+        }
+      ]
+    },
+    "Pump-Fleet Cadre": {
+      "color": "#a3e635",
+      "baseAttack": 8,
+      "baseDefense": 6,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.65,
+        "sAtkR": 0.35,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "Raider from the Matriarchal Pump-Fleets. Internal pumps keep her standing long after she should fall.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Rib-Graft Ram",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Storm Liturgy",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Pump Surge",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -8
+        }
+      ]
+    },
+    "Ghost-MIL Infiltrator": {
+      "color": "#c084fc",
+      "baseAttack": 12,
+      "baseDefense": 1,
+      "startingHeat": 25,
+      "statSplit": {
+        "pAtkR": 0.3,
+        "sAtkR": 0.7,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Interface ports scavenged from robotics control rigs. Jams your sensors from range. Fragile up close.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Signal Bleed",
+          "description": "",
+          "damage": 14,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.15,
+          "heatTransfer": -6,
+          "heatGenerated": 7,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "Feedback Loop",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.1,
+          "heatTransfer": -10,
+          "heatGenerated": 9,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "defend",
+          "name": "Sensor Ghosting",
+          "description": "",
+          "defenseBoost": 5,
+          "heatGenerated": -5
+        }
+      ]
+    },
+    "Non-Continuous Raider": {
+      "color": "#f87171",
+      "baseAttack": 11,
+      "baseDefense": 2,
+      "startingHeat": 60,
+      "statSplit": {
+        "pAtkR": 0.85,
+        "sAtkR": 0.15,
+        "pDefR": 0.7,
+        "sDefR": 0.3
+      },
+      "dossier": "Scarred, half-starved and fast. Raids for medical supplies and identity tokens, and hits hard.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Catheter Blade",
+          "description": "",
+          "damage": 14,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.9,
+          "heatTransfer": 7,
+          "heatGenerated": 9,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Continuity Theft",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.85,
+          "heatTransfer": 11,
+          "heatGenerated": 14,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Scatter",
+          "description": "",
+          "defenseBoost": 6,
+          "heatGenerated": -4
+        }
+      ]
+    },
+    "CBN Extraction Surgeon": {
+      "color": "#22c55e",
+      "baseAttack": 6,
+      "baseDefense": 4,
+      "startingHeat": 45,
+      "statSplit": {
+        "pAtkR": 0.8,
+        "sAtkR": 0.2,
+        "pDefR": 0.65,
+        "sDefR": 0.35
+      },
+      "dossier": "Cartel Biotech Networks field surgeon with a BASM kit. Sedates first, harvests after.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Sedative Dart",
+          "description": "",
+          "damage": 9,
+          "accuracy": "variable",
+          "physicalRatio": 1,
+          "heatTransfer": 3,
+          "heatGenerated": 5,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "BASM Harvest",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 4,
+          "heatGenerated": 7,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "defend",
+          "name": "Sterile Field",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -10
+        }
+      ]
+    },
+    "IOA Interdiction Officer": {
+      "color": "#fb923c",
+      "baseAttack": 9,
+      "baseDefense": 6,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.55,
+        "sAtkR": 0.45,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Indian Ocean Authority maritime security. Denies transit by force, from range, by the book.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Transit Denial",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 7,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "Boarding Order",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 10,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "defend",
+          "name": "Certified Cover",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -7
+        }
+      ]
+    },
+    "Tianxia Compliance Unit": {
+      "color": "#06b6d4",
+      "baseAttack": 8,
+      "baseDefense": 7,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.45,
+        "sDefR": 0.55
+      },
+      "dossier": "Mass-produced labour frame repurposed for enforcement. Cools your systems to slow you down.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Neural Disrupt",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.2,
+          "heatTransfer": -5,
+          "heatGenerated": 6,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "Crackdown Order",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 10,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "defend",
+          "name": "Perimeter Lock",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -6
+        }
+      ]
+    },
+    "Helix Continuity Warden": {
+      "color": "#e2e8f0",
+      "baseAttack": 8,
+      "baseDefense": 8,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.5,
+        "sAtkR": 0.5,
+        "pDefR": 0.4,
+        "sDefR": 0.6
+      },
+      "dossier": "Contracted security for a Helix platform. Heavy structural housing; Helix makes no weapons, so the Warden brought his own.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Shock Baton",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 6,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Service Denial",
+          "description": "",
+          "damage": 21,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.35,
+          "heatTransfer": 9,
+          "heatGenerated": 11,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Structural Housing",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -8
+        }
+      ]
+    },
+    "Volkov Operator": {
+      "color": "#ef4444",
+      "baseAttack": 13,
+      "baseDefense": 5,
+      "startingHeat": 50,
+      "statSplit": {
+        "pAtkR": 0.65,
+        "sAtkR": 0.35,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Full operator limb suite, charged on Helix power it resents. Precise, brutal, and very hard to put down.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Hydraulic Drive",
+          "description": "",
+          "damage": 16,
+          "accuracy": "precise",
+          "physicalRatio": 0.7,
+          "heatTransfer": 7,
+          "heatGenerated": 10,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Operator Breach",
+          "description": "",
+          "damage": 28,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 12,
+          "heatGenerated": 15,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Pain Suppression",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -6
+        }
+      ]
+    },
+    "Cartel Enforcer": {
+      "color": "#e11d48",
+      "baseAttack": 20,
+      "baseDefense": 6,
+      "startingHeat": 70,
+      "statSplit": {
+        "pAtkR": 0.75,
+        "sAtkR": 0.25,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "The Limbic Cartel's collector. Far heavier than anything this body can handle.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Collector's Hook",
+          "description": "",
+          "damage": 18,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 8,
+          "heatGenerated": 9,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Debt Called In",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.8,
+          "heatTransfer": 12,
+          "heatGenerated": 12,
+          "attackPattern": "charge"
+        }
+      ]
+    },
+    "Unregistered Operator": {
+      "color": "#f8fafc",
+      "baseAttack": 16,
+      "baseDefense": 8,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.55,
+        "sAtkR": 0.45,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "A Kizuna operator who doesn't exist on any MIL register. A ghost story with a body count.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Unlogged Cut",
+          "description": "",
+          "damage": 18,
+          "accuracy": "precise",
+          "physicalRatio": 0.6,
+          "heatTransfer": 6,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Vestibular Strike",
+          "description": "",
+          "damage": 16,
+          "accuracy": "precise",
+          "physicalRatio": 0.4,
+          "heatTransfer": -8,
+          "heatGenerated": 6,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Clean Paperwork",
+          "description": "",
+          "damage": 32,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.6,
+          "heatTransfer": 14,
+          "heatGenerated": 14,
+          "attackPattern": "charge"
+        }
+      ]
+    }
+  },
+  "patchworkKing": {
+    "color": "#fbbf24",
+    "dossier": "The pirate king of the plastic island. Once a corporate operator, discarded by the people who built him. Three phases.",
+    "phases": [
+      [
+        {
+          "type": "attack",
+          "name": "Salvage Rights",
+          "description": "",
+          "damage": 18,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 7,
+          "heatGenerated": 10,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Claim the Dead",
+          "description": "",
+          "damage": 14,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Scrap Ward",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -7
+        }
+      ],
+      [
+        {
+          "type": "attack",
+          "name": "Iron Tithe",
+          "description": "",
+          "damage": 24,
+          "accuracy": "variable",
+          "physicalRatio": 0.55,
+          "heatTransfer": 12,
+          "heatGenerated": 16,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Splinter Barrage",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "unreliable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 10,
+          "heatGenerated": 14,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Sovereign Guard",
+          "description": "",
+          "defenseBoost": 14,
+          "heatGenerated": -9
+        }
+      ],
+      [
+        {
+          "type": "attack",
+          "name": "Fleet Command",
+          "description": "",
+          "damage": 26,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 10,
+          "heatGenerated": 14,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "attack",
+          "name": "Plunder Protocol",
+          "description": "",
+          "damage": 34,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 16,
+          "heatGenerated": 20,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "The King's Due",
+          "description": "",
+          "damage": 40,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.75,
+          "heatTransfer": 18,
+          "heatGenerated": 22,
+          "attackPattern": "charge"
+        }
+      ]
+    ],
+    "monologue": [
+      "The Patchwork King rises. Everything you carry -- he has already counted.",
+      "He built his throne from the parts others left behind.",
+      "You still breathe. He finds that... inconvenient.",
+      "There is no negotiation. Only settlement."
+    ]
+  }
+}

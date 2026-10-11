@@ -1,5 +1,6 @@
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand } from './types';
 import { ITEMS_2059 } from './items2059';
+import enemyContent from '../../content/enemies.json';
 import { MIN_PLAYER_HP } from './augments';
 
 import { random } from '../engine/rng';
@@ -318,42 +319,25 @@ spriteColor: '#3b82f6',
 
 // ── Boss definitions ──────────────────────────────────────────────────────────
 
-// Who you fight. Early threats are the pirate federations and cartel crews of the
-// plastic archipelago; corporate security takes over as you draw attention.
-const BOSS_TYPES = [
-{ name: 'Limbic Cartel Scavenger',  color: '#fb7185', baseAttack: 8,  baseDefense: 2, startingHeat: 45 },
-{ name: 'SALV Boarder',             color: '#f59e0b', baseAttack: 7,  baseDefense: 3, startingHeat: 40 },
-{ name: 'Pump-Fleet Cadre',         color: '#a3e635', baseAttack: 8,  baseDefense: 6, startingHeat: 40 },
-{ name: 'Ghost-MIL Infiltrator',    color: '#c084fc', baseAttack: 12, baseDefense: 1, startingHeat: 25 },
-{ name: 'Non-Continuous Raider',    color: '#f87171', baseAttack: 11, baseDefense: 2, startingHeat: 60 },
-{ name: 'CBN Extraction Surgeon',   color: '#22c55e', baseAttack: 6,  baseDefense: 4, startingHeat: 45 },
-{ name: 'IOA Interdiction Officer', color: '#fb923c', baseAttack: 9,  baseDefense: 6, startingHeat: 35 },
-{ name: 'Tianxia Compliance Unit',  color: '#06b6d4', baseAttack: 8,  baseDefense: 7, startingHeat: 35 },
-{ name: 'Helix Continuity Warden',  color: '#e2e8f0', baseAttack: 8,  baseDefense: 8, startingHeat: 40 },
-{ name: 'Volkov Operator',          color: '#ef4444', baseAttack: 13, baseDefense: 5, startingHeat: 50 },
-];
+// Who you fight lives in content/enemies.json: the regular rotation, the
+// set-piece specials, and each enemy's stats, dossier line and moves.
+interface EnemyData {
+color: string; baseAttack: number; baseDefense: number; startingHeat: number;
+statSplit: { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number };
+dossier: string; moves: CombatAction[];
+}
+const ENEMY_DATA = enemyContent as unknown as {
+rotation: string[]; specials: string[]; enemies: Record<string, EnemyData>;
+patchworkKing: { color: string; dossier: string; phases: CombatAction[][]; monologue: string[] };
+};
+const enemyType = (name: string) => ({ name, ...ENEMY_DATA.enemies[name] });
+export const BOSS_TYPES = ENEMY_DATA.rotation.map(enemyType);
+export const SPECIAL_TYPES = ENEMY_DATA.specials.map(enemyType);
 
-// Set-piece enemies outside the regular rotation
-const SPECIAL_TYPES = [
-{ name: 'Cartel Enforcer',          color: '#e11d48', baseAttack: 20, baseDefense: 6, startingHeat: 70 },
-{ name: 'Unregistered Operator',    color: '#f8fafc', baseAttack: 16, baseDefense: 8, startingHeat: 20 },
-];
-
-// Short dossier lines shown on the base screen before a fight
+/** Short dossier lines shown on the base screen before a fight. */
 export const BOSS_DOSSIERS: Record<string, string> = {
-'Limbic Cartel Scavenger':  'Raft scavenger with cheap SCAR grafts and a PLM calm in his eyes. Wants the implants in your new body.',
-'SALV Boarder':             'Bay of Bengal boarding crew, fused to crane limbs and spinal clamps. Sweeps wide, then hooks you in.',
-'Pump-Fleet Cadre':         'Raider from the Matriarchal Pump-Fleets. Internal pumps keep her standing long after she should fall.',
-'Ghost-MIL Infiltrator':    'Interface ports scavenged from robotics control rigs. Jams your sensors from range. Fragile up close.',
-'Non-Continuous Raider':    'Scarred, half-starved and fast. Raids for medical supplies and identity tokens, and hits hard.',
-'CBN Extraction Surgeon':   'Cartel Biotech Networks field surgeon with a BASM kit. Sedates first, harvests after.',
-'IOA Interdiction Officer': 'Indian Ocean Authority maritime security. Denies transit by force, from range, by the book.',
-'Tianxia Compliance Unit':  'Mass-produced labour frame repurposed for enforcement. Cools your systems to slow you down.',
-'Helix Continuity Warden':  'Contracted security for a Helix platform. Heavy structural housing; Helix makes no weapons, so the Warden brought his own.',
-'Volkov Operator':          'Full operator limb suite, charged on Helix power it resents. Precise, brutal, and very hard to put down.',
-'Patchwork King':           'The pirate king of the plastic island. Once a corporate operator, discarded by the people who built him. Three phases.',
-'Cartel Enforcer':          "The Limbic Cartel's collector. Far heavier than anything this body can handle.",
-'Unregistered Operator':    "A Kizuna operator who doesn't exist on any MIL register. A ghost story with a body count.",
+...Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.dossier])),
+'Patchwork King': ENEMY_DATA.patchworkKing.dossier,
 };
 
 /** Which enemy you face at a threat level. Threat 10 and 20 are bosses. */
@@ -389,25 +373,9 @@ const mult = t.name === 'Cartel Enforcer' ? ENFORCER_MULT.hp : t.name === 'Unreg
 return { name: t.name, color: t.color, hp: Math.round(baseHp * mult) };
 }
 
-// Stat profiles: [pAtk, sAtk, pDef, sDef] - Patchwork are heavily modified
-// Raider: SCAR limbs, boarding hooks - high S-DEF (cybernetic chassis), balanced attack
-// Scrapper: brute salvage work - high P-ATK, moderate S-DEF (industrial prosthetics)
-// Ghost: interface ports, neural disruption - S-ATK dominant, low S-DEF (unarmoured)
-// Helix/Tianxia/CBN: corporate profiles, used at higher levels
-const BOSS_STAT_PROFILES: Record<string, { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number }> = {
-'Limbic Cartel Scavenger':  { pAtkR: 0.70, sAtkR: 0.30, pDefR: 0.55, sDefR: 0.45 },
-'SALV Boarder':             { pAtkR: 0.60, sAtkR: 0.40, pDefR: 0.40, sDefR: 0.60 },
-'Pump-Fleet Cadre':         { pAtkR: 0.65, sAtkR: 0.35, pDefR: 0.60, sDefR: 0.40 },
-'Ghost-MIL Infiltrator':    { pAtkR: 0.30, sAtkR: 0.70, pDefR: 0.50, sDefR: 0.50 },
-'Non-Continuous Raider':    { pAtkR: 0.85, sAtkR: 0.15, pDefR: 0.70, sDefR: 0.30 },
-'CBN Extraction Surgeon':   { pAtkR: 0.80, sAtkR: 0.20, pDefR: 0.65, sDefR: 0.35 },
-'IOA Interdiction Officer': { pAtkR: 0.55, sAtkR: 0.45, pDefR: 0.50, sDefR: 0.50 },
-'Tianxia Compliance Unit':  { pAtkR: 0.40, sAtkR: 0.60, pDefR: 0.45, sDefR: 0.55 },
-'Helix Continuity Warden':  { pAtkR: 0.50, sAtkR: 0.50, pDefR: 0.40, sDefR: 0.60 },
-'Volkov Operator':          { pAtkR: 0.65, sAtkR: 0.35, pDefR: 0.50, sDefR: 0.50 },
-'Cartel Enforcer':          { pAtkR: 0.75, sAtkR: 0.25, pDefR: 0.55, sDefR: 0.45 },
-'Unregistered Operator':    { pAtkR: 0.55, sAtkR: 0.45, pDefR: 0.50, sDefR: 0.50 },
-};
+/** How each enemy splits its attack and defence between flesh and structure. */
+export const BOSS_STAT_PROFILES: Record<string, EnemyData['statSplit']> =
+Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.statSplit]));
 
 export function createBoss(level: number = 1, firstRun = false): Character {
 const bossType = enemyTypeForLevel(level, firstRun);
@@ -478,67 +446,8 @@ spriteColor: bossType.color,
 // isHeavy: true -- the enemy tell fires the turn BEFORE this attack lands.
 // heatTransfer: heat applied to the TARGET when this attack hits.
 // Keep one isHeavy attack per boss.
-export const BOSS_ATTACKS: Record<string, CombatAction[]> = {
-'Limbic Cartel Scavenger': [
-{ type: 'attack', name: 'Graft Hook',        description: '', damage: 11, accuracy: 'variable',   physicalRatio: 0.75, heatTransfer: +5,  heatGenerated: 8,  attackPattern: 'melee' },
-{ type: 'attack', name: 'Calm-Haze Rush',    description: '', damage: 18, isHeavy: true, accuracy: 'unreliable', physicalRatio: 0.80, heatTransfer: +8, heatGenerated: 12, attackPattern: 'charge' },
-{ type: 'defend', name: 'PLM Numbing',       description: '', defenseBoost: 6, heatGenerated: -6 },
-],
-'SALV Boarder': [
-{ type: 'attack', name: 'Crane Sweep',       description: '', damage: 11, accuracy: 'variable',   physicalRatio: 0.65, heatTransfer: +6,  heatGenerated: 9,  attackPattern: 'sweep_arc' },
-{ type: 'attack', name: 'Boarding Clamp',    description: '', damage: 18, isHeavy: true, accuracy: 'variable', physicalRatio: 0.6, heatTransfer: +9, heatGenerated: 12, attackPattern: 'melee_long' },
-{ type: 'defend', name: 'Spinal Lock',       description: '', defenseBoost: 9, heatGenerated: -5 },
-],
-'Pump-Fleet Cadre': [
-{ type: 'attack', name: 'Rib-Graft Ram',     description: '', damage: 12, accuracy: 'variable',   physicalRatio: 0.70, heatTransfer: +5,  heatGenerated: 8,  attackPattern: 'melee_long' },
-{ type: 'attack', name: 'Storm Liturgy',     description: '', damage: 20, isHeavy: true, accuracy: 'variable', physicalRatio: 0.65, heatTransfer: +10, heatGenerated: 13, attackPattern: 'aoe' },
-{ type: 'defend', name: 'Pump Surge',        description: '', defenseBoost: 10, heatGenerated: -8 },
-],
-'Ghost-MIL Infiltrator': [
-{ type: 'attack', name: 'Signal Bleed',      description: '', damage: 14, accuracy: 'unreliable', physicalRatio: 0.15, heatTransfer: -6,  heatGenerated: 7,  attackPattern: 'ranged' },
-{ type: 'attack', name: 'Feedback Loop',     description: '', damage: 24, isHeavy: true, accuracy: 'unreliable', physicalRatio: 0.10, heatTransfer: -10, heatGenerated: 9, attackPattern: 'diagonal_cross' },
-{ type: 'defend', name: 'Sensor Ghosting',   description: '', defenseBoost: 5, heatGenerated: -5 },
-],
-'Non-Continuous Raider': [
-{ type: 'attack', name: 'Catheter Blade',    description: '', damage: 14, accuracy: 'unreliable', physicalRatio: 0.90, heatTransfer: +7,  heatGenerated: 9,  attackPattern: 'lunge' },
-{ type: 'attack', name: 'Continuity Theft',  description: '', damage: 24, isHeavy: true, accuracy: 'unreliable', physicalRatio: 0.85, heatTransfer: +11, heatGenerated: 14, attackPattern: 'charge' },
-{ type: 'defend', name: 'Scatter',           description: '', defenseBoost: 6, heatGenerated: -4 },
-],
-'CBN Extraction Surgeon': [
-{ type: 'attack', name: 'Sedative Dart',     description: '', damage: 9,  accuracy: 'variable',   physicalRatio: 1.00, heatTransfer: +3,  heatGenerated: 5,  attackPattern: 'ranged' },
-{ type: 'attack', name: 'BASM Harvest',      description: '', damage: 20, isHeavy: true, accuracy: 'variable', physicalRatio: 0.80, heatTransfer: +4, heatGenerated: 7, attackPattern: 'melee' },
-{ type: 'defend', name: 'Sterile Field',     description: '', defenseBoost: 12, heatGenerated: -10 },
-],
-'IOA Interdiction Officer': [
-{ type: 'attack', name: 'Transit Denial',    description: '', damage: 12, accuracy: 'variable',   physicalRatio: 0.60, heatTransfer: +5,  heatGenerated: 7,  attackPattern: 'ranged' },
-{ type: 'attack', name: 'Boarding Order',    description: '', damage: 20, isHeavy: true, accuracy: 'precise', physicalRatio: 0.70, heatTransfer: +8, heatGenerated: 10, attackPattern: 'knockback' },
-{ type: 'defend', name: 'Certified Cover',   description: '', defenseBoost: 9, heatGenerated: -7 },
-],
-'Tianxia Compliance Unit': [
-{ type: 'attack', name: 'Neural Disrupt',    description: '', damage: 11, accuracy: 'variable',   physicalRatio: 0.20, heatTransfer: -5,  heatGenerated: 6,  attackPattern: 'ranged' },
-{ type: 'attack', name: 'Crackdown Order',   description: '', damage: 19, isHeavy: true, accuracy: 'variable', physicalRatio: 0.70, heatTransfer: +8, heatGenerated: 10, attackPattern: 'knockback' },
-{ type: 'defend', name: 'Perimeter Lock',    description: '', defenseBoost: 10, heatGenerated: -6 },
-],
-'Helix Continuity Warden': [
-{ type: 'attack', name: 'Shock Baton',       description: '', damage: 12, accuracy: 'variable',   physicalRatio: 0.40, heatTransfer: +6,  heatGenerated: 8,  attackPattern: 'sweep_arc' },
-{ type: 'attack', name: 'Service Denial',    description: '', damage: 21, isHeavy: true, accuracy: 'precise', physicalRatio: 0.35, heatTransfer: +9, heatGenerated: 11, attackPattern: 'charge' },
-{ type: 'defend', name: 'Structural Housing', description: '', defenseBoost: 12, heatGenerated: -8 },
-],
-'Volkov Operator': [
-{ type: 'attack', name: 'Hydraulic Drive',   description: '', damage: 16, accuracy: 'precise',    physicalRatio: 0.70, heatTransfer: +7,  heatGenerated: 10, attackPattern: 'melee_long' },
-{ type: 'attack', name: 'Operator Breach',   description: '', damage: 28, isHeavy: true, accuracy: 'precise', physicalRatio: 0.65, heatTransfer: +12, heatGenerated: 15, attackPattern: 'charge' },
-{ type: 'defend', name: 'Pain Suppression',  description: '', defenseBoost: 8, heatGenerated: -6 },
-],
-'Cartel Enforcer': [
-{ type: 'attack', name: 'Collector\'s Hook', description: '', damage: 18, accuracy: 'variable',   physicalRatio: 0.75, heatTransfer: +8,  heatGenerated: 9,  attackPattern: 'sweep_arc' },
-{ type: 'attack', name: 'Debt Called In',    description: '', damage: 26, isHeavy: true, accuracy: 'precise', physicalRatio: 0.80, heatTransfer: +12, heatGenerated: 12, attackPattern: 'charge' },
-],
-'Unregistered Operator': [
-{ type: 'attack', name: 'Unlogged Cut',      description: '', damage: 18, accuracy: 'precise',    physicalRatio: 0.60, heatTransfer: +6,  heatGenerated: 8,  attackPattern: 'lunge' },
-{ type: 'attack', name: 'Vestibular Strike', description: '', damage: 16, accuracy: 'precise',    physicalRatio: 0.40, heatTransfer: -8,  heatGenerated: 6,  attackPattern: 'diagonal_cross' },
-{ type: 'attack', name: 'Clean Paperwork',   description: '', damage: 32, isHeavy: true, accuracy: 'precise', physicalRatio: 0.60, heatTransfer: +14, heatGenerated: 14, attackPattern: 'charge' },
-],
-};
+export const BOSS_ATTACKS: Record<string, CombatAction[]> =
+Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.moves]));
 
 // Export for store consumption
 export function getBossStartingHeat(bossName: string): number {
@@ -563,23 +472,7 @@ type,
 };
 }
 
-const PATCHWORK_KING_PHASES: CombatAction[][] = [
-  [
-    { type: 'attack', name: 'Salvage Rights',   description: '', damage: 18, accuracy: 'variable',   physicalRatio: 0.65, heatTransfer: +7,  heatGenerated: 10, attackPattern: 'sweep_arc' },
-    { type: 'attack', name: 'Claim the Dead',   description: '', damage: 14, accuracy: 'unreliable', physicalRatio: 0.80, heatTransfer: +5,  heatGenerated: 8,  attackPattern: 'charge' },
-    { type: 'defend', name: 'Scrap Ward',        description: '', defenseBoost: 10, heatGenerated: -7 },
-  ],
-  [
-    { type: 'attack', name: 'Iron Tithe',        description: '', damage: 24, accuracy: 'variable',   physicalRatio: 0.55, heatTransfer: +12, heatGenerated: 16, attackPattern: 'diagonal_cross' },
-    { type: 'attack', name: 'Splinter Barrage',  description: '', damage: 20, isHeavy: true, accuracy: 'unreliable', physicalRatio: 0.70, heatTransfer: +10, heatGenerated: 14, attackPattern: 'aoe' },
-    { type: 'defend', name: 'Sovereign Guard',   description: '', defenseBoost: 14, heatGenerated: -9 },
-  ],
-  [
-    { type: 'attack', name: 'Fleet Command',    description: '', damage: 26, accuracy: 'variable', physicalRatio: 0.60, heatTransfer: +10, heatGenerated: 14, attackPattern: 'charge' },
-    { type: 'attack', name: 'Plunder Protocol', description: '', damage: 34, isHeavy: true, accuracy: 'variable', physicalRatio: 0.70, heatTransfer: +16, heatGenerated: 20, attackPattern: 'sweep_arc' },
-    { type: 'attack', name: "The King's Due",   description: '', damage: 40, isHeavy: true, accuracy: 'precise',  physicalRatio: 0.75, heatTransfer: +18, heatGenerated: 22, attackPattern: 'charge' },
-  ],
-];
+export const PATCHWORK_KING_PHASES: CombatAction[][] = ENEMY_DATA.patchworkKing.phases;
 
 /** Every attack an enemy can use (the King's scripted phases included). */
 export function getBossRoster(bossName: string): CombatAction[] {
@@ -593,9 +486,4 @@ export function getPatchworkKingAction(turnCount: number): CombatAction {
   return phase[Math.floor(random() * phase.length)];
 }
 
-export const PATCHWORK_KING_MONOLOGUE: string[] = [
-  'The Patchwork King rises. Everything you carry -- he has already counted.',
-  'He built his throne from the parts others left behind.',
-  'You still breathe. He finds that... inconvenient.',
-  'There is no negotiation. Only settlement.',
-];
+export const PATCHWORK_KING_MONOLOGUE: string[] = ENEMY_DATA.patchworkKing.monologue;
