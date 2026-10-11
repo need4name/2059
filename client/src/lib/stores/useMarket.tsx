@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import type { Item } from '../combat/types';
 import { generateMarketStock, buyPrice, sellPrice } from '../combat/economy';
 import { useInventory } from './useInventory';
+import { useCombat } from './useCombat';
+import { seedRandom, mixSeed, hashSeed } from '../engine/rng';
 
 interface MarketState {
   /** Which visit the stock belongs to; a new key means new stock. */
@@ -20,6 +22,8 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
 
   ensureStock: (key, level) => {
     if (get().stockKey === key && get().stock.length) return;
+    // Stock is part of the run: the same seed and visit give the same stall
+    seedRandom(mixSeed(useCombat.getState().runSeed, hashSeed(key)));
     set({ stockKey: key, stock: generateMarketStock(level) });
   },
 

@@ -8,6 +8,9 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
+    "test": "node --import tsx --test 'tests/**/*.test.ts'",
+    "sim": "tsx scripts/sim.ts",
+    "verify": "tsc --noEmit && npm test && tsx scripts/sim.ts --check",
     "db:push": "drizzle-kit push",
     "build:pages": "vite build --base=/2059/"
   },

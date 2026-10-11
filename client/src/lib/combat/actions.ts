@@ -2,6 +2,7 @@ import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPha
 import { ITEMS_2059 } from './items2059';
 import { MIN_PLAYER_HP } from './augments';
 
+import { random } from '../engine/rng';
 // ── Range falloff ─────────────────────────────────────────────────────────────
 // Returns a damage multiplier based on how far attacker is from optimal range.
 // close:  full at distance 1,  70% at 2,   50% at 3+
@@ -191,7 +192,7 @@ strDamage  = Math.floor(strDamage  * heatMultiplier);
 // Crit roll - chance derived from player heat phase, amplifies both channels
 const CRIT_CHANCES: Record<string, number> = { cool: 0, warm: 0.08, hot: 0.18, critical: 0.30 };
 const critChance = CRIT_CHANCES[getHeatPhase(playerHeat)] ?? 0;
-const isCrit = action.type === 'attack' && Math.random() < critChance;
+const isCrit = action.type === 'attack' && random() < critChance;
 if (isCrit) {
 physDamage = Math.floor(physDamage * 1.75);
 strDamage  = Math.floor(strDamage  * 1.75);
@@ -210,7 +211,7 @@ const evasionPenalty = Math.min(0.30, (defender.evasion || 0) * 0.015);
 const tier = isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
 let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
-const variance = lo + Math.random() * (hi - lo);
+const variance = lo + random() * (hi - lo);
 physDamage = Math.max(3, Math.floor(physDamage * variance)); // floor 3 prevents brick-wall fights
 strDamage  = Math.max(0, Math.floor(strDamage  * variance));
 
@@ -434,7 +435,7 @@ const cappedPool = PATCHWORK_AUG_POOL.filter(i =>
 const pool = [...(cappedPool.length > 0 ? cappedPool : PATCHWORK_AUG_POOL)];
 for (let i = 0; i < numAugs; i++) {
 if (pool.length === 0) break;
-const idx = Math.floor(Math.random() * pool.length);
+const idx = Math.floor(random() * pool.length);
 const aug = pool.splice(idx, 1)[0];
 // attackBonus -> physical attack (crude weapons), defenseBonus -> physical defense
 // structural attack/defense get a smaller bonus derived from the same items
@@ -550,7 +551,7 @@ const actions = BOSS_ATTACKS[bossName];
 if (!actions || actions.length === 0) {
 return { type: 'attack', name: 'Strike', description: '', damage: 10, physicalRatio: 0.70 };
 }
-return actions[Math.floor(Math.random() * actions.length)];
+return actions[Math.floor(random() * actions.length)];
 }
 
 export function createCombatLog(message: string, type: CombatLog['type'] = 'info'): CombatLog {
@@ -589,7 +590,7 @@ return BOSS_ATTACKS[bossName] ?? [];
 export function getPatchworkKingAction(turnCount: number): CombatAction {
   const phaseIndex = turnCount <= 3 ? 0 : turnCount <= 6 ? 1 : 2;
   const phase = PATCHWORK_KING_PHASES[phaseIndex];
-  return phase[Math.floor(Math.random() * phase.length)];
+  return phase[Math.floor(random() * phase.length)];
 }
 
 export const PATCHWORK_KING_MONOLOGUE: string[] = [

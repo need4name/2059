@@ -26,6 +26,8 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 - **Overheat (100 heat):** movement locked. Move-range tree upgrades apply to tile taps.
 - **Classes:** start Unclassified. Dying at threat level 11+ unlocks Enforcer/Operative permanently; after that every death lets you pick a profile.
 - **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps host count and class unlock.
+- **Seeds:** every run has a `runSeed`; each fight reseeds from `runSeed` + fight number, and each market visit from `runSeed` + its stock key (`lib/engine/rng.ts`).
+- **Checks:** `npm run verify` (typecheck, `tests/`, `scripts/sim.ts --check`) gates every deploy.
 - **Saving:** combat, inventory, loadout and trees persist to localStorage (`2059-*` keys). Reloading mid-fight returns to base.
 - **UI:** screens live in `client/src/components/game/screens/`, shared pieces in `hud.tsx`. Dev builds show a Dev button on the base screen for test tools.
 

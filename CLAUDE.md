@@ -18,6 +18,10 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 - Don't use Chakra Petch or JetBrains Mono (rejected). Current fonts: Sora for headings, Manrope for everything else.
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
 
+## Randomness
+
+- Anything that affects play uses `random()` from `client/src/lib/engine/rng.ts`, never `Math.random()`. Each run has a seed and each fight is seeded from it, so runs can be replayed. Ids and visual effects may use `Math.random()`.
+
 ## Hosting
 
 - Live game: https://need4name.github.io/2059/ (GitHub Pages, served from the `gh-pages` branch).
@@ -28,5 +32,8 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). See `
 
 - `npm run dev` — game on http://localhost:5000
 - `npx tsc --noEmit` — typecheck (keep at 0 errors)
+- `npm test` — rule tests (Node's built-in runner, files in `tests/`)
+- `npm run sim` — balance simulator report (seeded, same result every run); `npm run sim -- --check` fails if a number leaves its range
+- `npm run verify` — typecheck + tests + simulator check; the publish workflow runs this before deploying
 - `npm run build` — production build
 - `npm run build:pages` — build for GitHub Pages (base `/2059/`)

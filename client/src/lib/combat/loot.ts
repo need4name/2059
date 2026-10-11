@@ -1,6 +1,7 @@
 import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
 
+import { random } from '../engine/rng';
 // STIM items are pulled by id so they always exist regardless of rarity filtering
 const STIM_IDS = ['stim_heat_flush', 'stim_bio', 'stim_structural', 'stim_overclock'];
 const STIM_POOL: Item[] = ITEMS_2059.filter(i => STIM_IDS.includes(i.id));
@@ -44,7 +45,7 @@ return { common: Math.max(0, 10 - t), uncommon: Math.max(8, 26 - 2 * t), rare: 3
 function rollRarity(bossLevel: number): ItemRarity {
 const weights = getRarityWeights(bossLevel);
 const total = Object.values(weights).reduce((a, b) => a + b, 0);
-let roll = Math.random() * total;
+let roll = random() * total;
 for (const [rarity, weight] of Object.entries(weights)) {
 roll -= weight;
 if (roll <= 0) return rarity as ItemRarity;
@@ -61,10 +62,10 @@ let pool = pools[rarity];
 if (slot) pool = pool.filter(i => i.slot === slot);
 if (pool.length === 0) pool = pools[rarity]; // drop slot constraint if nothing found
 if (pool.length === 0) return null;
-return pool[Math.floor(Math.random() * pool.length)];
+return pool[Math.floor(random() * pool.length)];
 }
 
-function pick<T>(list: T[]): T { return list[Math.floor(Math.random() * list.length)]; }
+function pick<T>(list: T[]): T { return list[Math.floor(random() * list.length)]; }
 
 /**
  * First life only: the first win hands you an active implant (a new combat
@@ -102,10 +103,10 @@ const dropChance = bossLevel === 1 ? 1.00  // always drop - first fight tutorial
 : bossLevel === 7 ? 0.85
 : 1.00; // boss 8 guaranteed
 
-const shouldDrop = Math.random() < dropChance;
+const shouldDrop = random() < dropChance;
 if (!shouldDrop) {
 const baseGold = 20 + 15 * bossLevel;
-return { items: [], gold: baseGold + Math.floor(Math.random() * baseGold) };
+return { items: [], gold: baseGold + Math.floor(random() * baseGold) };
 }
 
 // Item count - mostly 1, occasionally 2 from boss 5+, boss 8 gets 2-3
@@ -113,16 +114,16 @@ const maxItems = bossLevel >= 14 ? 4 : bossLevel >= 8 ? 3
 : bossLevel >= 5 ? 2
 : 1;
 const numItems = bossLevel >= 14
-? 3 + (Math.random() < 0.35 ? 1 : 0)
+? 3 + (random() < 0.35 ? 1 : 0)
 : bossLevel >= 8
-? 2 + (Math.random() < 0.5 ? 1 : 0)
+? 2 + (random() < 0.5 ? 1 : 0)
 : bossLevel >= 5
-? (Math.random() < 0.40 ? 2 : 1)
+? (random() < 0.40 ? 2 : 1)
 : 1;
 
 for (let i = 0; i < Math.min(numItems, maxItems); i++) {
 const rarity = rollRarity(bossLevel);
-const slot = AUGMENTATION_SLOTS[Math.floor(Math.random() * AUGMENTATION_SLOTS.length)];
+const slot = AUGMENTATION_SLOTS[Math.floor(random() * AUGMENTATION_SLOTS.length)];
 const item = getRandomItemFromPool(rarity, pools, slot);
 if (item) items.push(instancedItem(item));
 }
@@ -134,18 +135,18 @@ const stimChance = bossLevel <= 3 ? 0.25
 : bossLevel <= 6 ? 0.40
 : bossLevel <= 9 ? 0.55
 : 0.70; // level 10+ (Patchwork King area)
-if (Math.random() < stimChance && STIM_POOL.length > 0) {
+if (random() < stimChance && STIM_POOL.length > 0) {
 // Overclock (rare) only from level 5+
 const availableStims = bossLevel >= 5
 ? STIM_POOL
 : STIM_POOL.filter(s => s.id !== 'stim_overclock');
-const stim = availableStims[Math.floor(Math.random() * availableStims.length)];
+const stim = availableStims[Math.floor(random() * availableStims.length)];
 if (stim) items.push(instancedItem(stim));
 }
 }
 
 const baseGold = 20 + 15 * bossLevel;
-const gold = baseGold + Math.floor(Math.random() * baseGold);
+const gold = baseGold + Math.floor(random() * baseGold);
 
 return { items, gold };
 }
@@ -158,13 +159,13 @@ const epic = getRandomItemFromPool('epic', ITEM_POOLS, pick(AUGMENTATION_SLOTS))
 const rare = getRandomItemFromPool('rare', ITEM_POOLS, pick(ACTIVE_SLOTS));
 if (epic) items.push(instancedItem(epic));
 if (rare) items.push(instancedItem(rare));
-if (Math.random() < 0.35) {
+if (random() < 0.35) {
 const leg = getRandomItemFromPool('legendary', ITEM_POOLS, pick(AUGMENTATION_SLOTS));
 if (leg) items.push(instancedItem(leg));
 }
 const stim = pick(STIM_POOL);
 if (stim) items.push(instancedItem(stim));
-const gold = 320 + Math.floor(Math.random() * 120);
+const gold = 320 + Math.floor(random() * 120);
 return { items, gold };
 }
 

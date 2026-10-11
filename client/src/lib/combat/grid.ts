@@ -1,6 +1,7 @@
 import type { CombatGrid, TileData, TilePosition, AttackPatternType } from './types';
 import { canHitTarget } from './patterns';
 
+import { random } from '../engine/rng';
 // ── Tile helpers ──────────────────────────────────────────────────────────────
 
 // Cover found on the plastic archipelago and the platforms tethered to it
@@ -143,8 +144,8 @@ type ArenaShape = NonNullable<CombatGrid['arenaShape']>;
 function generateGridSize(bossLevel: number) {
   // Grows from about 7x9 on the first fights to 9x13 by threat 12
   const progress = Math.min((bossLevel - 1) / 11, 1);
-  const cols = Math.round(7 + progress * 2 - Math.random() * 0.8);
-  const rows = Math.round(9 + progress * 4 - Math.random() * 1.2);
+  const cols = Math.round(7 + progress * 2 - random() * 0.8);
+  const rows = Math.round(9 + progress * 4 - random() * 1.2);
   return { cols: Math.max(7, Math.min(9, cols)), rows: Math.max(9, Math.min(13, rows)) };
 }
 
@@ -161,7 +162,7 @@ function getVoidMask(shape: ArenaShape, rows: number, cols: number): Set<string>
     // One corner of the deck has collapsed into the sea
     const cutRows = Math.floor(rows * 0.45);
     const cutCols = Math.floor(cols * 0.5);
-    const left = Math.random() < 0.5;
+    const left = random() < 0.5;
     for (let r = Math.floor((rows - cutRows) / 2); r < Math.floor((rows - cutRows) / 2) + cutRows; r++)
       for (let c = 0; c < cutCols; c++) add(r, left ? c : cols - 1 - c);
   } else if (shape === 'cross') {
@@ -177,14 +178,14 @@ function getVoidMask(shape: ArenaShape, rows: number, cols: number): Set<string>
 }
 
 function pickShape(bossLevel: number): ArenaShape {
-  const roll = Math.random();
+  const roll = random();
   if (bossLevel < 3 || roll < 0.45) return 'open';
   if (bossLevel < 5 || roll < 0.65) return 'corridor';
   if (bossLevel < 7 || roll < 0.82) return 'l_shape';
   return 'cross';
 }
 
-function randomOf<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function randomOf<T>(arr: T[]): T { return arr[Math.floor(random() * arr.length)]; }
 
 export function generateBattlefield(bossLevel: number): CombatGrid {
   const { rows, cols } = generateGridSize(bossLevel);
@@ -207,15 +208,15 @@ export function generateBattlefield(bossLevel: number): CombatGrid {
   // Cover and hazards scale with the walkable area
   const walkable = rows * cols - voidSet.size;
   const progress = Math.min((bossLevel - 1) / 15, 1);
-  const numObstacles = Math.round(walkable * (0.08 + progress * 0.06) + Math.random() * 2);
-  const numHazards = bossLevel < 2 ? 0 : Math.round(walkable * (0.02 + progress * 0.04) + Math.random());
+  const numObstacles = Math.round(walkable * (0.08 + progress * 0.06) + random() * 2);
+  const numHazards = bossLevel < 2 ? 0 : Math.round(walkable * (0.02 + progress * 0.04) + random());
 
   const place = (count: number, make: () => TileData, mustStayConnected: boolean) => {
     let n = 0;
     for (let attempts = 0; n < count && attempts < count * 25; attempts++) {
       // Keep the two spawn rows clear so nobody starts boxed in
-      const r = 1 + Math.floor(Math.random() * (rows - 2));
-      const c = Math.floor(Math.random() * cols);
+      const r = 1 + Math.floor(random() * (rows - 2));
+      const c = Math.floor(random() * cols);
       if (tiles[r][c].type !== 'empty') continue;
       tiles[r][c] = make();
       if (mustStayConnected && !connected()) { tiles[r][c] = { type: 'empty' }; continue; }

@@ -2,6 +2,7 @@ import type { Item, ItemRarity } from './types';
 import { ITEMS_2059 } from './items2059';
 import { instancedItem } from './loot';
 
+import { random } from '../engine/rng';
 // What things cost at the Grey Lane market. Sellers get a fraction back.
 const RARITY_PRICE: Record<ItemRarity, number> = {
   common: 45, uncommon: 95, rare: 190, epic: 360, legendary: 640,
@@ -34,7 +35,7 @@ function stockRarityWeights(level: number): Record<ItemRarity, number> {
 
 function rollRarity(level: number): ItemRarity {
   const w = stockRarityWeights(level);
-  let roll = Math.random() * Object.values(w).reduce((a, b) => a + b, 0);
+  let roll = random() * Object.values(w).reduce((a, b) => a + b, 0);
   for (const [r, n] of Object.entries(w)) { roll -= n; if (roll <= 0) return r as ItemRarity; }
   return 'common';
 }
@@ -49,15 +50,15 @@ export function generateMarketStock(level: number): Item[] {
     const rarity = rollRarity(level);
     const pool = augments.filter(i => i.rarity === rarity && !usedTemplates.has(i.id));
     if (!pool.length) continue;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const pick = pool[Math.floor(random() * pool.length)];
     usedTemplates.add(pick.id);
     stock.push(instancedItem(pick));
   }
   // From threat 12 the stall sometimes has a legendary, so a missing piece can be bought instead of farmed
-  if (level >= 12 && Math.random() < Math.min(0.6, 0.25 + 0.03 * (level - 12))) {
+  if (level >= 12 && random() < Math.min(0.6, 0.25 + 0.03 * (level - 12))) {
     const legs = augments.filter(i => i.rarity === 'legendary' && !usedTemplates.has(i.id));
-    if (legs.length) stock.unshift(instancedItem(legs[Math.floor(Math.random() * legs.length)]));
+    if (legs.length) stock.unshift(instancedItem(legs[Math.floor(random() * legs.length)]));
   }
-  for (let i = 0; i < 3 && stims.length; i++) stock.push(instancedItem(stims[Math.floor(Math.random() * stims.length)]));
+  for (let i = 0; i < 3 && stims.length; i++) stock.push(instancedItem(stims[Math.floor(random() * stims.length)]));
   return stock;
 }

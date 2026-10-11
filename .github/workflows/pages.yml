@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Typecheck, rule tests and the balance simulator must all pass before publishing
+      - run: npm run verify
       - run: npm run build:pages
       - uses: peaceiris/actions-gh-pages@v4
         with:

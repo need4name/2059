@@ -22,6 +22,7 @@ hazardDamageAt, chebyshev, tileAt,
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
+import { random, seedRandom, mixSeed, newRunSeed } from '../engine/rng';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
 
@@ -54,6 +55,11 @@ lastVictory: VictorySummary | null;
 pendingShop: boolean;
 bossLevel: number;
 farmLevel: number | null;
+/** Seed for this host's run; every fight is seeded from it and its fight number. */
+runSeed: number;
+fightsStarted: number;
+/** Start a new run on a chosen seed (for replaying a bug or a shared challenge). */
+setRunSeed: (seed: number) => void;
 playerClass: PlayerClass;
 classesUnlocked: boolean;
 introCompleted: boolean;
@@ -289,7 +295,7 @@ const filtered = roster.filter(a => {
 // Heavy attacks punish a player who runs hot
 if (a.isHeavy && playerHeat < 45) return false;
 // Shields only come out when the boss is hurt, and not every time
-if (a.type === 'defend' && (boss.currentHp > boss.maxHp * 0.5 || Math.random() > 0.35)) return false;
+if (a.type === 'defend' && (boss.currentHp > boss.maxHp * 0.5 || random() > 0.35)) return false;
 const pat = a.attackPattern;
 if (!pat) return true;
 if ((pat === 'charge' || pat === 'lunge') && dist < 2) return false;
@@ -301,7 +307,7 @@ let pool = filtered.length ? filtered : roster.filter(a => a.type === 'attack');
 if (dist <= 1 && !pool.some(a => a.type === 'defend' || a.isHeavy || canHitTarget(grid.bossPosition, grid.playerPosition, a.attackPattern ?? 'melee_long', grid))) {
 pool = [CLOSE_QUARTERS];
 }
-return pool[Math.floor(Math.random() * pool.length)];
+return pool[Math.floor(random() * pool.length)];
 };
 
 const moveBossToward = (pattern: CombatAction['attackPattern']): boolean => {
@@ -321,7 +327,10 @@ return moved;
 };
 
 const startFight = (level: number, farm: boolean) => {
-const { playerClass } = get();
+const { playerClass, runSeed, fightsStarted } = get();
+// Same run seed + same fight number = same arena, rolls and loot
+seedRandom(mixSeed(runSeed, fightsStarted));
+set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange } = buildPlayer(playerClass);
 const isKing = !farm && level === 10;
 const base = createBoss(level, !farm && get().progression.deathCount === 0);
@@ -352,6 +361,9 @@ lastVictory: null,
 pendingShop: false,
 bossLevel: 1,
 farmLevel: null,
+runSeed: newRunSeed(),
+fightsStarted: 0,
+setRunSeed: (seed) => set({ runSeed: seed >>> 0, fightsStarted: 0 }),
 playerClass: 'none',
 classesUnlocked: false,
 introCompleted: false,
@@ -704,6 +716,7 @@ playerClass: finalClass,
 introCompleted: true,
 selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
 progression: { ...initialProgression(), deathCount: progression.deathCount + 1 },
+runSeed: newRunSeed(), fightsStarted: 0,
 grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
@@ -725,6 +738,7 @@ currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLeve
 playerClass: 'none', classesUnlocked: false, introCompleted: false,
 selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
 progression: initialProgression(),
+runSeed: newRunSeed(), fightsStarted: 0,
 grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
@@ -769,6 +783,8 @@ currentLoot: s.currentLoot,
 lastVictory: s.lastVictory,
 pendingShop: s.pendingShop,
 bossLevel: s.bossLevel,
+runSeed: s.runSeed,
+fightsStarted: s.fightsStarted,
 playerClass: s.playerClass,
 classesUnlocked: s.classesUnlocked,
 introCompleted: s.introCompleted,
