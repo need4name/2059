@@ -37,9 +37,9 @@ export function cx(...parts: Array<string | false | null | undefined>) {
 /** Full-height scrolling screen with the soft menu backdrop. */
 export function Screen({ children, className, footer }: { children: ReactNode; className?: string; footer?: ReactNode }) {
   return (
-    <div className="absolute inset-0 flex flex-col bg-hud-bg">
+    <div className="absolute inset-0 flex flex-col overflow-hidden bg-hud-bg">
       <div className="pointer-events-none absolute inset-0 ambient" />
-      <div className={cx('relative flex-1 overflow-y-auto no-scrollbar', className)}>{children}</div>
+      <div className={cx('relative flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none no-scrollbar', className)}>{children}</div>
       {footer && (
         <div className="relative bg-gradient-to-t from-hud-bg via-hud-bg/95 to-transparent px-4 pt-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           {footer}

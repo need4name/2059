@@ -9,7 +9,7 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS } from '
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS, augmentKind } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
-import { Screen, Panel, Card, Label, Btn, Chip, Meter, Stat, ConfirmDialog, Segmented, cx } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Chip, Meter, Stat, ConfirmDialog, Segmented, Sheet, cx } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText } from '../itemText';
@@ -38,67 +38,87 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
   );
 }
 
+const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: string }[] = [
+  { source: 'base', label: 'Core', empty: '' },
+  { source: 'augment', label: 'From your implants', empty: 'Install an arm, leg or eye implant to get its move.' },
+  { source: 'weapon', label: 'Weapon', empty: 'Buy a weapon at the Grey Lane market.' },
+  { source: 'class', label: 'Firmware', empty: '' },
+];
+
 function LoadoutTab() {
-  const { slots, editingSlot, setSlot, setEditingSlot } = useLoadout();
+  const { slots, setSlot } = useLoadout();
   const pool = useActionPool();
+  const [replacing, setReplacing] = useState<LoadoutAction | null>(null);
+  const slotOf = (a: LoadoutAction) => slots.findIndex(s => s?.key === a.key);
+
+  const add = (a: LoadoutAction) => {
+    const free = slots.findIndex(s => s === null);
+    if (free >= 0) setSlot(free, a);
+    else setReplacing(a);
+  };
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm leading-relaxed text-hud-dim">You take four actions into every fight. Tap a slot to change it.</p>
-      <div className="grid grid-cols-4 gap-2">
-        {slots.map((a, i) => (
-          <button
-            key={i}
-            onClick={() => setEditingSlot(editingSlot === i ? null : i)}
-            className={cx(
-              'flex h-20 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-center transition',
-              editingSlot === i ? 'bg-sys/15 ring-2 ring-sys/70' : a ? 'bg-white/[0.06] hover:bg-white/[0.09]' : 'border border-dashed border-white/10 text-hud-faint hover:bg-white/[0.04]',
-            )}
-            aria-pressed={editingSlot === i}
-          >
-            {a ? (
-              <>
-                <span className={cx('w-full truncate font-display text-[13px] font-semibold', actionColor(a))}>{a.name}</span>
-                {getMechanicTag(a) && <span className="text-[10px] capitalize text-hud-dim">{getMechanicTag(a)!.toLowerCase()}</span>}
-              </>
-            ) : (
-              <span className="text-xs">+ Slot {i + 1}</span>
-            )}
-          </button>
-        ))}
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <Label>Your fight bar</Label>
+          <span className="text-xs text-hud-faint">{slots.filter(Boolean).length} of 4</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {slots.map((a, i) => a ? (
+            <div key={i} className="relative flex min-h-[76px] flex-col justify-between rounded-2xl bg-white/[0.06] p-3">
+              <span className={cx('pr-6 font-display text-[14px] font-semibold leading-tight', actionColor(a))}>{a.name}</span>
+              <span className="text-[11px] text-hud-dim">
+                {a.damage ? `${a.damage} dmg` : a.defenseBoost ? `+${a.defenseBoost} guard` : ''}
+                {(a.heatGenerated ?? 0) !== 0 && <span className={(a.heatGenerated ?? 0) > 0 ? 'text-orange-300' : 'text-sys'}> · {(a.heatGenerated ?? 0) > 0 ? '+' : ''}{a.heatGenerated} heat</span>}
+              </span>
+              <button onClick={() => setSlot(i, null)} aria-label={`Remove ${a.name}`} className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-hud-faint hover:bg-white/10 hover:text-hud-text">×</button>
+            </div>
+          ) : (
+            <div key={i} className="flex min-h-[76px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-xs text-hud-faint">Empty</div>
+          ))}
+        </div>
       </div>
 
-      {editingSlot !== null && (
-        <div className="rise-in space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Choose an action for slot {editingSlot + 1}</Label>
-            {slots[editingSlot] && (
-              <button className="text-xs font-semibold text-rose-300" onClick={() => setSlot(editingSlot, null)}>Empty slot</button>
-            )}
-          </div>
-          {pool.map(a => {
-            const here = slots[editingSlot]?.key === a.key;
-            const elsewhere = here ? -1 : slots.findIndex(s => s?.key === a.key);
-            return (
-              <button
-                key={a.key}
-                onClick={() => setSlot(editingSlot, a)}
-                className={cx('flex w-full items-start gap-3 rounded-2xl px-4 py-3 text-left transition', here ? 'bg-sys/10 ring-2 ring-sys/60' : 'bg-white/[0.04] hover:bg-white/[0.07]')}
-              >
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex items-center gap-2">
-                    <span className={cx('font-display text-[15px] font-semibold', actionColor(a))}>{a.name}</span>
-                    <Chip>{a.source === 'base' ? 'Core' : a.source === 'augment' ? 'Implant' : a.source === 'class' ? 'Class' : 'Weapon'}</Chip>
-                  </span>
-                  {a.description && <span className="block text-[13px] text-hud-dim">{a.description}</span>}
-                  <ActionDetail a={a} />
-                </span>
-                {here ? <Chip tone="sys">Equipped</Chip> : elsewhere >= 0 ? <Chip>In slot {elsewhere + 1}</Chip> : null}
-              </button>
-            );
-          })}
-          <p className="pt-1 text-xs text-hud-faint">More actions come from active implants (arms, legs and eyes), your class, and weapons from the Grey Lane market.</p>
+      <div className="space-y-4">
+        <Label>Available moves</Label>
+        {SOURCE_GROUPS.map(g => {
+          const moves = pool.filter(a => a.source === g.source);
+          if (!moves.length && !g.empty) return null;
+          return (
+            <div key={g.source} className="space-y-1.5">
+              <div className="text-xs font-semibold text-hud-dim">{g.label}</div>
+              {moves.length === 0 && <p className="text-xs text-hud-faint">{g.empty}</p>}
+              {moves.map(a => {
+                const at = slotOf(a);
+                return (
+                  <div key={a.key} className={cx('flex items-center gap-3 rounded-2xl px-3.5 py-3', at >= 0 ? 'bg-sys/[0.07] ring-1 ring-sys/30' : 'bg-white/[0.04]')}>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className={cx('font-display text-[14px] font-semibold leading-tight', actionColor(a))}>{a.name}</div>
+                      <ActionDetail a={a} />
+                    </div>
+                    {at >= 0
+                      ? <Btn size="sm" variant="ghost" onClick={() => setSlot(at, null)}>Remove</Btn>
+                      : <Btn size="sm" variant="primary" onClick={() => add(a)}>Add</Btn>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      <Sheet open={!!replacing} title="Your bar is full" onClose={() => setReplacing(null)}>
+        <p className="mb-3 text-sm text-hud-dim">Swap out a move to make room for <span className="font-semibold text-hud-text">{replacing?.name}</span>.</p>
+        <div className="space-y-2">
+          {slots.map((a, i) => a && (
+            <button key={i} onClick={() => { setSlot(i, replacing); setReplacing(null); }} className="flex w-full items-center justify-between rounded-2xl bg-white/[0.05] px-4 py-3 text-left transition hover:bg-sys/10">
+              <span className={cx('font-display text-[14px] font-semibold', actionColor(a))}>{a.name}</span>
+              <span className="text-xs text-hud-dim">Swap out</span>
+            </button>
+          ))}
         </div>
-      )}
+      </Sheet>
     </div>
   );
 }

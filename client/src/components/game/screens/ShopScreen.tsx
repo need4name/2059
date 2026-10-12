@@ -95,7 +95,7 @@ export function ShopScreen() {
 
   return (
     <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Back to the hideout</Btn>}>
-      <div className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-cred/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-0 h-64 w-48 rounded-full bg-cred/10 blur-3xl" />
       <div className="relative space-y-4 px-4 pb-6 pt-7">
         <header className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -110,9 +110,9 @@ export function ShopScreen() {
 
         {/* Filters */}
         <div className="space-y-2">
-          <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4">
+          <div className="flex flex-wrap gap-1.5">
             {([['all', 'Everything'], ['active', 'Active implants'], ['passive', 'Passive implants'], ['stim', 'Stims'], ['weapon', 'Weapons']] as [Kind, string][]).map(([k, label]) => (
-              <button key={k} onClick={() => setKind(k)} className={cx('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition', kind === k ? 'bg-white text-hud-bg' : 'bg-white/[0.06] text-hud-dim hover:text-hud-text')}>
+              <button key={k} onClick={() => setKind(k)} className={cx('rounded-full px-3 py-1.5 text-xs font-semibold transition', kind === k ? 'bg-white text-hud-bg' : 'bg-white/[0.06] text-hud-dim hover:text-hud-text')}>
                 {label}
               </button>
             ))}
