@@ -3,6 +3,10 @@ import { useCombat, CLASS_UNLOCK_LEVEL } from '@/lib/stores/useCombat';
 import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, cx } from '../hud';
+import { usePlayi } from '@/lib/stores/usePlayi';
+import { playiNode, FALLBACK_ID, FALLBACK_NODE, PLAYI_BRANCHES, PLAYI_NODES } from '@/lib/engine/playi';
+
+const BRANCH_ICON: Record<string, string> = { move: '👣', heat: '🌡️', combat: '⚔️', graft: '🦾', signal: '📡', network: '🔗' };
 
 const CLASS_BLURB: Record<'melee' | 'ranged', string> = {
   melee: 'Enforcer firmware lifted from a Volkov operator chip. The new host fights up close and takes a beating.',
@@ -13,12 +17,18 @@ export function DefeatScreen() {
   const { boss, bossLevel, progression, playerClass, classesUnlocked, rebirth } = useCombat();
   const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' ? playerClass : null);
   const justUnlocked = classesUnlocked && playerClass === 'none';
-  const canReboot = !classesUnlocked || choice !== null;
+  const { offer, owned, pick } = usePlayi();
+  const [learned, setLearned] = useState<string | null>(null);
+  const canReboot = (!classesUnlocked || choice !== null) && (!offer || learned !== null);
+  const jump = () => {
+    if (offer && learned) pick(learned);
+    rebirth(choice ?? undefined);
+  };
 
   return (
     <Screen footer={
-      <Btn variant="primary" size="lg" className="w-full" disabled={!canReboot} onClick={() => rebirth(choice ?? undefined)}>
-        {classesUnlocked ? (choice ? `Jump as ${CLASS_DEFINITIONS[choice].name}` : 'Pick firmware first') : 'Jump to a new host'}
+      <Btn variant="primary" size="lg" className="w-full" disabled={!canReboot} onClick={jump}>
+        {offer && !learned ? 'Choose what the signal keeps' : classesUnlocked ? (choice ? `Jump as ${CLASS_DEFINITIONS[choice].name}` : 'Pick firmware first') : 'Jump to a new host'}
       </Btn>
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-hostile/15 blur-3xl" />
@@ -36,6 +46,37 @@ export function DefeatScreen() {
             You were never really this body. Your signal slips out through its brain chip and into another grey-market chip on the rafts, back at threat 1. The implants, credits, weapons and upgrades stay with the corpse.
           </p>
         </Card>
+
+        {offer && (
+          <div className="space-y-2.5">
+            <div className="flex items-baseline justify-between">
+              <Label>The signal remembers</Label>
+              <span className="text-xs text-hud-faint">{owned.filter(id => id !== FALLBACK_ID).length} of {PLAYI_NODES.length} learned</span>
+            </div>
+            <p className="text-sm text-hud-dim">Something from this life stays with you. Choose one; it carries into every host from now on.</p>
+            <div className="grid grid-cols-1 gap-2">
+              {offer.map((id, k) => {
+                const node = id === FALLBACK_ID ? FALLBACK_NODE : playiNode(id)!;
+                const branch = PLAYI_BRANCHES.find(b => b.id === node.branch);
+                const selected = learned === id && (offer.indexOf(id) === k);
+                return (
+                  <button key={`${id}-${k}`} onClick={() => setLearned(id)} aria-pressed={selected}
+                    className={cx('flex w-full items-start gap-3.5 rounded-3xl p-4 text-left transition', selected ? 'bg-sys/10 ring-2 ring-sys/70' : 'bg-hud-panel/80 ring-1 ring-white/[0.05] hover:bg-white/[0.06]')}>
+                    <span className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl', selected ? 'bg-sys/20' : 'bg-white/[0.06]')}>{BRANCH_ICON[node.branch] ?? '📡'}</span>
+                    <span className="min-w-0 flex-1 space-y-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-[16px] font-semibold text-white">{node.name}</span>
+                        {node.capstone && <Chip tone="cred">Capstone</Chip>}
+                      </span>
+                      <span className="block text-sm text-hud-text">{node.effect}</span>
+                      {branch && id !== FALLBACK_ID && <span className="block text-xs text-hud-faint">{branch.name}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {classesUnlocked ? (
           <div className="space-y-2.5">

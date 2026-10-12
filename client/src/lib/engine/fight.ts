@@ -16,6 +16,7 @@ import {
 import { canHitTarget, getHitTiles } from '../combat/patterns';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt } from '../combat/grid';
 import { random } from './rng';
+import { NO_PERKS, type Perks } from './playi';
 
 // ── Tuning ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,14 @@ export interface FightState {
   overclockActive: boolean;
   kizunaJustFired: boolean;
   doubleActionReady: boolean;
+  /** What the signal has learned (play-i tree). */
+  perks: Perks;
+  /** Clean first strike: has this fight's first attack happened yet? */
+  firstStrikeUsed: boolean;
+  /** Sidestep: the next heavy aimed at you misses. */
+  sidestepReady: boolean;
+  /** Holdfast: survive one killing blow this host. */
+  holdfastReady: boolean;
 }
 
 export type FightEvent =
@@ -72,7 +81,11 @@ export type FightEvent =
   | { kind: 'hit' }
   | { kind: 'foeDown'; foe: number }
   | { kind: 'playerDown' }
-  | { kind: 'allFoesDown' };
+  | { kind: 'allFoesDown' }
+  /** Chain: a takedown earned the player another action. */
+  | { kind: 'extraAction' }
+  /** Holdfast spent: the player survived a killing blow. */
+  | { kind: 'holdfast' };
 
 export interface Step { state: FightState; events: FightEvent[] }
 
@@ -82,6 +95,17 @@ const say = (message: string, type: CombatLog['type'] = 'info'): FightEvent => (
 const same = (a: TilePosition, b: TilePosition) => a.row === b.row && a.col === b.col;
 
 export const isAlive = (f: Foe) => f.unit.currentHp > 0;
+
+/** A fight state with no play-i perks, for tests and set pieces. */
+export const BASE_FIGHT_FLAGS = { perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false };
+
+/** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
+function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; holdfastReady: boolean } {
+  if (hp > 0 || !s.holdfastReady) return { hp, holdfastReady: s.holdfastReady };
+  events.push(say('HOLDFAST -- the signal refuses to let go (1 HP)', 'critical'));
+  events.push({ kind: 'holdfast' });
+  return { hp: 1, holdfastReady: false };
+}
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
@@ -116,12 +140,12 @@ function afterFoeChanges(s: FightState, events: FightEvent[]): FightState {
 
 /** Start of the player's turn: everyone cools off; a cool player acts twice. */
 export function startPlayerTurn(s: FightState): FightState {
-  const playerHeat = clampHeat(s.playerHeat - PASSIVE_COOLING);
+  const playerHeat = clampHeat(s.playerHeat - PASSIVE_COOLING - s.perks.extraCooling);
   return {
     ...s,
     playerHeat,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
-    doubleActionReady: playerHeat <= DOUBLE_ACTION_HEAT,
+    doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
   };
 }
 
@@ -136,7 +160,7 @@ export function setTarget(s: FightState, i: number): FightState {
 export function resolveBrace(s: FightState, action: CombatAction): Step {
   const { player } = s;
   const wasMalfunctioning = isMalfunctioning(player);
-  const structure = Math.min(player.maxStructuralHp, player.currentStructuralHp + Math.ceil(player.maxStructuralHp * BRACE_REPAIR));
+  const structure = Math.min(player.maxStructuralHp, player.currentStructuralHp + Math.ceil(player.maxStructuralHp * s.perks.braceRepair));
   const events: FightEvent[] = [];
   if (wasMalfunctioning && structure > 0) events.push(say('STRUCTURAL INTEGRITY RESTORED -- system nominal'));
   events.push(say(`${action.name.toUpperCase()} -- guard up`));
@@ -146,7 +170,7 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
       player: { ...player, currentStructuralHp: structure },
       playerDefenseBoost: action.defenseBoost || 8,
       playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
-      playerHeat: clampHeat(s.playerHeat + (action.heatGenerated ?? -25)),
+      playerHeat: clampHeat(s.playerHeat + (action.heatGenerated ?? -25) - s.perks.ventBonus),
     },
     events,
   };
@@ -185,7 +209,8 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
 
   // Kizuna cold start: the first strike while cool is precise. Overclock is too.
   const kizunaFiredNow = !!player.hasKizuna && playerHeat <= 20 && !s.kizunaJustFired;
-  let finalAction = kizunaFiredNow ? { ...action, accuracy: 'precise' as const } : action;
+  const cleanFirst = s.perks.firstStrikePrecise && !s.firstStrikeUsed;
+  let finalAction = kizunaFiredNow || cleanFirst ? { ...action, accuracy: 'precise' as const } : action;
   if (s.overclockActive) finalAction = { ...finalAction, accuracy: 'precise' as const };
 
   const events: FightEvent[] = [];
@@ -201,12 +226,14 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const foe = state.foes[i];
     const dist = chebyshev(grid.playerPosition, foe.pos);
     nearest = Math.min(nearest, dist);
+    const finishing = s.perks.finisherBonus > 0 && foe.unit.currentHp < foe.unit.maxHp * 0.3 ? 1 + s.perks.finisherBonus : 1;
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      s.overclockActive ? 2.0 : heatMult.dealt,
-      getFlankBonus(grid.playerPosition, foe.pos), dist, s.playerMalfunctioning,
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing,
+      getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
+      s.perks.runaway ? 0.45 : 0.30,
     );
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
@@ -230,9 +257,15 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     playerDefenseBoost: action.defenseBoost && action.defenseBoost > 0 ? action.defenseBoost : 0,
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
+    firstStrikeUsed: true,
     playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat),
   };
   state = afterFoeChanges(state, events);
+  // Chain: a takedown earns another action, unless that was the last enemy
+  if (s.perks.chain && events.some(e => e.kind === 'foeDown') && !events.some(e => e.kind === 'allFoesDown')) {
+    events.push(say('CHAIN -- takedown, act again', 'critical'));
+    events.push({ kind: 'extraAction' });
+  }
   return { state, events };
 }
 
@@ -335,8 +368,11 @@ export function releaseHeavy(s: FightState, i: number): Step & { action: CombatA
   const action = s.foes[i].pendingAction;
   const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null });
   if (!action) return { state, events: [], action: null, connects: false };
-  const connects = canFoeHit(state, i, action.attackPattern);
-  return { state, action, connects, events: connects ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses -- you evaded`)] };
+  const inReach = canFoeHit(state, i, action.attackPattern);
+  if (inReach && s.sidestepReady) {
+    return { state: { ...state, sidestepReady: false }, action, connects: false, events: [say(`SIDESTEP -- ${s.foes[i].unit.name}'s ${action.name} slides past you`)] };
+  }
+  return { state, action, connects: inReach, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses -- you evaded`)] };
 }
 
 /** Foe i's attack or shield landing. `level` scales its move damage. */
@@ -350,15 +386,16 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     };
   }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
-  const taken = getHeatMultipliers(s.playerHeat).received;
+  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
   const dmg = calculateDamage(foe.unit, player, scaleBossAction(action, level), s.playerDefenseBoost, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
-  const hp = Math.max(0, player.currentHp - dmg.bioDamage - spill);
+  const events: FightEvent[] = [];
+  const held = holdOn(s, Math.max(0, player.currentHp - dmg.bioDamage - spill), events);
+  const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
   const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0));
 
-  const events: FightEvent[] = [];
   if (playerHeat >= 100 && s.playerHeat < 100) events.push(say('OVERHEATED -- movement locked next turn'));
   events.push({ kind: 'hit' });
   events.push(say(spill
@@ -374,6 +411,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     // A guard soaks one hit, so a crowd can't all hit a braced player at full guard
     playerDefenseBoost: 0,
     playerHeat,
+    holdfastReady: held.holdfastReady,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   return { state, events };
 }
@@ -418,13 +456,13 @@ export function foeStrikeAfterMove(s: FightState, i: number, action: CombatActio
 /** Damage to the player from the tile they end their turn on. */
 export function applyPlayerHazard(s: FightState): Step {
   const pos = s.grid.playerPosition;
-  const dmg = hazardDamageAt(pos, s.grid);
+  const dmg = Math.round(hazardDamageAt(pos, s.grid) * s.perks.hazardMult);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(pos, s.grid)?.name ?? 'Hazard';
-  const hp = Math.max(0, s.player.currentHp - dmg);
   const events: FightEvent[] = [say(`${name}: -${dmg} HP`, 'damage')];
-  if (hp <= 0) events.push({ kind: 'playerDown' });
-  return { state: { ...s, player: { ...s.player, currentHp: hp } }, events };
+  const held = holdOn(s, Math.max(0, s.player.currentHp - dmg), events);
+  if (held.hp <= 0) events.push({ kind: 'playerDown' });
+  return { state: { ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady }, events };
 }
 
 /** Damage to foe i from the tile it ends its turn on. */

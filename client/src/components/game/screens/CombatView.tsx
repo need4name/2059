@@ -170,7 +170,7 @@ function ActionBar() {
 
   return (
     <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="flex min-h-[76px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
         ))}

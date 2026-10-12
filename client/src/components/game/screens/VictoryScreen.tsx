@@ -4,8 +4,9 @@ import { Screen, Card, Label, Btn, Chip, RARITY_TEXT, RARITY_GLOW, cx } from '..
 import { implantStats, stimInfo, passiveText } from '../itemText';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel } = useCombat();
-  const items = currentLoot?.items ?? [];
+  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, lootChoices, chooseLoot } = useCombat();
+  const inChoice = new Set(lootChoices.map(c => c.options[0].id));
+  const items = (currentLoot?.items ?? []).filter(i => !inChoice.has(i.id));
 
   return (
     <Screen footer={
@@ -43,10 +44,33 @@ export function VictoryScreen() {
           </div>
         )}
 
+        {lootChoices.length > 0 && (
+          <div className="space-y-2.5">
+            <Label>Pick of the wreck</Label>
+            <p className="text-sm text-hud-dim">Choose one from each pair. If you leave without choosing, you keep the first.</p>
+            {lootChoices.map((c, k) => (
+              <div key={k} className="grid grid-cols-2 gap-2">
+                {c.options.map((item, o) => {
+                  const picked = c.picked === o, other = c.picked !== null && !picked;
+                  return (
+                    <button key={item.id} disabled={c.picked !== null} onClick={() => chooseLoot(k, o)} aria-pressed={picked}
+                      className={cx('flex flex-col gap-1 rounded-2xl bg-gradient-to-b to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], picked ? 'ring-2 ring-sys/70' : 'ring-white/[0.05]', other && 'opacity-40')}>
+                      <span className="text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
+                      <span className={cx('text-[13px] font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{item.name}</span>
+                      <span className="text-[11px] text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}</span>
+                      {picked && <span className="text-[11px] font-semibold text-sys">Taken</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-2.5">
           <Label>Salvage</Label>
           {items.length === 0 ? (
-            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">Nothing usable this time. Credits only.</Card>
+            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">{lootChoices.length ? 'Nothing else this time.' : 'Nothing usable this time. Credits only.'}</Card>
           ) : (
             <div className="space-y-2">
               {items.map((item, i) => {

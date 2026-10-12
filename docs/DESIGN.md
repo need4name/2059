@@ -174,7 +174,9 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 
 - When the host dies, the signal jumps to a new body at threat 1. Implants, credits, weapons, loadout extras and upgrades are lost. The host count and the class unlock are kept.
 - Dying at threat 11 or higher while unclassified permanently unlocks the Enforcer and Operative firmware.
-- **Open decision:** what else the signal keeps between hosts (see the development plan).
+- **The play-i tree** (`client/src/content/playi-tree.json`, `client/src/lib/engine/playi.ts`): what the signal keeps. 34 nodes in 6 branches, hidden from the player. After each death the player picks 1 of 2 random open nodes (a node is open when one of its required nodes is owned; tier 1 needs nothing; Network nodes need an unlocked ally). When fewer than two are open, a repeatable Signal fragment (+5 max health) fills the gap.
+- Node effects reach the fight engine through `perks` on the fight state (cooling, double-action heat, brace repair and venting, damage, flanking, clean first strike, finisher, chain, hot-damage taken, damage taken, Holdfast, Sidestep, hazards), the new host (starting implant, Bio-Stims, upgrade points, max health, structure, health costs), movement (extra tiles, Reflex loop, Phase step, Runaway), the fight bar (Fifth slot), the market (Haggler) and loot (Pick of the wreck).
+- Holdfast is once per host; Sidestep and Clean first strike reset every fight.
 
 ---
 

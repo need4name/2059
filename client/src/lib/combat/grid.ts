@@ -81,10 +81,31 @@ export function stepDistances(
 }
 
 /** Tiles the player can move to this turn (not counting the start tile). */
-export function getReachableTiles(from: TilePosition, grid: CombatGrid, range: number): Set<string> {
-  const dist = stepDistances(from, grid, [grid.bossPosition, ...(grid.occupied ?? [])]);
+export function getReachableTiles(from: TilePosition, grid: CombatGrid, range: number, passThrough = false): Set<string> {
+  const others = [grid.bossPosition, ...(grid.occupied ?? [])];
   const out = new Set<string>();
-  dist.forEach((d, k) => { if (d > 0 && d <= range) out.add(k); });
+  if (!passThrough) {
+    const dist = stepDistances(from, grid, others);
+    dist.forEach((d, k) => { if (d > 0 && d <= range) out.add(k); });
+    return out;
+  }
+  // Phase step: walk through units and obstacles, but only stop on open ground
+  const taken = new Set(others.map(key));
+  const seen = new Map<string, number>([[key(from), 0]]);
+  const queue: TilePosition[] = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    const d = seen.get(key(cur))!;
+    if (d >= range) continue;
+    for (const o of NEIGHBOURS) {
+      const np = { row: cur.row + o.row, col: cur.col + o.col };
+      const k = key(np);
+      if (seen.has(k) || !inBounds(np, grid) || tileAt(np, grid)?.type === 'void') continue;
+      seen.set(k, d + 1);
+      queue.push(np);
+      if (!taken.has(k) && !isImpassable(np, grid)) out.add(k);
+    }
+  }
   return out;
 }
 

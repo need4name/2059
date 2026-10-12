@@ -12,13 +12,9 @@ unlocked: boolean;  // false = greyed out, not yet earned
 source: 'base' | 'class' | 'augment' | 'weapon'; // where it came from
 }
 
-// 4 combat slots - any can be null (empty = fewer options in combat)
-export type LoadoutSlots = [
-LoadoutAction | null,
-LoadoutAction | null,
-LoadoutAction | null,
-LoadoutAction | null,
-];
+// Combat slots - any can be null. Four by default; the play-i tree can add more.
+export type LoadoutSlots = (LoadoutAction | null)[];
+export const BASE_SLOT_COUNT = 4;
 
 interface LoadoutState {
 slots: LoadoutSlots;
@@ -42,6 +38,7 @@ editingSlot: null,
 setSlot: (index, action) => {
 set((state) => {
 const newSlots = [...state.slots] as LoadoutSlots;
+while (newSlots.length <= index) newSlots.push(null);
 // If this action is already in another slot, clear that slot first
 if (action) {
 newSlots.forEach((s, i) => {

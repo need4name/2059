@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout } from '@/lib/stores/useLoadout';
-import { useMarket } from '@/lib/stores/useMarket';
+import { useMarket, marketPrice } from '@/lib/stores/useMarket';
+import { usePlayi } from '@/lib/stores/usePlayi';
 import { TIER1_WEAPONS, getUpgrade } from '@/lib/combat/weapons2059';
 import { buyPrice, sellPrice } from '@/lib/combat/economy';
 import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES, augmentKind, type Item, type ItemRarity, type Weapon } from '@/lib/combat/types';
@@ -152,8 +153,8 @@ export function ShopScreen() {
               </Card>
             ) : (
               (mode === 'buy' ? buyList : sellList).map(item => mode === 'buy' ? (
-                <ItemRow key={item.id} item={item} price={buyPrice(item)} action={
-                  <Btn size="sm" variant="gold" disabled={gold < buyPrice(item)} onClick={() => buy(item.id)}>Buy</Btn>
+                <ItemRow key={item.id} item={item} price={marketPrice(item)} action={
+                  <Btn size="sm" variant="gold" disabled={gold < marketPrice(item)} onClick={() => buy(item.id)}>Buy</Btn>
                 } />
               ) : (
                 <ItemRow key={item.id} item={item} price={sellPrice(item)} action={
@@ -197,7 +198,9 @@ export function ShopScreen() {
         {showWeapons && mode === 'buy' && (
           <div className="space-y-2.5">
             <Label>Weapons</Label>
-            {TIER1_WEAPONS.filter(w => !ownedWeapons.find(o => o.id === w.id || o.upgradeOfId === w.id)).map(w => {
+            {TIER1_WEAPONS.filter(w => !ownedWeapons.find(o => o.id === w.id || o.upgradeOfId === w.id)).map(listed => {
+              // Haggler's discount applies to weapons too
+              const w = { ...listed, price: Math.max(1, Math.round(listed.price * usePlayi.getState().perks().priceMult)) };
               const affordable = gold >= w.price;
               return (
                 <div key={w.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1 ring-white/[0.05]', MAKER[w.manufacturer]?.glow)}>

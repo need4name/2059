@@ -62,7 +62,7 @@ function LoadoutTab() {
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
           <Label>Your fight bar</Label>
-          <span className="text-xs text-hud-faint">{slots.filter(Boolean).length} of 4</span>
+          <span className="text-xs text-hud-faint">{slots.filter(Boolean).length} of {slots.length}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {slots.map((a, i) => a ? (

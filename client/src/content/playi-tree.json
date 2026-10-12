@@ -18,7 +18,7 @@
 
     { "id": "heat_1", "branch": "heat", "tier": 1, "name": "Heat sink", "effect": "Shed 3 more heat each round (6 to 9)", "requires": [] },
     { "id": "heat_2a", "branch": "heat", "tier": 2, "name": "Cold start", "effect": "Start each fight at 0 heat instead of 20", "requires": ["heat_1"] },
-    { "id": "heat_2b", "branch": "heat", "tier": 2, "name": "Thermal tolerance", "effect": "Take less extra damage when hot (hot x1.25 to x1.10, critical x1.75 to x1.40)", "requires": ["heat_1"] },
+    { "id": "heat_2b", "branch": "heat", "tier": 2, "name": "Thermal tolerance", "effect": "Take less extra damage when hot (hot x1.25 to x1.10, critical x1.75 to x1.30)", "requires": ["heat_1"] },
     { "id": "heat_3", "branch": "heat", "tier": 3, "name": "Overclocked core", "effect": "Act twice at 25 heat or below (was 15)", "requires": ["heat_2a", "heat_2b"] },
     { "id": "heat_4", "branch": "heat", "tier": 4, "name": "Vent", "effect": "Brace cools 10 more", "requires": ["heat_3"] },
     { "id": "heat_5", "branch": "heat", "tier": 5, "name": "Runaway", "effect": "You can move at 100 heat, and critical heat crits 45% of the time (was 30%)", "requires": ["heat_4"], "capstone": true },

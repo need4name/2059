@@ -161,6 +161,7 @@ tileDistance: number = 1,
 isMalfunctioning: boolean = false,
 playerHeat: number = 0,
 bypassStructuralDefense: boolean = false,
+criticalCrit: number = 0.30,
 ): DamageResult {
 // physicalRatio controls the nature of the attack: 1.0 = pure physical, 0.0 = pure structural
 const physRatio = action.physicalRatio ?? 0.7;
@@ -191,7 +192,7 @@ physDamage = Math.floor(physDamage * heatMultiplier);
 strDamage  = Math.floor(strDamage  * heatMultiplier);
 
 // Crit roll - chance derived from player heat phase, amplifies both channels
-const CRIT_CHANCES: Record<string, number> = { cool: 0, warm: 0.08, hot: 0.18, critical: 0.30 };
+const CRIT_CHANCES: Record<string, number> = { cool: 0, warm: 0.08, hot: 0.18, critical: criticalCrit };
 const critChance = CRIT_CHANCES[getHeatPhase(playerHeat)] ?? 0;
 const isCrit = action.type === 'attack' && random() < critChance;
 if (isCrit) {

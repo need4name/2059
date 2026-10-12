@@ -8,6 +8,7 @@ import { useCombat as C } from '../client/src/lib/stores/useCombat';
 import { useInventory as I } from '../client/src/lib/stores/useInventory';
 import { useAugmentTrees as T } from '../client/src/lib/stores/useAugmentTrees';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
+import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import * as P from '../client/src/lib/combat/patterns';
 import * as G from '../client/src/lib/combat/grid';
 import * as A from '../client/src/lib/combat/actions';
@@ -91,6 +92,9 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     out.push({ lvl, won, turns, lowest, deathsBefore });
     if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
+      // The bot picks one of the two cards the tree offers
+      const offer = Y.getState().offer;
+      if (offer) Y.getState().pick(offer[botRandom() < 0.5 ? 0 : 1]);
       // A new host keeps the same run seed sequence, so reseed per host for variety
       C.getState().rebirth(C.getState().classesUnlocked ? (botRandom() < 0.5 ? 'melee' : 'ranged') : undefined);
       C.getState().setRunSeed(seed * 31 + C.getState().progression.deathCount);

@@ -20,6 +20,7 @@ function fight(over: Partial<FightState> = {}): FightState {
     player: createPlayer(), foes: [Fight.newFoe(createBoss(3), grid.bossPosition, 40)], target: 0, grid,
     playerHeat: 30, playerDefenseBoost: 0, playerMalfunctioning: false,
     overclockActive: false, kizunaJustFired: false, doubleActionReady: false,
+    ...Fight.BASE_FIGHT_FLAGS,
     ...over,
   };
 }

@@ -6,6 +6,10 @@ import { generateMarketStock, buyPrice, sellPrice } from '../combat/economy';
 import { useInventory } from './useInventory';
 import { useCombat } from './useCombat';
 import { seedRandom, mixSeed, hashSeed } from '../engine/rng';
+import { usePlayi } from './usePlayi';
+
+/** What the Grey Lane charges you (Haggler knocks 20% off). */
+export const marketPrice = (item: Item) => Math.max(1, Math.round(buyPrice(item) * usePlayi.getState().perks().priceMult));
 
 interface MarketState {
   /** Which visit the stock belongs to; a new key means new stock. */
@@ -31,7 +35,7 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
   buy: (itemId) => {
     const item = get().stock.find(i => i.id === itemId);
     if (!item) return false;
-    const price = buyPrice(item);
+    const price = marketPrice(item);
     if (!useInventory.getState().spendGold(price)) return false;
     useInventory.getState().addItems([item]);
     set({ stock: get().stock.filter(i => i.id !== itemId) });

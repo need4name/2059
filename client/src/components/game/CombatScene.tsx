@@ -79,7 +79,7 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
 const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
@@ -575,7 +575,9 @@ return union.size ? union : null;
 
 // Tiles the player can still move to this turn
 const moveTiles = phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition
-? getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange)
+? (reflexMoveOpen
+  ? getReachableTiles(grid.playerPosition, grid, 1, perks.phaseStep)
+  : getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
 : null;
 
 // Where a charged heavy attack will land next turn - step out of it to dodge
@@ -904,7 +906,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {

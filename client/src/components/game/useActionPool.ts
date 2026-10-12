@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
-import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
+import { useLoadout, LoadoutAction, BASE_SLOT_COUNT } from '@/lib/stores/useLoadout';
+import { usePlayi } from '@/lib/stores/usePlayi';
+import { perksFor } from '@/lib/engine/playi';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, createPlayer, CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import type { AugmentationSlot } from '@/lib/combat/types';
@@ -58,6 +60,7 @@ export function useLoadoutSync() {
   const pool = useActionPool();
   const phase = useCombat(s => s.phase);
   const { slots, setSlots } = useLoadout();
+  const slotCount = BASE_SLOT_COUNT + usePlayi(st => perksFor(st.owned).extraSlots);
   // Moves that were already available last time; only genuinely new ones auto-fill,
   // so a slot you cleared on purpose stays empty
   const knownKeys = useRef<string[] | null>(null);
@@ -66,6 +69,13 @@ export function useLoadoutSync() {
     const byKey = new Map(pool.map(a => [a.key, a]));
     const inFight = phase === 'player_turn' || phase === 'enemy_turn';
     let changed = false;
+    // The bar is as long as the play-i tree allows (Fifth slot adds one)
+    if (!inFight && slots.length !== slotCount) {
+      const resized = [...slots.slice(0, slotCount)];
+      while (resized.length < slotCount) resized.push(null);
+      setSlots(resized);
+      return;
+    }
     // Don't reshuffle buttons in the middle of a fight; only fill an empty bar
     let next = inFight ? slots : slots.map(s => {
       if (!s) return s;
@@ -75,7 +85,7 @@ export function useLoadoutSync() {
       return s;
     }) as typeof slots;
     if (next.every(s => s === null)) {
-      next = [byKey.get('base_strike') ?? null, byKey.get('base_brace') ?? null, null, null];
+      next = [byKey.get('base_strike') ?? null, byKey.get('base_brace') ?? null, ...Array.from({ length: slotCount - 2 }, () => null)];
       changed = true;
     }
     // A newly gained move (fresh implant, weapon or class) drops into an empty slot by itself
@@ -94,5 +104,5 @@ export function useLoadoutSync() {
     }
     knownKeys.current = pool.map(a => a.key);
     if (changed) setSlots(next);
-  }, [pool, slots, phase, setSlots]);
+  }, [pool, slots, phase, setSlots, slotCount]);
 }
