@@ -342,12 +342,40 @@ export const BOSS_DOSSIERS: Record<string, string> = {
 };
 
 /** Which enemy you face at a threat level. Threat 10 and 20 are bosses. */
+/** Elites guard the 5th level of each sector; bosses the 10th (the King is built separately). */
+const ELITES = ['Cartel Enforcer', 'CBN Extraction Surgeon', 'Unregistered Operator'];
+// Stand-ins until the CBN chief surgeon and the corporate hunter-program are built
+const BOSS_STAND_INS = ['Volkov Operator', 'Helix Continuity Warden'];
+
+export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
+export function enemyRole(level: number, firstRun = false): EnemyRole {
+if (firstRun && level === 3) return 'setpiece';
+if (level % 10 === 5) return 'elite';
+if (level % 10 === 0) return 'boss';
+return 'normal';
+}
+
+/** Which enemy you face at a level. */
 function enemyTypeForLevel(level: number, firstRun = false) {
-if (firstRun && level === 3) return SPECIAL_TYPES[0];
-if (level === 20) return SPECIAL_TYPES[1];
-const idx = level < 10 ? level - 1 : level < 20 ? level - 2 : level - 3;
+const role = enemyRole(level, firstRun);
+if (role === 'setpiece') return SPECIAL_TYPES[0];
+const sector = Math.floor((level - 1) / 10);
+if (role === 'elite') return enemyType(ELITES[sector % ELITES.length]);
+if (role === 'boss') return enemyType(BOSS_STAND_INS[(sector - 1 + BOSS_STAND_INS.length) % BOSS_STAND_INS.length]);
+// Regular levels walk the rotation, skipping the elite and boss levels
+const idx = level - 1 - Math.floor(level / 5);
 return BOSS_TYPES[idx % BOSS_TYPES.length];
 }
+
+/** How much tougher each role is than a regular enemy of the same level. */
+export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.4, atk: 2.2 },
+};
+/** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
+export const ENEMY_GROWTH = { hp: 1.075, atk: 1.07 };
+/** Overall enemy health and attack, the main knobs for fight length and difficulty. */
+export const ENEMY_TUNING = { hp: 0.36, atk: 0.98 };
+const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
@@ -356,7 +384,8 @@ export const KING_MULT = { hp: 1.7, atk: 1.45, def: 1.25 };
 export const ENFORCER_MULT = { hp: 2.4, atk: 2.2 };
 
 export function createPatchworkKing(): Character {
-const base = createBoss(10);
+// Built from a regular level-10 frame; the King's own multipliers make him the wall
+const base = createBoss(10, false, 'Helix Continuity Warden');
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
 const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
 return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24',
@@ -367,11 +396,10 @@ physicalDefense: pDef, structuralDefense: sDef };
 
 export function getBossPreview(level: number, firstRun = false): { name: string; color: string; hp: number } {
 const S = BOSS_SCALING;
-const baseHp = Math.floor(S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic);
+const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
 if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
 const t = enemyTypeForLevel(level, firstRun);
-const mult = t.name === 'Cartel Enforcer' ? ENFORCER_MULT.hp : t.name === 'Unregistered Operator' ? 1.6 : 1;
-return { name: t.name, color: t.color, hp: Math.round(baseHp * mult) };
+return { name: t.name, color: t.color, hp: Math.round(baseHp * ROLE_MULT[enemyRole(level, firstRun)].hp) };
 }
 
 /** How each enemy splits its attack and defence between flesh and structure. */
@@ -425,13 +453,11 @@ pAtk += bonusPAtk; sAtk += bonusSAtk;
 pDef += bonusPDef; sDef += bonusSDef;
 let finalHp = bossHp + bonusHp;
 const structuralHp = Math.max(8, (pDef + sDef) * 3);
-if (bossType.name === 'Cartel Enforcer') {
-// A set-piece wall for the first life: meant to end it
-finalHp = Math.round(finalHp * ENFORCER_MULT.hp);
-pAtk = Math.round(pAtk * ENFORCER_MULT.atk); sAtk = Math.round(sAtk * ENFORCER_MULT.atk);
-} else if (bossType.name === 'Unregistered Operator') {
-finalHp = Math.round(finalHp * 1.6);
-}
+// Elites, bosses and the first-life set piece are tougher; everything grows level on level
+const role = typeName ? 'normal' : enemyRole(level, firstRun);
+const g = growth(level);
+finalHp = Math.round(finalHp * ROLE_MULT[role].hp * g.hp);
+pAtk = Math.round(pAtk * ROLE_MULT[role].atk * g.atk); sAtk = Math.round(sAtk * ROLE_MULT[role].atk * g.atk);
 
 return {
 id: 'boss',

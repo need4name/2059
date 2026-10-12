@@ -102,7 +102,9 @@ test('Chain: taking down one of several enemies earns another action', () => {
 
 test('Targeting adds 10% damage', () => {
   const strike = { ...PLAYER_ACTIONS[0], damage: 100, accuracy: 'precise' as const };
-  seedRandom(3); const plain = Fight.resolvePlayerAttack(fight([], { playerHeat: 0 }), strike).state.foes[0].unit.currentHp;
-  seedRandom(3); const boosted = Fight.resolvePlayerAttack(fight(['combat_1'], { playerHeat: 0 }), strike).state.foes[0].unit.currentHp;
+  // A sturdy target so neither hit takes it down
+  const sturdy = (owned: string[]) => { const s = fight(owned, { playerHeat: 0 }); return { ...s, foes: [{ ...s.foes[0], unit: { ...s.foes[0].unit, maxHp: 5000, currentHp: 5000 } }] }; };
+  seedRandom(3); const plain = Fight.resolvePlayerAttack(sturdy([]), strike).state.foes[0].unit.currentHp;
+  seedRandom(3); const boosted = Fight.resolvePlayerAttack(sturdy(['combat_1']), strike).state.foes[0].unit.currentHp;
   assert.ok(boosted < plain);
 });

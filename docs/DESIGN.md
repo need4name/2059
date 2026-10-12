@@ -12,7 +12,7 @@ Story and setting live in the owner's universe notes, which stay out of this pub
 
 ### Turn order
 1. **Start of your turn.** You and the enemy each lose 6 heat. If your heat is then 15 or less, you get a **double action** this turn.
-2. **Move.** Up to 2 tiles (more with leg upgrades), 8 directions, around obstacles. Tap your start tile to undo. At 100 heat you can't move.
+2. **Move.** 1 tile (2 and 3 with the play-i Locomotion nodes, more with leg upgrades), 8 directions, around obstacles. Tap your start tile to undo. At 100 heat you can't move.
 3. **Act.** One action from your bar of four, or a stim, or pass. Overclock is the only stim that doesn't end your turn.
 4. **Hazard.** If you end on a hazard tile, you take its damage.
 5. **Enemy turn.** Each enemy in turn fires a wound-up heavy, or picks a move, walks up to 2 tiles toward a spot it can hit from, and attacks if it can reach. Then it takes hazard damage if it's standing on one.
@@ -140,17 +140,21 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 **Where:** `client/src/lib/combat/loot.ts`, `client/src/lib/combat/skills.ts`, `client/src/lib/combat/actions.ts` (enemy scaling).
 
 ### Enemy scaling by threat
-- Health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
+- Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
+- On top of that, every enemy's health is × 0.36 × 1.075^(threat − 1) and its attack × 0.98 × 1.07^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
+- **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack; stand-ins Volkov Operator and Helix Continuity Warden until the real bosses are built). Other levels walk the regular rotation.
+- Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
-- Threat 10 is the **Patchwork King** (×1.7 health, ×1.45 attack, ×1.25 defence, three scripted phases). Threat 20 is the **Unregistered Operator** (×1.6 health).
 - **First life only:** threat 3 is the **Cartel Enforcer** (×2.4 health, ×2.2 attack). It is meant to end the first run.
+- Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 6 after 5 hosts lost, 10 after 10 and 19 after 20.
 
 ### Drops
 - Rarity odds rise with threat: commons and uncommons only at 1–2, rares from 3, epics from 5, legendaries from 6; commons stop dropping around threat 20.
-- Implants per win: 1 up to threat 4 (85–100% chance of a drop), 1–2 from 5, 2–3 from 8, 3–4 from 14.
-- Stims from threat 2: 25% chance rising to 70%.
+- Implants per win: regular fights have a 50% chance of one. Elites always drop one (uncommon or better, rare or better from threat 15). Bosses drop two, one of them epic or better (legendary chance 15% + 1% per threat, up to 50%).
+- Stims from threat 2: 15% chance rising to 25%. Bosses always drop one.
+- Credits: 10 + 8 × threat, plus up to the same again at random.
 - First life: threat 1 always drops an active implant, threat 2 a passive one plus a Bio-Stim.
-- The King always drops an epic, a rare and a stim, with a 35% chance of a legendary.
+- The King always drops an epic, a rare and a stim, with a 35% chance of a legendary, plus 160–220 credits.
 
 ### XP
 Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 250 XP, then +20 per threat.
@@ -191,4 +195,4 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Typecheck.**
 - **Content check** (`scripts/check-content.ts`): schemas, allowed values, ids, cross-references.
 - **Tests** (`tests/`): the rules on this page, including rarity bands, structure, health floor, dodging heavies, heat damage and save round trips.
-- **Balance simulator** (`scripts/sim.ts --check`): seeded bot runs. New players must die on enemy 2 or 3 in at least 85% of runs, win rates per threat band must stay within 65–99%, and the median best run must reach threat 9.
+- **Balance simulator** (`scripts/sim.ts --check`): seeded bot runs. New players must die on enemy 2 or 3 in at least 85% of runs, win rates per threat band must stay within 65–99%, and the median best run must reach threat 9, regular fights must average 8 turns or fewer and bosses 16 or fewer, and the median best level must be 7–14 after 10 hosts lost and 13–25 after 20. It runs 20 seeded runs of 150 fights.

@@ -105,7 +105,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
 
 // ── Run and report ─────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const RUNS = Number(process.env.RUNS ?? 20), FIGHTS = Number(process.env.FIGHTS ?? 30), SKILL = Number(process.env.SKILL ?? 0.8);
+const RUNS = Number(process.env.RUNS ?? 20), FIGHTS = Number(process.env.FIGHTS ?? 150), SKILL = Number(process.env.SKILL ?? 0.8);
 const runs = Array.from({ length: RUNS }, (_, i) => playRun(i + 1, FIGHTS, SKILL));
 const all = runs.flat();
 const band = (l: number) => l <= 3 ? '1-3' : l <= 6 ? '4-6' : l <= 9 ? '7-9' : l === 10 ? '10 King' : l <= 14 ? '11-14' : l <= 20 ? '15-20' : '21+';
@@ -115,7 +115,15 @@ const firstDeath = runs.map(r => r.find(f => !f.won)?.lvl ?? null);
 const reached = runs.map(r => Math.max(...r.map(f => f.lvl)));
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 console.table(rows.map(r => ({ band: r.band, fights: r.fights, winRate: pct(r.winRate), avgTurns: r.avgTurns.toFixed(1) })));
+if (process.env.PERLEVEL) { const per: Record<number, [number, number]> = {}; for (const f of all) { per[f.lvl] ??= [0, 0]; per[f.lvl][1]++; if (f.won) per[f.lvl][0]++; } console.log('per level win%:', Object.entries(per).map(([l, [w, n]]) => `${l}:${Math.round(100 * w / n)}%(${n})`).join(' ')); }
 console.log('first death at threat:', firstDeath.join(' '));
+// How far players get as the signal learns: best level reached by the time k hosts are lost
+const med = (xs: number[]) => { const v = [...xs].sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : NaN; };
+const bestBy = (k: number) => runs.filter(r => r.some(f => f.deathsBefore >= k)).map(r => Math.max(0, ...r.filter(f => f.deathsBefore <= k && f.won).map(f => f.lvl)));
+const kind = (l: number) => l % 10 === 0 ? 'boss' : l % 5 === 0 ? 'elite' : 'normal';
+const turnsOf = (k: string) => { const f = all.filter(x => kind(x.lvl) === k && x.won); return f.length ? (f.reduce((a, x) => a + x.turns, 0) / f.length).toFixed(1) : '-'; };
+console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('elite')}, boss ${turnsOf('boss')}`);
+console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
 
 // Agreed ranges (see the development plan). Bands with few fights are skipped.
@@ -125,5 +133,12 @@ checks.push([`first death on enemy 2 or 3 in >= 85% of runs (got ${pct(firstDeat
 for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') checks.push([`win rate ${r.band} within 65-99% (got ${pct(r.winRate)})`, r.winRate >= 0.65 && r.winRate <= 0.99]);
 const median = [...reached].sort((a, b) => a - b)[Math.floor(reached.length / 2)];
 checks.push([`median highest threat >= 9 (got ${median})`, median >= 9]);
+const normalTurns = Number(turnsOf('normal')), bossTurns = Number(turnsOf('boss'));
+checks.push([`normal fights take <= 8 turns (got ${turnsOf('normal')})`, normalTurns <= 8]);
+if (!Number.isNaN(bossTurns)) checks.push([`boss fights take <= 16 turns (got ${turnsOf('boss')})`, bossTurns <= 16]);
+// The signal should make steady progress, not snowball: best level after 10 and 20 hosts lost
+const best10 = med(bestBy(10)), best20 = med(bestBy(20));
+if (!Number.isNaN(best10)) checks.push([`best level after 10 hosts lost within 7-14 (got ${best10})`, best10 >= 7 && best10 <= 14]);
+if (!Number.isNaN(best20)) checks.push([`best level after 20 hosts lost within 13-25 (got ${best20})`, best20 >= 13 && best20 <= 25]);
 for (const [label, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
 if (args.includes('--check') && checks.some(([, ok]) => !ok)) process.exit(1);

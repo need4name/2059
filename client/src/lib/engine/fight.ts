@@ -20,7 +20,7 @@ import { NO_PERKS, type Perks } from './playi';
 
 // ── Tuning ────────────────────────────────────────────────────────────────────
 
-export const PLAYER_BASE_MOVE = 2;
+export const PLAYER_BASE_MOVE = 1;
 export const BOSS_MOVE = 2;
 /** Heat every combatant sheds at the start of each round. */
 export const PASSIVE_COOLING = 6;

@@ -2,6 +2,10 @@ import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIV
 import { ITEMS_2059 } from './items2059';
 
 import { random } from '../engine/rng';
+/** Drop tuning (see docs/DESIGN.md). */
+export const LOOT = { normalDropChance: 0.5, stimMin: 0.15, stimMax: 0.25, goldBase: 10, goldPerLevel: 8 };
+const RARITY_ORDER: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+
 // STIM items are pulled by id so they always exist regardless of rarity filtering
 const STIM_IDS = ['stim_heat_flush', 'stim_bio', 'stim_structural', 'stim_overclock'];
 const STIM_POOL: Item[] = ITEMS_2059.filter(i => STIM_IDS.includes(i.id));
@@ -81,73 +85,42 @@ export function generateLoot(bossLevel: number = 1, firstRun = false): LootDrop 
 const items: Item[] = [];
 const teach = firstRun ? firstRunTeachingDrop(bossLevel) : null;
 if (teach) {
-const gold = 20 + 15 * bossLevel;
+const gold = LOOT.goldBase + LOOT.goldPerLevel * bossLevel;
 const extra = bossLevel === 2 ? STIM_POOL.find(s => s.id === 'stim_bio') : undefined;
 return { items: [instancedItem(teach), ...(extra ? [instancedItem(extra)] : [])], gold };
 }
 
-// All levels draw from the full item pool.
-const pools = ITEM_POOLS;
-
-// Drop chance and item count by boss level
-// Boss 8 (Patchwork King) always drops
-// Early levels guarantee an item drop so the player always has augments to equip.
-// Without stat growth from augments the player is stuck at base stats and
-// falls behind enemy defense scaling within 3-4 fights.
-const dropChance = bossLevel === 1 ? 1.00  // always drop - first fight tutorial
-: bossLevel === 2 ? 1.00
-: bossLevel === 3 ? 0.90
-: bossLevel === 4 ? 0.90
-: bossLevel === 5 ? 0.85
-: bossLevel === 6 ? 0.85
-: bossLevel === 7 ? 0.85
-: 1.00; // boss 8 guaranteed
-
-const shouldDrop = random() < dropChance;
-if (!shouldDrop) {
-const baseGold = 20 + 15 * bossLevel;
-return { items: [], gold: baseGold + Math.floor(random() * baseGold) };
-}
-
-// Item count - mostly 1, occasionally 2 from boss 5+, boss 8 gets 2-3
-const maxItems = bossLevel >= 14 ? 4 : bossLevel >= 8 ? 3
-: bossLevel >= 5 ? 2
-: 1;
-const numItems = bossLevel >= 14
-? 3 + (random() < 0.35 ? 1 : 0)
-: bossLevel >= 8
-? 2 + (random() < 0.5 ? 1 : 0)
-: bossLevel >= 5
-? (random() < 0.40 ? 2 : 1)
-: 1;
-
-for (let i = 0; i < Math.min(numItems, maxItems); i++) {
-const rarity = rollRarity(bossLevel);
+const isBoss = bossLevel % 10 === 0;
+const isElite = bossLevel % 10 === 5;
+const rarityAtLeast = (r: ItemRarity, floor: ItemRarity): ItemRarity =>
+(RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r);
+const dropImplant = (rarity: ItemRarity) => {
 const slot = AUGMENTATION_SLOTS[Math.floor(random() * AUGMENTATION_SLOTS.length)];
-const item = getRandomItemFromPool(rarity, pools, slot);
+const item = getRandomItemFromPool(rarity, ITEM_POOLS, slot);
 if (item) items.push(instancedItem(item));
+};
+
+if (isBoss) {
+// Bosses: two implants, one of them epic or better
+dropImplant(random() < Math.min(0.5, 0.15 + 0.01 * bossLevel) ? 'legendary' : 'epic');
+dropImplant(rollRarity(bossLevel));
+} else if (isElite) {
+// Elites: always one implant, rare or better from level 15
+dropImplant(rarityAtLeast(rollRarity(bossLevel), bossLevel >= 15 ? 'rare' : 'uncommon'));
+} else if (random() < LOOT.normalDropChance) {
+dropImplant(rollRarity(bossLevel));
 }
 
-// Stim drop - independent of item drop, from level 2+
-// Chance rises with level so consumables feel more available as fights get harder
-if (bossLevel >= 2) {
-const stimChance = bossLevel <= 3 ? 0.25
-: bossLevel <= 6 ? 0.40
-: bossLevel <= 9 ? 0.55
-: 0.70; // level 10+ (Patchwork King area)
+// Stims: 15% early, rising to 25%; always one from a boss
+const stimChance = isBoss ? 1 : bossLevel < 2 ? 0 : Math.min(LOOT.stimMax, LOOT.stimMin + 0.005 * bossLevel);
 if (random() < stimChance && STIM_POOL.length > 0) {
-// Overclock (rare) only from level 5+
-const availableStims = bossLevel >= 5
-? STIM_POOL
-: STIM_POOL.filter(s => s.id !== 'stim_overclock');
+const availableStims = bossLevel >= 5 ? STIM_POOL : STIM_POOL.filter(st => st.id !== 'stim_overclock');
 const stim = availableStims[Math.floor(random() * availableStims.length)];
 if (stim) items.push(instancedItem(stim));
 }
-}
 
-const baseGold = 20 + 15 * bossLevel;
+const baseGold = LOOT.goldBase + LOOT.goldPerLevel * bossLevel;
 const gold = baseGold + Math.floor(random() * baseGold);
-
 return { items, gold };
 }
 
@@ -165,7 +138,7 @@ if (leg) items.push(instancedItem(leg));
 }
 const stim = pick(STIM_POOL);
 if (stim) items.push(instancedItem(stim));
-const gold = 320 + Math.floor(random() * 120);
+const gold = 160 + Math.floor(random() * 60);
 return { items, gold };
 }
 
