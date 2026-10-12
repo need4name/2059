@@ -1,0 +1,50 @@
+{
+  "about": "Allies: other minds in metal the signal can link with. One joins each host (two with Second link). Each unlocks the first time any host clears its level. Stats are relative to a regular enemy of that level; moves never change. Allies gain levels across hosts (+8% a level, up to 10).",
+  "allies": [
+    {
+      "id": "bale", "name": "Bale", "maker": "Tianxia", "role": "Tank", "unlockLevel": 10, "color": "#f59e0b",
+      "blurb": "A dock-loader frame. Whoever was copied into it still says sorry when it bumps into things.",
+      "hp": 1.5, "attack": 8, "defense": 8, "move": 2,
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Shoulder Check", "description": "A heavy shove at close range", "damage": 12, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "melee" },
+        { "type": "defend", "effect": "taunt", "name": "Draw Fire", "description": "Every enemy aims at Bale until your next turn. Bale guards +10", "defenseBoost": 10, "cooldown": 2 }
+      ]
+    },
+    {
+      "id": "matron", "name": "Matron", "maker": "Crown", "role": "Healer", "unlockLevel": 15, "color": "#f472b6",
+      "blurb": "A private-ward nurse unit. She was a real nurse once. She doesn't talk about which one.",
+      "hp": 0.9, "attack": 6, "defense": 4, "move": 2,
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Suture Dart", "description": "A light shot from range", "damage": 8, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "ranged" },
+        { "type": "defend", "effect": "heal", "name": "Field Mend", "description": "Heals you for 25% of your max health, from anywhere", "amount": 0.25, "cooldown": 3 }
+      ]
+    },
+    {
+      "id": "ghostline", "name": "Ghostline", "maker": "Kizuna", "role": "Spotter", "unlockLevel": 20, "color": "#a78bfa",
+      "blurb": "A military sensor shell. Its mind was a soldier's, sold in a lot of forty.",
+      "hp": 0.8, "attack": 10, "defense": 3, "move": 2,
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Signal Bleed", "description": "A ranged hit that cooks circuits", "damage": 12, "accuracy": "variable", "physicalRatio": 0.2, "attackPattern": "ranged" },
+        { "type": "defend", "effect": "mark", "name": "Paint Target", "description": "Your hits on the target do 35% more until your next turn. Any range", "amount": 0.35, "cooldown": 2 }
+      ]
+    },
+    {
+      "id": "ward", "name": "Ward", "maker": "Helix", "role": "Shield", "unlockLevel": 25, "color": "#38bdf8",
+      "blurb": "A Helix continuity guard that walked off its post. Still won't carry a gun.",
+      "hp": 1.3, "attack": 6, "defense": 10, "move": 2,
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Shock Baton", "description": "A stun-stick jab", "damage": 10, "accuracy": "variable", "physicalRatio": 0.5, "attackPattern": "melee" },
+        { "type": "defend", "effect": "guard", "name": "Aegis Field", "description": "You guard +14 against the next hit, from anywhere", "defenseBoost": 14, "cooldown": 2 }
+      ]
+    },
+    {
+      "id": "breaker", "name": "Breaker", "maker": "Volkov", "role": "Damage", "unlockLevel": 30, "color": "#ef4444",
+      "blurb": "Operator limbs on a cheap torso. The mind inside asks for one thing: something to hit.",
+      "hp": 1.0, "attack": 14, "defense": 5, "move": 2,
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Hydraulic Drive", "description": "A piston punch with reach", "damage": 18, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee_long" },
+        { "type": "attack", "effect": "attack", "name": "Breach", "description": "A charging blow. Needs a run-up", "damage": 32, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "charge", "cooldown": 3 }
+      ]
+    }
+  ]
+}

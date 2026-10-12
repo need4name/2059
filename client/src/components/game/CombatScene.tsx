@@ -5,6 +5,7 @@ import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/li
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, getBossRoster } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
+import * as Fight from '@/lib/engine/fight';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
 // Helper to get all tiles that can be TARGETED from a position with a given pattern
@@ -79,7 +80,7 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
 const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
@@ -97,6 +98,7 @@ const prevPlayerPos = useRef({ row: grid.playerPosition.row, col: grid.playerPos
 // Sprite animators for characters
 // Player has normal animation speed, drunkard has slow lazy idle
 const playerAnimator = useRef(new SpriteAnimator(false));
+const allyAnimator = useRef(new SpriteAnimator(false));
 
 // Each enemy has its own animator, slide animation and damage tracking
 interface FoeVisual { animator: SpriteAnimator; moveAnim: MovementAnim | null; prevPos: { row: number; col: number }; prevHp: number }
@@ -573,12 +575,16 @@ patterns.forEach(pat => getTargetableTiles(f.pos, pat, view).forEach(k => union.
 return union.size ? union : null;
 })() : null;
 
-// Tiles the player can still move to this turn
-const moveTiles = phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition
+// Tiles the player (or the ally being moved) can still move to this turn
+const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
+? (() => { const t = Fight.allyReach(useCombat.getState(), allyMoveMode); if (originalPosition) t.delete(`${originalPosition.row},${originalPosition.col}`); return t; })()
+: null;
+const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition
 ? (reflexMoveOpen
   ? getReachableTiles(grid.playerPosition, grid, 1, perks.phaseStep)
   : getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
-: null;
+: null);
+const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColor ?? '#38d6f0') : null;
 
 // Where a charged heavy attack will land next turn - step out of it to dodge
 const heavyZone = charging.length ? (() => {
@@ -670,11 +676,11 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
-    ctx.strokeStyle = 'rgba(56, 214, 240, 0.85)';
+    ctx.strokeStyle = moveColor ?? 'rgba(56, 214, 240, 0.85)';
     ctx.lineWidth = 2;
     roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(56, 214, 240, 0.55)';
+    ctx.fillStyle = moveColor ?? 'rgba(56, 214, 240, 0.55)';
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
     ctx.fill();
@@ -735,6 +741,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
 // Update sprite animations
 playerAnimator.current.update();
+allyAnimator.current.update();
 living.forEach(({ i }) => foeVisual(i).animator.update());
 
 // Calculate interpolated player position for smooth movement
@@ -792,6 +799,39 @@ ctx.fillRect(playerPos.x - barWidth / 2, barY, barWidth * playerHpPercent, barHe
 ctx.strokeStyle = '#1f2937';
 ctx.lineWidth = 1;
 ctx.strokeRect(playerPos.x - barWidth / 2, barY, barWidth, barHeight);
+
+// Allies: a host body in the ally's colour ring, with a bar in its colour
+allies.forEach((a, k) => {
+if (a.unit.currentHp <= 0) return;
+const ap = gridToScreen(a.pos.row, a.pos.col, width, height);
+const color = a.unit.spriteColor || '#38d6f0';
+ctx.save();
+ctx.strokeStyle = color;
+ctx.lineWidth = allyMoveMode === k ? 3 : 2;
+ctx.globalAlpha = allyMoveMode === k ? 0.6 + 0.4 * pulse : 0.9;
+ctx.beginPath();
+ctx.ellipse(ap.x, ap.y + tileH * 0.32, tileW * 0.42, tileH * 0.16, 0, 0, Math.PI * 2);
+ctx.stroke();
+ctx.restore();
+const size = Math.max(tileW * 1.05, 44);
+ctx.save();
+ctx.globalAlpha = a.acted ? 0.7 : 1;
+drawWanderer(ctx, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
+ctx.restore();
+const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
+ctx.fillStyle = '#374151';
+ctx.fillRect(ap.x - bw / 2, by, bw, bh);
+ctx.fillStyle = color;
+ctx.fillRect(ap.x - bw / 2, by, bw * (a.unit.currentHp / a.unit.maxHp), bh);
+ctx.font = `700 ${Math.max(10, Math.floor(tileW * 0.2))}px Manrope, sans-serif`;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'bottom';
+ctx.lineWidth = 3;
+ctx.strokeStyle = '#000';
+ctx.strokeText(a.unit.name, ap.x, ap.y - size / 2 - 4);
+ctx.fillStyle = color;
+ctx.fillText(a.unit.name, ap.x, ap.y - size / 2 - 4);
+});
 
 // Draw every living enemy, with a ring under the one you're aiming at
 for (const { f, i } of living) {
@@ -906,7 +946,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks, allies, allyMoveMode]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -992,6 +1032,10 @@ if (x >= tileLeft && x <= tileRight && y >= tileTop && y <= tileBottom) {
   const st = useCombat.getState();
   const hit = st.foes.findIndex(f => f.unit.currentHp > 0 && f.pos.row === row && f.pos.col === col);
   if (hit >= 0) { st.setTarget(hit); return; }
+  // Moving an ally: the tap picks its tile. Tapping an ally starts moving it.
+  if (st.allyMoveMode !== null) { st.moveAlly({ row, col }); return; }
+  const ally = st.allies.findIndex(a => a.unit.currentHp > 0 && a.pos.row === row && a.pos.col === col);
+  if (ally >= 0) { st.toggleAllyMove(ally); return; }
   st.moveTentatively({ row, col });
   return;
 }

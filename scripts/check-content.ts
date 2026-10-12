@@ -5,6 +5,7 @@ import { z } from 'zod';
 import items from '../client/src/content/items.json';
 import weapons from '../client/src/content/weapons.json';
 import enemies from '../client/src/content/enemies.json';
+import allies from '../client/src/content/allies.json';
 import { MAKER_INFO } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
@@ -13,7 +14,7 @@ const pattern = z.enum(['melee', 'melee_long', 'diagonal_cross', 'cone', 'aoe', 
 const stat = z.number().int().min(-50).max(120).optional();
 const text = z.string().trim().min(1);
 
-const action = z.object({
+const actionFields = {
   type: z.enum(['attack', 'defend', 'brace', 'special']),
   name: text,
   description: z.string(),
@@ -29,7 +30,26 @@ const action = z.object({
   bypassStructuralDefense: z.boolean().optional(),
   attackPattern: pattern.optional(),
   ignoreRange: z.boolean().optional(),
-}).strict().refine(a => a.type !== 'attack' || (a.damage ?? 0) > 0, 'an attack needs damage');
+};
+const action = z.object(actionFields).strict().refine(a => a.type !== 'attack' || (a.damage ?? 0) > 0, 'an attack needs damage');
+
+const allyMove = z.object({
+  ...actionFields,
+  effect: z.enum(['attack', 'taunt', 'heal', 'mark', 'guard']),
+  cooldown: z.number().int().min(0).max(5).optional(),
+  amount: z.number().min(0).max(1).optional(),
+}).strict()
+  .refine(m => m.effect !== 'attack' || ((m.damage ?? 0) > 0 && !!m.attackPattern), 'an attack move needs damage and a pattern')
+  .refine(m => !['heal', 'mark'].includes(m.effect) || (m.amount ?? 0) > 0, 'heal and mark moves need an amount')
+  .refine(m => !['taunt', 'guard'].includes(m.effect) || (m.defenseBoost ?? 0) > 0, 'taunt and guard moves need a defenseBoost');
+const ally = z.object({
+  id: z.string().regex(/^[a-z]+$/), name: text, maker: text, role: text,
+  unlockLevel: z.number().int().min(1).max(200), color: z.string().regex(/^#[0-9a-f]{6}$/i), blurb: text,
+  hp: z.number().min(0.3).max(3), attack: z.number().min(0).max(40), defense: z.number().min(0).max(40),
+  move: z.number().int().min(1).max(4),
+  moves: z.array(allyMove).length(2),
+}).strict();
+const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
 const item = z.object({
   id: z.string().regex(/^[a-z0-9_]+$/, 'ids are lower-case letters, digits and _'),
@@ -118,11 +138,25 @@ export function checkContent(): string[] {
       if (!e.moves.some(m => m.type === 'attack' && !m.isHeavy)) problems.push(`enemies.json ${n}: needs a normal attack`);
     }
   }
+  // Allies
+  const ar = allyFile.safeParse(allies);
+  report('allies.json', ar);
+  if (ar.success) {
+    const seen = new Set<string>();
+    let last = 0;
+    for (const a of ar.data.allies) {
+      if (seen.has(a.id)) problems.push(`allies.json ${a.id}: duplicate id`);
+      seen.add(a.id);
+      if (a.unlockLevel <= last) problems.push(`allies.json ${a.id}: unlock levels must rise down the list`);
+      last = a.unlockLevel;
+      if (!a.moves.some(m => m.effect === 'attack')) problems.push(`allies.json ${a.id}: needs at least one attack`);
+    }
+  }
   return problems;
 }
 
 if (process.argv[1]?.endsWith('check-content.ts')) {
   const problems = checkContent();
   if (problems.length) { console.error(problems.map(p => `  - ${p}`).join('\n')); console.error(`${problems.length} content problem(s)`); process.exit(1); }
-  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King`);
+  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies`);
 }

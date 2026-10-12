@@ -274,6 +274,19 @@ export function spawnFoePositions(grid: CombatGrid, count: number): TilePosition
   return out;
 }
 
+/** Open tiles next to the player for allies to start on (nearest first, avoiding `taken`). */
+export function allySpawnPositions(grid: CombatGrid, count: number, taken: TilePosition[]): TilePosition[] {
+  const out: TilePosition[] = [];
+  const reach = stepDistances(grid.playerPosition, grid);
+  const spots = Array.from(reach.entries()).filter(([, d]) => d > 0).sort((a, b) => a[1] - b[1]).map(([k]) => { const [row, col] = k.split(',').map(Number); return { row, col }; });
+  for (const p of spots) {
+    if (out.length >= count) break;
+    if (tileAt(p, grid)?.type !== 'empty' || samePos(p, grid.bossPosition) || [...taken, ...out].some(o => samePos(o, p))) continue;
+    out.push(p);
+  }
+  return out;
+}
+
 export function emptyGrid(): CombatGrid {
   return {
     rows: 7, cols: 6,

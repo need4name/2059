@@ -176,11 +176,25 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 
 **Where:** `rebirth` in `client/src/lib/stores/useCombat.tsx`.
 
-- When the host dies, the signal jumps to a new body at threat 1. Implants, credits, weapons, loadout extras and upgrades are lost. The host count and the class unlock are kept.
+- When the host dies, the signal jumps to a new body at threat 1. Implants, credits, weapons, loadout extras and upgrades are lost. The host count, the class unlock, the play-i tree and allies are kept.
 - Dying at threat 11 or higher while unclassified permanently unlocks the Enforcer and Operative firmware.
 - **The play-i tree** (`client/src/content/playi-tree.json`, `client/src/lib/engine/playi.ts`): what the signal keeps. 34 nodes in 6 branches, hidden from the player. After each death the player picks 1 of 2 random open nodes (a node is open when one of its required nodes is owned; tier 1 needs nothing; Network nodes need an unlocked ally). When fewer than two are open, a repeatable Signal fragment (+5 max health) fills the gap.
 - Node effects reach the fight engine through `perks` on the fight state (cooling, double-action heat, brace repair and venting, damage, flanking, clean first strike, finisher, chain, hot-damage taken, damage taken, Holdfast, Sidestep, hazards), the new host (starting implant, Bio-Stims, upgrade points, max health, structure, health costs), movement (extra tiles, Reflex loop, Phase step, Runaway), the fight bar (Fifth slot), the market (Haggler) and loot (Pick of the wreck).
 - Holdfast is once per host; Sidestep and Clean first strike reset every fight.
+
+### Allies
+
+**Where:** `client/src/content/allies.json` (roster), `client/src/lib/combat/allies.ts` (bodies, moves, levels), `client/src/lib/stores/useAllies.tsx` (unlocks, levels, party), the Allies part of `client/src/lib/engine/fight.ts`.
+
+- Five allies, each unlocked the first time any host clears its level: **Bale** (Tianxia tank, 10), **Matron** (Crown healer, 15), **Ghostline** (Kizuna spotter, 20), **Ward** (Helix shield, 25), **Breaker** (Volkov damage, 30). An unlock joins the current host straight away if there's room.
+- One ally per host (two with the Second link capstone), chosen on the death screen after the tree pick. The last host's ally is kept by default.
+- Each ally has two fixed moves and moves 2 tiles. Effects: **attack** (needs range on your target), **taunt** (every enemy aims at the ally until your next turn, ally guards up), **heal** (a share of your max health, any range), **mark** (your hits on the target do more this round), **guard** (you guard up against the next hit). Support moves have cooldowns of 2–3 rounds.
+- In your turn you can move the ally once (tap it, or its name, then a lit tile) and use one of its moves, before or after your own move. The turn ends when you execute.
+- Enemies go for whoever is nearest, the player winning ties, unless an ally is drawing fire. A heavy wound up at an ally can be dodged by moving that ally.
+- Allies have no structure bar: half the structural part of a hit spills onto their health. A knocked-out ally sits out the rest of that fight only. Allies don't take hazard damage. Every fight starts them at full health.
+- Stats: built like a regular enemy of the unlock level (health × the ally's `hp`, attack and defence from its base plus the level scaling), then × 0.55 health and × 0.75 attack (`ALLY_TUNING`). Move damage scales like an enemy move of the unlock level.
+- Levels: +8% health, attack, defence and move damage a level, up to 10. Each win gives the party 1 XP (2 with Shared memory); level n to n + 1 takes n + 1 XP. Levels survive death, so an early ally can be raised for the late game.
+- Network perks: Handshake (+25% ally health), Shared memory (double ally XP), Coordinated (+20% damage on a foe your ally hit this round), Second link (two allies).
 
 ---
 
@@ -193,6 +207,6 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 
 `npm run verify` runs before every deploy:
 - **Typecheck.**
-- **Content check** (`scripts/check-content.ts`): schemas, allowed values, ids, cross-references.
-- **Tests** (`tests/`): the rules on this page, including rarity bands, structure, health floor, dodging heavies, heat damage and save round trips.
+- **Content check** (`scripts/check-content.ts`): schemas, allowed values, ids, cross-references, the ally roster.
+- **Tests** (`tests/`): the rules on this page, including rarity bands, structure, health floor, dodging heavies, heat damage, the play-i tree, allies and save round trips.
 - **Balance simulator** (`scripts/sim.ts --check`): seeded bot runs. New players must die on enemy 2 or 3 in at least 85% of runs, win rates per threat band must stay within 65–99%, and the median best run must reach threat 9, regular fights must average 8 turns or fewer and bosses 16 or fewer, and the median best level must be 7–14 after 10 hosts lost and 13–25 after 20. It runs 20 seeded runs of 150 fights.

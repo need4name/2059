@@ -6,6 +6,10 @@
 // A fight is the player against one or more foes. The player picks a target;
 // area moves also hit any other foe standing in the struck tiles. On the enemy
 // turn each living foe acts in order, treating the others as obstacles.
+//
+// Allies stand with the player. The player moves them and picks one of their
+// fixed moves during their own turn. Each foe aims at whoever is nearest (the
+// player wins ties) unless an ally is drawing fire.
 
 import type { Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
@@ -14,7 +18,8 @@ import {
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { canHitTarget, getHitTiles } from '../combat/patterns';
-import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt } from '../combat/grid';
+import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles } from '../combat/grid';
+import type { AllyMove } from '../combat/allies';
 import { random } from './rng';
 import { NO_PERKS, type Perks } from './playi';
 
@@ -52,6 +57,25 @@ export interface Foe {
   pendingAction: CombatAction | null;
   /** Turn counter for scripted bosses (the Patchwork King). */
   scriptTurn: number;
+  /** Who a wound-up heavy is aimed at: -1 the player, otherwise an ally's index. */
+  pendingVictim: number | null;
+}
+
+/** An ally on the field. Knocked out allies sit out the rest of the fight. */
+export interface Ally {
+  id: string;
+  unit: Character;
+  pos: TilePosition;
+  moves: AllyMove[];
+  /** Tiles it can move each round. */
+  move: number;
+  /** Rounds until each move can be used again. */
+  cooldowns: number[];
+  moved: boolean;
+  acted: boolean;
+  /** Draw fire: every foe aims at this ally until the player's next turn. */
+  taunting: boolean;
+  defenseBoost: number;
 }
 
 export interface FightState {
@@ -74,6 +98,13 @@ export interface FightState {
   sidestepReady: boolean;
   /** Holdfast: survive one killing blow this host. */
   holdfastReady: boolean;
+  allies: Ally[];
+  /** Paint target: the player's hits on this foe do extra damage this round. */
+  mark: { foe: number; bonus: number } | null;
+  /** Foes an ally hit this round (for Coordinated). */
+  allyHitFoes: number[];
+  /** Guard an ally put on the player; soaks the next hit. */
+  allyGuard: number;
 }
 
 export type FightEvent =
@@ -85,7 +116,8 @@ export type FightEvent =
   /** Chain: a takedown earned the player another action. */
   | { kind: 'extraAction' }
   /** Holdfast spent: the player survived a killing blow. */
-  | { kind: 'holdfast' };
+  | { kind: 'holdfast' }
+  | { kind: 'allyDown'; ally: number };
 
 export interface Step { state: FightState; events: FightEvent[] }
 
@@ -97,7 +129,10 @@ const same = (a: TilePosition, b: TilePosition) => a.row === b.row && a.col === 
 export const isAlive = (f: Foe) => f.unit.currentHp > 0;
 
 /** A fight state with no play-i perks, for tests and set pieces. */
-export const BASE_FIGHT_FLAGS = { perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false };
+export const BASE_FIGHT_FLAGS = {
+  perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
+  allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
+};
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
 function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; holdfastReady: boolean } {
@@ -109,13 +144,43 @@ function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; 
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
-  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0 };
+  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null };
 }
 
-/** The grid as one foe sees it: itself as the enemy position, everyone else in the way. */
+export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
+
+/** The grid with foe i as the enemy position and every other unit (foes, allies) in the way. */
 export function viewFor(s: FightState, i: number): CombatGrid {
-  const occupied = s.foes.filter((f, k) => k !== i && isAlive(f)).map(f => f.pos);
+  const occupied = [
+    ...s.foes.filter((f, k) => k !== i && isAlive(f)).map(f => f.pos),
+    ...s.allies.filter(allyAlive).map(a => a.pos),
+  ];
   return { ...s.grid, bossPosition: s.foes[i]?.pos ?? s.grid.bossPosition, occupied };
+}
+
+/** Who foe i goes for: -1 for the player, or an ally's index. */
+export function victimOf(s: FightState, i: number): number {
+  const taunt = s.allies.findIndex(a => allyAlive(a) && a.taunting);
+  if (taunt >= 0) return taunt;
+  const from = s.foes[i].pos;
+  let best = -1, bestDist = chebyshev(from, s.grid.playerPosition);
+  s.allies.forEach((a, k) => {
+    if (!allyAlive(a)) return;
+    const d = chebyshev(from, a.pos);
+    if (d < bestDist) { best = k; bestDist = d; }
+  });
+  return best;
+}
+
+/** The grid as foe i sees it: its victim in the target spot, everyone else in the way. */
+export function foeView(s: FightState, i: number, victim = victimOf(s, i)): CombatGrid {
+  const g = viewFor(s, i);
+  const ally = s.allies[victim];
+  if (victim < 0 || !ally) return g;
+  return {
+    ...g, playerPosition: ally.pos,
+    occupied: [...(g.occupied ?? []).filter(p => !same(p, ally.pos)), s.grid.playerPosition],
+  };
 }
 
 /** The grid as the player sees it while aiming at a foe. */
@@ -144,6 +209,8 @@ export function startPlayerTurn(s: FightState): FightState {
   return {
     ...s,
     playerHeat,
+    allies: s.allies.map(a => ({ ...a, moved: false, acted: false, taunting: false, defenseBoost: 0, cooldowns: a.cooldowns.map(c => Math.max(0, c - 1)) })),
+    mark: null, allyHitFoes: [], allyGuard: 0,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
   };
@@ -227,9 +294,11 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const dist = chebyshev(grid.playerPosition, foe.pos);
     nearest = Math.min(nearest, dist);
     const finishing = s.perks.finisherBonus > 0 && foe.unit.currentHp < foe.unit.maxHp * 0.3 ? 1 + s.perks.finisherBonus : 1;
+    const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
+    const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing,
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated,
       getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
@@ -308,7 +377,7 @@ export function resolveConsumable(s: FightState, item: Item): Step & { endsTurn:
 export function chooseFoeAction(s: FightState, i: number): Step & { action: CombatAction } {
   const foe = s.foes[i];
   const { unit } = foe;
-  const grid = viewFor(s, i);
+  const grid = foeView(s, i);
   if (unit.name === 'Patchwork King') {
     const turn = foe.scriptTurn + 1;
     const events: FightEvent[] = [];
@@ -317,7 +386,7 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
     return { action: getPatchworkKingAction(turn), state: setFoe(s, i, { scriptTurn: turn }), events };
   }
   const roster = BOSS_ATTACKS[unit.name] ?? [];
-  const dist = chebyshev(foe.pos, s.grid.playerPosition);
+  const dist = chebyshev(foe.pos, grid.playerPosition);
   const filtered = roster.filter(a => {
     if (a.isHeavy && s.playerHeat < HEAVY_MIN_PLAYER_HEAT) return false;
     // Shields only come out when the enemy is hurt, and not every time
@@ -336,8 +405,8 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
   return { action: pool[Math.floor(random() * pool.length)], state: s, events: [] };
 }
 
-export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined): boolean {
-  const g = viewFor(s, i);
+export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined, victim = victimOf(s, i)): boolean {
+  const g = foeView(s, i, victim);
   return canHitTarget(s.foes[i].pos, g.playerPosition, pattern ?? 'melee_long', g);
 }
 
@@ -346,8 +415,9 @@ export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternTy
   const foe = s.foes[i];
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)], moved: false };
   let pos = foe.pos, moved = false;
+  const view = foeView(s, i);
   for (let k = 0; k < BOSS_MOVE; k++) {
-    const step = stepTowardAttackPosition({ ...viewFor(s, i), bossPosition: pos }, pattern ?? 'melee_long');
+    const step = stepTowardAttackPosition({ ...view, bossPosition: pos }, pattern ?? 'melee_long');
     if (!step) break;
     pos = step; moved = true;
   }
@@ -357,26 +427,34 @@ export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternTy
 /** A heavy attack: move into position and wind up; it fires next turn. */
 export function telegraphHeavy(s: FightState, i: number, action: CombatAction): Step {
   const moved = moveFoeToward(s, i, action.attackPattern);
+  const victim = victimOf(moved.state, i);
+  const at = victim >= 0 ? ` at ${s.allies[victim].unit.name}` : '';
   return {
-    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action }),
-    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}!`, 'critical')],
+    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim }),
+    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}${at}!`, 'critical')],
   };
 }
 
 /** Fire foe i's wound-up heavy. Returns whether it connects (stepping out dodges it). */
-export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean } {
+export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean; victim: number } {
   const action = s.foes[i].pendingAction;
-  const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null });
-  if (!action) return { state, events: [], action: null, connects: false };
-  const inReach = canFoeHit(state, i, action.attackPattern);
-  if (inReach && s.sidestepReady) {
-    return { state: { ...state, sidestepReady: false }, action, connects: false, events: [say(`SIDESTEP -- ${s.foes[i].unit.name}'s ${action.name} slides past you`)] };
+  const victim = s.foes[i].pendingVictim ?? -1;
+  const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null });
+  if (!action) return { state, events: [], action: null, connects: false, victim };
+  if (victim >= 0) {
+    const ally = s.allies[victim];
+    const inReach = !!ally && allyAlive(ally) && canFoeHit(state, i, action.attackPattern, victim);
+    return { state, action, connects: inReach, victim, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses${ally ? ` ${ally.unit.name}` : ''}`)] };
   }
-  return { state, action, connects: inReach, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses -- you evaded`)] };
+  const inReach = canFoeHit(state, i, action.attackPattern, -1);
+  if (inReach && s.sidestepReady) {
+    return { state: { ...state, sidestepReady: false }, action, connects: false, victim, events: [say(`SIDESTEP -- ${s.foes[i].unit.name}'s ${action.name} slides past you`)] };
+  }
+  return { state, action, connects: inReach, victim, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses -- you evaded`)] };
 }
 
 /** Foe i's attack or shield landing. `level` scales its move damage. */
-export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number): Step {
+export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i)): Step {
   const foe = s.foes[i];
   const { player, grid } = s;
   if (action.type === 'defend') {
@@ -385,9 +463,10 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
       events: [say(`${foe.unit.name}: ${action.name.toUpperCase()} -- guard up`)],
     };
   }
+  if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level);
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
-  const dmg = calculateDamage(foe.unit, player, scaleBossAction(action, level), s.playerDefenseBoost, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const dmg = calculateDamage(foe.unit, player, scaleBossAction(action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [];
   const held = holdOn(s, Math.max(0, player.currentHp - dmg.bioDamage - spill), events);
@@ -409,11 +488,23 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     player: { ...player, currentHp: hp, currentStructuralHp: structure },
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
     // A guard soaks one hit, so a crowd can't all hit a braced player at full guard
-    playerDefenseBoost: 0,
+    playerDefenseBoost: 0, allyGuard: 0,
     playerHeat,
     holdfastReady: held.holdfastReady,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   return { state, events };
+}
+
+/** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
+function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number): Step {
+  const foe = s.foes[i], ally = s.allies[k];
+  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, 1, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
+  const lost = dmg.bioDamage + Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
+  const hp = Math.max(0, ally.unit.currentHp - lost);
+  const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
+  if (hp <= 0) { events.push(say(`${ally.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: k }); }
+  const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
+  return { state: setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events };
 }
 
 /**
@@ -426,10 +517,10 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
     if (rel.connects && rel.action) {
-      const hit = resolveFoeAction(rel.state, i, rel.action, level);
+      const hit = resolveFoeAction(rel.state, i, rel.action, level, rel.victim);
       return { state: hit.state, events: [...rel.events, ...hit.events], strikeAfterMove: null };
     }
-    return { ...rel, strikeAfterMove: null };
+    return { state: rel.state, events: rel.events, strikeAfterMove: null };
   }
   const choice = chooseFoeAction(s, i);
   const action = choice.action;
@@ -449,6 +540,81 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
 export function foeStrikeAfterMove(s: FightState, i: number, action: CombatAction, level: number): Step {
   if (!isAlive(s.foes[i]) || !canFoeHit(s, i, action.attackPattern)) return { state: s, events: [] };
   return resolveFoeAction(s, i, action, level);
+}
+
+// ── Allies ───────────────────────────────────────────────────────────────────
+
+const setAlly = (s: FightState, k: number, patch: Partial<Ally>): FightState =>
+  ({ ...s, allies: s.allies.map((a, n) => (n === k ? { ...a, ...patch } : a)) });
+
+/** The grid from ally k's spot: the target foe as the enemy, every other unit (the player too) in the way. */
+function allyView(s: FightState, k: number, i = s.target): CombatGrid {
+  const g = viewFor(s, i);
+  const me = s.allies[k].pos;
+  return { ...g, playerPosition: me, occupied: [...(g.occupied ?? []).filter(p => !same(p, me)), s.grid.playerPosition] };
+}
+
+/** Tiles ally k can move to this round. Empty once it has moved or acted. */
+export function allyReach(s: FightState, k: number): Set<string> {
+  const a = s.allies[k];
+  if (!a || !allyAlive(a) || a.moved || a.acted) return new Set();
+  const living = s.foes.filter(isAlive);
+  const g: CombatGrid = {
+    ...s.grid, playerPosition: a.pos, bossPosition: living[0]?.pos ?? s.grid.bossPosition,
+    occupied: [...living.slice(1).map(f => f.pos), s.grid.playerPosition, ...s.allies.filter((o, n) => n !== k && allyAlive(o)).map(o => o.pos)],
+  };
+  return getReachableTiles(a.pos, g, a.move);
+}
+
+/** Move ally k (once a round, before it acts). Returns the state unchanged if it can't go there. */
+export function moveAlly(s: FightState, k: number, pos: TilePosition): FightState {
+  if (!allyReach(s, k).has(`${pos.row},${pos.col}`)) return s;
+  return setAlly(s, k, { pos, moved: true });
+}
+
+/** Can ally k use move m now (on the current target for attacks)? */
+export function canAllyUse(s: FightState, k: number, m: number): boolean {
+  const a = s.allies[k], move = a?.moves[m];
+  if (!a || !move || !allyAlive(a) || a.acted || (a.cooldowns[m] ?? 0) > 0) return false;
+  const foe = s.foes[s.target];
+  if (move.effect === 'attack') return !!foe && isAlive(foe) && canHitTarget(a.pos, foe.pos, move.attackPattern ?? 'melee', allyView(s, k));
+  if (move.effect === 'mark') return !!foe && isAlive(foe);
+  return true;
+}
+
+/** Ally k uses move m. Check canAllyUse first. */
+export function resolveAllyMove(s: FightState, k: number, m: number): Step {
+  const a = s.allies[k], move = a.moves[m];
+  const events: FightEvent[] = [];
+  let state = setAlly(s, k, { acted: true, cooldowns: a.cooldowns.map((c, n) => (n === m ? move.cooldown ?? 0 : c)) });
+  const i = s.target, foe = s.foes[i];
+  if (move.effect === 'attack') {
+    const dist = chebyshev(a.pos, foe.pos);
+    const dmg = calculateDamage(a.unit, foe.unit, move, foe.defenseBoost, 1, getFlankBonus(a.pos, foe.pos), dist, false, 0);
+    const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
+    const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
+    state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
+    state = { ...state, allyHitFoes: [...state.allyHitFoes, i] };
+    events.push({ kind: 'hit' });
+    events.push(say(`${a.unit.name} -- ${move.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural${dmg.isFlank ? ' [FLANK]' : ''}`, 'damage'));
+    if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
+    if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
+    state = afterFoeChanges(state, events);
+  } else if (move.effect === 'taunt') {
+    state = setAlly(state, k, { taunting: true, defenseBoost: move.defenseBoost ?? 0 });
+    events.push(say(`${a.unit.name} -- ${move.name.toUpperCase()}: every enemy turns on ${a.unit.name}`));
+  } else if (move.effect === 'heal') {
+    const heal = Math.round(s.player.maxHp * (move.amount ?? 0));
+    state = { ...state, player: { ...state.player, currentHp: Math.min(state.player.maxHp, state.player.currentHp + heal) } };
+    events.push(say(`${a.unit.name} -- ${move.name}: +${heal} HP`, 'heal'));
+  } else if (move.effect === 'mark') {
+    state = { ...state, mark: { foe: i, bonus: move.amount ?? 0 } };
+    events.push(say(`${a.unit.name} -- ${move.name}: ${foe.unit.name} is marked`));
+  } else if (move.effect === 'guard') {
+    state = { ...state, allyGuard: Math.max(state.allyGuard, move.defenseBoost ?? 0) };
+    events.push(say(`${a.unit.name} -- ${move.name}: you guard +${move.defenseBoost ?? 0}`));
+  }
+  return { state, events };
 }
 
 // ── Hazards ──────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ export const SAVE_VERSION = 1;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
-export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi'] as const;
+export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi', '2059-allies'] as const;
 
 export interface SaveFile {
   game: '2059';

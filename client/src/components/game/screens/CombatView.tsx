@@ -11,6 +11,8 @@ import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
 import { Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
 import { stimInfo } from '../itemText';
+import * as Fight from '@/lib/engine/fight';
+import type { AllyMove } from '@/lib/combat/allies';
 
 const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
 
@@ -159,8 +161,58 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   );
 }
 
+function allyMoveDetail(m: AllyMove): string {
+  switch (m.effect) {
+    case 'attack': return `Hit ${m.damage ?? 0}`;
+    case 'taunt': return `Draw fire · +${m.defenseBoost ?? 0} guard`;
+    case 'heal': return `Heal you ${Math.round((m.amount ?? 0) * 100)}%`;
+    case 'mark': return `Your hits +${Math.round((m.amount ?? 0) * 100)}%`;
+    case 'guard': return `You +${m.defenseBoost ?? 0} guard`;
+  }
+}
+
+/** Your allies: move them and use one of their fixed moves, any time in your turn. */
+function AllyStrip() {
+  const s = useCombat();
+  const { allies, allyMoveMode, toggleAllyMove, allyAct, phase, inputLocked, reflexMoveOpen } = s;
+  if (!allies.length) return null;
+  const myTurn = phase === 'player_turn' && !inputLocked && !reflexMoveOpen;
+  return (
+    <div className="mb-2 space-y-1.5">
+      {allies.map((a, k) => {
+        const down = a.unit.currentHp <= 0;
+        const color = a.unit.spriteColor;
+        const canMove = myTurn && !down && !a.moved && !a.acted;
+        return (
+          <div key={a.id} className={cx('flex items-center gap-1.5 rounded-2xl bg-white/[0.04] p-1.5', down && 'opacity-45')}>
+            <button onClick={() => toggleAllyMove(k)} disabled={!canMove} aria-pressed={allyMoveMode === k}
+              className={cx('w-[84px] shrink-0 rounded-xl px-2 py-1 text-left transition disabled:cursor-default', allyMoveMode === k ? 'bg-white/[0.12] ring-1' : canMove ? 'hover:bg-white/[0.08]' : '')}
+              style={allyMoveMode === k ? { boxShadow: `0 0 0 1px ${color}` } : undefined}>
+              <span className="block truncate font-display text-[12px] font-semibold" style={{ color }}>{a.unit.name}</span>
+              <span className="block text-[10px] text-hud-faint">{down ? 'Knocked out' : allyMoveMode === k ? 'Tap a tile' : canMove ? 'Tap to move' : a.acted ? 'Done' : 'Moved'}</span>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
+            </button>
+            {a.moves.map((m, n) => {
+              const cd = a.cooldowns[n] ?? 0;
+              const usable = myTurn && Fight.canAllyUse(useCombat.getState(), k, n);
+              const reason = down ? '' : a.acted ? 'Done this round' : cd > 0 ? `Ready in ${cd}` : m.effect === 'attack' && !usable ? 'Out of range' : allyMoveDetail(m);
+              return (
+                <button key={m.name} onClick={() => allyAct(k, n)} disabled={!myTurn || down || a.acted || cd > 0}
+                  className={cx('min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left transition disabled:opacity-50', usable ? 'bg-white/[0.07] hover:bg-white/[0.12]' : 'bg-white/[0.03]')}>
+                  <span className="block truncate text-[12px] font-semibold text-hud-text">{m.name}</span>
+                  <span className={cx('block truncate text-[10px]', usable ? 'text-hud-dim' : 'text-hud-faint')}>{reason}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ActionBar() {
-  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player } = useCombat();
+  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player, allies } = useCombat();
   const { items } = useInventory();
   const { slots } = useLoadout();
   const [bag, setBag] = useState(false);
@@ -170,6 +222,7 @@ function ActionBar() {
 
   return (
     <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+      <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="flex min-h-[76px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
@@ -194,7 +247,7 @@ function ActionBar() {
         {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
       </Btn>
       {myTurn && !selectedAction && (
-        <p className="mt-2 text-center text-[11px] text-hud-faint">Tap a lit tile to move, pick an action, then execute.</p>
+        <p className="mt-2 text-center text-[11px] text-hud-faint">{allies.length ? 'Move and act with your ally first, then pick your action and execute.' : 'Tap a lit tile to move, pick an action, then execute.'}</p>
       )}
 
       <Sheet open={bag} title="Stims" onClose={() => setBag(false)}>

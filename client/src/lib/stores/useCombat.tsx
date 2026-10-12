@@ -13,7 +13,8 @@ import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
-import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions } from '../combat/grid';
+import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
+import { useAllies, partyForFight } from './useAllies';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -39,6 +40,9 @@ gold: number;
 xp: number;
 levelsGained: number;
 pointsGained: number;
+/** Allies this win unlocked, and party members that went up a level. */
+alliesUnlocked: string[];
+allyLevelUps: string[];
 }
 
 interface CombatState extends FightState {
@@ -107,6 +111,11 @@ holdfastSpent: boolean;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
 lootChoices: { options: [Item, Item]; picked: number | null }[];
 chooseLoot: (choice: number, option: number) => void;
+/** Which ally the next grid tap moves (null: taps move the player). */
+allyMoveMode: number | null;
+toggleAllyMove: (ally: number) => void;
+moveAlly: (pos: TilePosition) => void;
+allyAct: (ally: number, move: number) => void;
 resetCombat: () => void;
 resetAll: () => void;
 rebirth: (newClass?: PlayerClass) => void;
@@ -210,6 +219,7 @@ playerMalfunctioning: s.playerMalfunctioning,
 overclockActive: s.overclockActive, kizunaJustFired: s.kizunaJustFired,
 doubleActionReady: s.doubleActionReady,
 perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepReady, holdfastReady: s.holdfastReady,
+allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 };
 };
 
@@ -219,7 +229,7 @@ const save = (state: FightState) => {
 const target = state.foes[state.target] ?? state.foes[0];
 set({
 ...state,
-grid: target ? { ...state.grid, bossPosition: target.pos, occupied: state.foes.filter(f => f !== target && Fight.isAlive(f)).map(f => f.pos) } : state.grid,
+grid: target ? { ...state.grid, bossPosition: target.pos, occupied: [...state.foes.filter(f => f !== target && Fight.isAlive(f)).map(f => f.pos), ...state.allies.filter(Fight.allyAlive).map(a => a.pos)] } : state.grid,
 ...(target ? { boss: target.unit } : {}),
 });
 };
@@ -242,7 +252,7 @@ const beginPlayerTurn = () => {
 const { grid } = get();
 save(Fight.startPlayerTurn(fightState()));
 set({
-phase: 'player_turn', inputLocked: false, hasMoved: false,
+phase: 'player_turn', inputLocked: false, hasMoved: false, allyMoveMode: null,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
 });
@@ -252,7 +262,7 @@ const handlePlayerDefeated = () => {
 const { bossLevel, playerClass, classesUnlocked, runSeed, progression } = get();
 // The signal learns something from every lost host: deal two cards to choose from
 seedRandom(mixSeed(runSeed, 0x5eed, progression.deathCount));
-usePlayi.getState().makeOffer(false);
+usePlayi.getState().makeOffer(useAllies.getState().unlocked().length > 0);
 const unlockNow = !classesUnlocked && playerClass === 'none' && bossLevel >= CLASS_UNLOCK_LEVEL;
 set({
 phase: 'defeat', inputLocked: true, fightId: get().fightId + 1,
@@ -282,6 +292,12 @@ useInventory.getState().addItems(direct);
 set({ lootChoices: choices });
 useInventory.getState().addGold(loot.gold);
 const xp = getXpFromBoss(level);
+// Allies: the party learns from every win; a new best level can unlock someone new
+const allies = useAllies.getState();
+const allyLevelUps = allies.gainXp(Math.round(get().perks.allyXpMult));
+const alliesUnlocked = farmLevel === null ? allies.recordClear(level) : [];
+const slots = get().perks.allySlots;
+if (alliesUnlocked.length && allies.party.length < slots) allies.setParty([...allies.party, ...alliesUnlocked], slots);
 if (isKing) log('PATCHWORK KING: ...well fought. Contract noted.');
 set({
 phase: 'victory', inputLocked: true, fightId: get().fightId + 1,
@@ -293,7 +309,7 @@ const { levelsGained } = get().gainXp(xp);
 // A point for every new threat cleared, on top of the level-up points
 const winPoint = farmLevel === null ? 1 : 0;
 if (winPoint) useAugmentTrees.getState().addPoints(winPoint);
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, alliesUnlocked, allyLevelUps } });
 useAudio.getState().playSuccess();
 };
 
@@ -361,11 +377,14 @@ const units = planFoes(level, !farm && get().progression.deathCount === 0, farm)
 const grid = generateBattlefield(level);
 const spots = spawnFoePositions(grid, units.length);
 const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
+const party = partyForFight(perks);
+const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
+const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0 }));
 set({
 ...freshFightState(grid),
 playerHeat: perks.startHeat,
 perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast && !get().holdfastSpent,
-reflexMoveOpen: false,
+reflexMoveOpen: false, allyMoveMode: null,
 phase: 'player_turn', player, grid,
 playerMoveRange: moveRange,
 farmLevel: farm ? level : null,
@@ -374,7 +393,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, target: 0 });
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, target: 0 });
 };
 
 return {
@@ -385,6 +404,7 @@ foes: [],
 target: 0,
 ...Fight.BASE_FIGHT_FLAGS,
 reflexMoveOpen: false,
+allyMoveMode: null,
 holdfastSpent: false,
 lootChoices: [],
 combatLog: [],
@@ -520,6 +540,36 @@ finishPlayerAction(true);
 
 enemyTurn: () => runFoeTurn(0),
 
+toggleAllyMove: (ally) => {
+const { phase, inputLocked, reflexMoveOpen, allies, allyMoveMode } = get();
+if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
+if (allyMoveMode === ally || !allies[ally]) { set({ allyMoveMode: null }); return; }
+set({ allyMoveMode: Fight.allyReach(fightState(), ally).size ? ally : null });
+},
+
+moveAlly: (pos) => {
+const { phase, inputLocked, allyMoveMode, originalPosition } = get();
+if (phase !== 'player_turn' || inputLocked || allyMoveMode === null) return;
+// Keep the player's starting tile free so an undo always has somewhere to go
+if (originalPosition && pos.row === originalPosition.row && pos.col === originalPosition.col) return;
+const cur = fightState();
+const next = Fight.moveAlly(cur, allyMoveMode, pos);
+if (next !== cur) save(next);
+set({ allyMoveMode: null });
+},
+
+allyAct: (ally, move) => {
+const { phase, inputLocked, reflexMoveOpen } = get();
+if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
+if (!Fight.canAllyUse(fightState(), ally, move)) {
+const m = get().allies[ally]?.moves[move];
+if (m?.effect === 'attack') log(`${get().allies[ally].unit.name}: out of range. Move closer.`);
+return;
+}
+set({ allyMoveMode: null });
+apply(Fight.resolveAllyMove(fightState(), ally, move));
+},
+
 setTarget: (index) => {
 const { phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
@@ -590,6 +640,7 @@ giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
 
 resetAll: () => {
 usePlayi.getState().reset();
+useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
 useAugmentTrees.getState().resetTrees();

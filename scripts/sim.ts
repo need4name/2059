@@ -9,6 +9,8 @@ import { useInventory as I } from '../client/src/lib/stores/useInventory';
 import { useAugmentTrees as T } from '../client/src/lib/stores/useAugmentTrees';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
+import { useAllies as AL } from '../client/src/lib/stores/useAllies';
+import * as F from '../client/src/lib/engine/fight';
 import * as P from '../client/src/lib/combat/patterns';
 import * as G from '../client/src/lib/combat/grid';
 import * as A from '../client/src/lib/combat/actions';
@@ -43,8 +45,33 @@ function betweenFights() {
   L.getState().setSlots([pool[0], pool[1], extra[0] ?? null, extra[1] ?? null]);
 }
 
+// ── Allies act first: heal a hurt player, else get in range and hit, else support
+function allyTurn() {
+  C.getState().allies.forEach((a, k) => {
+    if (a.unit.currentHp <= 0) return;
+    const st = C.getState();
+    const find = (e: string) => a.moves.findIndex((m, n) => m.effect === e && F.canAllyUse(st, k, n));
+    const heal = find('heal');
+    if (heal >= 0 && st.player.currentHp < st.player.maxHp * 0.5) { st.allyAct(k, heal); return; }
+    const atk = a.moves.findIndex(m => m.effect === 'attack');
+    const tgt = st.foes[st.target];
+    if (tgt && !F.canAllyUse(st, k, atk)) {
+      const tiles = Array.from(F.allyReach(st, k)).map(key => { const [row, col] = key.split(',').map(Number); return { row, col }; })
+        .filter(p => !(st.originalPosition && p.row === st.originalPosition.row && p.col === st.originalPosition.col));
+      const at = (pos: any) => ({ ...st, allies: st.allies.map((o, n) => (n === k ? { ...o, pos } : o)) });
+      const best = tiles.find(p => F.canAllyUse(at(p), k, atk)) ?? tiles.sort((x, y) => G.chebyshev(x, tgt.pos) - G.chebyshev(y, tgt.pos))[0];
+      if (best && G.chebyshev(best, tgt.pos) < G.chebyshev(a.pos, tgt.pos) + (F.canAllyUse(at(best), k, atk) ? 1 : 0)) { st.toggleAllyMove(k); C.getState().moveAlly(best); }
+    }
+    const now = C.getState();
+    const support = ['mark', 'guard', 'taunt'].map(e => a.moves.findIndex((m, n) => m.effect === e && F.canAllyUse(now, k, n))).find(n => n >= 0);
+    if (support !== undefined && (a.moves[support].effect !== 'taunt' || now.player.currentHp < now.player.maxHp * 0.6)) { now.allyAct(k, support); return; }
+    for (let n = 0; n < a.moves.length; n++) if (a.moves[n].effect === 'attack' && F.canAllyUse(now, k, n)) { now.allyAct(k, n); return; }
+  });
+}
+
 // ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
 function playerTurn(skill: number) {
+  allyTurn();
   const s = C.getState(); const slots = L.getState().slots.filter(Boolean) as any[];
   const stims = I.getState().items.filter((i: any) => i.type === 'consumable');
   if (s.player.currentHp < s.player.maxHp * 0.35) { const bio = stims.find((i: any) => i.consumableEffect === 'bio_stim'); if (bio) { s.useConsumableItem(bio.id); return; } }
@@ -73,7 +100,9 @@ function playerTurn(skill: number) {
   C.getState().endTurn();
 }
 
-interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number }
+const ALLY_ORDER = (id: string) => ['bale', 'matron', 'ghostline', 'ward', 'breaker'].indexOf(id);
+
+interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number }
 
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   botState = seed * 7919 + 1;
@@ -82,19 +111,22 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   while (out.length < maxFights) {
     betweenFights();
     const lvl = C.getState().bossLevel; const deathsBefore = C.getState().progression.deathCount;
-    C.getState().startCombat(); let turns = 0, lowest = 1;
+    C.getState().startCombat(); let turns = 0, lowest = 1; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { playerTurn(skill); turns++; }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);
       if (turns > 80) { C.getState().resetCombat(); break; }
     }
     const won = C.getState().phase === 'victory';
-    out.push({ lvl, won, turns, lowest, deathsBefore });
+    out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount });
     if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
       // The bot picks one of the two cards the tree offers
       const offer = Y.getState().offer;
       if (offer) Y.getState().pick(offer[botRandom() < 0.5 ? 0 : 1]);
+      // Link with the highest-level allies the tree allows
+      const open = AL.getState().unlocked().sort((x, y) => AL.getState().progress(y).level - AL.getState().progress(x).level || ALLY_ORDER(y) - ALLY_ORDER(x));
+      AL.getState().setParty(open, Y.getState().perks().allySlots);
       // A new host keeps the same run seed sequence, so reseed per host for variety
       C.getState().rebirth(C.getState().classesUnlocked ? (botRandom() < 0.5 ? 'melee' : 'ranged') : undefined);
       C.getState().setRunSeed(seed * 31 + C.getState().progression.deathCount);
@@ -125,6 +157,7 @@ const turnsOf = (k: string) => { const f = all.filter(x => kind(x.lvl) === k && 
 console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('elite')}, boss ${turnsOf('boss')}`);
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
+console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
 
 // Agreed ranges (see the development plan). Bands with few fights are skipped.
 const checks: [string, boolean][] = [];

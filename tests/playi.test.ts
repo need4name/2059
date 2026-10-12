@@ -60,7 +60,7 @@ function fight(owned: string[], over: Partial<FightState> = {}): FightState {
   return {
     player: createPlayer(), foes: [Fight.newFoe(createBoss(3), grid.bossPosition, 40)], target: 0, grid,
     playerHeat: 30, playerDefenseBoost: 0, playerMalfunctioning: false, overclockActive: false, kizunaJustFired: false, doubleActionReady: false,
-    perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast, ...over,
+    ...Fight.BASE_FIGHT_FLAGS, perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast, ...over,
   };
 }
 const blow = (damage: number): CombatAction => ({ type: 'attack', name: 'Blow', description: '', damage, physicalRatio: 1, accuracy: 'precise', attackPattern: 'melee' });

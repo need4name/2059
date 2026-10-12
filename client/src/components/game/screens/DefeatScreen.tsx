@@ -4,7 +4,9 @@ import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { playiNode, FALLBACK_ID, FALLBACK_NODE, PLAYI_BRANCHES, PLAYI_NODES } from '@/lib/engine/playi';
+import { playiNode, FALLBACK_ID, FALLBACK_NODE, PLAYI_BRANCHES, PLAYI_NODES, perksFor } from '@/lib/engine/playi';
+import { useAllies } from '@/lib/stores/useAllies';
+import { allyDef } from '@/lib/combat/allies';
 
 const BRANCH_ICON: Record<string, string> = { move: '👣', heat: '🌡️', combat: '⚔️', graft: '🦾', signal: '📡', network: '🔗' };
 
@@ -20,8 +22,19 @@ export function DefeatScreen() {
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
   const canReboot = (!classesUnlocked || choice !== null) && (!offer || learned !== null);
+  // Allies: who links with the next host (Second link allows two)
+  const allies = useAllies();
+  const unlocked = allies.unlocked();
+  const slots = perksFor(learned ? [...owned, learned] : owned).allySlots;
+  const [team, setTeam] = useState<string[]>(() => {
+    const kept = allies.party.filter(id => unlocked.includes(id));
+    if (kept.length || !unlocked.length) return kept;
+    return [unlocked.slice().sort((a, b) => allies.progress(b).level - allies.progress(a).level)[0]];
+  });
+  const toggleAlly = (id: string) => setTeam(t => t.includes(id) ? t.filter(x => x !== id) : [...(t.length >= slots ? t.slice(1) : t), id]);
   const jump = () => {
     if (offer && learned) pick(learned);
+    allies.setParty(team.slice(0, slots), slots);
     rebirth(choice ?? undefined);
   };
 
@@ -70,6 +83,38 @@ export function DefeatScreen() {
                       </span>
                       <span className="block text-sm text-hud-text">{node.effect}</span>
                       {branch && id !== FALLBACK_ID && <span className="block text-xs text-hud-faint">{branch.name}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {unlocked.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="flex items-baseline justify-between">
+              <Label>Link with an ally</Label>
+              <span className="text-xs text-hud-faint">{slots === 1 ? 'One per host' : `Up to ${slots}`}</span>
+            </div>
+            <p className="text-sm text-hud-dim">They fight beside this host until it falls. They keep the levels they earn.</p>
+            <div className="grid grid-cols-1 gap-2">
+              {unlocked.map(id => {
+                const def = allyDef(id)!;
+                const { level } = allies.progress(id);
+                const selected = team.includes(id);
+                return (
+                  <button key={id} onClick={() => toggleAlly(id)} aria-pressed={selected}
+                    className={cx('flex w-full items-start gap-3.5 rounded-3xl p-4 text-left transition', selected ? 'bg-white/[0.08] ring-2' : 'bg-hud-panel/80 ring-1 ring-white/[0.05] hover:bg-white/[0.06]')}
+                    style={selected ? { boxShadow: `0 0 0 2px ${def.color}` } : undefined}>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-display text-lg font-bold" style={{ background: `${def.color}22`, color: def.color }}>{def.name[0]}</span>
+                    <span className="min-w-0 flex-1 space-y-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-[16px] font-semibold text-white">{def.name}</span>
+                        <span className="text-xs text-hud-faint">{def.role} · {def.maker} · level {level}</span>
+                      </span>
+                      <span className="block text-sm text-hud-dim">{def.blurb}</span>
+                      <span className="block text-xs text-hud-text">{def.moves.map(m => m.name).join(' · ')}</span>
                     </span>
                   </button>
                 );

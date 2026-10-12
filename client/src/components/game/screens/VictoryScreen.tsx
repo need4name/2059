@@ -2,11 +2,14 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { implantStats, stimInfo, passiveText } from '../itemText';
+import { allyDef } from '@/lib/combat/allies';
+import { useAllies } from '@/lib/stores/useAllies';
 
 export function VictoryScreen() {
   const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, lootChoices, chooseLoot } = useCombat();
   const inChoice = new Set(lootChoices.map(c => c.options[0].id));
   const items = (currentLoot?.items ?? []).filter(i => !inChoice.has(i.id));
+  const { party, progress } = useAllies();
 
   return (
     <Screen footer={
@@ -43,6 +46,27 @@ export function VictoryScreen() {
             Spend your points in Upgrades.
           </div>
         )}
+
+        {lastVictory?.alliesUnlocked?.map(id => {
+          const def = allyDef(id);
+          if (!def) return null;
+          const joined = party.includes(id);
+          return (
+            <div key={id} className="rise-in space-y-1 rounded-3xl p-4" style={{ background: `${def.color}14`, boxShadow: `inset 0 0 0 1px ${def.color}55` }}>
+              <div className="text-sm font-semibold" style={{ color: def.color }}>New ally: {def.name}</div>
+              <p className="text-sm text-hud-dim">{def.blurb}</p>
+              <p className="text-xs text-hud-faint">{joined ? `${def.name} joins this host now.` : `Link with ${def.name} when your next host starts.`} {def.role}: {def.moves.map(m => m.name).join(' · ')}.</p>
+            </div>
+          );
+        })}
+        {lastVictory?.allyLevelUps?.map(id => {
+          const def = allyDef(id);
+          return def ? (
+            <div key={`up-${id}`} className="rounded-2xl bg-white/[0.05] px-4 py-3 text-center text-sm font-semibold" style={{ color: def.color }}>
+              {def.name} reached level {progress(id).level}
+            </div>
+          ) : null;
+        })}
 
         {lootChoices.length > 0 && (
           <div className="space-y-2.5">
