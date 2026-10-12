@@ -377,8 +377,14 @@ return { name: t.name, color: t.color, hp: Math.round(baseHp * mult) };
 export const BOSS_STAT_PROFILES: Record<string, EnemyData['statSplit']> =
 Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.statSplit]));
 
-export function createBoss(level: number = 1, firstRun = false): Character {
-const bossType = enemyTypeForLevel(level, firstRun);
+/** Regular enemies a group at this level can be drawn from: this level's type and the two before it. */
+export function enemyNamesNear(level: number): string[] {
+const idx = BOSS_TYPES.findIndex(t => t.name === enemyTypeForLevel(level).name);
+return [0, 1, 2].map(k => BOSS_TYPES.at((idx - k + BOSS_TYPES.length) % BOSS_TYPES.length)!.name);
+}
+
+export function createBoss(level: number = 1, firstRun = false, typeName?: string): Character {
+const bossType = typeName && ENEMY_DATA.enemies[typeName] ? enemyType(typeName) : enemyTypeForLevel(level, firstRun);
 const S = BOSS_SCALING;
 const bossHp      = Math.floor(S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic);
 // Scaling: 1.1/lvl for ATK, 0.5/lvl for DEF keeps early fights fair.

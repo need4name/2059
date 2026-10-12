@@ -42,21 +42,31 @@ function betweenFights() {
   L.getState().setSlots([pool[0], pool[1], extra[0] ?? null, extra[1] ?? null]);
 }
 
-// ── One player turn: dodge telegraphs (most of the time), get in range, hit
+// ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
 function playerTurn(skill: number) {
-  const s = C.getState(); const g = s.grid; const slots = L.getState().slots.filter(Boolean) as any[];
+  const s = C.getState(); const slots = L.getState().slots.filter(Boolean) as any[];
   const stims = I.getState().items.filter((i: any) => i.type === 'consumable');
   if (s.player.currentHp < s.player.maxHp * 0.35) { const bio = stims.find((i: any) => i.consumableEffect === 'bio_stim'); if (bio) { s.useConsumableItem(bio.id); return; } }
-  const canHit = (pos: any, a: any) => a.ignoreRange || P.canHitTarget(pos, g.bossPosition, a.attackPattern || 'melee_long', { ...g, playerPosition: pos });
+  const living = s.foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
   const atks = slots.filter(a => a.type !== 'brace' && a.damage).sort((a, b) => (b.damage || 0) - (a.damage || 0));
+  const g = s.grid;
+  const viewAt = (pos: any, i: number) => ({ ...g, playerPosition: pos, bossPosition: s.foes[i].pos, occupied: living.filter(x => x.i !== i).map(x => x.f.pos) });
+  const canHit = (pos: any, a: any, i: number) => a.ignoreRange || P.canHitTarget(pos, s.foes[i].pos, a.attackPattern || 'melee_long', viewAt(pos, i));
   const danger = new Set<string>();
-  if (s.pendingBossAction && botRandom() < skill) for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) if (P.canHitTarget(g.bossPosition, { row: r, col: c }, s.pendingBossAction.attackPattern || 'melee_long', g)) danger.add(`${r},${c}`);
+  for (const { f, i } of living) if (f.pendingAction && botRandom() < skill) {
+    for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) if (P.canHitTarget(f.pos, { row: r, col: c }, f.pendingAction.attackPattern || 'melee_long', viewAt({ row: r, col: c }, i))) danger.add(`${r},${c}`);
+  }
+  const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   const opts = [g.playerPosition, ...Array.from(G.getReachableTiles(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
-  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (atks.some(a => canHit(pos, a))) v += 50; v -= G.chebyshev(pos, g.bossPosition); return v; };
+  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (living.some(x => atks.some(a => canHit(pos, a, x.i)))) v += 50; v -= nearest(pos); return v; };
   const best = opts.sort((a, b) => score(b) - score(a))[0];
   if (s.playerHeat < 100 && (best.row !== g.playerPosition.row || best.col !== g.playerPosition.col)) s.moveTentatively(best);
   const pos = C.getState().grid.playerPosition; const brace = slots.find(a => a.type === 'brace');
-  let act = atks.find(a => canHit(pos, a));
+  // Aim at the weakest foe this position can hit, else the nearest
+  const hittable = living.filter(x => atks.some(a => canHit(pos, a, x.i))).sort((a, b) => a.f.unit.currentHp - b.f.unit.currentHp);
+  const aim = hittable[0] ?? living.sort((a, b) => G.chebyshev(pos, a.f.pos) - G.chebyshev(pos, b.f.pos))[0];
+  if (aim) C.getState().setTarget(aim.i);
+  let act = aim ? atks.find(a => canHit(pos, a, aim.i)) : undefined;
   if ((s.playerMalfunctioning || s.playerHeat >= 85) && brace && botRandom() < skill) act = brace;
   if (act) C.getState().setSelectedAction(act);
   C.getState().endTurn();

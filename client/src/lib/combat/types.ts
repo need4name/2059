@@ -166,6 +166,8 @@ cols: number;
 arenaShape?: 'open' | 'corridor' | 'l_shape' | 'cross';
 playerPosition: TilePosition;
 bossPosition: TilePosition;
+/** Other units standing on the field (blocks movement and paths). */
+occupied?: TilePosition[];
 tiles: TileData[][];
 }
 

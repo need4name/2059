@@ -7,17 +7,17 @@ PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
 } from '../combat/types';
 import {
 createPlayer, createBoss, createPatchworkKing,
-getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE,
+getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
-import { generateBattlefield, emptyGrid, getReachableTiles } from '../combat/grid';
+import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions } from '../combat/grid';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
-import { seedRandom, mixSeed, newRunSeed } from '../engine/rng';
+import { random, seedRandom, mixSeed, newRunSeed } from '../engine/rng';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -27,6 +27,7 @@ export const CLASS_UNLOCK_LEVEL = 11;
 const ENEMY_TURN_DELAY = 700;
 const ENEMY_STEP_DELAY = 550;
 const TURN_HANDOFF_DELAY = 600;
+const FOE_GAP_DELAY = 450;
 
 export interface VictorySummary {
 gold: number;
@@ -38,10 +39,10 @@ pointsGained: number;
 interface CombatState extends FightState {
 phase: CombatPhase;
 player: Character;
+/** The enemy screens name (the one you're aiming at, or the last one standing). */
 boss: Character;
 combatLog: CombatLog[];
 playerDefenseBoost: number;
-bossDefenseBoost: number;
 currentLoot: LootDrop | null;
 lastVictory: VictorySummary | null;
 pendingShop: boolean;
@@ -72,21 +73,14 @@ inputLocked: boolean;
 
 // Heat system
 playerHeat: number;
-bossHeat: number;
 doubleActionReady: boolean;
-bossChargingHeavy: boolean;
-pendingBossAction: CombatAction | null;
 
 // Structural / malfunction
 playerMalfunctioning: boolean;
-bossMalfunctioning: boolean;
 
 // Consumable effects
 overclockActive: boolean;
 kizunaJustFired: boolean;
-
-// Patchwork King scripted fight
-patchworkKingTurn: number;
 
 setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
@@ -99,7 +93,8 @@ setSelectedAction: (action: CombatAction | null) => void;
 endTurn: () => void;
 useConsumableItem: (itemId: string) => void;
 enemyTurn: () => void;
-executeEnemyAttack: (action: CombatAction) => void;
+/** Aim at a different enemy. */
+setTarget: (index: number) => void;
 resetCombat: () => void;
 resetAll: () => void;
 rebirth: (newClass?: PlayerClass) => void;
@@ -136,16 +131,38 @@ return { player, moveRange: Fight.PLAYER_BASE_MOVE + (treeBonus.moveRange ?? 0) 
 function freshFightState(grid: CombatGrid) {
 return {
 combatLog: [] as CombatLog[],
-playerDefenseBoost: 0, bossDefenseBoost: 0,
+playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false,
 introCompleted: true,
 selectedMovement: null, selectedAction: null, hasMoved: false,
 originalPosition: { ...grid.playerPosition },
 inputLocked: false,
-playerHeat: 20, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
-playerMalfunctioning: false, bossMalfunctioning: false,
-overclockActive: false, kizunaJustFired: false, patchworkKingTurn: 0,
+playerHeat: 20, doubleActionReady: false,
+playerMalfunctioning: false,
+overclockActive: false, kizunaJustFired: false,
 };
+}
+
+// How many enemies a level throws at you, and how much each is scaled down.
+// Random for now (seeded); the story will set these later.
+const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
+
+function planFoes(level: number, firstRun: boolean, farm: boolean): Character[] {
+if (!farm && level === 10) return [createPatchworkKing()];
+const lead = createBoss(level, firstRun && !farm);
+// Set pieces fight alone: the first fight, elites and bosses, the first-life Enforcer
+if (level === 1 || level % 5 === 0 || lead.name === 'Cartel Enforcer') return [lead];
+const r = random();
+const count = r < 0.5 ? 1 : r < 0.85 ? 2 : 3;
+if (count === 1) return [lead];
+const names = enemyNamesNear(level);
+const scale = GROUP_SCALE[count];
+const group = [lead, ...Array.from({ length: count - 1 }, () => createBoss(level, false, names[Math.floor(random() * names.length)]))];
+return group.map((u, k) => {
+const hp = Math.max(10, Math.round(u.maxHp * scale.hp));
+return { ...u, id: `foe_${k}`, maxHp: hp, currentHp: hp,
+physicalAttack: Math.round(u.physicalAttack * scale.atk), structuralAttack: Math.round(u.structuralAttack * scale.atk) };
+});
 }
 
 const initialProgression = (): PlayerProgression => ({
@@ -173,33 +190,42 @@ const log = (message: string, type: CombatLog['type'] = 'info') => get().addLog(
 const fightState = (): FightState => {
 const s = get();
 return {
-player: s.player, boss: s.boss, grid: s.grid,
-playerHeat: s.playerHeat, bossHeat: s.bossHeat,
-playerDefenseBoost: s.playerDefenseBoost, bossDefenseBoost: s.bossDefenseBoost,
-playerMalfunctioning: s.playerMalfunctioning, bossMalfunctioning: s.bossMalfunctioning,
+player: s.player, foes: s.foes, target: s.target, grid: s.grid,
+playerHeat: s.playerHeat, playerDefenseBoost: s.playerDefenseBoost,
+playerMalfunctioning: s.playerMalfunctioning,
 overclockActive: s.overclockActive, kizunaJustFired: s.kizunaJustFired,
-bossChargingHeavy: s.bossChargingHeavy, pendingBossAction: s.pendingBossAction,
-patchworkKingTurn: s.patchworkKingTurn, doubleActionReady: s.doubleActionReady,
+doubleActionReady: s.doubleActionReady,
 };
 };
 
+// Save an engine state, keeping the grid's enemy position on the current target
+// (older screen code still reads it) and the headline enemy up to date.
+const save = (state: FightState) => {
+const target = state.foes[state.target] ?? state.foes[0];
+set({
+...state,
+grid: target ? { ...state.grid, bossPosition: target.pos, occupied: state.foes.filter(f => f !== target && Fight.isAlive(f)).map(f => f.pos) } : state.grid,
+...(target ? { boss: target.unit } : {}),
+});
+};
+
 // Apply an engine step: save its state, write its log lines, play its sounds.
-// Returns true if someone went down (and handles the fight ending).
+// Returns true if the fight ended (and handles the ending).
 const apply = (step: Step): boolean => {
-set(step.state);
+save(step.state);
 for (const e of step.events) {
 if (e.kind === 'log') log(e.message, e.type);
 else if (e.kind === 'hit') useAudio.getState().playHit();
 }
 if (step.events.some(e => e.kind === 'playerDown')) { handlePlayerDefeated(); return true; }
-if (step.events.some(e => e.kind === 'bossDown')) { handleBossDefeated(); return true; }
+if (step.events.some(e => e.kind === 'allFoesDown')) { handleBossDefeated(); return true; }
 return false;
 };
 
 const beginPlayerTurn = () => {
 const { grid } = get();
+save(Fight.startPlayerTurn(fightState()));
 set({
-...Fight.startPlayerTurn(fightState()),
 phase: 'player_turn', inputLocked: false, hasMoved: false,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
@@ -231,7 +257,6 @@ phase: 'victory', inputLocked: true, fightId: get().fightId + 1,
 currentLoot: loot,
 pendingShop: false,
 bossLevel: farmLevel !== null ? bossLevel : level + 1,
-patchworkKingTurn: 0, bossChargingHeavy: false, pendingBossAction: null,
 });
 const { levelsGained } = get().gainXp(xp);
 // A point for every new threat cleared, on top of the level-up points
@@ -241,12 +266,12 @@ set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGain
 useAudio.getState().playSuccess();
 };
 
-const applyHazard = (who: 'player' | 'boss'): boolean => apply(Fight.applyHazard(fightState(), who));
+
 
 // After the player's action resolves: hazard tick, then either a bonus
 // action (double action) or the enemy's turn.
 const finishPlayerAction = (allowDouble: boolean) => {
-if (applyHazard('player')) return;
+if (apply(Fight.applyPlayerHazard(fightState()))) return;
 if (allowDouble && get().doubleActionReady) {
 log('DOUBLE ACTION -- cold efficiency!');
 set({ doubleActionReady: false });
@@ -260,11 +285,22 @@ set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleA
 later(() => get().enemyTurn(), ENEMY_TURN_DELAY);
 };
 
-const finishEnemyTurn = (delay = TURN_HANDOFF_DELAY) => {
-later(() => {
-if (applyHazard('boss')) return;
-beginPlayerTurn();
-}, delay);
+// Each living enemy takes its turn in order, then the player's turn begins.
+const runFoeTurn = (i: number) => {
+const s = get();
+if (i >= s.foes.length) { beginPlayerTurn(); return; }
+if (!Fight.isAlive(s.foes[i])) { runFoeTurn(i + 1); return; }
+const level = s.farmLevel ?? s.bossLevel;
+const step = Fight.foeTurn(fightState(), i, level);
+if (apply(step)) return;
+const done = () => {
+if (apply(Fight.applyFoeHazard(fightState(), i))) return;
+later(() => runFoeTurn(i + 1), i + 1 < get().foes.length ? FOE_GAP_DELAY : TURN_HANDOFF_DELAY);
+};
+if (step.strikeAfterMove) {
+const strike = step.strikeAfterMove;
+later(() => { if (apply(Fight.foeStrikeAfterMove(fightState(), i, strike, level))) return; done(); }, ENEMY_STEP_DELAY);
+} else done();
 };
 
 const startFight = (level: number, farm: boolean) => {
@@ -274,29 +310,31 @@ seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange } = buildPlayer(playerClass);
 const isKing = !farm && level === 10;
-const base = createBoss(level, !farm && get().progression.deathCount === 0);
-const boss = isKing ? createPatchworkKing() : base;
+const units = planFoes(level, !farm && get().progression.deathCount === 0, farm);
 const grid = generateBattlefield(level);
+const spots = spawnFoePositions(grid, units.length);
+const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
 set({
 ...freshFightState(grid),
-phase: 'player_turn', player, boss, grid,
+phase: 'player_turn', player, grid,
 playerMoveRange: moveRange,
 farmLevel: farm ? level : null,
-bossHeat: getBossStartingHeat(base.name),
 fightId: get().fightId + 1,
 combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
-: [],
+: foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
+save({ ...fightState(), foes, target: 0 });
 };
 
 return {
 phase: 'menu',
 player: createPlayer(),
 boss: createBoss(1),
+foes: [],
+target: 0,
 combatLog: [],
 playerDefenseBoost: 0,
-bossDefenseBoost: 0,
 currentLoot: null,
 lastVictory: null,
 pendingShop: false,
@@ -317,15 +355,10 @@ playerMoveRange: 1,
 fightId: 0,
 inputLocked: false,
 playerHeat: 20,
-bossHeat: 50,
 doubleActionReady: false,
-bossChargingHeavy: false,
-pendingBossAction: null,
 playerMalfunctioning: false,
-bossMalfunctioning: false,
 overclockActive: false,
 kizunaJustFired: false,
-patchworkKingTurn: 0,
 progression: initialProgression(),
 grid: emptyGrid(),
 
@@ -411,58 +444,21 @@ log('Out of range! Move closer.');
 return;
 }
 set({ inputLocked: true, selectedAction: null });
-if (apply(Fight.resolvePlayerAttack(fightState(), action))) return;
+if (apply(Fight.resolvePlayerAttack(fightState(), action, playerClass))) return;
 finishPlayerAction(true);
 },
 
-enemyTurn: () => {
-// A wound-up heavy fires now; it lands only if you're still in its shape
-if (get().pendingBossAction) {
-const step = Fight.releaseHeavy(fightState());
-apply(step);
-if (step.connects && step.action) get().executeEnemyAttack(step.action);
-else finishEnemyTurn();
-return;
-}
+enemyTurn: () => runFoeTurn(0),
 
-const choice = Fight.chooseBossAction(fightState());
-apply(choice);
-const action = choice.action;
-
-if (action.type === 'defend') {
-get().executeEnemyAttack(action);
-return;
-}
-if (action.isHeavy) {
-apply(Fight.telegraphHeavy(fightState(), action));
-finishEnemyTurn();
-return;
-}
-if (Fight.canBossHit(fightState(), action.attackPattern)) {
-get().executeEnemyAttack(action);
-return;
-}
-const walk = Fight.moveBossToward(fightState(), action.attackPattern);
-apply(walk);
-if (walk.moved) {
-later(() => {
-if (Fight.canBossHit(fightState(), action.attackPattern)) get().executeEnemyAttack(action);
-else finishEnemyTurn(0);
-}, ENEMY_STEP_DELAY);
-} else {
-finishEnemyTurn();
-}
-},
-
-executeEnemyAttack: (bossAction) => {
-const level = get().farmLevel ?? get().bossLevel;
-if (apply(Fight.resolveBossAction(fightState(), bossAction, level))) return;
-finishEnemyTurn(bossAction.type === 'defend' ? undefined : 800);
+setTarget: (index) => {
+const { phase, inputLocked } = get();
+if (phase !== 'player_turn' || inputLocked) return;
+save(Fight.setTarget(fightState(), index));
 },
 
 resetCombat: () => {
 // Abandoning a fight: bump fightId so pending timers can't drag you back in
-set({ phase: 'menu', combatLog: [], inputLocked: false, fightId: get().fightId + 1, bossChargingHeavy: false, pendingBossAction: null });
+set({ phase: 'menu', combatLog: [], inputLocked: false, fightId: get().fightId + 1, foes: [] });
 },
 
 continueFromVictory: () => {
@@ -495,7 +491,7 @@ phase: 'menu',
 player: createPlayer(undefined, finalClass),
 boss: createBoss(1),
 combatLog: [],
-playerDefenseBoost: 0, bossDefenseBoost: 0,
+playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
 playerClass: finalClass,
 introCompleted: true,
@@ -504,8 +500,8 @@ progression: { ...initialProgression(), deathCount: progression.deathCount + 1 }
 runSeed: newRunSeed(), fightsStarted: 0,
 grid: emptyGrid(),
 fightId: get().fightId + 1,
-playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
-playerMalfunctioning: false, bossMalfunctioning: false,
+playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
+playerMalfunctioning: false,
 });
 },
 
@@ -518,7 +514,7 @@ phase: 'menu',
 player: createPlayer(),
 boss: createBoss(1),
 combatLog: [],
-playerDefenseBoost: 0, bossDefenseBoost: 0,
+playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
 playerClass: 'none', classesUnlocked: false, introCompleted: false,
 selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
@@ -526,8 +522,8 @@ progression: initialProgression(),
 runSeed: newRunSeed(), fightsStarted: 0,
 grid: emptyGrid(),
 fightId: get().fightId + 1,
-playerHeat: 20, bossHeat: 50, doubleActionReady: false, bossChargingHeavy: false, pendingBossAction: null,
-playerMalfunctioning: false, bossMalfunctioning: false,
+playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
+playerMalfunctioning: false,
 });
 },
 

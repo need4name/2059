@@ -82,7 +82,7 @@ export function stepDistances(
 
 /** Tiles the player can move to this turn (not counting the start tile). */
 export function getReachableTiles(from: TilePosition, grid: CombatGrid, range: number): Set<string> {
-  const dist = stepDistances(from, grid, [grid.bossPosition]);
+  const dist = stepDistances(from, grid, [grid.bossPosition, ...(grid.occupied ?? [])]);
   const out = new Set<string>();
   dist.forEach((d, k) => { if (d > 0 && d <= range) out.add(k); });
   return out;
@@ -98,7 +98,8 @@ export function stepTowardAttackPosition(grid: CombatGrid, pattern: AttackPatter
 
   // Distance from every tile back to the boss, preferring routes around hazards.
   for (const avoidHazards of [true, false]) {
-    const fromBoss = stepDistances(boss, grid, [player], avoidHazards);
+    const blockers = [player, ...(grid.occupied ?? [])];
+    const fromBoss = stepDistances(boss, grid, blockers, avoidHazards);
     let goal: TilePosition | null = null;
     let goalDist = Infinity;
     for (const [k, d] of Array.from(fromBoss.entries())) {
@@ -121,7 +122,7 @@ export function stepTowardAttackPosition(grid: CombatGrid, pattern: AttackPatter
     }
     if (!goal) continue;
     // Walk back from the goal to find the first step.
-    const toGoal = stepDistances(goal, grid, [player], avoidHazards);
+    const toGoal = stepDistances(goal, grid, blockers, avoidHazards);
     let best: TilePosition | null = null;
     let bestD = Infinity;
     for (const o of NEIGHBOURS) {
@@ -228,6 +229,28 @@ export function generateBattlefield(bossLevel: number): CombatGrid {
   place(numHazards, () => { const h = randomOf(HAZARD_TYPES); return { type: 'hazard', icon: h.icon, name: h.name, hazardDamage: h.damage }; }, false);
 
   return grid;
+}
+
+/**
+ * Where a fight's foes start: the first at the grid's enemy spawn, the rest on
+ * nearby open tiles in the top rows, spread out and reachable.
+ */
+export function spawnFoePositions(grid: CombatGrid, count: number): TilePosition[] {
+  const out: TilePosition[] = [grid.bossPosition];
+  const reach = stepDistances(grid.playerPosition, grid);
+  const candidates: TilePosition[] = [];
+  for (let r = 0; r < Math.min(3, grid.rows); r++) for (let c = 0; c < grid.cols; c++) {
+    const p = { row: r, col: c };
+    if (tileAt(p, grid)?.type === 'empty' && reach.has(key(p))) candidates.push(p);
+  }
+  while (out.length < count) {
+    const free = candidates.filter(p => !out.some(o => samePos(o, p)));
+    if (!free.length) break;
+    // Prefer tiles two or more away from every foe already placed
+    const spread = free.filter(p => out.every(o => chebyshev(o, p) >= 2));
+    out.push(randomOf(spread.length ? spread : free));
+  }
+  return out;
 }
 
 export function emptyGrid(): CombatGrid {

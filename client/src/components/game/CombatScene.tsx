@@ -79,26 +79,39 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, pendingBossAction, inputLocked, originalPosition, playerMoveRange } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId } = useCombat();
+const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
+const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
 const floatingEffectsRef = useRef<FloatingEffect[]>([]);
 const animationRef = useRef<number>();
 const prevPlayerHp = useRef(player.currentHp);
-const prevBossHp = useRef(boss.currentHp);
 const prevPhase = useRef(phase);
 const prevLogLength = useRef(combatLog.length);
 const [hoveredTile, setHoveredTile] = useState<{ row: number; col: number } | null>(null);
 
 // Movement animation state for smooth sliding
 const playerMoveAnim = useRef<MovementAnim | null>(null);
-const bossMoveAnim = useRef<MovementAnim | null>(null);
 const prevPlayerPos = useRef({ row: grid.playerPosition.row, col: grid.playerPosition.col });
-const prevBossPos = useRef({ row: grid.bossPosition.row, col: grid.bossPosition.col });
 
 // Sprite animators for characters
 // Player has normal animation speed, drunkard has slow lazy idle
 const playerAnimator = useRef(new SpriteAnimator(false));
-const bossAnimator = useRef(new SpriteAnimator(true)); // slow idle for drunkard
+
+// Each enemy has its own animator, slide animation and damage tracking
+interface FoeVisual { animator: SpriteAnimator; moveAnim: MovementAnim | null; prevPos: { row: number; col: number }; prevHp: number }
+const foeVisuals = useRef(new Map<number, FoeVisual>());
+const foeVisual = (i: number) => {
+let v = foeVisuals.current.get(i);
+if (!v) {
+const f = useCombat.getState().foes[i];
+v = { animator: new SpriteAnimator(true), moveAnim: null, prevPos: f ? { ...f.pos } : { row: 0, col: 0 }, prevHp: f?.unit.currentHp ?? 0 };
+foeVisuals.current.set(i, v);
+}
+return v;
+};
+useEffect(() => { foeVisuals.current.clear(); }, [fightId]);
+const foeSignature = foes.map(f => `${f.pos.row},${f.pos.col},${f.unit.currentHp}`).join('|');
 
 // Helper function to convert grid position to screen position (rectangular grid)
 // Mobile-first: accounts for HUD at top (~60px) and action bar at bottom (~140px)
@@ -157,21 +170,17 @@ startTime: Date.now(),
 }
 prevPlayerHp.current = player.currentHp;
 
-if (boss.currentHp < prevBossHp.current) {
-const damage = prevBossHp.current - boss.currentHp;
-const pos = gridToScreen(grid.bossPosition.row, grid.bossPosition.col, width, height);
-
-damageEffectsRef.current.push({
-id: Math.random().toString(),
-damage,
-x: pos.x,
-y: pos.y - 50,
-startTime: Date.now(),
-});
+foes.forEach((f, i) => {
+const v = foeVisual(i);
+if (f.unit.currentHp < v.prevHp) {
+const pos = gridToScreen(f.pos.row, f.pos.col, width, height);
+damageEffectsRef.current.push({ id: Math.random().toString(), damage: v.prevHp - f.unit.currentHp, x: pos.x, y: pos.y - 50, startTime: Date.now() });
+v.animator.setState('hurt');
 }
-prevBossHp.current = boss.currentHp;
+v.prevHp = f.unit.currentHp;
+});
 
-}, [player.currentHp, boss.currentHp, grid.playerPosition, grid.bossPosition, grid.cols, grid.rows]);
+}, [player.currentHp, foeSignature, grid.playerPosition, grid.cols, grid.rows]);
 
 // Track phase changes and combat log for floating messages
 useEffect(() => {
@@ -287,26 +296,18 @@ if (player.currentHp < prevPlayerHp.current) {
 playerAnimator.current.setState('hurt');
 }
 
-// Detect boss taking damage (hurt animation)
-if (boss.currentHp < prevBossHp.current) {
-bossAnimator.current.setState('hurt');
-}
-
 // Phase-based animations
 if (phase === 'enemy_turn') {
-// Boss attacks
-bossAnimator.current.setState('attack');
+foes.forEach((f, i) => { if (f.unit.currentHp > 0) foeVisual(i).animator.setState('attack'); });
 } else if (phase === 'player_turn') {
 // Both idle
 if (playerAnimator.current.getState() !== 'hurt' && playerAnimator.current.getState() !== 'attack') {
 playerAnimator.current.setState('idle');
 }
-if (bossAnimator.current.getState() !== 'hurt') {
-bossAnimator.current.setState('idle');
-}
+foes.forEach((_, i) => { const a = foeVisual(i).animator; if (a.getState() !== 'hurt') a.setState('idle'); });
 }
 
-}, [phase, player.currentHp, boss.currentHp]);
+}, [phase, player.currentHp, foeSignature]);
 
 // Trigger player attack animation when action is executed
 useEffect(() => {
@@ -336,22 +337,16 @@ playerAnimator.current.setState('walk');
 prevPlayerPos.current = { row: grid.playerPosition.row, col: grid.playerPosition.col };
 }
 
-// Check if boss position changed
-if (prevBossPos.current.row !== grid.bossPosition.row ||
-prevBossPos.current.col !== grid.bossPosition.col) {
-bossMoveAnim.current = {
-fromRow: prevBossPos.current.row,
-fromCol: prevBossPos.current.col,
-toRow: grid.bossPosition.row,
-toCol: grid.bossPosition.col,
-startTime: Date.now(),
-duration: MOVE_DURATION,
-};
-bossAnimator.current.setState('walk');
-prevBossPos.current = { row: grid.bossPosition.row, col: grid.bossPosition.col };
+foes.forEach((f, i) => {
+const v = foeVisual(i);
+if (v.prevPos.row !== f.pos.row || v.prevPos.col !== f.pos.col) {
+v.moveAnim = { fromRow: v.prevPos.row, fromCol: v.prevPos.col, toRow: f.pos.row, toCol: f.pos.col, startTime: Date.now(), duration: MOVE_DURATION };
+v.animator.setState('walk');
+v.prevPos = { ...f.pos };
 }
+});
 
-}, [grid.playerPosition.row, grid.playerPosition.col, grid.bossPosition.row, grid.bossPosition.col]);
+}, [grid.playerPosition.row, grid.playerPosition.col, foeSignature]);
 
 useEffect(() => {
 const canvas = canvasRef.current;
@@ -565,23 +560,17 @@ reachableTiles = getTargetableTiles(grid.playerPosition, currentAttackPattern, g
 
 // Pre-calculate enemy attack range: union of ALL patterns this boss can use.
 // This ensures every tile the boss might hit is shown as a danger zone.
-const enemyReachableTiles = phase === 'player_turn' && !pendingBossAction ? (() => {
-const bossActions = getBossRoster(boss.name);
+// Enemies that aren't winding up a heavy show everywhere they could reach next turn.
+const enemyReachableTiles = phase === 'player_turn' ? (() => {
 const union = new Set<string>();
-// Collect all unique attack patterns this boss has
-const patterns = new Set<AttackPatternType>();
-bossActions.forEach(a => {
-const pat = (a as any).attackPattern as AttackPatternType | undefined;
-if (pat) patterns.add(pat);
-});
-// Always include melee_long as fallback (boss can always move and melee)
-patterns.add('melee_long');
-// Union all reachable tiles across all patterns
-patterns.forEach(pat => {
-const tiles = getTargetableTiles(grid.bossPosition, pat, grid);
-tiles.forEach(k => union.add(k));
-});
-return union;
+for (const { f, i } of living) {
+if (f.pendingAction) continue;
+const patterns = new Set<AttackPatternType>(['melee_long']);
+getBossRoster(f.unit.name).forEach(a => { if (a.attackPattern) patterns.add(a.attackPattern); });
+const view = { ...grid, bossPosition: f.pos, occupied: living.filter(x => x.i !== i).map(x => x.f.pos) };
+patterns.forEach(pat => getTargetableTiles(f.pos, pat, view).forEach(k => union.add(k)));
+}
+return union.size ? union : null;
 })() : null;
 
 // Tiles the player can still move to this turn
@@ -590,7 +579,11 @@ const moveTiles = phase === 'player_turn' && !inputLocked && !reachableTiles && 
 : null;
 
 // Where a charged heavy attack will land next turn - step out of it to dodge
-const heavyZone = pendingBossAction ? getTargetableTiles(grid.bossPosition, (pendingBossAction.attackPattern ?? 'melee_long') as AttackPatternType, grid) : null;
+const heavyZone = charging.length ? (() => {
+const zone = new Set<string>();
+for (const { f } of charging) getTargetableTiles(f.pos, (f.pendingAction!.attackPattern ?? 'melee_long') as AttackPatternType, grid).forEach(k => zone.add(k));
+return zone;
+})() : null;
 const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 
 // Draw tiles (rectangular grid) with industrial worn tones
@@ -600,7 +593,7 @@ const pos = gridToScreen(row, col, width, height);
 if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   const isPlayerTile = grid.playerPosition.row === row && grid.playerPosition.col === col;
-  const isBossTile = grid.bossPosition.row === row && grid.bossPosition.col === col;
+  const isBossTile = living.some(x => x.f.pos.row === row && x.f.pos.col === col);
   const isHovered = hoveredTile && hoveredTile.row === row && hoveredTile.col === col;
 
   // Check if tile is in player's attack range using pre-calculated set
@@ -740,7 +733,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
 // Update sprite animations
 playerAnimator.current.update();
-bossAnimator.current.update();
+living.forEach(({ i }) => foeVisual(i).animator.update());
 
 // Calculate interpolated player position for smooth movement
 let playerVisualRow = grid.playerPosition.row;
@@ -798,103 +791,61 @@ ctx.strokeStyle = '#1f2937';
 ctx.lineWidth = 1;
 ctx.strokeRect(playerPos.x - barWidth / 2, barY, barWidth, barHeight);
 
-// Calculate interpolated boss position for smooth movement
-let bossVisualRow = grid.bossPosition.row;
-let bossVisualCol = grid.bossPosition.col;
-
-if (bossMoveAnim.current) {
-const elapsed = Date.now() - bossMoveAnim.current.startTime;
-const progress = Math.min(1, elapsed / bossMoveAnim.current.duration);
+// Draw every living enemy, with a ring under the one you're aiming at
+for (const { f, i } of living) {
+const v = foeVisual(i);
+let visRow = f.pos.row, visCol = f.pos.col;
+if (v.moveAnim) {
+const progress = Math.min(1, (Date.now() - v.moveAnim.startTime) / v.moveAnim.duration);
 const eased = easeOutCubic(progress);
-
-bossVisualRow = bossMoveAnim.current.fromRow + 
-  (bossMoveAnim.current.toRow - bossMoveAnim.current.fromRow) * eased;
-bossVisualCol = bossMoveAnim.current.fromCol + 
-  (bossMoveAnim.current.toCol - bossMoveAnim.current.fromCol) * eased;
-
-// Clear animation when complete
-if (progress >= 1) {
-  bossMoveAnim.current = null;
-  bossAnimator.current.setState('idle');
+visRow = v.moveAnim.fromRow + (v.moveAnim.toRow - v.moveAnim.fromRow) * eased;
+visCol = v.moveAnim.fromCol + (v.moveAnim.toCol - v.moveAnim.fromCol) * eased;
+if (progress >= 1) { v.moveAnim = null; v.animator.setState('idle'); }
 }
+const fp = gridToScreen(visRow, visCol, width, height);
+const isTarget = i === target;
+const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 48);
 
-}
-
-// Draw boss character (Drunkard) using pixel sprites
-const bossPos = gridToScreen(bossVisualRow, bossVisualCol, width, height);
-const bossSpriteSize = Math.max(tileW * 1.4, 56);
-const bossFacingLeft = grid.bossPosition.col > grid.playerPosition.col;
-
-// Get random stumble offset for drunkard animation
-const stumble = bossAnimator.current.getStumbleOffset();
-
+if (isTarget && foes.length > 1) {
 ctx.save();
-// Apply stumble rotation and translation
-if (stumble.rot !== 0) {
-ctx.translate(bossPos.x, bossPos.y);
-ctx.rotate(stumble.rot);
-ctx.translate(-bossPos.x, -bossPos.y);
+ctx.strokeStyle = 'rgba(248,113,113,0.9)';
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.ellipse(fp.x, fp.y + tileH * 0.32, tileW * 0.42, tileH * 0.16, 0, 0, Math.PI * 2);
+ctx.stroke();
+ctx.restore();
 }
 
-drawDrunkard(
-ctx,
-bossPos.x - bossSpriteSize / 2 + stumble.x,
-bossPos.y - bossSpriteSize / 2 - 8 + stumble.y,
-bossSpriteSize,
-bossAnimator.current.getState(),
-bossAnimator.current.getFrame(),
-bossFacingLeft,
-bossAnimator.current.getRandomSeed()
-);
-
+const stumble = v.animator.getStumbleOffset();
+ctx.save();
+if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
+drawDrunkard(ctx, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
+v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, v.animator.getRandomSeed());
 ctx.restore();
 
-// Boss HP bar below character
-const bossHpPercent = boss.currentHp / boss.maxHp;
-const bossBarWidth = tileW * 0.9;
-const bossBarHeight = 6;
-const bossBarY = bossPos.y + tileH / 2 + 5;
-
-// HP bar background
+const barW = tileW * 0.9, barH = 6, barY = fp.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
-ctx.fillRect(bossPos.x - bossBarWidth / 2, bossBarY, bossBarWidth, bossBarHeight);
-
-// HP bar fill
-ctx.fillStyle = '#ef4444';
-ctx.fillRect(bossPos.x - bossBarWidth / 2, bossBarY, bossBarWidth * bossHpPercent, bossBarHeight);
-
-// HP bar border
+ctx.fillRect(fp.x - barW / 2, barY, barW, barH);
+// With several enemies, each bar takes the enemy's colour so it matches its chip in the HUD
+ctx.fillStyle = living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444';
+ctx.fillRect(fp.x - barW / 2, barY, barW * (f.unit.currentHp / f.unit.maxHp), barH);
 ctx.strokeStyle = '#1f2937';
 ctx.lineWidth = 1;
-ctx.strokeRect(bossPos.x - bossBarWidth / 2, bossBarY, bossBarWidth, bossBarHeight);
+ctx.strokeRect(fp.x - barW / 2, barY, barW, barH);
 
-// Attack range indicator above boss when attack action is selected
-// Uses the same pre-calculated reachable tiles for consistency
-if (reachableTiles && phase === 'player_turn') {
-const bossKey = `${grid.bossPosition.row},${grid.bossPosition.col}`;
-const inRange = reachableTiles.has(bossKey);
-
+// Range label over the target while an attack is selected
+if (isTarget && reachableTiles && phase === 'player_turn') {
+const inRange = reachableTiles.has(`${f.pos.row},${f.pos.col}`);
+const label = inRange ? 'In range' : 'Out of range';
 ctx.font = '700 13px Manrope, sans-serif';
 ctx.textAlign = 'center';
-
-if (inRange) {
-  // Green "TARGET" indicator
-  ctx.fillStyle = '#22c55e';
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 3;
-  const tx = Math.min(width - ctx.measureText('In range').width / 2 - 4, bossPos.x);
-  ctx.strokeText('In range', tx, bossPos.y - tileH * 0.8);
-  ctx.fillText('In range', tx, bossPos.y - tileH * 0.8);
-} else {
-  // Red "OUT OF RANGE" indicator
-  ctx.fillStyle = '#ef4444';
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 3;
-  const ox = Math.min(width - ctx.measureText('Out of range').width / 2 - 4, bossPos.x);
-  ctx.strokeText('Out of range', ox, bossPos.y - tileH * 0.8);
-  ctx.fillText('Out of range', ox, bossPos.y - tileH * 0.8);
+ctx.fillStyle = inRange ? '#22c55e' : '#ef4444';
+ctx.strokeStyle = '#000';
+ctx.lineWidth = 3;
+const lx = Math.min(width - ctx.measureText(label).width / 2 - 4, Math.max(ctx.measureText(label).width / 2 + 4, fp.x));
+ctx.strokeText(label, lx, fp.y - tileH * 0.8);
+ctx.fillText(label, lx, fp.y - tileH * 0.8);
 }
-
 }
 
 // Draw damage numbers
@@ -953,7 +904,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, pendingBossAction, inputLocked, originalPosition, playerMoveRange]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -1035,9 +986,11 @@ const tileTop = pos.y - tileH / 2;
 const tileBottom = pos.y + tileH / 2;
 
 if (x >= tileLeft && x <= tileRight && y >= tileTop && y <= tileBottom) {
-  // Clicked on this tile - attempt tentative move (can be undone)
-  const { moveTentatively } = useCombat.getState();
-  moveTentatively({ row, col });
+  // Tapping an enemy aims at it; tapping a tile moves (can be undone)
+  const st = useCombat.getState();
+  const hit = st.foes.findIndex(f => f.unit.currentHp > 0 && f.pos.row === row && f.pos.col === col);
+  if (hit >= 0) { st.setTarget(hit); return; }
+  st.moveTentatively({ row, col });
   return;
 }
 

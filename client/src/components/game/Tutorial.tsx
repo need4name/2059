@@ -111,7 +111,7 @@ export function useTutorialTriggers() {
     const candidates: [HintId, boolean][] = [
       ['enforcer', myTurn && c.boss.name.includes('Enforcer')],
       ['intro', myTurn && c.progression.deathCount === 0 && c.bossLevel === 1],
-      ['telegraph', myTurn && !!c.pendingBossAction],
+      ['telegraph', myTurn && c.foes.some(f => !!f.pendingAction)],
       ['malfunction', myTurn && c.playerMalfunctioning],
       ['move', myTurn && !!t.seen.intro && !c.hasMoved],
       ['attack', myTurn && !!t.seen.move],

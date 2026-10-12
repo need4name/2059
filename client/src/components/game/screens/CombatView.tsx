@@ -16,18 +16,22 @@ const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
 
 function CombatHud() {
   const s = useCombat();
-  const { player, boss, bossLevel, grid, bossHeat, combatLog } = s;
+  const { player, bossLevel, grid, combatLog, foes, target: targetIdx, setTarget } = s;
+  const target = foes[targetIdx] ?? foes[0];
+  const boss = target?.unit ?? s.boss;
+  const bossHeat = target?.heat ?? 0;
+  const charging = foes.filter(f => f.pendingAction && f.unit.currentHp > 0);
   const { isMuted, toggleMute } = useAudio();
   const recent = combatLog.slice(-2);
 
   const chips: { key: string; tone: Parameters<typeof Chip>[0]['tone']; text: string; pulse?: boolean }[] = [];
-  if (s.pendingBossAction) chips.push({ key: 'heavy', tone: 'hostile', text: `⚠ ${s.pendingBossAction.name} next turn · leave the orange tiles`, pulse: true });
+  for (const f of charging) chips.push({ key: `heavy-${f.unit.id}-${f.pos.row}-${f.pos.col}`, tone: 'hostile', text: `⚠ ${charging.length > 1 ? `${f.unit.name}: ` : ''}${f.pendingAction!.name} next turn · leave the orange tiles`, pulse: true });
   if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction · Brace or patch', pulse: true });
   if (s.playerHeat >= 100) chips.push({ key: 'oh', tone: 'hostile', text: 'Overheated · can\'t move' });
   if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
   if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Kizuna fired' });
-  if (s.bossMalfunctioning) chips.push({ key: 'bmlf', tone: 'ok', text: 'Target malfunctioning' });
+  if (target?.malfunctioning) chips.push({ key: 'bmlf', tone: 'ok', text: 'Target malfunctioning' });
   if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated · can\'t move' });
 
   return (
@@ -81,6 +85,21 @@ function CombatHud() {
         </div>
       </div>
 
+      {foes.length > 1 && (
+        <div className="mt-2.5 flex gap-1.5" role="group" aria-label="Choose a target">
+          {foes.map((f, i) => {
+            const down = f.unit.currentHp <= 0;
+            return (
+              <button key={i} disabled={down} onClick={() => setTarget(i)} aria-pressed={i === targetIdx}
+                className={cx('min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left transition', down ? 'opacity-35' : i === targetIdx ? 'bg-hostile/15 ring-1 ring-hostile/60' : 'bg-white/[0.05] hover:bg-white/[0.08]')}>
+                <span className="block truncate text-[10px] font-semibold" style={{ color: f.unit.spriteColor }}>{down ? 'Down' : f.unit.name}</span>
+                <Meter value={f.unit.currentHp} max={f.unit.maxHp} tone="hostile" className="mt-1 h-1" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {chips.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {chips.map(c => <Chip key={c.key} tone={c.tone} pulse={c.pulse}>{c.text}</Chip>)}
@@ -101,12 +120,14 @@ function CombatHud() {
 
 function SlotButton({ action }: { action: LoadoutAction }) {
   const s = useCombat();
-  const { player, boss, grid, playerHeat, selectedAction, setSelectedAction, phase, inputLocked } = s;
+  const { player, grid, playerHeat, selectedAction, setSelectedAction, phase, inputLocked } = s;
+  const target = s.foes[s.target];
+  const boss = target?.unit ?? s.boss;
   const selected = (selectedAction as LoadoutAction | null)?.key === action.key;
   const isAttack = action.type === 'attack' || action.type === 'special';
   const inRange = !isAttack || action.ignoreRange || canHitTarget(grid.playerPosition, grid.bossPosition, action.attackPattern ?? 'melee_long', grid);
   const est = isAttack && action.damage ? estimateDamage(player, boss, action, {
-    defenseBoost: s.bossDefenseBoost,
+    defenseBoost: target?.defenseBoost ?? 0,
     heatMultiplier: s.overclockActive ? 2 : getHeatMultipliers(playerHeat).dealt,
     flankBonus: getFlankBonus(grid.playerPosition, grid.bossPosition),
     tileDistance: chebyshev(grid.playerPosition, grid.bossPosition),

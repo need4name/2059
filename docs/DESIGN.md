@@ -15,7 +15,14 @@ Story and setting live in the owner's universe notes, which stay out of this pub
 2. **Move.** Up to 2 tiles (more with leg upgrades), 8 directions, around obstacles. Tap your start tile to undo. At 100 heat you can't move.
 3. **Act.** One action from your bar of four, or a stim, or pass. Overclock is the only stim that doesn't end your turn.
 4. **Hazard.** If you end on a hazard tile, you take its damage.
-5. **Enemy turn.** It fires a wound-up heavy, or picks a move, walks up to 2 tiles toward a spot it can hit from, and attacks if it can reach. Then it takes hazard damage if it's standing on one.
+5. **Enemy turn.** Each enemy in turn fires a wound-up heavy, or picks a move, walks up to 2 tiles toward a spot it can hit from, and attacks if it can reach. Then it takes hazard damage if it's standing on one.
+
+### Several enemies
+- A level can throw 1–3 enemies at you (random for now; the story will set it later). The first level, every 5th level (elites, bosses) and the first-life Enforcer are always alone.
+- Groups are scaled down: two enemies each have 60% health and 70% attack, three have 45% and 55%. Extra enemies are drawn from this level's type and the two before it.
+- **Aiming:** tap an enemy (or its chip in the top bar) to target it. Area moves (Strike's ring, sweeps, cones, blasts) also hit every other enemy standing in the struck tiles, each with its own damage roll.
+- **Enemy turn:** each living enemy acts in turn and treats the others as obstacles. A guard soaks one hit, so a crowd can't all hit a braced player at full guard.
+- The fight is won when the last enemy falls.
 
 ### Arenas
 - Portrait grids. **7×9 at threat 1, growing to 9×13 by threat 12.** You start on the bottom row, the enemy on the top row.

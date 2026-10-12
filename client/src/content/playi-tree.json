@@ -1,0 +1,52 @@
+{
+  "about": "The play-i tree: what the signal learns across hosts. Hidden from the player; after each death they are offered 2 random nodes whose requirements are met. requires = any one of the listed nodes.",
+  "branches": [
+    { "id": "move", "name": "Locomotion", "theme": "How far and how freely the signal can drive a body" },
+    { "id": "heat", "name": "Processing", "theme": "Running hotter, cooling faster, acting twice" },
+    { "id": "combat", "name": "Subroutines", "theme": "Hitting harder, cleaner, more often" },
+    { "id": "graft", "name": "Grafting", "theme": "Getting more from implants, for less" },
+    { "id": "signal", "name": "Signal", "theme": "Staying alive and carrying more into each host" },
+    { "id": "network", "name": "Network", "theme": "Working with allies (offered once the first ally is unlocked)" }
+  ],
+  "nodes": [
+    { "id": "move_1", "branch": "move", "tier": 1, "name": "Gait calibration", "effect": "+1 movement (1 to 2 tiles)", "requires": [] },
+    { "id": "move_2a", "branch": "move", "tier": 2, "name": "Reflex loop", "effect": "After attacking, you can still move 1 tile if you haven't moved", "requires": ["move_1"] },
+    { "id": "move_2b", "branch": "move", "tier": 2, "name": "Sure footing", "effect": "Hazards deal half damage to you", "requires": ["move_1"] },
+    { "id": "move_3", "branch": "move", "tier": 3, "name": "Long stride", "effect": "+1 movement (2 to 3 tiles)", "requires": ["move_2a", "move_2b"] },
+    { "id": "move_4", "branch": "move", "tier": 4, "name": "Sidestep", "effect": "The first heavy attack aimed at you each fight misses", "requires": ["move_3"] },
+    { "id": "move_5", "branch": "move", "tier": 5, "name": "Phase step", "effect": "Move through enemies and obstacles", "requires": ["move_4"], "capstone": true },
+
+    { "id": "heat_1", "branch": "heat", "tier": 1, "name": "Heat sink", "effect": "Shed 3 more heat each round (6 to 9)", "requires": [] },
+    { "id": "heat_2a", "branch": "heat", "tier": 2, "name": "Cold start", "effect": "Start each fight at 0 heat instead of 20", "requires": ["heat_1"] },
+    { "id": "heat_2b", "branch": "heat", "tier": 2, "name": "Thermal tolerance", "effect": "Take less extra damage when hot (hot x1.25 to x1.10, critical x1.75 to x1.40)", "requires": ["heat_1"] },
+    { "id": "heat_3", "branch": "heat", "tier": 3, "name": "Overclocked core", "effect": "Act twice at 25 heat or below (was 15)", "requires": ["heat_2a", "heat_2b"] },
+    { "id": "heat_4", "branch": "heat", "tier": 4, "name": "Vent", "effect": "Brace cools 10 more", "requires": ["heat_3"] },
+    { "id": "heat_5", "branch": "heat", "tier": 5, "name": "Runaway", "effect": "You can move at 100 heat, and critical heat crits 45% of the time (was 30%)", "requires": ["heat_4"], "capstone": true },
+
+    { "id": "combat_1", "branch": "combat", "tier": 1, "name": "Targeting", "effect": "+10% damage", "requires": [] },
+    { "id": "combat_2a", "branch": "combat", "tier": 2, "name": "Fifth slot", "effect": "A fifth action slot on your fight bar", "requires": ["combat_1"] },
+    { "id": "combat_2b", "branch": "combat", "tier": 2, "name": "Flank logic", "effect": "Flanking bonuses +50% (behind 30% to 45%, side 15% to 22%)", "requires": ["combat_1"] },
+    { "id": "combat_3", "branch": "combat", "tier": 3, "name": "Clean first strike", "effect": "Your first attack each fight is precise", "requires": ["combat_2a", "combat_2b"] },
+    { "id": "combat_4", "branch": "combat", "tier": 4, "name": "Finisher", "effect": "+25% damage against enemies under 30% health", "requires": ["combat_3"] },
+    { "id": "combat_5", "branch": "combat", "tier": 5, "name": "Chain", "effect": "Taking down an enemy gives you another action", "requires": ["combat_4"], "capstone": true },
+
+    { "id": "graft_1", "branch": "graft", "tier": 1, "name": "Clean interface", "effect": "Implant health costs are halved", "requires": [] },
+    { "id": "graft_2a", "branch": "graft", "tier": 2, "name": "Reinforced housings", "effect": "+25% structure", "requires": ["graft_1"] },
+    { "id": "graft_2b", "branch": "graft", "tier": 2, "name": "Salvage instinct", "effect": "Each new host starts with a random common active implant", "requires": ["graft_1"] },
+    { "id": "graft_3", "branch": "graft", "tier": 3, "name": "Graft memory", "effect": "Each new host starts with 2 upgrade points", "requires": ["graft_2a", "graft_2b"] },
+    { "id": "graft_4", "branch": "graft", "tier": 4, "name": "Pick of the wreck", "effect": "When a win drops an implant, choose 1 of 2", "requires": ["graft_3"] },
+    { "id": "graft_5", "branch": "graft", "tier": 5, "name": "Self-repair", "effect": "Brace repairs 80% of structure (was 40%)", "requires": ["graft_4"], "capstone": true },
+
+    { "id": "signal_1", "branch": "signal", "tier": 1, "name": "Signal strength", "effect": "+20 max health", "requires": [] },
+    { "id": "signal_2a", "branch": "signal", "tier": 2, "name": "Stim cache", "effect": "Each new host starts with 2 Bio-Stims", "requires": ["signal_1"] },
+    { "id": "signal_2b", "branch": "signal", "tier": 2, "name": "Haggler", "effect": "Grey Lane prices are 20% lower", "requires": ["signal_1"] },
+    { "id": "signal_3", "branch": "signal", "tier": 3, "name": "Holdfast", "effect": "Once per host, a killing blow leaves you on 1 health instead", "requires": ["signal_2a", "signal_2b"] },
+    { "id": "signal_4", "branch": "signal", "tier": 4, "name": "Deep signal", "effect": "+40 max health", "requires": ["signal_3"] },
+    { "id": "signal_5", "branch": "signal", "tier": 5, "name": "Hardened signal", "effect": "Take 10% less damage from everything", "requires": ["signal_4"], "capstone": true },
+
+    { "id": "network_1", "branch": "network", "tier": 1, "name": "Handshake", "effect": "Allies start each fight with 25% more health", "requires": [], "needsAlly": true },
+    { "id": "network_2", "branch": "network", "tier": 2, "name": "Shared memory", "effect": "Allies earn experience twice as fast", "requires": ["network_1"] },
+    { "id": "network_3", "branch": "network", "tier": 3, "name": "Coordinated", "effect": "+20% damage against an enemy your ally hit this round", "requires": ["network_2"] },
+    { "id": "network_4", "branch": "network", "tier": 4, "name": "Second link", "effect": "Bring two allies into a run", "requires": ["network_3"], "capstone": true }
+  ]
+}
