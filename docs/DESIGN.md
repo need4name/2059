@@ -25,8 +25,9 @@ Story and setting live in the owner's universe notes, which stay out of this pub
 - The fight is won when the last enemy falls.
 
 ### Arenas
-- Portrait grids. **7×9 at threat 1, growing to 9×13 by threat 12.** You start on the bottom row, the enemy on the top row.
-- Shapes: open, corridor (3 wide), L-shape, cross. Void tiles are holes you can't enter.
+- Portrait grids sized for what's on them (`arenaSize` in `grid.ts`): **7×9 for a player who moves 1 tile against one enemy.** Each extra tile of your movement adds a column and two rows; each body beyond two (enemies, allies) adds a row, and a column every two. Capped at 9×13. Sometimes one row longer for variety. You start on the bottom row, the enemy on the top row.
+- Shapes: open, corridor (3 wide, 4 with four or more bodies), L-shape, cross.
+- On screen the arena is scaled to its walkable shape (void edges aren't counted), and the fight HUD is kept short (one heavy-attack warning however many enemies are winding up, one log line) so the arena keeps as much room as possible. Void tiles are holes you can't enter.
 - Obstacles cover 8% of walkable tiles at threat 1, rising to 14%. Hazards start at threat 2 (2% rising to 6%). A path from you to the enemy always exists.
 - Flanking (the enemy faces down the arena): hitting from **behind gives +30%**, from the **side +15%**.
 
@@ -132,6 +133,8 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 - Picking path A or B is free; tiers 2 and 3 cost 1 point each.
 - On an active implant, path A adds 18% damage and 2 heat per tier; path B adds 8% damage, runs 2 heat cooler per tier, and raises accuracy one step at tier 2.
 - Points: 1 per level-up, plus 1 for each new threat cleared.
+- Each tier also adds the stats listed for it in `augmentTrees.ts`. The upgrade screen works its text out from these real numbers (`components/game/upgradeText.ts`): a headline, the move's damage and heat before and after, and the stat totals. The paths' old flavour descriptions aren't shown.
+- The implants screen is a body map: each slot is marked on a host figure with a card per slot down each side.
 
 ---
 
@@ -141,7 +144,7 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 
 ### Enemy scaling by threat
 - Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
-- On top of that, every enemy's health is × 0.36 × 1.075^(threat − 1) and its attack × 0.98 × 1.07^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
+- On top of that, every enemy's health is × 0.36 × 1.075^(threat − 1) and its attack × 1.01 × 1.07^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack; stand-ins Volkov Operator and Helix Continuity Warden until the real bosses are built). Other levels walk the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.

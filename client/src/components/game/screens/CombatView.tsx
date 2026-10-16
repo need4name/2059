@@ -24,11 +24,13 @@ function CombatHud() {
   const bossHeat = target?.heat ?? 0;
   const charging = foes.filter(f => f.pendingAction && f.unit.currentHp > 0);
   const { isMuted, toggleMute } = useAudio();
-  const recent = combatLog.slice(-2);
+  const recent = combatLog.slice(-1);
 
   const chips: { key: string; tone: Parameters<typeof Chip>[0]['tone']; text: string; pulse?: boolean }[] = [];
-  for (const f of charging) chips.push({ key: `heavy-${f.unit.id}-${f.pos.row}-${f.pos.col}`, tone: 'hostile', text: `⚠ ${charging.length > 1 ? `${f.unit.name}: ` : ''}${f.pendingAction!.name} next turn · leave the orange tiles`, pulse: true });
-  if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction · Brace or patch', pulse: true });
+  // One warning however many enemies are winding up, so the arena keeps its space
+  if (charging.length) chips.push({ key: 'heavy', tone: 'hostile', pulse: true,
+    text: charging.length > 1 ? `⚠ ${charging.length} heavy attacks next turn · leave the orange tiles` : `⚠ ${charging[0].pendingAction!.name} next turn · leave the orange tiles` });
+  if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction · Brace', pulse: true });
   if (s.playerHeat >= 100) chips.push({ key: 'oh', tone: 'hostile', text: 'Overheated · can\'t move' });
   if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
@@ -37,7 +39,7 @@ function CombatHud() {
   if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated · can\'t move' });
 
   return (
-    <div className="relative z-10 rounded-b-3xl bg-hud-panel/95 px-4 pb-3 pt-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+    <div className="relative z-10 rounded-b-3xl bg-hud-panel/95 px-4 pb-2.5 pt-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
       <div className="flex items-start gap-3">
         {/* Player */}
         <div className="min-w-0 flex-1 space-y-1">
@@ -88,12 +90,12 @@ function CombatHud() {
       </div>
 
       {foes.length > 1 && (
-        <div className="mt-2.5 flex gap-1.5" role="group" aria-label="Choose a target">
+        <div className="mt-2 flex gap-1.5" role="group" aria-label="Choose a target">
           {foes.map((f, i) => {
             const down = f.unit.currentHp <= 0;
             return (
               <button key={i} disabled={down} onClick={() => setTarget(i)} aria-pressed={i === targetIdx}
-                className={cx('min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left transition', down ? 'opacity-35' : i === targetIdx ? 'bg-hostile/15 ring-1 ring-hostile/60' : 'bg-white/[0.05] hover:bg-white/[0.08]')}>
+                className={cx('min-w-0 flex-1 rounded-xl px-2 py-1 text-left transition', down ? 'opacity-35' : i === targetIdx ? 'bg-hostile/15 ring-1 ring-hostile/60' : 'bg-white/[0.05] hover:bg-white/[0.08]')}>
                 <span className="block truncate text-[10px] font-semibold" style={{ color: f.unit.spriteColor }}>{down ? 'Down' : f.unit.name}</span>
                 <Meter value={f.unit.currentHp} max={f.unit.maxHp} tone="hostile" className="mt-1 h-1" />
               </button>
@@ -103,12 +105,12 @@ function CombatHud() {
       )}
 
       {chips.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {chips.map(c => <Chip key={c.key} tone={c.tone} pulse={c.pulse}>{c.text}</Chip>)}
         </div>
       )}
 
-      <div className="mt-2 h-9 overflow-hidden rounded-xl bg-black/20 px-3 py-1 text-[11px] leading-[14px] text-hud-dim" aria-live="polite">
+      <div className="mt-2 h-6 overflow-hidden rounded-xl bg-black/20 px-3 py-1 text-[11px] leading-[16px] text-hud-dim" aria-live="polite">
         {recent.length === 0 && <div className="text-hud-faint">› Engagement started. Close in or hold position.</div>}
         {recent.map((l, i) => (
           <div key={l.id} className={`truncate ${i === recent.length - 1 ? 'text-hud-text' : ''} ${l.type === 'critical' ? 'text-cred' : l.type === 'malfunction' ? 'text-orange-300' : ''}`}>
@@ -145,7 +147,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       onClick={() => setSelectedAction(selected ? null : action)}
       disabled={phase !== 'player_turn' || inputLocked}
       aria-pressed={selected}
-      className={cx('relative flex min-h-[76px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-2 pt-3.5 text-center transition disabled:opacity-50',
+      className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center transition disabled:opacity-50',
         selected ? 'bg-sys/15 ring-2 ring-sys/80 shadow-[0_0_20px_rgba(56,214,240,0.25)]' : 'bg-white/[0.06] hover:bg-white/[0.1]')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
@@ -221,34 +223,33 @@ function ActionBar() {
   const myTurn = phase === 'player_turn' && !inputLocked;
 
   return (
-    <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+    <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-2.5 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
       <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
-          <div key={`empty-${i}`} className="flex min-h-[76px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
+          <div key={`empty-${i}`} className="flex min-h-[64px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
         ))}
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <Btn size="sm" disabled={!myTurn || stims.length === 0} onClick={() => setBag(true)}>
-          Stims{stims.length ? ` · ${stims.length}` : ''}
+      {/* One row: the small tools, then the turn button taking the rest */}
+      <div className="mt-2 flex gap-2">
+        <Btn className="shrink-0 px-3.5" disabled={!myTurn || stims.length === 0} onClick={() => setBag(true)}>
+          Stims{stims.length ? ` ${stims.length}` : ''}
         </Btn>
-        <Btn size="sm" disabled={!myTurn || !hasMoved} onClick={undoMove}>Undo move</Btn>
-        <Btn size="sm" variant="ghost" onClick={() => setConfirmExit(true)}>Retreat</Btn>
+        <Btn className="shrink-0 px-3.5" disabled={!myTurn || !hasMoved} onClick={undoMove}>Undo</Btn>
+        <Btn
+          variant={myTurn ? 'primary' : 'secondary'}
+          className="min-w-0 flex-1 truncate"
+          disabled={!myTurn}
+          onClick={endTurn}
+        >
+          {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
+        </Btn>
       </div>
-
-      <Btn
-        variant={myTurn ? 'primary' : 'secondary'}
-        size="lg"
-        className="mt-2 w-full"
-        disabled={!myTurn}
-        onClick={endTurn}
-      >
-        {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
-      </Btn>
-      {myTurn && !selectedAction && (
-        <p className="mt-2 text-center text-[11px] text-hud-faint">{allies.length ? 'Move and act with your ally first, then pick your action and execute.' : 'Tap a lit tile to move, pick an action, then execute.'}</p>
-      )}
+      <div className="mt-1 flex items-center justify-between px-1 text-[11px] text-hud-faint">
+        <span className="truncate">{myTurn && !selectedAction ? (allies.length ? 'Ally first, then your move and action.' : 'Move, pick an action, then execute.') : ''}</span>
+        <button className="shrink-0 py-1.5 pl-3 text-hud-dim hover:text-hud-text" onClick={() => setConfirmExit(true)}>Retreat</button>
+      </div>
 
       <Sheet open={bag} title="Stims" onClose={() => setBag(false)}>
         <div className="grid grid-cols-2 gap-2">

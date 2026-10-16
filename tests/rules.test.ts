@@ -5,7 +5,7 @@ import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, PLA
 import { powerOf, structureOf, healthCostOf, actionForItem, makerOf, CONDITION_MULT, MIN_PLAYER_HP } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 import { generateLoot, generatePatchworkKingLoot } from '../client/src/lib/combat/loot';
-import { generateBattlefield, stepDistances } from '../client/src/lib/combat/grid';
+import { generateBattlefield, stepDistances, arenaSize } from '../client/src/lib/combat/grid';
 import { augmentKind, AUGMENTATION_SLOTS } from '../client/src/lib/combat/types';
 import type { Item } from '../client/src/lib/combat/types';
 
@@ -112,10 +112,17 @@ test('the Patchwork King always drops an epic and a rare', () => {
   }
 });
 
+test('arenas grow with movement and crowd size, up to 9x13', () => {
+  assert.deepEqual(arenaSize({ move: 1, units: 2 }), { cols: 7, rows: 9 });
+  assert.deepEqual(arenaSize({ move: 2, units: 2 }), { cols: 8, rows: 11 });
+  assert.deepEqual(arenaSize({ move: 1, units: 5 }), { cols: 8, rows: 12 });
+  assert.deepEqual(arenaSize({ move: 4, units: 6 }), { cols: 9, rows: 13 });
+});
+
 test('every arena has a walkable path from player to enemy', () => {
   for (let lvl = 1; lvl <= 24; lvl++) for (let s = 0; s < 10; s++) {
     seedRandom(mixSeed(lvl, s));
-    const g = generateBattlefield(lvl);
+    const g = generateBattlefield(lvl, { move: 1 + (s % 3), units: 2 + (s % 4) });
     const dist = stepDistances(g.playerPosition, g);
     const near = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]].some(([dr, dc]) => dist.has(`${g.bossPosition.row + dr},${g.bossPosition.col + dc}`));
     assert.ok(near, `threat ${lvl} seed ${s}: no path`);

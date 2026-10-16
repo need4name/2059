@@ -6,9 +6,114 @@ import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, cx } from './hu
 import { implantStats, passiveText, conditionText, stimInfo } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
 import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO } from '@/lib/combat/augments';
+import { getRarityColor } from '@/lib/combat/loot';
 
-function ImplantRow({ item, action }: { item: Item; action: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+// ── Body map ─────────────────────────────────────────────────────────────────
+// A ripperdoc view: the host's body in the middle, each implant slot marked where
+// it sits, and a card per slot down each side joined to it by a thin line.
+// Coordinates are in a 360 x 430 box; the cards are placed by percentage.
+
+const VB = { w: 360, h: 430 };
+const CARD_W = 106;
+type Spot = { slot: AugmentationSlot; at: [number, number]; side: 'left' | 'right'; cardY: number };
+const SPOTS: Spot[] = [
+  { slot: 'brain', at: [180, 38], side: 'left', cardY: 34 },
+  { slot: 'eyes', at: [170, 56], side: 'left', cardY: 112 },
+  { slot: 'lungs', at: [166, 134], side: 'left', cardY: 190 },
+  { slot: 'left_arm', at: [124, 182], side: 'left', cardY: 268 },
+  { slot: 'left_leg', at: [160, 326], side: 'left', cardY: 380 },
+  { slot: 'ears', at: [204, 56], side: 'right', cardY: 34 },
+  { slot: 'nose', at: [184, 66], side: 'right', cardY: 112 },
+  { slot: 'misc', at: [194, 166], side: 'right', cardY: 190 },
+  { slot: 'right_arm', at: [236, 182], side: 'right', cardY: 268 },
+  { slot: 'right_leg', at: [200, 326], side: 'right', cardY: 380 },
+];
+
+const SHORT_NAME: Record<AugmentationSlot, string> = {
+  brain: 'Brain', ears: 'Ears', eyes: 'Eyes', nose: 'Nose', lungs: 'Lungs', misc: 'Spine',
+  left_arm: 'L arm', right_arm: 'R arm', left_leg: 'L leg', right_leg: 'R leg',
+};
+
+function BodyFigure() {
+  return (
+    <g fill="url(#bodyFill)" stroke="rgba(56,214,240,0.55)" strokeWidth="1.5" strokeLinejoin="round">
+      {/* head and neck */}
+      <ellipse cx="187" cy="54" rx="24" ry="29" transform="translate(-7 0)" />
+      <path d="M170 80 Q180 88 190 80 L192 96 L168 96 Z" />
+      {/* torso */}
+      <path d="M140 102 Q180 90 220 102 Q230 106 232 120 L226 170 Q222 196 214 218 L146 218 Q138 196 134 170 L128 120 Q130 106 140 102 Z" />
+      {/* arms */}
+      <path d="M134 108 Q120 112 118 130 L110 196 Q108 214 112 232 Q118 238 124 232 L130 200 L138 140 Z" />
+      <path d="M226 108 Q240 112 242 130 L250 196 Q252 214 248 232 Q242 238 236 232 L230 200 L222 140 Z" />
+      {/* legs */}
+      <path d="M146 216 L178 216 L176 300 L172 380 Q170 400 164 410 L150 410 Q148 396 150 380 L148 300 Z" />
+      <path d="M182 216 L214 216 L212 300 L210 380 Q212 396 210 410 L196 410 Q190 400 188 380 L184 300 Z" />
+      {/* a few seams so it reads as a frame, not a mannequin */}
+      <path d="M180 104 L180 214" fill="none" stroke="rgba(56,214,240,0.18)" />
+      <path d="M150 150 Q180 160 210 150" fill="none" stroke="rgba(56,214,240,0.18)" />
+    </g>
+  );
+}
+
+function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot | null; onSelect: (s: AugmentationSlot | null) => void; spareFor: (s: AugmentationSlot) => boolean }) {
+  const { equippedAugmentations } = useInventory();
+  return (
+    <div className="relative w-full" style={{ aspectRatio: `${VB.w} / ${VB.h}` }}>
+      <svg viewBox={`0 0 ${VB.w} ${VB.h}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <defs>
+          <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="rgba(56,214,240,0.16)" />
+            <stop offset="1" stopColor="rgba(56,214,240,0.03)" />
+          </linearGradient>
+          <radialGradient id="bodyGlow" cx="0.5" cy="0.45" r="0.5">
+            <stop offset="0" stopColor="rgba(56,214,240,0.14)" />
+            <stop offset="1" stopColor="rgba(56,214,240,0)" />
+          </radialGradient>
+        </defs>
+        <ellipse cx="180" cy="210" rx="120" ry="200" fill="url(#bodyGlow)" />
+        <BodyFigure />
+        {SPOTS.map(sp => {
+          const eq = equippedAugmentations[sp.slot];
+          const color = eq ? getRarityColor(eq.rarity) : 'rgba(255,255,255,0.28)';
+          const on = selected === sp.slot;
+          const x = sp.side === 'left' ? CARD_W : VB.w - CARD_W;
+          return (
+            <g key={sp.slot}>
+              <path d={`M${x} ${sp.cardY} L${(x + sp.at[0]) / 2} ${sp.cardY} L${sp.at[0]} ${sp.at[1]}`} fill="none"
+                stroke={on ? '#38d6f0' : eq ? color : 'rgba(255,255,255,0.14)'} strokeWidth={on ? 1.6 : 1} strokeOpacity={on ? 1 : 0.7} />
+              {on && <circle cx={sp.at[0]} cy={sp.at[1]} r="10" fill="rgba(56,214,240,0.18)" />}
+              <circle cx={sp.at[0]} cy={sp.at[1]} r={eq ? 4.5 : 3.5} fill={eq ? color : '#0b1220'} stroke={on ? '#38d6f0' : color} strokeWidth="1.5" />
+            </g>
+          );
+        })}
+      </svg>
+      {SPOTS.map(sp => {
+        const eq = equippedAugmentations[sp.slot];
+        const on = selected === sp.slot;
+        const kind = augmentKind(sp.slot);
+        return (
+          <button key={sp.slot} onClick={() => onSelect(on ? null : sp.slot)} aria-pressed={on}
+            className={cx('absolute flex -translate-y-1/2 flex-col rounded-2xl px-2.5 py-2 text-left transition',
+              on ? 'bg-sys/15 ring-2 ring-sys/70' : eq ? 'bg-hud-panel/90 ring-1 ring-white/[0.08] hover:bg-white/[0.08]' : 'bg-hud-panel/60 ring-1 ring-white/[0.04] hover:bg-white/[0.06]')}
+            style={{ width: `${(CARD_W / VB.w) * 100}%`, top: `${(sp.cardY / VB.h) * 100}%`, ...(sp.side === 'left' ? { left: 0 } : { right: 0 }) }}>
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-hud-dim">
+              <span className="text-[13px]">{AUGMENTATION_SLOT_ICONS[sp.slot]}</span>
+              <span className="truncate">{SHORT_NAME[sp.slot]}</span>
+              <span className={cx('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', kind === 'active' ? 'bg-ok' : 'bg-white/25')} title={kind === 'active' ? 'Active: gives a combat move' : 'Passive: always-on stats'} />
+            </span>
+            <span className={cx('mt-0.5 block truncate text-[11px] font-semibold leading-tight', eq ? RARITY_TEXT[eq.rarity] : 'text-hud-faint')}>
+              {eq ? eq.name.replace(/^\[[A-Z]+\]\s*/, '') : 'Empty'}
+            </span>
+            {spareFor(sp.slot) && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.8)]" title="Spare implant for this slot" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ImplantRow({ item, action, startOpen = false }: { item: Item; action: React.ReactNode; startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen);
   const passive = passiveText(item);
   const condition = conditionText(item);
   const kind = item.slot ? augmentKind(item.slot) : 'passive';
@@ -83,36 +188,16 @@ export function Inventory() {
         <span className="ml-auto text-hud-dim">{equippedSlots.length} of 10 installed</span>
       </div>
 
-      {/* Body map */}
-      <div className="grid grid-cols-5 gap-2">
-        {AUGMENTATION_SLOTS.map(slot => {
-          const eq = equippedAugmentations[slot];
-          const spare = augmentations.some(i => i.slot === slot);
-          const active = filter === slot;
-          return (
-            <button
-              key={slot}
-              onClick={() => setFilter(active ? null : slot)}
-              className={cx(
-                'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-2xl transition',
-                active ? 'bg-sys/15 ring-2 ring-sys/70'
-                  : eq ? cx('bg-gradient-to-b to-white/[0.03] ring-1 ring-white/[0.06]', RARITY_GLOW[eq.rarity])
-                  : 'bg-white/[0.03] hover:bg-white/[0.06]',
-              )}
-              aria-pressed={active}
-            >
-              <span className={cx('text-xl', !eq && 'opacity-35 grayscale')}>{AUGMENTATION_SLOT_ICONS[slot]}</span>
-              <span className="text-[10px] font-medium text-hud-dim">{AUGMENTATION_SLOT_NAMES[slot]}</span>
-              {spare && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.8)]" title="Spare implant available" />}
-            </button>
-          );
-        })}
-      </div>
+      <BodyMap selected={filter} onSelect={setFilter} spareFor={slot => augmentations.some(i => i.slot === slot)} />
+      {!filter && <p className="-mt-2 text-center text-xs text-hud-faint">Tap a part of the body to see what's installed and what you could swap in. <span className="text-ok">●</span> active parts give a combat move.</p>}
 
+      {filter && !equippedAugmentations[filter] && (
+        <p className="text-sm text-hud-dim">{AUGMENTATION_SLOT_NAMES[filter]}: nothing installed. {augmentKind(filter) === 'active' ? 'Active implants here give you a combat move.' : 'Passive implants here add always-on stats.'}</p>
+      )}
       {filter && equippedAugmentations[filter] && (
         <div className="space-y-2">
           <Label>Installed in {AUGMENTATION_SLOT_NAMES[filter].toLowerCase()}</Label>
-          <ImplantRow item={equippedAugmentations[filter]!} action={<Btn size="sm" variant="danger" onClick={() => unequipAugmentation(filter)}>Remove</Btn>} />
+          <ImplantRow startOpen item={equippedAugmentations[filter]!} action={<Btn size="sm" variant="danger" onClick={() => unequipAugmentation(filter)}>Remove</Btn>} />
         </div>
       )}
 
@@ -137,17 +222,6 @@ export function Inventory() {
           </div>
         )}
       </div>
-
-      {!filter && equippedSlots.length > 0 && (
-        <div className="space-y-2">
-          <Label>Installed</Label>
-          <div className="space-y-2">
-            {equippedSlots.map(slot => (
-              <ImplantRow key={slot} item={equippedAugmentations[slot]!} action={<Btn size="sm" variant="ghost" onClick={() => unequipAugmentation(slot)}>Remove</Btn>} />
-            ))}
-          </div>
-        </div>
-      )}
 
       {!filter && (
         <div className="space-y-2">

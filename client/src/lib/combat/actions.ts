@@ -374,7 +374,7 @@ normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.075, atk: 1.07 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
-export const ENEMY_TUNING = { hp: 0.36, atk: 0.98 };
+export const ENEMY_TUNING = { hp: 0.36, atk: 1.01 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */

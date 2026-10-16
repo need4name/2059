@@ -163,22 +163,36 @@ export function stepTowardAttackPosition(grid: CombatGrid, pattern: AttackPatter
 
 type ArenaShape = NonNullable<CombatGrid['arenaShape']>;
 
-function generateGridSize(bossLevel: number) {
-  // Grows from about 7x9 on the first fights to 9x13 by threat 12
-  const progress = Math.min((bossLevel - 1) / 11, 1);
-  const cols = Math.round(7 + progress * 2 - random() * 0.8);
-  const rows = Math.round(9 + progress * 4 - random() * 1.2);
-  return { cols: Math.max(7, Math.min(9, cols)), rows: Math.max(9, Math.min(13, rows)) };
+/** What an arena has to make room for: the player's movement and how many bodies are on it. */
+export interface ArenaNeeds { move: number; units: number }
+const DEFAULT_NEEDS: ArenaNeeds = { move: 1, units: 2 };
+
+// About 7x9 suits a player who moves 1 tile against one enemy. Each extra tile of
+// movement adds a column and two rows; each extra body adds a row (and a column
+// every two). Capped at 9x13 so tiles stay big enough to read on a phone.
+export function arenaSize(needs: ArenaNeeds = DEFAULT_NEEDS) {
+  const extraMove = Math.max(0, needs.move - 1);
+  const extraUnits = Math.max(0, needs.units - 2);
+  const cols = 7 + Math.min(2, extraMove + Math.floor(extraUnits / 2));
+  const rows = 9 + Math.min(4, extraMove * 2 + extraUnits);
+  return { cols, rows };
+}
+
+function generateGridSize(needs: ArenaNeeds) {
+  const { cols, rows } = arenaSize(needs);
+  // A little variety: sometimes one row longer
+  return { cols, rows: Math.min(13, rows + (random() < 0.35 ? 1 : 0)) };
 }
 
 // Returns set of 'row,col' keys that are void (impassable, not drawn)
-function getVoidMask(shape: ArenaShape, rows: number, cols: number): Set<string> {
+function getVoidMask(shape: ArenaShape, rows: number, cols: number, crowded = false): Set<string> {
   const voids = new Set<string>();
   const add = (r: number, c: number) => voids.add(`${r},${c}`);
   if (shape === 'corridor') {
-    // A walkway three tiles wide running top to bottom, like a gantry between platforms
-    const keepMin = Math.floor((cols - 3) / 2);
-    const keepMax = keepMin + 2;
+    // A walkway running top to bottom, like a gantry between platforms (wider when crowded)
+    const width = crowded ? 4 : 3;
+    const keepMin = Math.floor((cols - width) / 2);
+    const keepMax = keepMin + width - 1;
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (c < keepMin || c > keepMax) add(r, c);
   } else if (shape === 'l_shape') {
     // One corner of the deck has collapsed into the sea
@@ -209,10 +223,10 @@ function pickShape(bossLevel: number): ArenaShape {
 
 function randomOf<T>(arr: T[]): T { return arr[Math.floor(random() * arr.length)]; }
 
-export function generateBattlefield(bossLevel: number): CombatGrid {
-  const { rows, cols } = generateGridSize(bossLevel);
+export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAULT_NEEDS): CombatGrid {
+  const { rows, cols } = generateGridSize(needs);
   const shape = pickShape(bossLevel);
-  const voidSet = getVoidMask(shape, rows, cols);
+  const voidSet = getVoidMask(shape, rows, cols, needs.units >= 4);
 
   const tiles: TileData[][] = Array.from({ length: rows }, (_, r) =>
     Array.from({ length: cols }, (_, c) => (voidSet.has(`${r},${c}`) ? { type: 'void' as const } : { type: 'empty' as const })),

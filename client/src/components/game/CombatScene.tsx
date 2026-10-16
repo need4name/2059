@@ -117,34 +117,38 @@ const foeSignature = foes.map(f => `${f.pos.row},${f.pos.col},${f.unit.currentHp
 
 // Helper function to convert grid position to screen position (rectangular grid)
 // Mobile-first: accounts for HUD at top (~60px) and action bar at bottom (~140px)
-const gridToScreen = (row: number, col: number, canvasWidth: number, canvasHeight: number) => {
-// The canvas sits between the HUD and the action bar, so only a small margin is needed
-const topReserved = 28;
-const bottomReserved = 28;
-const availableHeight = canvasHeight - topReserved - bottomReserved;
+// The walkable part of the arena (void tiles aren't drawn), so narrow shapes get bigger tiles
+const bounds = useMemo(() => {
+let r0 = grid.rows, r1 = -1, c0 = grid.cols, c1 = -1;
+for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) {
+if (grid.tiles?.[r]?.[c]?.type === 'void') continue;
+r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c);
+}
+return r1 < 0 ? { r0: 0, c0: 0, rows: grid.rows, cols: grid.cols } : { r0, c0, rows: r1 - r0 + 1, cols: c1 - c0 + 1 };
+}, [grid.tiles, grid.rows, grid.cols]);
 
-// Calculate tile size to fit available space
-// Fit based on whichever dimension is more constraining
+const gridToScreen = (row: number, col: number, canvasWidth: number, canvasHeight: number) => {
+// The canvas sits between the HUD and the action bar: small margins, room for labels above units
+const topReserved = 18;
+const bottomReserved = 12;
+const availableHeight = canvasHeight - topReserved - bottomReserved;
 // Keep clear of the heat gauge on the left edge
 const leftReserved = 46;
-const rightReserved = 10;
-const maxTileSizeByWidth = (canvasWidth - leftReserved - rightReserved) / grid.cols;
-const maxTileSizeByHeight = availableHeight / grid.rows;
-const tileSize = Math.min(78, maxTileSizeByWidth, maxTileSizeByHeight);
+const rightReserved = 8;
+const maxTileSizeByWidth = (canvasWidth - leftReserved - rightReserved) / bounds.cols;
+const maxTileSizeByHeight = availableHeight / bounds.rows;
+const tileSize = Math.min(84, maxTileSizeByWidth, maxTileSizeByHeight);
 const tileW = tileSize;
 const tileH = tileSize;
 
-// Center the grid horizontally and vertically within available space
-const gridWidth = grid.cols * tileW;
-const gridHeight = grid.rows * tileH;
+// Centre the walkable shape in the space left over
+const gridWidth = bounds.cols * tileW;
+const gridHeight = bounds.rows * tileH;
 const offsetX = leftReserved + (canvasWidth - leftReserved - rightReserved - gridWidth) / 2;
+const offsetY = topReserved + (availableHeight - gridHeight) / 2;
 
-// Vertically center within the available middle space
-const middleStart = topReserved;
-const offsetY = middleStart + (availableHeight - gridHeight) / 2;
-
-const x = offsetX + col * tileW + tileW / 2;
-const y = offsetY + row * tileH + tileH / 2;
+const x = offsetX + (col - bounds.c0) * tileW + tileW / 2;
+const y = offsetY + (row - bounds.r0) * tileH + tileH / 2;
 
 return { x, y, tileW, tileH };
 
@@ -768,7 +772,7 @@ if (progress >= 1) {
 
 // Draw player character (Wanderer) using pixel sprites
 const playerPos = gridToScreen(playerVisualRow, playerVisualCol, width, height);
-const spriteSize = Math.max(tileW * 1.2, 48);
+const spriteSize = Math.max(tileW * 1.2, 30);
 const playerFacingLeft = grid.playerPosition.col > grid.bossPosition.col;
 
 drawWanderer(
@@ -813,7 +817,7 @@ ctx.beginPath();
 ctx.ellipse(ap.x, ap.y + tileH * 0.32, tileW * 0.42, tileH * 0.16, 0, 0, Math.PI * 2);
 ctx.stroke();
 ctx.restore();
-const size = Math.max(tileW * 1.05, 44);
+const size = Math.max(tileW * 1.05, 28);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
 drawWanderer(ctx, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
@@ -846,7 +850,7 @@ if (progress >= 1) { v.moveAnim = null; v.animator.setState('idle'); }
 }
 const fp = gridToScreen(visRow, visCol, width, height);
 const isTarget = i === target;
-const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 48);
+const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 30);
 
 if (isTarget && foes.length > 1) {
 ctx.save();

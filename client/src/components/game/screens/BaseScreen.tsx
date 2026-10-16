@@ -13,6 +13,7 @@ import { Screen, Panel, Card, Label, Btn, Chip, Meter, Stat, ConfirmDialog, Segm
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText } from '../itemText';
+import { pathSummary, statText, moveText, pathTotals as pathTotalsUpTo } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status';
@@ -135,7 +136,7 @@ function UpgradesTab() {
   return (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed text-hud-dim">
-        Only installed implants can be upgraded. Picking a path is free; each tier after that costs 1 point. You earn points from wins and level-ups. Upgrades stay with the implant if you take it out.
+        Each installed implant can be upgraded down one of two paths. Picking a path is free and gives tier 1; tiers 2 and 3 cost 1 point each. You earn points from wins and level-ups. Upgrades stay with the implant if you take it out.
       </p>
       {equipped.map(slot => {
         const tree = AUGMENT_TREES[slot];
@@ -156,11 +157,16 @@ function UpgradesTab() {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(['A', 'B'] as const).map(p => {
                   const first = tree.paths[p].tiers[0];
+                  const sum = pathSummary(item, slot, p);
+                  const t1 = [statText(first), active ? moveText(item, p, 1) : null].filter(Boolean).join(' · ');
                   return (
                     <button key={p} onClick={() => choosePath(slot, p)} className="flex flex-col gap-1 rounded-2xl bg-white/[0.05] p-3.5 text-left transition hover:bg-sys/10 hover:ring-1 hover:ring-sys/40">
-                      <span className="font-display text-[15px] font-semibold capitalize text-hud-text">{tree.paths[p].name.toLowerCase()}</span>
-                      <span className="text-[13px] leading-snug text-hud-dim">{tree.paths[p].description}</span>
-                      <span className="text-xs text-sys">Tier 1: {first.augmentLabel}{active ? ` · ${p === 'A' ? 'harder hitting, hotter' : 'cooler, more accurate'}` : ''}</span>
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="font-display text-[15px] font-semibold capitalize text-hud-text">{tree.paths[p].name.toLowerCase()}</span>
+                        <span className="text-xs font-semibold text-sys">{sum.headline}</span>
+                      </span>
+                      {sum.detail.map(d => <span key={d} className="text-[13px] leading-snug text-hud-text/85">{d}</span>)}
+                      <span className="text-xs text-hud-dim">Pick it now for tier 1{t1 ? `: ${t1}` : ''}</span>
                     </button>
                   );
                 })}
@@ -173,22 +179,26 @@ function UpgradesTab() {
                   ))}
                   <span className="ml-1 text-xs text-hud-dim">{tier === 3 ? 'Max' : `${tier}/3`}</span>
                 </div>
-                {tier >= 1 && <div className="text-sm text-hud-text">{tree.paths[path].tiers[tier - 1].augmentLabel}</div>}
+                {tier >= 1 && (() => {
+                  const sum = pathSummary(item, slot, path);
+                  const now = [statText(pathTotalsUpTo(slot, path, tier)), active ? moveText(item, path, tier) : null].filter(Boolean).join(' · ');
+                  return (
+                    <div className="space-y-0.5">
+                      <div className="text-sm text-hud-text">{sum.headline}</div>
+                      {now && <div className="text-xs text-hud-dim">So far: {now}</div>}
+                    </div>
+                  );
+                })()}
                 {tier < 3 && (() => {
                   const next = tree.paths[path].tiers[tier as 0 | 1 | 2];
-                  const stats = [
-                    next.attackBonus > 0 && `+${next.attackBonus} ATK`,
-                    next.defenseBonus > 0 && `+${next.defenseBonus} DEF`,
-                    next.hpBonus > 0 && `+${next.hpBonus} HP`,
-                    next.moveRange ? `+${next.moveRange} move` : '',
-                  ].filter(Boolean).join(' · ');
+                  const stats = statText(next);
                   const capstone = tier + 1 === 3;
                   return (
                     <div className={cx('space-y-1 rounded-2xl p-3', capstone ? 'bg-gradient-to-br from-cred/15 to-transparent' : 'bg-white/[0.04]')}>
                       <div className={cx('text-xs font-semibold', capstone ? 'text-cred' : 'text-hud-dim')}>{capstone ? '★ Capstone' : `Next: tier ${tier + 1}`}</div>
-                      <div className="text-sm text-hud-text">{next.augmentLabel}</div>
-                      {active && (() => { const m = moveAt(path, tier + 1); return m ? <div className="text-xs text-sys">{m.name}: {m.damage ? `${m.damage} damage` : `+${m.defenseBoost} guard`} · {m.heatGenerated! > 0 ? '+' : ''}{m.heatGenerated} heat</div> : null; })()}
-                      {stats && <div className="text-xs text-ok">{stats}</div>}
+                      {stats && <div className="text-sm text-ok">{stats}</div>}
+                      {active && (() => { const m = moveAt(path, tier + 1); const t = moveText(item, path, tier + 1); return m && t ? <div className="text-sm text-sys">{m.name} becomes {t}</div> : null; })()}
+                      <div className="text-[11px] text-hud-faint">{next.augmentLabel}</div>
                     </div>
                   );
                 })()}
