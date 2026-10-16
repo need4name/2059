@@ -6,17 +6,17 @@
       "name": "The Indian Ocean",
       "place": "The plastic archipelago, Offshore Sector 7",
       "tileset": {
-        "floor": { "light": "#7a6a52", "dark": "#665844", "seam": "#3e3428" },
+        "floor": { "light": "#5f9cc2", "dark": "#3a7299", "seam": "#1f4058" },
         "sea": { "top": "#16353f", "bottom": "#071a22", "foam": "#5f8f99" },
         "hazards": [
           { "art": "fire", "name": "Fuel fire", "damage": 8 },
           { "art": "cable", "name": "Live cable", "damage": 6 },
           { "art": "chem", "name": "Chemical bilge", "damage": 5 },
-          { "art": "rot", "name": "Rotten deck", "damage": 4 }
+          { "art": "hole", "name": "Split decking", "damage": 4 }
         ],
         "obstacles": [
-          { "art": "crate", "name": "Salvage crate" },
-          { "art": "drum", "name": "Oil drum" },
+          { "art": "crate", "name": "Crate stack" },
+          { "art": "drum", "name": "Water drum" },
           { "art": "nets", "name": "Net pile" },
           { "art": "pump", "name": "Pump stack" }
         ]

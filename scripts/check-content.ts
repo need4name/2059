@@ -59,7 +59,7 @@ const chapterFile = z.object({
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
-      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'rot']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
+      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
       obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump']), name: text }).strict()).min(1),
     }).strict(),
   }).strict()).min(1),

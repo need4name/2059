@@ -544,7 +544,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Charged heavy attack danger zone
   if (heavyZone?.has(`${row},${col}`)) {
-    ctx.globalAlpha = 0.35 * pulse + 0.15;
+    ctx.globalAlpha = 0.4 * pulse + 0.35;
     ctx.fillStyle = '#ff7a00';
     roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
     ctx.fill();

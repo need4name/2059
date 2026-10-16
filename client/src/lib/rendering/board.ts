@@ -1,256 +1,271 @@
-// The board, drawn to look like the place you're standing in. Chapter one is a
-// raft deck lashed together on the Indian Ocean: planks over open sea, with
-// hazards and cover drawn as what they are. Each function draws one thing into a
-// tile-sized box; colours come from the chapter's tileset.
+// The board, in pixel art. Chapter one is a raft lashed together from plastic
+// on the Indian Ocean: crate plates, bleached sheeting, bundled bottles and tarp,
+// with hazards and cover drawn as what they are. Every sprite is painted once,
+// pixel by pixel, at 16x16 and scaled up with smoothing off; animated ones
+// (fire, sparks, bubbles) have a few frames.
 
 import type { Tileset } from '../combat/chapters';
 
 type Ctx = CanvasRenderingContext2D;
+const N = 16;
 
-/** A stable 0..1 number for a tile, so planks and scuffs don't flicker between frames. */
+/** A stable 0..1 number, so tiles keep their look between frames. */
 const hash = (a: number, b: number, salt = 0) => {
   const n = Math.sin(a * 127.1 + b * 311.7 + salt * 74.7) * 43758.5453;
   return n - Math.floor(n);
 };
 
-function rounded(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+// ── Sprite cache ─────────────────────────────────────────────────────────────
 
-/** Open sea behind and between the decks, with slow swell lines. */
+type Paint = (px: (x: number, y: number, c: string) => void) => void;
+const cache = new Map<string, HTMLCanvasElement>();
+function sprite(key: string, paint: Paint, outline?: string): HTMLCanvasElement {
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = N; c.height = N;
+  const g = c.getContext('2d')!;
+  paint((x, y, col) => { if (x >= 0 && y >= 0 && x < N && y < N) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } });
+  if (outline) {
+    // A one-pixel dark outline round the shape, so cover stands off the deck
+    const d = g.getImageData(0, 0, N, N).data;
+    const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < N && y < N && d[(y * N + x) * 4 + 3] > 0;
+    g.fillStyle = outline;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!solid(x, y) && (solid(x + 1, y) || solid(x - 1, y) || solid(x, y + 1) || solid(x, y - 1))) g.fillRect(x, y, 1, 1);
+  }
+  cache.set(key, c);
+  return c;
+}
+function blit(ctx: Ctx, img: HTMLCanvasElement, x: number, y: number, w: number, h: number) {
+  const smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, x, y, w, h);
+  ctx.imageSmoothingEnabled = smooth;
+}
+const rect = (px: (x: number, y: number, c: string) => void, x0: number, y0: number, w: number, h: number, c: string) => {
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) px(x, y, c);
+};
+const disc = (px: (x: number, y: number, c: string) => void, cx: number, cy: number, r: number, c: string) => {
+  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) px(cx + x, cy + y, c);
+};
+
+// ── Sea ──────────────────────────────────────────────────────────────────────
+
+/** Open sea behind and between the decks: chunky pixel swell drifting sideways. */
 export function drawSea(ctx: Ctx, w: number, h: number, t: Tileset, now: number) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, t.sea.top);
   g.addColorStop(1, t.sea.bottom);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
-  // Swell: soft broken lines drifting sideways
+  const P = 4; // one sea pixel
   ctx.save();
-  ctx.strokeStyle = t.sea.foam;
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 26; i++) {
-    const y = (hash(i, 1) * h + now / 90 * (0.3 + hash(i, 2) * 0.4)) % h;
-    const x = ((hash(i, 3) * w + now / 60 * (0.5 + hash(i, 4))) % (w + 80)) - 40;
-    const len = 18 + hash(i, 5) * 40;
-    ctx.globalAlpha = 0.08 + 0.1 * hash(i, 6);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + len / 2, y - 3, x + len, y);
-    ctx.stroke();
+  for (let i = 0; i < 34; i++) {
+    const speed = 0.4 + hash(i, 4) * 0.8;
+    const y = Math.floor(((hash(i, 1) * h + now / 140 * speed * 0.3) % h) / P) * P;
+    const x = Math.floor(((((hash(i, 3) * w + now / 70 * speed) % (w + 60)) + w + 60) % (w + 60) - 30) / P) * P;
+    const len = (3 + Math.floor(hash(i, 5) * 6)) * P;
+    ctx.globalAlpha = 0.12 + 0.14 * hash(i, 6);
+    ctx.fillStyle = t.sea.foam;
+    ctx.fillRect(x, y, len, P);
+    ctx.fillRect(x + P, y - P, len - 2 * P, P);
   }
-  // Far rafts on the horizon line
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#0a2028';
+  // Far raft silhouettes on the horizon
+  ctx.globalAlpha = 0.4;
+  ctx.fillStyle = '#081c24';
   for (let i = 0; i < 4; i++) {
-    const x = hash(i, 9) * w, y = 10 + hash(i, 10) * 14, rw = 24 + hash(i, 11) * 40;
-    ctx.fillRect(x, y, rw, 3);
-    ctx.fillRect(x + rw * 0.3, y - 6 - hash(i, 12) * 6, 2, 6 + hash(i, 12) * 6);
+    const x = Math.floor(hash(i, 9) * w / P) * P, y = 12 + Math.floor(hash(i, 10) * 4) * P, rw = (6 + Math.floor(hash(i, 11) * 10)) * P;
+    ctx.fillRect(x, y, rw, P);
+    ctx.fillRect(x + Math.floor(rw / 3 / P) * P, y - 2 * P, P, 2 * P);
   }
   ctx.restore();
 }
 
-/** One deck tile: lashed planks, running across or along by tile, with a little grain. */
-export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, t: Tileset) {
-  rounded(ctx, x, y, w, h, r);
-  ctx.fillStyle = (row + col) % 2 === 0 ? t.floor.light : t.floor.dark;
-  ctx.fill();
+// ── Deck ─────────────────────────────────────────────────────────────────────
+// Four kinds of lashed plastic. Colours: sun-bleached blues, whites, a little
+// yellow and orange, all a touch grimy.
+
+const DECK = {
+  crate: { edge: '#1f4058', body: '#3a7299', lit: '#5f9cc2', hole: '#14283a' },
+  sheet: { edge: '#6b6f68', body: '#b4b8ad', lit: '#d6d9cd', ridge: '#8d9187' },
+  bottles: { back: '#1d2b2e', a: '#5fa8a0', b: '#87c9b8', c: '#c8d6d0', rope: '#b39a63' },
+  tarp: { edge: '#7a3a1a', body: '#c8652a', lit: '#e48a45', fold: '#9c4a20' },
+};
+const DECK_KINDS = ['crate', 'sheet', 'bottles', 'tarp'] as const;
+
+function deckSprite(kind: typeof DECK_KINDS[number], v: number): HTMLCanvasElement {
+  return sprite(`deck:${kind}:${v}`, px => {
+    if (kind === 'crate') {
+      const c = DECK.crate;
+      rect(px, 0, 0, N, N, c.body);
+      for (let i = 0; i < N; i++) { px(i, 0, c.lit); px(0, i, c.lit); px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
+      // A grid of drainage holes, as on a crate base
+      for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) rect(px, 2 + gx * 5, 2 + gy * 5, 2, 2, c.hole);
+    } else if (kind === 'sheet') {
+      const c = DECK.sheet;
+      rect(px, 0, 0, N, N, c.body);
+      // Ridged sheeting, running across or along
+      for (let k = 2; k < N; k += 4) for (let i = 0; i < N; i++) {
+        if (v % 2) { px(i, k, c.lit); px(i, k + 1, c.ridge); } else { px(k, i, c.lit); px(k + 1, i, c.ridge); }
+      }
+      for (let i = 0; i < N; i++) { px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
+    } else if (kind === 'bottles') {
+      const c = DECK.bottles;
+      rect(px, 0, 0, N, N, c.back);
+      // Bottles packed in rows, lashed with rope
+      const cols = [c.a, c.b, c.c];
+      for (let row = 0; row < 4; row++) for (let k = 0; k < 4; k++) {
+        const x = 2 + k * 4 + (row % 2 ? 1 : 0), y = 2 + row * 4;
+        const col = cols[Math.floor(hash(v, row * 4 + k) * 3)];
+        rect(px, x - 1, y - 1, 3, 3, col);
+        px(x - 1, y - 1, 'rgba(255,255,255,0.5)');
+      }
+      for (let i = 0; i < N; i++) px(i, 7 + (v % 2), c.rope);
+    } else {
+      const c = DECK.tarp;
+      rect(px, 0, 0, N, N, c.body);
+      for (let i = 0; i < N; i++) { px(i, 0, c.lit); px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
+      // Folds and a couple of grommets
+      for (let i = 0; i < N; i++) px(i, Math.min(N - 2, 5 + Math.floor(i * 0.3)), c.fold);
+      px(2, 2, '#2a1a10'); px(13, 2, '#2a1a10'); px(2, 13, '#2a1a10');
+    }
+    // Grime and sun-bleach speckle, different per variant
+    for (let k = 0; k < 7; k++) px(Math.floor(hash(v, k, 1) * N), Math.floor(hash(v, k, 2) * N), k % 2 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,240,0.22)');
+  });
+}
+
+/** One deck tile: a piece of lashed plastic, chosen by position so the raft looks patched together. */
+export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, _t: Tileset) {
+  const roll = hash(row, col);
+  // Mostly crates and sheeting, with patches of bottles and tarp
+  const kind = roll < 0.4 ? 'crate' : roll < 0.75 ? 'sheet' : roll < 0.9 ? 'bottles' : 'tarp';
+  const v = Math.floor(hash(col, row, 3) * 4);
   ctx.save();
-  rounded(ctx, x, y, w, h, r);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   ctx.clip();
-  const across = hash(row, col) > 0.5;
-  const planks = 3;
-  ctx.strokeStyle = t.floor.seam;
-  ctx.lineWidth = Math.max(1, w * 0.025);
-  ctx.globalAlpha = 0.7;
-  for (let k = 1; k < planks; k++) {
-    ctx.beginPath();
-    if (across) { ctx.moveTo(x, y + (h * k) / planks); ctx.lineTo(x + w, y + (h * k) / planks); }
-    else { ctx.moveTo(x + (w * k) / planks, y); ctx.lineTo(x + (w * k) / planks, y + h); }
-    ctx.stroke();
-  }
-  // Grain and the odd nail
-  ctx.globalAlpha = 0.18;
-  ctx.lineWidth = 1;
-  for (let k = 0; k < 4; k++) {
-    const o = hash(row, col, k + 1);
-    ctx.beginPath();
-    if (across) { const yy = y + o * h; ctx.moveTo(x + w * 0.1, yy); ctx.lineTo(x + w * (0.4 + o * 0.5), yy); }
-    else { const xx = x + o * w; ctx.moveTo(xx, y + h * 0.1); ctx.lineTo(xx, y + h * (0.4 + o * 0.5)); }
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = '#2a241c';
-  const nail = Math.max(1, w * 0.03);
-  if (hash(row, col, 9) > 0.4) { ctx.beginPath(); ctx.arc(x + w * 0.2, y + h * 0.2, nail, 0, Math.PI * 2); ctx.fill(); }
-  if (hash(row, col, 10) > 0.6) { ctx.beginPath(); ctx.arc(x + w * 0.8, y + h * 0.75, nail, 0, Math.PI * 2); ctx.fill(); }
+  blit(ctx, deckSprite(kind, v), x, y, w, h);
+  // Knock the deck back a little so units, cover and hazards read first
+  ctx.fillStyle = 'rgba(8,18,24,0.38)';
+  ctx.fillRect(x, y, w, h);
   ctx.restore();
+}
+
+// ── Hazards ──────────────────────────────────────────────────────────────────
+
+const FIRE = ['#3a0d06', '#b8280f', '#ff5a1f', '#ffa22e', '#ffe08a'];
+function fireSprite(f: number) {
+  return sprite(`fire:${f}`, px => {
+    // Oily slick
+    for (let y = 10; y < 15; y++) for (let x = 2; x < 14; x++) if (Math.abs(x - 7.5) / 6 + Math.abs(y - 12) / 2.6 < 1) px(x, y, (x + y) % 5 === 0 ? '#3b2a4e' : '#14100c');
+    // Flame columns: height wobbles by frame
+    for (let x = 4; x < 12; x++) {
+      const hgt = 4 + Math.floor(hash(x, f, 7) * 5) + (x > 5 && x < 10 ? 2 : 0);
+      for (let k = 0; k < hgt; k++) {
+        const y = 11 - k;
+        const heat = k / hgt;
+        px(x, y, heat < 0.25 ? FIRE[1] : heat < 0.5 ? FIRE[2] : heat < 0.8 ? FIRE[3] : FIRE[4]);
+      }
+    }
+    // Embers
+    px(5 + f, 2, FIRE[3]); px(10 - f, 3, FIRE[4]);
+  });
+}
+function cableSprite(f: number) {
+  return sprite(`cable:${f}`, px => {
+    for (let y = 5; y < 15; y++) for (let x = 1; x < 15; x++) if (Math.abs(x - 8) / 7 + Math.abs(y - 10) / 5 < 1) px(x, y, y === 6 || (x + y) % 6 === 0 ? '#6fa3b5' : '#3f6f82');
+    // The cable snakes in from the corner and coils in the water
+    const path: [number, number][] = [[0, 2], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [6, 8], [7, 9], [8, 9], [9, 9], [10, 8], [10, 7], [9, 7], [8, 8]];
+    for (const [x, y] of path) { px(x, y, '#141414'); px(x, y + 1, '#2a2a2a'); }
+    px(8, 8, '#c0782f'); px(9, 8, '#e09a4a');
+    if (f % 2 === 0) {
+      const sparks: [number, number][] = f === 0 ? [[10, 6], [11, 5], [7, 6], [11, 9], [12, 10]] : [[9, 5], [12, 7], [6, 9], [10, 11]];
+      for (const [x, y] of sparks) px(x, y, '#d8fbff');
+      px(9, 7, '#ffffff');
+    }
+  });
+}
+function chemSprite(f: number) {
+  return sprite(`chem:${f}`, px => {
+    for (let y = 3; y < 15; y++) for (let x = 1; x < 15; x++) {
+      const d = Math.abs(x - 8) / 7 + Math.abs(y - 9) / 6;
+      if (d < 1) px(x, y, d > 0.82 ? '#4f7a14' : d > 0.5 ? '#86b424' : '#c4e84a');
+    }
+    // Bubbles rise and pop over the frames
+    const b: [number, number][] = [[5, 10 - f * 2], [10, 8 - f], [8, 12 - f * 3]];
+    for (const [x, y] of b) if (y > 3) { px(x, y, '#ecffa8'); px(x + 1, y, '#ecffa8'); px(x, y - 1, '#ecffa8'); }
+  });
+}
+function holeSprite(f: number) {
+  return sprite(`hole:${f}`, px => {
+    // A split in the decking with the sea below
+    // A ragged split, wider across than down
+    const shape = (x: number, y: number) => ((x - 7.5) / 7) ** 2 + ((y - 8) / 4.5) ** 2 + (hash(x, y, 4) - 0.5) * 0.7 + Math.sin(x * 1.7) * 0.12 < 0.85;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (shape(x, y)) px(x, y, (y + f) % 4 === 0 && x % 3 ? '#2f6676' : '#0b2630');
+    // Torn plastic lips
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!shape(x, y) && (shape(x + 1, y) || shape(x - 1, y) || shape(x, y + 1) || shape(x, y - 1))) px(x, y, hash(x, y, 8) > 0.5 ? '#8f968a' : '#6c7268');
+  });
 }
 
 /** A hazard, drawn as what it is. Returns false if the art name isn't known. */
 export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: number, s: number, now: number): boolean {
-  ctx.save();
+  const size = s * 0.86, x = cx - size / 2, y = cy - size / 2;
+  const f = Math.floor(now / 160) % 3;
   switch (art) {
-    case 'fire': {
-      // An oily slick with flames licking up from it
-      ctx.fillStyle = 'rgba(20,16,12,0.8)';
-      ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.18, s * 0.38, s * 0.16, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(140,90,200,0.25)';
-      ctx.beginPath(); ctx.ellipse(cx - s * 0.08, cy + s * 0.16, s * 0.2, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
-      for (let k = 0; k < 3; k++) {
-        const fx = cx + (k - 1) * s * 0.17;
-        const flick = Math.sin(now / 90 + k * 2.1) * 0.06 + Math.sin(now / 37 + k) * 0.03;
-        const fh = s * (0.42 + 0.12 * (k === 1 ? 1 : 0) + flick);
-        const grad = ctx.createLinearGradient(fx, cy + s * 0.18, fx, cy + s * 0.18 - fh);
-        grad.addColorStop(0, '#ff5a1f'); grad.addColorStop(0.6, '#ffb02e'); grad.addColorStop(1, 'rgba(255,240,150,0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.moveTo(fx - s * 0.1, cy + s * 0.18);
-        ctx.quadraticCurveTo(fx - s * 0.12, cy + s * 0.18 - fh * 0.5, fx + Math.sin(now / 120 + k) * s * 0.03, cy + s * 0.18 - fh);
-        ctx.quadraticCurveTo(fx + s * 0.12, cy + s * 0.18 - fh * 0.5, fx + s * 0.1, cy + s * 0.18);
-        ctx.closePath(); ctx.fill();
-      }
-      break;
-    }
-    case 'cable': {
-      // A puddle with a live cable coiled in it, sparking
-      ctx.fillStyle = 'rgba(60,110,130,0.55)';
-      ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.08, s * 0.4, s * 0.24, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = Math.max(2, s * 0.07); ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx - s * 0.46, cy - s * 0.3);
-      ctx.bezierCurveTo(cx - s * 0.1, cy - s * 0.3, cx - s * 0.3, cy + s * 0.2, cx, cy + s * 0.1);
-      ctx.bezierCurveTo(cx + s * 0.25, cy, cx + s * 0.1, cy - s * 0.2, cx + s * 0.18, cy + s * 0.06);
-      ctx.stroke();
-      ctx.fillStyle = '#c0782f';
-      ctx.beginPath(); ctx.arc(cx + s * 0.18, cy + s * 0.06, s * 0.05, 0, Math.PI * 2); ctx.fill();
-      const on = Math.sin(now / 70) > 0.2;
-      if (on) {
-        ctx.strokeStyle = '#bff3ff'; ctx.lineWidth = 1.5; ctx.shadowColor = '#7fe7ff'; ctx.shadowBlur = 8;
-        for (let k = 0; k < 3; k++) {
-          const a = now / 50 + k * 2.1;
-          ctx.beginPath();
-          ctx.moveTo(cx + s * 0.18, cy + s * 0.06);
-          ctx.lineTo(cx + s * 0.18 + Math.cos(a) * s * 0.12, cy + s * 0.06 + Math.sin(a) * s * 0.12);
-          ctx.lineTo(cx + s * 0.18 + Math.cos(a + 0.5) * s * 0.2, cy + s * 0.06 + Math.sin(a + 0.5) * s * 0.2);
-          ctx.stroke();
-        }
-      }
-      break;
-    }
-    case 'chem': {
-      // A pool of chemical bilge, bubbling
-      const g = ctx.createRadialGradient(cx, cy, s * 0.05, cx, cy, s * 0.42);
-      g.addColorStop(0, 'rgba(200,240,60,0.85)'); g.addColorStop(1, 'rgba(90,140,20,0.55)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.04, s * 0.42, s * 0.3, 0.2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(230,255,140,0.8)'; ctx.lineWidth = 1.2;
-      for (let k = 0; k < 4; k++) {
-        const ph = ((now / 900 + k * 0.27) % 1);
-        const bx = cx + (hash(k, 3) - 0.5) * s * 0.5, by = cy + (hash(k, 4) - 0.5) * s * 0.3;
-        ctx.globalAlpha = 1 - ph;
-        ctx.beginPath(); ctx.arc(bx, by, s * (0.03 + ph * 0.06), 0, Math.PI * 2); ctx.stroke();
-      }
-      break;
-    }
-    case 'rot': {
-      // Broken planks with the sea showing through
-      ctx.fillStyle = '#0c2630';
-      ctx.beginPath();
-      ctx.moveTo(cx - s * 0.3, cy - s * 0.18); ctx.lineTo(cx + s * 0.05, cy - s * 0.3); ctx.lineTo(cx + s * 0.34, cy - s * 0.05);
-      ctx.lineTo(cx + s * 0.18, cy + s * 0.3); ctx.lineTo(cx - s * 0.22, cy + s * 0.22); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(95,143,153,0.6)'; ctx.lineWidth = 1;
-      const sw = Math.sin(now / 500) * s * 0.03;
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy + sw); ctx.quadraticCurveTo(cx, cy - s * 0.04 + sw, cx + s * 0.15, cy + sw); ctx.stroke();
-      ctx.strokeStyle = '#3a2e22'; ctx.lineWidth = Math.max(2, s * 0.06);
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.36, cy - s * 0.26); ctx.lineTo(cx - s * 0.12, cy - s * 0.02); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx + s * 0.38, cy + s * 0.12); ctx.lineTo(cx + s * 0.1, cy + s * 0.04); ctx.stroke();
-      break;
-    }
-    default:
-      ctx.restore();
-      return false;
+    case 'fire': blit(ctx, fireSprite(f), x, y, size, size); return true;
+    case 'cable': blit(ctx, cableSprite(f), x, y, size, size); return true;
+    case 'chem': blit(ctx, chemSprite(f), x, y, size, size); return true;
+    case 'hole': case 'rot': blit(ctx, holeSprite(Math.floor(now / 400) % 4), x, y, size, size); return true;
+    default: return false;
   }
-  ctx.restore();
-  return true;
 }
+
+// ── Cover ────────────────────────────────────────────────────────────────────
+
+const COVER: Record<string, Paint> = {
+  crate: px => {
+    // A stack of two plastic crates with handle slots
+    rect(px, 2, 3, 12, 12, '#2f6c94');
+    for (let i = 2; i < 14; i++) { px(i, 3, '#5f9cc2'); px(i, 14, '#173a52'); }
+    for (let j = 3; j < 15; j++) { px(2, j, '#4a88b0'); px(13, j, '#173a52'); }
+    for (let i = 2; i < 14; i++) px(i, 8, '#173a52');
+    rect(px, 6, 5, 4, 1, '#0e2232'); rect(px, 6, 10, 4, 1, '#0e2232');
+    for (let i = 3; i < 13; i += 2) px(i, 12, '#24577a');
+  },
+  drum: px => {
+    // A white-and-blue plastic drum, sun-faded
+    rect(px, 4, 3, 8, 12, '#3f7fb0');
+    for (let j = 3; j < 15; j++) { px(4, j, '#2a5a80'); px(11, j, '#2a5a80'); px(5, j, '#6aa6d4'); }
+    rect(px, 4, 2, 8, 2, '#8fc0e2'); px(9, 2, '#1a3a52');
+    rect(px, 4, 7, 8, 1, '#24507a'); rect(px, 4, 11, 8, 1, '#24507a');
+    rect(px, 6, 8, 4, 3, '#e8e2c8');
+  },
+  nets: px => {
+    // A heap of green net with orange floats
+    for (let y = 4; y < 15; y++) for (let x = 1; x < 15; x++) if (Math.abs(x - 7.5) / 7 + (14 - y) / 11 < 1.05) px(x, y, (x + y) % 2 ? '#2f4c3e' : '#3f6650');
+    for (let y = 5; y < 15; y++) for (let x = 2; x < 14; x++) if ((x * 3 + y * 5) % 7 === 0 && Math.abs(x - 7.5) / 7 + (14 - y) / 11 < 1) px(x, y, '#a9c9a2');
+    rect(px, 4, 9, 2, 2, '#e88a2a'); rect(px, 10, 7, 2, 2, '#e88a2a'); rect(px, 7, 12, 2, 2, '#e88a2a');
+  },
+  pump: px => {
+    // A salvaged pump: grey housing, red valve wheel, pipe
+    rect(px, 3, 6, 10, 8, '#56656e');
+    for (let i = 3; i < 13; i++) { px(i, 6, '#7d8e98'); px(i, 13, '#2c363c'); }
+    rect(px, 6, 2, 4, 4, '#6a7a84'); px(6, 2, '#8fa0aa');
+    rect(px, 13, 8, 2, 2, '#2c363c'); rect(px, 14, 10, 1, 4, '#2c363c');
+    rect(px, 6, 8, 4, 4, '#c03a2a'); px(7, 9, '#7e1e14'); px(8, 10, '#7e1e14'); px(7, 10, '#e05a40');
+  },
+};
 
 /** A piece of cover, drawn as what it is. Returns false if the art name isn't known. */
 export function drawObstacle(ctx: Ctx, art: string | undefined, cx: number, cy: number, s: number): boolean {
+  const paint = art ? COVER[art] : undefined;
+  if (!paint) return false;
+  // Soft shadow on the deck, then the sprite
   ctx.save();
-  // Every piece of cover casts a soft shadow on the deck
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.3, s * 0.36, s * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-  switch (art) {
-    case 'crate': {
-      const w = s * 0.62, h = s * 0.56, x = cx - w / 2, y = cy - h / 2;
-      rounded(ctx, x, y, w, h, s * 0.05);
-      ctx.fillStyle = '#8a6a3c'; ctx.fill();
-      ctx.strokeStyle = '#4a3720'; ctx.lineWidth = Math.max(1.5, s * 0.035); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y + h / 3); ctx.lineTo(x + w, y + h / 3);
-      ctx.moveTo(x, y + (2 * h) / 3); ctx.lineTo(x + w, y + (2 * h) / 3);
-      ctx.moveTo(x + w * 0.08, y + h * 0.92); ctx.lineTo(x + w * 0.92, y + h * 0.08);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(x + w * 0.1, y + h * 0.42, w * 0.3, h * 0.12);
-      break;
-    }
-    case 'drum': {
-      const w = s * 0.46, h = s * 0.6, x = cx - w / 2, y = cy - h / 2;
-      ctx.fillStyle = '#7a2e22';
-      ctx.fillRect(x, y + s * 0.06, w, h - s * 0.06);
-      ctx.beginPath(); ctx.ellipse(cx, y + h, w / 2, s * 0.06, 0, 0, Math.PI); ctx.fill();
-      ctx.fillStyle = '#9c4030';
-      ctx.beginPath(); ctx.ellipse(cx, y + s * 0.06, w / 2, s * 0.06, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#3e1610'; ctx.lineWidth = Math.max(1.2, s * 0.03);
-      ctx.beginPath(); ctx.moveTo(x, y + h * 0.4); ctx.lineTo(x + w, y + h * 0.4); ctx.moveTo(x, y + h * 0.72); ctx.lineTo(x + w, y + h * 0.72); ctx.stroke();
-      ctx.fillStyle = 'rgba(240,200,60,0.75)';
-      ctx.beginPath(); ctx.arc(cx, y + h * 0.56, s * 0.06, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x + w * 0.12, y + s * 0.1, w * 0.12, h * 0.8);
-      break;
-    }
-    case 'nets': {
-      ctx.fillStyle = '#3f5a4e';
-      ctx.beginPath();
-      ctx.moveTo(cx - s * 0.36, cy + s * 0.28);
-      ctx.quadraticCurveTo(cx - s * 0.3, cy - s * 0.28, cx, cy - s * 0.3);
-      ctx.quadraticCurveTo(cx + s * 0.34, cy - s * 0.24, cx + s * 0.36, cy + s * 0.28);
-      ctx.closePath(); ctx.fill();
-      ctx.save(); ctx.clip();
-      ctx.strokeStyle = 'rgba(190,220,190,0.35)'; ctx.lineWidth = 1;
-      for (let k = -6; k <= 6; k++) {
-        ctx.beginPath(); ctx.moveTo(cx + k * s * 0.08, cy - s * 0.4); ctx.lineTo(cx + k * s * 0.08 + s * 0.4, cy + s * 0.4); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx + k * s * 0.08, cy - s * 0.4); ctx.lineTo(cx + k * s * 0.08 - s * 0.4, cy + s * 0.4); ctx.stroke();
-      }
-      ctx.restore();
-      ctx.fillStyle = '#e0a030';
-      ctx.beginPath(); ctx.arc(cx + s * 0.14, cy - s * 0.08, s * 0.06, 0, Math.PI * 2); ctx.fill();
-      break;
-    }
-    case 'pump': {
-      ctx.fillStyle = '#4b5a63';
-      rounded(ctx, cx - s * 0.26, cy - s * 0.14, s * 0.52, s * 0.42, s * 0.06); ctx.fill();
-      ctx.fillStyle = '#62737d';
-      rounded(ctx, cx - s * 0.1, cy - s * 0.38, s * 0.2, s * 0.26, s * 0.04); ctx.fill();
-      ctx.strokeStyle = '#2a343a'; ctx.lineWidth = Math.max(2, s * 0.06); ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(cx + s * 0.26, cy + s * 0.04); ctx.lineTo(cx + s * 0.4, cy + s * 0.04); ctx.lineTo(cx + s * 0.4, cy + s * 0.26); ctx.stroke();
-      ctx.fillStyle = '#c03a2a';
-      ctx.beginPath(); ctx.arc(cx, cy + s * 0.07, s * 0.08, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#7e1e14'; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.06, cy + s * 0.07); ctx.lineTo(cx + s * 0.06, cy + s * 0.07); ctx.moveTo(cx, cy + s * 0.01); ctx.lineTo(cx, cy + s * 0.13); ctx.stroke();
-      break;
-    }
-    default:
-      ctx.restore();
-      return false;
-  }
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(cx - s * 0.36, cy + s * 0.26, s * 0.72, s * 0.1);
   ctx.restore();
+  const size = s * 0.9;
+  blit(ctx, sprite(`cover:${art}`, paint, '#071014'), cx - size / 2, cy - size / 2, size, size);
   return true;
 }

@@ -10,6 +10,8 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 ## Story
 
 - The game is tied to the owner's universe notes (not in the repo; the repo is public, so don't commit lore digests). The player is a stray signal in grey-market brain chips; death means "host lost" and the signal jumps hosts. Minds can be extracted but never put back, so never write "backed up" or "restored".
+- A host death restarts the chapter at its entry room, as another corpse reanimating.
+- Room text: about two sentences per room to start; tweak as we go. Chapter goals are placeholders until the story is written.
 - Makers: Helix (defensive, no weapons), Volkov (operator limbs), Tianxia (labour), Kizuna (MIL/neural), Crown (luxury/restorative), CBN (cartel grafts, cost health), IOA (grey firmware), PARSU (materials), Patchwork (salvage).
 
 ## Design preferences
@@ -17,6 +19,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - Soft, rounded UI. Avoid hard square boxes, heavy borders and walls of ALL-CAPS letter-spaced text.
 - Don't use Chakra Petch or JetBrains Mono (rejected). Current fonts: Sora for headings, Manrope for everything else.
 - Fight rules live in `client/src/lib/engine/fight.ts` as pure functions (state in, state + events out). The combat store only handles timing, sound and inventory. Put new rules in the engine and test them in `tests/fight.test.ts`.
+- Art is pixel art, always (board, tiles, hazards, models). Chapter one's rafts are lashed-together plastic, not wood.
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
 
 ## Content
