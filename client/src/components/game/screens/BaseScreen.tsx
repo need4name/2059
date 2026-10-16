@@ -5,7 +5,7 @@ import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoado
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { useAudio } from '@/lib/stores/useAudio';
 import { AUGMENT_TREES } from '@/lib/combat/augmentTrees';
-import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS, ENEMY_GRADES, enemyGradeAt, enemyImplantCount } from '@/lib/combat/actions';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS, augmentKind } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
@@ -15,6 +15,9 @@ import { useActionPool } from '../useActionPool';
 import { rangeText } from '../itemText';
 import { pathSummary, statText, moveText, pathTotals as pathTotalsUpTo } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
+import { useJournal } from '@/lib/stores/useJournal';
+import { usePlayi } from '@/lib/stores/usePlayi';
+import { PLAYER_BASE_MOVE } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status';
 
@@ -273,6 +276,8 @@ function StatusTab() {
   const tree = getTreeStatBonuses(equipped);
   const stats = createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeHp: tree.hp }, playerClass);
   const cls = CLASS_DEFINITIONS[playerClass];
+  const perks = usePlayi(s => s.perks)();
+  const notes = useJournal(s => s.notes);
 
   return (
     <div className="space-y-3">
@@ -280,7 +285,7 @@ function StatusTab() {
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
-          <Stat label="Move" value={`${2 + (tree.moveRange ?? 0)} tiles`} />
+          <Stat label="Move" value={`${PLAYER_BASE_MOVE + perks.moveBonus + (tree.moveRange ?? 0)} tiles`} />
           <Stat label="Attack" value={stats.physicalAttack} tone="text-rose-300" />
           <Stat label="Disrupt" value={stats.structuralAttack} tone="text-rose-300" />
           <Stat label="Evasion" value={stats.evasion} />
@@ -293,6 +298,16 @@ function StatusTab() {
         })()}
         <p className="mt-4 text-xs leading-relaxed text-hud-faint">Structure is your implants' own health: each part adds to it, heavier makers more. Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up.</p>
       </Panel>
+
+      {notes.length > 0 && (
+        <Panel label="What the signal has noticed">
+          <ul className="space-y-2.5">
+            {notes.slice().reverse().map(n => (
+              <li key={n.id} className="text-sm italic leading-snug text-hud-text/90">{n.text}<span className="ml-1.5 not-italic text-[11px] text-hud-faint">host {n.host}</span></li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel label="Combat profile">
         <div className="space-y-1">
@@ -377,7 +392,13 @@ export function BaseScreen() {
           </div>
           <div className="relative mt-2 font-display text-[22px] font-semibold leading-tight" style={{ color: target.color }}>{target.name}</div>
           <p className="relative mt-1.5 text-sm leading-relaxed text-hud-text/80">{BOSS_DOSSIERS[target.name]}</p>
-          <div className="relative mt-3 text-xs text-hud-dim">About {target.hp} HP</div>
+          {(() => { const g = ENEMY_GRADES[enemyGradeAt(bossLevel)]; const n = enemyImplantCount(bossLevel); return (
+            <div className="relative mt-3 flex flex-wrap items-center gap-2 text-xs text-hud-dim">
+              <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: `${g.color}22`, color: g.color }}>{g.name}</span>
+              <span>Carries {n} implant{n === 1 ? '' : 's'}</span>
+              <span>· About {target.hp} HP</span>
+            </div>
+          ); })()}
         </div>
 
         <button onClick={openMarket} className="flex w-full items-center gap-3 rounded-3xl bg-cred/[0.07] p-4 text-left ring-1 ring-cred/20 transition hover:bg-cred/10">

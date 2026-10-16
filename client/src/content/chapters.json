@@ -1,0 +1,26 @@
+{
+  "about": "Chapters: self-contained awakenings in different parts of the world. Each has its own tileset (how the board looks, which hazards and cover appear). Hazard and obstacle 'art' names must be ones the board knows how to draw (lib/rendering/board.ts).",
+  "chapters": [
+    {
+      "id": "indian-ocean",
+      "name": "The Indian Ocean",
+      "place": "The plastic archipelago, Offshore Sector 7",
+      "tileset": {
+        "floor": { "light": "#7a6a52", "dark": "#665844", "seam": "#3e3428" },
+        "sea": { "top": "#16353f", "bottom": "#071a22", "foam": "#5f8f99" },
+        "hazards": [
+          { "art": "fire", "name": "Fuel fire", "damage": 8 },
+          { "art": "cable", "name": "Live cable", "damage": 6 },
+          { "art": "chem", "name": "Chemical bilge", "damage": 5 },
+          { "art": "rot", "name": "Rotten deck", "damage": 4 }
+        ],
+        "obstacles": [
+          { "art": "crate", "name": "Salvage crate" },
+          { "art": "drum", "name": "Oil drum" },
+          { "art": "nets", "name": "Net pile" },
+          { "art": "pump", "name": "Pump stack" }
+        ]
+      }
+    }
+  ]
+}

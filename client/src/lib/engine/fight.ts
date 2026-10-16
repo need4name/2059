@@ -18,6 +18,7 @@ import {
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { canHitTarget, getHitTiles } from '../combat/patterns';
+import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
 import { random } from './rng';
@@ -59,6 +60,8 @@ export interface Foe {
   scriptTurn: number;
   /** Who a wound-up heavy is aimed at: -1 the player, otherwise an ally's index. */
   pendingVictim: number | null;
+  /** The exact tiles a wound-up heavy will strike. Anyone on them when it fires is hit. */
+  pendingTiles: TilePosition[] | null;
 }
 
 /** An ally on the field. Knocked out allies sit out the rest of the fight. */
@@ -144,7 +147,7 @@ function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; 
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
-  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null };
+  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null };
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
@@ -307,10 +310,13 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     const heat = clampHeat(foe.heat + heatPush);
+    const shove = attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === s.target ? pushBack(state, grid.playerPosition, foe.pos) : null;
     state = setFoe(state, i, {
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
+      ...(shove ? { pos: shove } : {}),
     });
+    if (shove) events.push(say(`${foe.unit.name} is knocked back`));
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
@@ -428,29 +434,45 @@ export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternTy
 export function telegraphHeavy(s: FightState, i: number, action: CombatAction): Step {
   const moved = moveFoeToward(s, i, action.attackPattern);
   const victim = victimOf(moved.state, i);
+  const view = foeView(moved.state, i, victim);
+  // The heavy is aimed where its target stands now; those tiles are locked in
+  const tiles = getHitTiles(moved.state.foes[i].pos, view.playerPosition, action.attackPattern ?? 'melee_long', view);
+  if (!tiles.length) return { state: moved.state, events: moved.events };
   const at = victim >= 0 ? ` at ${s.allies[victim].unit.name}` : '';
   return {
-    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim }),
+    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim, pendingTiles: tiles }),
     events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}${at}!`, 'critical')],
   };
 }
 
-/** Fire foe i's wound-up heavy. Returns whether it connects (stepping out dodges it). */
-export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean; victim: number } {
-  const action = s.foes[i].pendingAction;
-  const victim = s.foes[i].pendingVictim ?? -1;
-  const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null });
-  if (!action) return { state, events: [], action: null, connects: false, victim };
-  if (victim >= 0) {
-    const ally = s.allies[victim];
-    const inReach = !!ally && allyAlive(ally) && canFoeHit(state, i, action.attackPattern, victim);
-    return { state, action, connects: inReach, victim, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses${ally ? ` ${ally.unit.name}` : ''}`)] };
+/** Fire foe i's wound-up heavy at its locked tiles. Everyone standing on them is hit (-1 = the player, else an ally). */
+export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean; victims: number[] } {
+  const foe = s.foes[i];
+  const action = foe.pendingAction;
+  const tiles = foe.pendingTiles ?? [];
+  let state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
+  if (!action) return { state, events: [], action: null, connects: false, victims: [] };
+  const on = (p: TilePosition) => tiles.some(t => same(t, p));
+  const events: FightEvent[] = [];
+  let victims: number[] = [];
+  if (on(s.grid.playerPosition)) {
+    if (s.sidestepReady) {
+      state = { ...state, sidestepReady: false };
+      events.push(say(`SIDESTEP -- ${foe.unit.name}'s ${action.name} slides past you`));
+    } else victims.push(-1);
   }
-  const inReach = canFoeHit(state, i, action.attackPattern, -1);
-  if (inReach && s.sidestepReady) {
-    return { state: { ...state, sidestepReady: false }, action, connects: false, victim, events: [say(`SIDESTEP -- ${s.foes[i].unit.name}'s ${action.name} slides past you`)] };
+  s.allies.forEach((a, k) => { if (allyAlive(a) && on(a.pos)) victims.push(k); });
+  // A charge carries the attacker down its lane, stopping short of anything in the way
+  if (action.attackPattern === 'charge') {
+    const blocked = (p: TilePosition) => isImpassable(p, s.grid) || same(p, s.grid.playerPosition)
+      || s.allies.some(a => allyAlive(a) && same(a.pos, p)) || s.foes.some((f, k) => k !== i && isAlive(f) && same(f.pos, p));
+    let end = foe.pos;
+    for (const t of tiles) { if (blocked(t)) break; end = t; }
+    state = setFoe(state, i, { pos: end });
   }
-  return { state, action, connects: inReach, victim, events: inReach ? [] : [say(`${s.foes[i].unit.name}'s ${action.name} misses -- you evaded`)] };
+  if (!victims.length && !events.length) events.push(say(`${foe.unit.name}'s ${action.name} hits empty deck -- you evaded`));
+  victims = victims.slice().sort((a, b) => a - b);
+  return { state, events, action, connects: victims.length > 0, victims };
 }
 
 /** Foe i's attack or shield landing. `level` scales its move damage. */
@@ -483,8 +505,12 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (breaks) events.push(say('MALFUNCTION', 'malfunction'));
   if (hp <= 0) events.push({ kind: 'playerDown' });
 
+  // Knockback shoves you a tile straight back, if there's room
+  const pushed = action.attackPattern === 'knockback' && hp > 0 ? pushBack(s, foe.pos, grid.playerPosition) : null;
+  if (pushed) events.push(say('Knocked back a tile'));
   const state = setFoe({
     ...s,
+    ...(pushed ? { grid: { ...s.grid, playerPosition: pushed } } : {}),
     player: { ...player, currentHp: hp, currentStructuralHp: structure },
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
     // A guard soaks one hit, so a crowd can't all hit a braced player at full guard
@@ -495,6 +521,15 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   return { state, events };
 }
 
+/** Where a knockback from `from` pushes a unit at `at`: one tile straight on, if open. */
+export function pushBack(s: FightState, from: TilePosition, at: TilePosition): TilePosition | null {
+  const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
+  const to = { row: at.row + step.row, col: at.col + step.col };
+  if (!inBounds(to, s.grid) || isImpassable(to, s.grid)) return null;
+  const bodies = [s.grid.playerPosition, ...s.foes.filter(isAlive).map(f => f.pos), ...s.allies.filter(allyAlive).map(a => a.pos)];
+  return bodies.some(b => same(b, to)) ? null : to;
+}
+
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
 function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number): Step {
   const foe = s.foes[i], ally = s.allies[k];
@@ -503,7 +538,8 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
   const hp = Math.max(0, ally.unit.currentHp - lost);
   const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
   if (hp <= 0) { events.push(say(`${ally.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: k }); }
-  const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
+  const pushed = action.attackPattern === 'knockback' && hp > 0 ? pushBack(s, foe.pos, ally.pos) : null;
+  const allies = s.allies.map((a, n) => (n === k ? { ...a, pos: pushed ?? a.pos, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
   return { state: setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events };
 }
 
@@ -516,11 +552,14 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
   if (!isAlive(s.foes[i])) return { state: s, events: [], strikeAfterMove: null };
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
-    if (rel.connects && rel.action) {
-      const hit = resolveFoeAction(rel.state, i, rel.action, level, rel.victim);
-      return { state: hit.state, events: [...rel.events, ...hit.events], strikeAfterMove: null };
+    let state = rel.state;
+    const events = [...rel.events];
+    if (rel.action) for (const v of rel.victims) {
+      const hit = resolveFoeAction(state, i, rel.action, level, v);
+      state = hit.state; events.push(...hit.events);
+      if (hit.events.some(e => e.kind === 'playerDown')) break;
     }
-    return { state: rel.state, events: rel.events, strikeAfterMove: null };
+    return { state, events, strikeAfterMove: null };
   }
   const choice = chooseFoeAction(s, i);
   const action = choice.action;

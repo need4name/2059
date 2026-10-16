@@ -2,22 +2,12 @@ import type { CombatGrid, TileData, TilePosition, AttackPatternType } from './ty
 import { canHitTarget } from './patterns';
 
 import { random } from '../engine/rng';
+import { currentChapter } from './chapters';
 // ── Tile helpers ──────────────────────────────────────────────────────────────
 
-// Cover found on the plastic archipelago and the platforms tethered to it
-const OBSTACLE_TYPES = [
-  { icon: '🧱', name: 'Debris bale' },
-  { icon: '📦', name: 'Salvage crate' },
-  { icon: '🛢️', name: 'Pump drum' },
-  { icon: '⚙️', name: 'Turbine strut' },
-  { icon: '🧵', name: 'Cable spool' },
-];
-
-const HAZARD_TYPES = [
-  { icon: '☣️', name: 'Leachate pool', damage: 5 },
-  { icon: '🔥', name: 'Fuel fire',     damage: 8 },
-  { icon: '⚡', name: 'Stolen power tap', damage: 6 },
-];
+// Cover and hazards come from the current chapter's tileset (content/chapters.json)
+const OBSTACLE_TYPES = () => currentChapter().tileset.obstacles;
+const HAZARD_TYPES = () => currentChapter().tileset.hazards;
 
 const NEIGHBOURS = [
   { row: -1, col: 0 }, { row: 1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 },
@@ -260,8 +250,8 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
     }
   };
 
-  place(numObstacles, () => { const o = randomOf(OBSTACLE_TYPES); return { type: 'obstacle', icon: o.icon, name: o.name }; }, true);
-  place(numHazards, () => { const h = randomOf(HAZARD_TYPES); return { type: 'hazard', icon: h.icon, name: h.name, hazardDamage: h.damage }; }, false);
+  place(numObstacles, () => { const o = randomOf(OBSTACLE_TYPES()); return { type: 'obstacle', art: o.art, name: o.name }; }, true);
+  place(numHazards, () => { const h = randomOf(HAZARD_TYPES()); return { type: 'hazard', art: h.art, name: h.name, hazardDamage: h.damage }; }, false);
 
   return grid;
 }

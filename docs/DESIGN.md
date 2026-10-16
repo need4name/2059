@@ -27,12 +27,35 @@ Story and setting live in the owner's universe notes, which stay out of this pub
 ### Arenas
 - Portrait grids sized for what's on them (`arenaSize` in `grid.ts`): **7×9 for a player who moves 1 tile against one enemy.** Each extra tile of your movement adds a column and two rows; each body beyond two (enemies, allies) adds a row, and a column every two. Capped at 9×13. Sometimes one row longer for variety. You start on the bottom row, the enemy on the top row.
 - Shapes: open, corridor (3 wide, 4 with four or more bodies), L-shape, cross.
+- **Tilesets:** each chapter has a tileset in `client/src/content/chapters.json` (floor and sea colours, the hazards and cover that can appear). Chapter one, the Indian Ocean: raft-deck planks over open sea; hazards fuel fire (8), live cable (6), chemical bilge (5), rotten deck (4); cover salvage crates, oil drums, net piles, pump stacks. The board draws each as what it is (`client/src/lib/rendering/board.ts`).
 - On screen the arena is scaled to its walkable shape (void edges aren't counted), and the fight HUD is kept short (one heavy-attack warning however many enemies are winding up, one log line) so the arena keeps as much room as possible. Void tiles are holes you can't enter.
 - Obstacles cover 8% of walkable tiles at threat 1, rising to 14%. Hazards start at threat 2 (2% rising to 6%). A path from you to the enemy always exists.
 - Flanking (the enemy faces down the arena): hitting from **behind gives +30%**, from the **side +15%**.
 
+### Attack shapes
+Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.ts`). Player moves use the same shapes.
+
+| Shape | Hits | Beat it by |
+| --- | --- | --- |
+| Strike (`melee`) | the one adjacent tile you're on | not ending next to it |
+| Reach (`melee_long`) | a straight line of 2 | leaving its row or column |
+| Lunge | only the tile exactly 2 away, any of 8 directions | standing adjacent, or 3 away |
+| Sweep (`sweep_arc`) | a 3-tile arc in front | getting behind or beside it |
+| Cone | a wedge along a row or column: 1 tile, then 3 | getting to its side |
+| Shot (`ranged`) | one tile 2–4 away on a row, column or diagonal, with no cover, void or body in between | breaking the line |
+| Knockback | a straight line of up to 3; the one hit is pushed 1 tile straight back if there's room | keeping your back off hazards |
+| Charge | a lane of 3 toward the target; the attacker dashes down it, stopping short of anything in the way | leaving the lane |
+| X-burst (`diagonal_cross`) | all four diagonals, 2 deep | standing square to it |
+| Ring | every tile exactly 2 away | hugging it or backing off |
+| Beam | the whole row or column toward the target, to the edge | changing row or column |
+| Blast (`aoe`) | a 3×3 square centred on a tile up to 3 away | leaving the square |
+
 ### Enemy behaviour
-- **Heavy attacks** are telegraphed: the enemy moves into position and winds up, and the orange tiles show where it lands next turn. Step out of them and it misses. Enemies only use heavies when your heat is **45 or more**.
+- **Heavy attacks lock their tiles.** The enemy moves into position, then aims at where its target stands; the orange tiles are exactly the tiles that fire next turn. Anyone on them then is hit (allies included), anyone off them is safe, wherever they are. If the shape can't reach its target after the move, the heavy isn't wound up. Enemies only use heavies when your heat is **45 or more**.
+- **Signature heavies:** Scavenger charge, Boarder cone, Cadre blast, Ghost-MIL X-burst, Raider ring, Surgeon strike (a grab), IOA knockback, Tianxia beam, Warden knockback, Volkov charge, Enforcer ring, Unregistered beam.
+- **The red zone** shows only each enemy's normal attacks from where it stands; heavies show only as their locked orange tiles.
+- **Grades:** enemies show how upgraded they are: Raw (threat 1–4), Grafted (5–9), Augmented (10–19), Chromed (20–29), Ascended (30+). The target card shows the grade and how many implants they carry (1 up to threat 5, 2 up to 10, then 3); in a fight the HUD names the implants, and each glows on the sprite in the grade's colour.
+- **Lines:** at the start of a fight the lead enemy says one line of horror at the walking corpse (`lines` in `enemies.json`; `lateLines` join once 5 or more hosts are lost). The first time any host meets a kind of enemy, the signal notes its impression (`firstSight`) in the journal (`client/src/lib/stores/useJournal.tsx`), shown on the Status tab. Lines are flavour and use `Math.random`, so they don't change seeded runs.
 - **Shields** come out only when the enemy is under half health, and then 35% of the time.
 - Charges and lunges need a gap of 2 or more; sweeps and adjacent hits need you within 2.
 - An enemy right next to you with nothing that reaches falls back to a 12-damage close-quarters strike.
@@ -148,7 +171,7 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack; stand-ins Volkov Operator and Helix Continuity Warden until the real bosses are built). Other levels walk the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
-- **First life only:** threat 3 is the **Cartel Enforcer** (×2.4 health, ×2.2 attack). It is meant to end the first run.
+- **First life only:** threat 3 is the **Cartel Enforcer** (×2.6 health, ×2.7 attack). It is meant to end the first run.
 - Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 6 after 5 hosts lost, 10 after 10 and 19 after 20.
 
 ### Drops

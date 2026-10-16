@@ -22,281 +22,159 @@ function getDistance(from: TilePosition, to: TilePosition): number {
 return Math.abs(from.row - to.row) + Math.abs(from.col - to.col);
 }
 
+// Each shape has one job and one way to beat it (docs/DESIGN.md, Attack shapes).
+// getTargetTiles(from, to) returns the tiles an attack aimed at `to` strikes,
+// or [] when `to` can't be aimed at from `from`.
+
+const cheb = (a: TilePosition, b: TilePosition) => Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col));
+const sign = (n: number) => (n === 0 ? 0 : n / Math.abs(n));
+const inside = (tiles: TilePosition[], grid: CombatGrid) => tiles.filter(p => isValidPosition(p, grid));
+/** On a row, column or diagonal through `from`? Returns the unit step, or null. */
+function lineStep(from: TilePosition, to: TilePosition): { row: number; col: number } | null {
+  const dr = to.row - from.row, dc = to.col - from.col;
+  if (dr === 0 && dc === 0) return null;
+  if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return null;
+  return { row: sign(dr), col: sign(dc) };
+}
+/** Nothing solid (cover, void, a body) on the tiles strictly between from and to. */
+function clearLine(from: TilePosition, to: TilePosition, grid: CombatGrid): boolean {
+  const step = lineStep(from, to);
+  if (!step) return false;
+  const bodies = [grid.playerPosition, grid.bossPosition, ...(grid.occupied ?? [])];
+  for (let p = { row: from.row + step.row, col: from.col + step.col }; p.row !== to.row || p.col !== to.col; p = { row: p.row + step.row, col: p.col + step.col }) {
+    const t = grid.tiles?.[p.row]?.[p.col];
+    if (t?.type === 'obstacle' || t?.type === 'void') return false;
+    if (bodies.some(b => b.row === p.row && b.col === p.col)) return false;
+  }
+  return true;
+}
+const line = (from: TilePosition, step: { row: number; col: number }, n: number) =>
+  Array.from({ length: n }, (_, i) => ({ row: from.row + step.row * (i + 1), col: from.col + step.col * (i + 1) }));
+
 export const ATTACK_PATTERNS: Record<AttackPatternType, AttackPattern> = {
-// Basic melee - hits 1 adjacent tile (orthogonal or diagonal)
+// Strike: the one tile next to the attacker that you're standing on
 melee: {
-type: 'melee',
-name: 'Full Sweep',
-range: 1,
-// Sweeps all 8 adjacent tiles simultaneously. Attack fires if boss is within range 1.
-// Preview always shows the full ring of adjacent tiles in orange.
-getTargetTiles: (from, to, grid) => {
-const rowDiff = Math.abs(from.row - to.row);
-const colDiff = Math.abs(from.col - to.col);
-const maxDist = Math.max(rowDiff, colDiff);
-// Only activates when targeting within range 1
-if (maxDist > 1 || maxDist === 0) return [];
-// Return ALL 8 adjacent tiles (the full sweep area)
-const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-return offsets
-.map(([dr,dc]) => ({ row: from.row + dr, col: from.col + dc }))
-.filter(p => isValidPosition(p, grid));
-},
+type: 'melee', name: 'Strike', range: 1,
+getTargetTiles: (from, to) => (cheb(from, to) === 1 ? [to] : []),
 },
 
-// Long melee - hits up to 2 tiles in a straight line (no diagonals)
+// Reach: a straight line of 2 (no diagonals)
 melee_long: {
-type: 'melee_long',
-name: 'Long Reach',
-range: 2,
+type: 'melee_long', name: 'Reach', range: 2,
 getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-
-  // Must be in a straight line (no diagonals)
-  if (rowDiff !== 0 && colDiff !== 0) return [];
-
-  const distance = Math.abs(rowDiff) + Math.abs(colDiff);
-  if (distance > 2 || distance === 0) return [];
-
-  const tiles: TilePosition[] = [];
-  const dir = { row: rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff), col: colDiff === 0 ? 0 : colDiff / Math.abs(colDiff) };
-
-  // Add all tiles in the line up to target
-  for (let i = 1; i <= distance; i++) {
-    tiles.push({ row: from.row + dir.row * i, col: from.col + dir.col * i });
-  }
-
-  return tiles;
+  const step = lineStep(from, to);
+  const d = cheb(from, to);
+  if (!step || (step.row !== 0 && step.col !== 0) || d > 2) return [];
+  return inside(line(from, step, d), grid);
+},
 },
 
-},
-
-// Diagonal cross - hits diagonal tiles up to 2 tiles away
+// X-burst: the four diagonals, two deep, all at once
 diagonal_cross: {
-type: 'diagonal_cross',
-name: 'Diagonal Arc',
-range: 2,
+type: 'diagonal_cross', name: 'X-burst', range: 2,
 getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-
-  // Must be diagonal (row and col both non-zero and equal distance)
-  if (Math.abs(rowDiff) !== Math.abs(colDiff) || rowDiff === 0) return [];
-
-  const distance = Math.abs(rowDiff);
-  if (distance > 2) return [];
-
-  const tiles: TilePosition[] = [];
-  const dir = { row: rowDiff / Math.abs(rowDiff), col: colDiff / Math.abs(colDiff) };
-
-  // Add all diagonal tiles in the path
-  for (let i = 1; i <= distance; i++) {
-    tiles.push({ row: from.row + dir.row * i, col: from.col + dir.col * i });
-  }
-
-  return tiles;
+  const step = lineStep(from, to);
+  if (!step || step.row === 0 || step.col === 0 || cheb(from, to) > 2) return [];
+  return inside([[-1, -1], [-1, 1], [1, -1], [1, 1]].flatMap(([r, c]) => line(from, { row: r, col: c }, 2)), grid);
+},
 },
 
-},
-
-// Cone - hits 3 tiles in a cone shape (1 straight ahead + 2 adjacent)
+// Cone: a widening wedge, 1 tile then 3, along a row or column
 cone: {
-type: 'cone',
-name: 'Cone',
-range: 2,
+type: 'cone', name: 'Cone', range: 2,
 getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-
-  // Must be in straight line (not diagonal)
-  if (rowDiff !== 0 && colDiff !== 0) return [];
-
-  const distance = Math.abs(rowDiff) + Math.abs(colDiff);
-  if (distance > 2 || distance === 0) return [];
-
-  const tiles: TilePosition[] = [];
-  const dir = { row: rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff), col: colDiff === 0 ? 0 : colDiff / Math.abs(colDiff) };
-
-  // Add main tile
-  const mainPos = { row: from.row + dir.row, col: from.col + dir.col };
-  if (isValidPosition(mainPos, grid)) {
-    tiles.push(mainPos);
-
-    // Add perpendicular adjacent tiles
-    if (dir.row === 0) {
-      // Horizontal attack - add top and bottom
-      const top = { row: mainPos.row - 1, col: mainPos.col };
-      const bottom = { row: mainPos.row + 1, col: mainPos.col };
-      if (isValidPosition(top, grid)) tiles.push(top);
-      if (isValidPosition(bottom, grid)) tiles.push(bottom);
-    } else {
-      // Vertical attack - add left and right
-      const left = { row: mainPos.row, col: mainPos.col - 1 };
-      const right = { row: mainPos.row, col: mainPos.col + 1 };
-      if (isValidPosition(left, grid)) tiles.push(left);
-      if (isValidPosition(right, grid)) tiles.push(right);
-    }
-
-    // If distance is 2, also add the second tile in main direction
-    if (distance === 2) {
-      const secondPos = { row: from.row + dir.row * 2, col: from.col + dir.col * 2 };
-      if (isValidPosition(secondPos, grid)) tiles.push(secondPos);
-    }
-  }
-
-  return tiles;
+  const dr = to.row - from.row, dc = to.col - from.col;
+  if (dr === 0 && dc === 0) return [];
+  // Point the cone along the longer axis
+  const dir = Math.abs(dr) >= Math.abs(dc) ? { row: sign(dr), col: 0 } : { row: 0, col: sign(dc) };
+  const side = dir.row === 0 ? { row: 1, col: 0 } : { row: 0, col: 1 };
+  const a = { row: from.row + dir.row, col: from.col + dir.col };
+  const b = { row: from.row + dir.row * 2, col: from.col + dir.col * 2 };
+  const tiles = inside([a, b, { row: b.row + side.row, col: b.col + side.col }, { row: b.row - side.row, col: b.col - side.col }], grid);
+  return tiles.some(t => t.row === to.row && t.col === to.col) ? tiles : [];
+},
 },
 
-},
-
-// AOE - hits target and surrounding tiles
+// Blast: a 3x3 square centred on a tile up to 3 steps away (heavies only)
 aoe: {
-type: 'aoe',
-name: 'Area Effect',
-range: 3,
+type: 'aoe', name: 'Blast', range: 3,
 getTargetTiles: (from, to, grid) => {
-const dist = getDistance(from, to);
-if (dist > 3) return [];
-
-  const tiles: TilePosition[] = [to];
-
-  // Add all adjacent tiles to target
-  const offsets = [
-    { row: -1, col: 0 },
-    { row: 1, col: 0 },
-    { row: 0, col: -1 },
-    { row: 0, col: 1 },
-    { row: -1, col: -1 },
-    { row: -1, col: 1 },
-    { row: 1, col: -1 },
-    { row: 1, col: 1 },
-  ];
-
-  for (const offset of offsets) {
-    const pos = {
-      row: to.row + offset.row,
-      col: to.col + offset.col,
-    };
-    if (isValidPosition(pos, grid)) {
-      tiles.push(pos);
-    }
-  }
-
-  return tiles;
+  if (getDistance(from, to) > 3) return [];
+  const out: TilePosition[] = [];
+  for (let r = -1; r <= 1; r++) for (let c = -1; c <= 1; c++) out.push({ row: to.row + r, col: to.col + c });
+  return inside(out, grid);
+},
 },
 
-},
-
-// Ranged - hits any tile in range
+// Shot: one tile 2-4 away along a row, column or diagonal, with nothing in the way
 ranged: {
-type: 'ranged',
-name: 'Ranged',
-range: 4,
+type: 'ranged', name: 'Shot', range: 4,
 getTargetTiles: (from, to, grid) => {
-const dist = getDistance(from, to);
-if (dist >= 2 && dist <= 4) {
-return [to];
-}
-return [];
+  const d = cheb(from, to);
+  return d >= 2 && d <= 4 && clearLine(from, to, grid) ? [to] : [];
 },
 },
-// sweep_arc - 180-degree arc in front of attacker (toward target). Range 1.
-// Hits up to 3 tiles: the tile directly toward target + both diagonal-adjacent tiles.
+
+// Sweep: a 3-tile arc in front of the attacker
 sweep_arc: {
-type: 'sweep_arc',
-name: 'Sweep Arc',
-range: 1,
+type: 'sweep_arc', name: 'Sweep', range: 1,
 getTargetTiles: (from, to, grid) => {
-const dir = getDirection(from, to);
-// Primary direction + the two perpendicular diagonals in that half
-const candidates: TilePosition[] = [];
-if (dir.row !== 0 || dir.col !== 0) {
-// straight ahead
-candidates.push({ row: from.row + dir.row, col: from.col + dir.col });
-// diagonals in the arc
-if (dir.row === 0) {
-candidates.push({ row: from.row + 1, col: from.col + dir.col });
-candidates.push({ row: from.row - 1, col: from.col + dir.col });
-} else if (dir.col === 0) {
-candidates.push({ row: from.row + dir.row, col: from.col + 1 });
-candidates.push({ row: from.row + dir.row, col: from.col - 1 });
-} else {
-// diagonal direction: add the two orthogonals
-candidates.push({ row: from.row + dir.row, col: from.col });
-candidates.push({ row: from.row, col: from.col + dir.col });
-}
-}
-return candidates.filter(p => isValidPosition(p, grid));
+  if (cheb(from, to) !== 1) return [];
+  const dir = getDirection(from, to);
+  const c: TilePosition[] = [{ row: from.row + dir.row, col: from.col + dir.col }];
+  if (dir.row === 0) { c.push({ row: from.row + 1, col: from.col + dir.col }, { row: from.row - 1, col: from.col + dir.col }); }
+  else if (dir.col === 0) { c.push({ row: from.row + dir.row, col: from.col + 1 }, { row: from.row + dir.row, col: from.col - 1 }); }
+  else { c.push({ row: from.row + dir.row, col: from.col }, { row: from.row, col: from.col + dir.col }); }
+  return inside(c, grid);
 },
 },
 
-// lunge - moves toward target and hits. Range 2. Hits the target tile and
-// the tile between (straight or diagonal path).
+// Lunge: only the tile exactly 2 away, in any of 8 directions
 lunge: {
-type: 'lunge',
-name: 'Lunge',
-range: 2,
-getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-const dist = Math.max(Math.abs(rowDiff), Math.abs(colDiff));
-if (dist === 0 || dist > 2) return [];
-const dir = {
-row: rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff),
-col: colDiff === 0 ? 0 : colDiff / Math.abs(colDiff),
-};
-const tiles: TilePosition[] = [];
-for (let i = 1; i <= dist; i++) {
-tiles.push({ row: from.row + dir.row * i, col: from.col + dir.col * i });
-}
-return tiles.filter(p => isValidPosition(p, grid));
-},
+type: 'lunge', name: 'Lunge', range: 2,
+getTargetTiles: (from, to) => (lineStep(from, to) && cheb(from, to) === 2 ? [to] : []),
 },
 
-// knockback - straight-line hit that also marks the tile behind the target
-// (used for displacement UI). Range 1-3 straight only.
+// Knockback: a straight line of up to 3; the one hit is pushed a tile back
 knockback: {
-type: 'knockback',
-name: 'Knockback',
-range: 3,
+type: 'knockback', name: 'Knockback', range: 3,
 getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-if (rowDiff !== 0 && colDiff !== 0) return []; // straight lines only
-const dist = Math.abs(rowDiff) + Math.abs(colDiff);
-if (dist === 0 || dist > 3) return [];
-const dir = {
-row: rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff),
-col: colDiff === 0 ? 0 : colDiff / Math.abs(colDiff),
-};
-const tiles: TilePosition[] = [];
-for (let i = 1; i <= dist; i++) {
-tiles.push({ row: from.row + dir.row * i, col: from.col + dir.col * i });
-}
-return tiles.filter(p => isValidPosition(p, grid));
+  const step = lineStep(from, to);
+  const d = cheb(from, to);
+  if (!step || (step.row !== 0 && step.col !== 0) || d > 3) return [];
+  return inside(line(from, step, d), grid);
 },
 },
 
-// charge - attacker closes distance, hits entire path. Range 2-3, any direction.
+// Charge: a lane of 2-3 tiles toward the target (heavies lock it in place)
 charge: {
-type: 'charge',
-name: 'Charge',
-range: 3,
+type: 'charge', name: 'Charge', range: 3,
 getTargetTiles: (from, to, grid) => {
-const rowDiff = to.row - from.row;
-const colDiff = to.col - from.col;
-const dist = Math.max(Math.abs(rowDiff), Math.abs(colDiff));
-if (dist < 2 || dist > 3) return [];
-const dir = {
-row: rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff),
-col: colDiff === 0 ? 0 : colDiff / Math.abs(colDiff),
-};
-const tiles: TilePosition[] = [];
-for (let i = 1; i <= dist; i++) {
-tiles.push({ row: from.row + dir.row * i, col: from.col + dir.col * i });
-}
-return tiles.filter(p => isValidPosition(p, grid));
+  const step = lineStep(from, to);
+  const d = cheb(from, to);
+  if (!step || d < 2 || d > 3) return [];
+  return inside(line(from, step, 3), grid);
+},
+},
+
+// Ring: every tile exactly 2 away, all round
+ring: {
+type: 'ring', name: 'Ring', range: 2,
+getTargetTiles: (from, to, grid) => {
+  if (cheb(from, to) !== 2) return [];
+  const out: TilePosition[] = [];
+  for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) if (Math.max(Math.abs(r), Math.abs(c)) === 2) out.push({ row: from.row + r, col: from.col + c });
+  return inside(out, grid);
+},
+},
+
+// Beam: the whole row or column toward the target, to the edge of the arena
+beam: {
+type: 'beam', name: 'Beam', range: 12,
+getTargetTiles: (from, to, grid) => {
+  const step = lineStep(from, to);
+  if (!step || (step.row !== 0 && step.col !== 0)) return [];
+  return inside(line(from, step, Math.max(grid.rows, grid.cols)), grid);
 },
 },
 

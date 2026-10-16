@@ -69,6 +69,9 @@ const pat = (action as any).attackPattern;
 if (pat === 'aoe') return 'SCATTER';
 if (pat === 'diagonal_cross') return 'X-PATTERN';
 if (pat === 'cone') return 'CONE';
+if (pat === 'knockback') return 'PUSH';
+if (pat === 'ring') return 'RING';
+if (pat === 'beam') return 'BEAM';
 if (action.healing && action.damage) return 'SIPHON';  // damage that feeds back
 if (action.healing && !action.damage) return 'PATCH';
 if (action.defenseBoost && action.type === 'brace') return 'BRACE';

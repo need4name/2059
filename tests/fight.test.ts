@@ -6,6 +6,7 @@ import { seedRandom } from '../client/src/lib/engine/rng';
 import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/combat/actions';
 import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
 import { getReachableTiles } from '../client/src/lib/combat/grid';
+import { canHitTarget, getHitTiles } from '../client/src/lib/combat/patterns';
 
 function arena(player: [number, number], boss: [number, number], hazard?: [number, number, number]): CombatGrid {
   const rows = 9, cols = 7;
@@ -125,7 +126,7 @@ function crowd(): FightState {
 test('an area attack hits every enemy in the struck tiles, not just the target', () => {
   seedRandom(11);
   const s = crowd();
-  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const }; // all 8 adjacent tiles
+  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'sweep_arc' as const }; // the arc in front
   assert.deepEqual(Fight.foesStruck(s, strike, 'none'), [0, 1]);
   const after = Fight.resolvePlayerAttack(s, strike).state;
   assert.ok(after.foes[0].unit.currentHp < s.foes[0].unit.currentHp);
@@ -159,4 +160,36 @@ test('enemies block movement and each other', () => {
   assert.ok(!reach.has('4,3') && !reach.has('4,4'), 'cannot walk onto an enemy');
   const walked = Fight.moveFoeToward(s, 2, 'melee').state.foes[2].pos;
   assert.ok(!s.foes.slice(0, 2).some(f => f.pos.row === walked.row && f.pos.col === walked.col));
+});
+
+test('shapes: a strike hits one tile, a lunge only 2 away, a shot needs a clear line', () => {
+  const g = arena([5, 3], [4, 3]);
+  assert.deepEqual(getHitTiles({ row: 5, col: 3 }, { row: 4, col: 3 }, 'melee', g), [{ row: 4, col: 3 }]);
+  assert.equal(canHitTarget({ row: 5, col: 3 }, { row: 4, col: 3 }, 'lunge', g), false);
+  assert.equal(canHitTarget({ row: 5, col: 3 }, { row: 3, col: 5 }, 'lunge', g), true);
+  const open = { ...g, bossPosition: { row: 1, col: 3 } };
+  assert.equal(canHitTarget({ row: 5, col: 3 }, { row: 1, col: 3 }, 'ranged', open), true);
+  const tiles = open.tiles.map(r => r.slice());
+  tiles[3][3] = { type: 'obstacle', name: 'Crate' } as any;
+  assert.equal(canHitTarget({ row: 5, col: 3 }, { row: 1, col: 3 }, 'ranged', { ...open, tiles }), false, 'cover blocks the shot');
+  assert.equal(canHitTarget({ row: 5, col: 3 }, { row: 2, col: 4 }, 'ranged', open), false, 'not on a line');
+  assert.equal(getHitTiles({ row: 4, col: 3 }, { row: 6, col: 3 }, 'ring', g).length, 16);
+  assert.equal(getHitTiles({ row: 0, col: 3 }, { row: 5, col: 3 }, 'beam', g).length, 8);
+});
+
+test('a heavy locks its tiles: a beam hits whoever is in that column, not where you go', () => {
+  const beam: CombatAction = { ...hitFor(30), isHeavy: true, attackPattern: 'beam' };
+  const s = fight({ grid: arena([6, 3], [1, 3]) });
+  const wound = Fight.telegraphHeavy(s, 0, beam).state;
+  assert.ok(wound.foes[0].pendingTiles!.every(t => t.col === 3));
+  const stepped = { ...wound, grid: { ...wound.grid, playerPosition: { row: 6, col: 4 } } };
+  assert.equal(Fight.releaseHeavy(stepped, 0).connects, false, 'one step sideways dodges it');
+  assert.equal(Fight.releaseHeavy({ ...wound, grid: { ...wound.grid, playerPosition: { row: 8, col: 3 } } }, 0).connects, true, 'backing off down the column does not');
+});
+
+test('knockback pushes you a tile straight back when there is room', () => {
+  const kick: CombatAction = { ...hitFor(5), attackPattern: 'knockback' };
+  seedRandom(5);
+  const r = Fight.resolveFoeAction(fight(), 0, kick, 1);
+  assert.deepEqual(r.state.grid.playerPosition, { row: 6, col: 3 });
 });

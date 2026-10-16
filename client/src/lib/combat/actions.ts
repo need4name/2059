@@ -326,14 +326,27 @@ interface EnemyData {
 color: string; baseAttack: number; baseDefense: number; startingHeat: number;
 statSplit: { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number };
 dossier: string; moves: CombatAction[];
+lines: string[]; lateLines?: string[]; firstSight: string;
 }
 const ENEMY_DATA = enemyContent as unknown as {
 rotation: string[]; specials: string[]; enemies: Record<string, EnemyData>;
-patchworkKing: { color: string; dossier: string; phases: CombatAction[][]; monologue: string[] };
+patchworkKing: { color: string; dossier: string; firstSight: string; phases: CombatAction[][]; monologue: string[] };
 };
 const enemyType = (name: string) => ({ name, ...ENEMY_DATA.enemies[name] });
 export const BOSS_TYPES = ENEMY_DATA.rotation.map(enemyType);
 export const SPECIAL_TYPES = ENEMY_DATA.specials.map(enemyType);
+
+/** What an enemy says when it sees you: horror at a corpse that got up. Later lines once many hosts are lost. */
+export function enemyLines(name: string, hostsLost: number): string[] {
+const e = ENEMY_DATA.enemies[name];
+if (!e) return [];
+return hostsLost >= 5 && e.lateLines?.length ? [...e.lines, ...e.lateLines] : e.lines;
+}
+/** The signal's first impression of a kind of enemy. */
+export function firstSightOf(name: string): string | null {
+if (name === 'Patchwork King') return ENEMY_DATA.patchworkKing.firstSight;
+return ENEMY_DATA.enemies[name]?.firstSight ?? null;
+}
 
 /** Short dossier lines shown on the base screen before a fight. */
 export const BOSS_DOSSIERS: Record<string, string> = {
@@ -369,7 +382,7 @@ return BOSS_TYPES[idx % BOSS_TYPES.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.4, atk: 2.2 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.075, atk: 1.07 };
@@ -380,8 +393,6 @@ const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.7, atk: 1.45, def: 1.25 };
-// The first-life Cartel Enforcer: built so a fresh body can't win
-export const ENFORCER_MULT = { hp: 2.4, atk: 2.2 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
@@ -412,6 +423,18 @@ const idx = BOSS_TYPES.findIndex(t => t.name === enemyTypeForLevel(level).name);
 return [0, 1, 2].map(k => BOSS_TYPES.at((idx - k + BOSS_TYPES.length) % BOSS_TYPES.length)!.name);
 }
 
+/** How upgraded enemies are at a threat level: what you can see of the compounding growth. */
+export const ENEMY_GRADES = [
+  { name: 'Raw', from: 1, color: '#9ca3af' },
+  { name: 'Grafted', from: 5, color: '#34d399' },
+  { name: 'Augmented', from: 10, color: '#60a5fa' },
+  { name: 'Chromed', from: 20, color: '#c084fc' },
+  { name: 'Ascended', from: 30, color: '#fbbf24' },
+] as const;
+export const enemyGradeAt = (level: number) => ENEMY_GRADES.reduce((g, x, i) => (level >= x.from ? i : g), 0);
+/** How many implants an enemy carries at a threat level. */
+export const enemyImplantCount = (level: number) => (level <= 5 ? 1 : level <= 10 ? 2 : 3);
+
 export function createBoss(level: number = 1, firstRun = false, typeName?: string): Character {
 const bossType = typeName && ENEMY_DATA.enemies[typeName] ? enemyType(typeName) : enemyTypeForLevel(level, firstRun);
 const S = BOSS_SCALING;
@@ -430,7 +453,8 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 
 // Roll boss augments - capped to common/uncommon to prevent runaway defense scaling.
 // Rare+ items have defenseBonus up to 16 which can make bosses unkillable at low levels.
-const numAugs = level <= 5 ? 1 : level <= 10 ? 2 : 3;
+const numAugs = enemyImplantCount(level);
+const implantNames: string[] = [];
 let bonusPAtk = 0, bonusSAtk = 0, bonusPDef = 0, bonusSDef = 0, bonusHp = 0;
 const cappedPool = PATCHWORK_AUG_POOL.filter(i =>
 (i as any).rarity === 'common' || (i as any).rarity === 'uncommon'
@@ -440,6 +464,8 @@ for (let i = 0; i < numAugs; i++) {
 if (pool.length === 0) break;
 const idx = Math.floor(random() * pool.length);
 const aug = pool.splice(idx, 1)[0];
+// Short names for the target card: no maker tag, side or condition
+implantNames.push(String((aug as any).name ?? '').replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*-\s*[A-Z]+$/, '').replace(/\s*\([LR]\)/, '').trim());
 // attackBonus -> physical attack (crude weapons), defenseBonus -> physical defense
 // structural attack/defense get a smaller bonus derived from the same items
 bonusPAtk += aug.attackBonus  || 0;
@@ -472,6 +498,8 @@ physicalDefense:   pDef,
 structuralDefense: sDef,
 evasion: 0,
 spriteColor: bossType.color,
+grade: enemyGradeAt(level),
+implants: implantNames.filter(Boolean),
 };
 }
 

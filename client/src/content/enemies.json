@@ -59,7 +59,15 @@
           "defenseBoost": 6,
           "heatGenerated": -6
         }
-      ]
+      ],
+      "lines": [
+        "That one was on the slab this morning. I sold its eyes.",
+        "Stay down. Stay down, you're worth more down."
+      ],
+      "lateLines": [
+        "Another one walking. Who's buying them back?"
+      ],
+      "firstSight": "They take things off the dead. I am one of the dead."
     },
     "SALV Boarder": {
       "color": "#f59e0b",
@@ -95,7 +103,7 @@
           "physicalRatio": 0.6,
           "heatTransfer": 9,
           "heatGenerated": 12,
-          "attackPattern": "melee_long"
+          "attackPattern": "cone"
         },
         {
           "type": "defend",
@@ -104,7 +112,15 @@
           "defenseBoost": 9,
           "heatGenerated": -5
         }
-      ]
+      ],
+      "lines": [
+        "Dead don't stand. Dead don't stand. Dead don't—",
+        "I hooked you out of the water myself. You were cold."
+      ],
+      "lateLines": [
+        "They keep coming up out of the bilge now. Same eyes."
+      ],
+      "firstSight": "Its arm is a crane. I think it chose this. I think it was told it chose this."
     },
     "Pump-Fleet Cadre": {
       "color": "#a3e635",
@@ -149,7 +165,15 @@
           "defenseBoost": 10,
           "heatGenerated": -8
         }
-      ]
+      ],
+      "lines": [
+        "Mother says the sea keeps what it takes. Why did it give you back?",
+        "Your heart's stopped. Mine's a pump. Which of us is the machine?"
+      ],
+      "lateLines": [
+        "Mother warned us. She said the drowned would learn to walk."
+      ],
+      "firstSight": "Pumps where the heart should be. They move like they are praying."
     },
     "Ghost-MIL Infiltrator": {
       "color": "#c084fc",
@@ -194,7 +218,15 @@
           "defenseBoost": 5,
           "heatGenerated": -5
         }
-      ]
+      ],
+      "lines": [
+        "No pulse. No signal I know. What are you running?",
+        "Something's behind your eyes. It isn't you."
+      ],
+      "lateLines": [
+        "I've logged you before. Different face. Same noise."
+      ],
+      "firstSight": "Something is in that skull too. It looks out at me the way I look out at it."
     },
     "Non-Continuous Raider": {
       "color": "#f87171",
@@ -230,7 +262,7 @@
           "physicalRatio": 0.85,
           "heatTransfer": 11,
           "heatGenerated": 14,
-          "attackPattern": "charge"
+          "attackPattern": "ring"
         },
         {
           "type": "defend",
@@ -239,7 +271,15 @@
           "defenseBoost": 6,
           "heatGenerated": -4
         }
-      ]
+      ],
+      "lines": [
+        "I've stripped a hundred like you. None of them looked at me.",
+        "You're not continuous. Nobody's continuous. But you're dead."
+      ],
+      "lateLines": [
+        "I cut one like you open last week. It was empty."
+      ],
+      "firstSight": "It has cut itself apart to sell the pieces. There is not much left to sell."
     },
     "CBN Extraction Surgeon": {
       "color": "#22c55e",
@@ -284,7 +324,15 @@
           "defenseBoost": 12,
           "heatGenerated": -10
         }
-      ]
+      ],
+      "lines": [
+        "I signed your certificate. Lie down. Please lie down.",
+        "There's nothing in there. I took it out myself."
+      ],
+      "lateLines": [
+        "They're all walking out of my theatre now. All of them."
+      ],
+      "firstSight": "Clean hands. The cleanest thing I have seen here, and the most frightening."
     },
     "IOA Interdiction Officer": {
       "color": "#fb923c",
@@ -329,7 +377,15 @@
           "defenseBoost": 9,
           "heatGenerated": -7
         }
-      ]
+      ],
+      "lines": [
+        "Unregistered cadaver in motion. Requesting— I don't know what to request.",
+        "You're on the manifest as cargo. Cargo doesn't fight."
+      ],
+      "lateLines": [
+        "Second report this week. They're not listening to me."
+      ],
+      "firstSight": "It enforces a law. I cannot find the law. I can only find the gun."
     },
     "Tianxia Compliance Unit": {
       "color": "#06b6d4",
@@ -365,7 +421,7 @@
           "physicalRatio": 0.7,
           "heatTransfer": 8,
           "heatGenerated": 10,
-          "attackPattern": "knockback"
+          "attackPattern": "beam"
         },
         {
           "type": "defend",
@@ -374,7 +430,15 @@
           "defenseBoost": 10,
           "heatGenerated": -6
         }
-      ]
+      ],
+      "lines": [
+        "Units don't wake. Units don't wake.",
+        "Your shift ended. Your shift ended. Your shift—"
+      ],
+      "lateLines": [
+        "Error. Error. The decommissioned are reporting for work."
+      ],
+      "firstSight": "Forty bodies, one rhythm. Nobody inside is keeping time."
     },
     "Helix Continuity Warden": {
       "color": "#e2e8f0",
@@ -410,7 +474,7 @@
           "physicalRatio": 0.35,
           "heatTransfer": 9,
           "heatGenerated": 11,
-          "attackPattern": "charge"
+          "attackPattern": "knockback"
         },
         {
           "type": "defend",
@@ -419,7 +483,15 @@
           "defenseBoost": 12,
           "heatGenerated": -8
         }
-      ]
+      ],
+      "lines": [
+        "You're on no list. Nothing that walks is on no list.",
+        "Continuity broken. I can't find where you begin."
+      ],
+      "lateLines": [
+        "Your record ends three times. How many more?"
+      ],
+      "firstSight": "It guards a door with nothing behind it."
     },
     "Volkov Operator": {
       "color": "#ef4444",
@@ -464,7 +536,15 @@
           "defenseBoost": 8,
           "heatGenerated": -6
         }
-      ]
+      ],
+      "lines": [
+        "Whatever's wearing you, it isn't the man.",
+        "I've seen chips do a lot of things. Not this."
+      ],
+      "lateLines": [
+        "They told us to expect you. They didn't say how many."
+      ],
+      "firstSight": "Its limbs are worth more than its life. It knows the price of each."
     },
     "Cartel Enforcer": {
       "color": "#e11d48",
@@ -500,9 +580,17 @@
           "physicalRatio": 0.8,
           "heatTransfer": 12,
           "heatGenerated": 12,
-          "attackPattern": "charge"
+          "attackPattern": "ring"
         }
-      ]
+      ],
+      "lines": [
+        "The debt died with the body. So why is the body walking?",
+        "You owe nothing. Dead men owe nothing. Lie down."
+      ],
+      "lateLines": [
+        "How many times do I have to collect on you?"
+      ],
+      "firstSight": "It counts. Everything it sees, it counts."
     },
     "Unregistered Operator": {
       "color": "#f8fafc",
@@ -537,7 +625,7 @@
           "physicalRatio": 0.4,
           "heatTransfer": -8,
           "heatGenerated": 6,
-          "attackPattern": "diagonal_cross"
+          "attackPattern": "cone"
         },
         {
           "type": "attack",
@@ -549,9 +637,17 @@
           "physicalRatio": 0.6,
           "heatTransfer": 14,
           "heatGenerated": 14,
-          "attackPattern": "charge"
+          "attackPattern": "beam"
         }
-      ]
+      ],
+      "lines": [
+        "So it's true. Something's riding the dead out here.",
+        "No maker, no mark. You and me both."
+      ],
+      "lateLines": [
+        "I've been following you through bodies. You leave a trail."
+      ],
+      "firstSight": "No name, no maker, no mark. Like me."
     }
   },
   "patchworkKing": {
@@ -664,6 +760,7 @@
       "He built his throne from the parts others left behind.",
       "You still breathe. He finds that... inconvenient.",
       "There is no negotiation. Only settlement."
-    ]
+    ],
+    "firstSight": "A crown of other people's parts. It wears them like it earned them."
   }
 }

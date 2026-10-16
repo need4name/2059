@@ -3,9 +3,11 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
-import { CLASS_DEFINITIONS, getBossRoster } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, getBossRoster, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
+import { drawSea, drawDeckTile, drawHazard, drawObstacle } from '@/lib/rendering/board';
+import { currentChapter } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
 // Helper to get all tiles that can be TARGETED from a position with a given pattern
@@ -409,128 +411,10 @@ const dpr = window.devicePixelRatio || 1;
 const width = canvas.width / dpr;
 const height = canvas.height / dpr;
 
-// === LAYERED BATTLEFIELD BACKGROUND ===
-
-// Layer 1: Sky gradient with subtle warmth
-const skyGradient = ctx.createLinearGradient(0, 0, 0, height * 0.4);
-skyGradient.addColorStop(0, '#7a8590'); // Cool gray-blue at top
-skyGradient.addColorStop(0.4, '#9a9585'); // Warming
-skyGradient.addColorStop(0.7, '#a8a090'); // Hazy horizon
-skyGradient.addColorStop(1, '#b5a890'); // Dusty horizon blend
-ctx.fillStyle = skyGradient;
-ctx.fillRect(0, 0, width, height * 0.4);
-
-// Layer 2: Distant hills silhouettes (adds depth)
-const hillColor1 = '#8a8070';
-const hillColor2 = '#7a7060';
-const horizonY = height * 0.35;
-
-// Far hills (lighter, more distant)
-ctx.fillStyle = hillColor1;
-ctx.beginPath();
-ctx.moveTo(0, horizonY + 10);
-for (let x = 0; x <= width; x += width / 8) {
-const hillHeight = 15 + Math.sin(x * 0.02) * 10 + Math.sin(x * 0.05) * 5;
-ctx.lineTo(x, horizonY - hillHeight);
-}
-ctx.lineTo(width, horizonY + 20);
-ctx.lineTo(0, horizonY + 20);
-ctx.fill();
-
-// Near hills (darker, closer)
-ctx.fillStyle = hillColor2;
-ctx.beginPath();
-ctx.moveTo(0, horizonY + 20);
-for (let x = 0; x <= width; x += width / 6) {
-const hillHeight = 8 + Math.sin(x * 0.03 + 1) * 8 + Math.sin(x * 0.07) * 4;
-ctx.lineTo(x, horizonY + 5 - hillHeight);
-}
-ctx.lineTo(width, horizonY + 25);
-ctx.lineTo(0, horizonY + 25);
-ctx.fill();
-
-// Layer 3: Main ground with texture variation
-const groundGradient = ctx.createLinearGradient(0, height * 0.35, 0, height);
-groundGradient.addColorStop(0, '#6a6050'); // Lighter at horizon
-groundGradient.addColorStop(0.15, '#5a5545'); //
-groundGradient.addColorStop(0.4, '#504a40'); // Main field
-groundGradient.addColorStop(0.7, '#454038'); // Darker
-groundGradient.addColorStop(1, '#3a3530'); // Shadow at bottom
-ctx.fillStyle = groundGradient;
-ctx.fillRect(0, height * 0.35, width, height * 0.65);
-
-// Layer 4: Ground texture - sparse grass tufts and stones
-// Use deterministic pseudo-random based on position for consistency
-const seed = 12345;
-const seededRandom = (x: number, y: number) => {
-const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
-return n - Math.floor(n);
-};
-
-// Grass tufts (small, muted)
-const grassColors = ['#5a6048', '#4a5040', '#555845'];
-for (let i = 0; i < 40; i++) {
-const gx = seededRandom(i, 1) * width;
-const gy = height * 0.4 + seededRandom(i, 2) * height * 0.5;
-const gw = 3 + seededRandom(i, 3) * 4;
-const gh = 4 + seededRandom(i, 4) * 6;
-
-ctx.fillStyle = grassColors[Math.floor(seededRandom(i, 5) * 3)];
-ctx.beginPath();
-ctx.moveTo(gx, gy);
-ctx.lineTo(gx + gw/2, gy - gh);
-ctx.lineTo(gx + gw, gy);
-ctx.fill();
-
-}
-
-// Small stones scattered
-const stoneColors = ['#5a5550', '#4a4540', '#605850'];
-for (let i = 0; i < 20; i++) {
-const sx = seededRandom(i + 100, 1) * width;
-const sy = height * 0.45 + seededRandom(i + 100, 2) * height * 0.45;
-const sw = 4 + seededRandom(i + 100, 3) * 6;
-const sh = 3 + seededRandom(i + 100, 4) * 4;
-
-ctx.fillStyle = stoneColors[Math.floor(seededRandom(i + 100, 5) * 3)];
-ctx.beginPath();
-ctx.ellipse(sx, sy, sw, sh, 0, 0, Math.PI * 2);
-ctx.fill();
-
-// Stone highlight
-ctx.fillStyle = '#6a6560';
-ctx.beginPath();
-ctx.ellipse(sx - sw * 0.2, sy - sh * 0.3, sw * 0.4, sh * 0.3, 0, 0, Math.PI * 2);
-ctx.fill();
-
-}
-
-// Layer 5: Worn dirt path through center of field
-const pathY = height * 0.55;
-const pathGradient = ctx.createLinearGradient(0, pathY - 25, 0, pathY + 25);
-pathGradient.addColorStop(0, '#5a5040');
-pathGradient.addColorStop(0.3, '#655848');
-pathGradient.addColorStop(0.5, '#6a5c4a'); // Center - more worn
-pathGradient.addColorStop(0.7, '#655848');
-pathGradient.addColorStop(1, '#5a5040');
-ctx.fillStyle = pathGradient;
-ctx.fillRect(0, pathY - 25, width, 50);
-
-// Path ruts/wear marks
-ctx.fillStyle = '#554a3a';
-for (let x = 0; x < width; x += 30 + seededRandom(x, 200) * 20) {
-const rutWidth = 8 + seededRandom(x, 201) * 10;
-ctx.fillRect(x, pathY - 3, rutWidth, 2);
-ctx.fillRect(x + 5, pathY + 2, rutWidth - 3, 2);
-}
-
-// Layer 6: Atmospheric effects
-// Subtle dust/haze overlay
-const haze = ctx.createLinearGradient(0, height * 0.3, 0, height * 0.6);
-haze.addColorStop(0, 'rgba(180, 170, 150, 0.15)');
-haze.addColorStop(1, 'transparent');
-ctx.fillStyle = haze;
-ctx.fillRect(0, height * 0.3, width, height * 0.3);
+// === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
+const tileset = currentChapter().tileset;
+const now = Date.now();
+drawSea(ctx, width, height, tileset, now);
 
 // Vignette for focus
 const vignette = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.7);
@@ -571,9 +455,11 @@ const enemyReachableTiles = phase === 'player_turn' ? (() => {
 const union = new Set<string>();
 for (const { f, i } of living) {
 if (f.pendingAction) continue;
-const patterns = new Set<AttackPatternType>(['melee_long']);
-getBossRoster(f.unit.name).forEach(a => { if (a.attackPattern) patterns.add(a.attackPattern); });
-const view = { ...grid, bossPosition: f.pos, occupied: living.filter(x => x.i !== i).map(x => x.f.pos) };
+// Normal attacks only: heavies show as their own locked orange tiles when they wind up
+const patterns = new Set<AttackPatternType>();
+getBossRoster(f.unit.name).forEach(a => { if (a.attackPattern && !a.isHeavy) patterns.add(a.attackPattern); });
+if (!patterns.size) patterns.add('melee');
+const view = { ...grid, bossPosition: f.pos, occupied: [...living.filter(x => x.i !== i).map(x => x.f.pos), ...allies.filter(a => a.unit.currentHp > 0).map(a => a.pos)] };
 patterns.forEach(pat => getTargetableTiles(f.pos, pat, view).forEach(k => union.add(k)));
 }
 return union.size ? union : null;
@@ -593,7 +479,7 @@ const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColo
 // Where a charged heavy attack will land next turn - step out of it to dodge
 const heavyZone = charging.length ? (() => {
 const zone = new Set<string>();
-for (const { f } of charging) getTargetableTiles(f.pos, (f.pendingAction!.attackPattern ?? 'melee_long') as AttackPatternType, grid).forEach(k => zone.add(k));
+for (const { f } of charging) (f.pendingTiles ?? []).forEach(t => zone.add(`${t.row},${t.col}`));
 return zone;
 })() : null;
 const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
@@ -629,26 +515,16 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   };
   const attackColors = getAttackColor();
 
-  // Industrial worn tile colors - muted soot and rust tones
-  if (isHovered && phase === 'player_turn') {
-    ctx.fillStyle = '#c8b898';
-  } else if (isInAttackRange) {
-    ctx.fillStyle = attackColors.fill;
-  } else if (isInEnemyRange && !isBossTile) {
-    ctx.fillStyle = 'rgba(120,30,40,0.6)'; // danger red tint - boss can reach this tile
-  } else if (isPlayerTile) {
-    ctx.fillStyle = '#7a7a5a';
-  } else if (isBossTile) {
-    ctx.fillStyle = '#7a5040';
-  } else {
-    const isOdd = (row + col) % 2 === 0;
-    ctx.fillStyle = isOdd ? '#6a6050' : '#5a5040';
-  }
-
+  // The deck itself, then a tint for what the tile means right now
   const gap = Math.max(2, tileW * 0.04);
   const radius = tileW * 0.16;
+  drawDeckTile(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius, row, col, tileset);
+  const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
+    : isInAttackRange ? attackColors.fill
+    : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
+    : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
-  ctx.fill();
+  if (tint) { ctx.fillStyle = tint; ctx.fill(); }
 
   // Tile border - vivid glow on attack range tiles
   if (isInAttackRange) {
@@ -704,7 +580,18 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Draw obstacles and hazards with simple markers
   const tile = grid.tiles?.[row]?.[col];
-  if (tile?.type === 'obstacle') {
+  if (tile?.type === 'obstacle' && drawObstacle(ctx, tile.art, pos.x, pos.y, tileW)) {
+    // Drawn as what it is
+  } else if (tile?.type === 'hazard' && drawHazard(ctx, tile.art, pos.x, pos.y, tileW, now)) {
+    ctx.fillStyle = '#ffd2a0';
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 3;
+    ctx.font = `800 ${Math.max(9, Math.floor(tileW * 0.17))}px Manrope, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.strokeText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
+    ctx.fillText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
+  } else if (tile?.type === 'obstacle') {
     // Obstacle: a dark block with a soft X
     roundRectPath(ctx, pos.x - tileW / 2 + gap * 2, pos.y - tileH / 2 + gap * 2, tileW - gap * 4, tileH - gap * 4, radius);
     ctx.fillStyle = 'rgba(20,24,32,0.75)';
@@ -868,6 +755,22 @@ if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx
 drawDrunkard(ctx, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, v.animator.getRandomSeed());
 ctx.restore();
+// Implant glows: one per implant carried, in the colour of its grade, so upgraded enemies look upgraded
+if (f.unit.grade !== undefined && f.unit.implants?.length) {
+const gc = ENEMY_GRADES[f.unit.grade].color;
+const spots: [number, number][] = [[-0.12, -0.28], [0.16, -0.02], [-0.16, 0.12], [0.1, 0.26]];
+ctx.save();
+ctx.shadowColor = gc; ctx.shadowBlur = 6 + f.unit.grade * 3;
+ctx.fillStyle = gc;
+f.unit.implants.slice(0, 4).forEach((_, n) => {
+const [ox, oy] = spots[n];
+ctx.globalAlpha = 0.65 + 0.35 * Math.sin(Date.now() / 300 + n);
+ctx.beginPath();
+ctx.arc(fp.x + ox * size, fp.y - 8 + oy * size, Math.max(1.6, size * (0.03 + f.unit.grade! * 0.006)), 0, Math.PI * 2);
+ctx.fill();
+});
+ctx.restore();
+}
 
 const barW = tileW * 0.9, barH = 6, barY = fp.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
@@ -895,7 +798,7 @@ ctx.fillText(label, lx, fp.y - tileH * 0.8);
 }
 
 // Draw damage numbers
-const now = Date.now();
+// (now: the frame time set at the top of the frame)
 damageEffectsRef.current = damageEffectsRef.current.filter(effect => now - effect.startTime < 1000);
 
 damageEffectsRef.current.forEach(effect => {

@@ -41,16 +41,18 @@ export function conditionText(item: Item): string | null {
 }
 
 const PATTERN_TEXT: Record<string, string> = {
-  melee: 'All adjacent tiles',
+  melee: 'One tile next to you',
   melee_long: 'Straight line, 2 tiles',
-  diagonal_cross: 'Diagonals, 2 tiles',
-  cone: 'Cone ahead',
-  aoe: 'Area around target',
-  ranged: 'Range 2–4',
-  sweep_arc: 'Arc in front',
-  lunge: 'Lunge, 2 tiles',
-  knockback: 'Straight line, 3 tiles',
-  charge: 'Charge, 2–3 tiles',
+  diagonal_cross: 'X-burst, diagonals 2 deep',
+  cone: 'Wedge ahead, 1 then 3',
+  aoe: '3×3 blast up to 3 away',
+  ranged: 'Shot, 2–4 in a clear line',
+  sweep_arc: 'Arc of 3 in front',
+  lunge: 'Exactly 2 away',
+  knockback: 'Line of 3, pushes back',
+  charge: 'Charge lane, 2–3 tiles',
+  ring: 'Ring, all tiles 2 away',
+  beam: 'Whole row or column',
 };
 
 export function rangeText(action: CombatAction): string {

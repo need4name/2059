@@ -81,9 +81,8 @@ function playerTurn(skill: number) {
   const viewAt = (pos: any, i: number) => ({ ...g, playerPosition: pos, bossPosition: s.foes[i].pos, occupied: living.filter(x => x.i !== i).map(x => x.f.pos) });
   const canHit = (pos: any, a: any, i: number) => a.ignoreRange || P.canHitTarget(pos, s.foes[i].pos, a.attackPattern || 'melee_long', viewAt(pos, i));
   const danger = new Set<string>();
-  for (const { f, i } of living) if (f.pendingAction && botRandom() < skill) {
-    for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) if (P.canHitTarget(f.pos, { row: r, col: c }, f.pendingAction.attackPattern || 'melee_long', viewAt({ row: r, col: c }, i))) danger.add(`${r},${c}`);
-  }
+  // Heavies lock their tiles when they wind up: step off them (most of the time)
+  for (const { f } of living) if (f.pendingTiles && botRandom() < skill) for (const t of f.pendingTiles) danger.add(`${t.row},${t.col}`);
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   const opts = [g.playerPosition, ...Array.from(G.getReachableTiles(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (living.some(x => atks.some(a => canHit(pos, a, x.i)))) v += 50; v -= nearest(pos); return v; };

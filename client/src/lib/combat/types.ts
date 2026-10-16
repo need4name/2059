@@ -18,6 +18,9 @@ hasKizuna?: boolean;
 spriteColor: string;
 element?: string;
 weakness?: string;
+/** Enemies: how upgraded they are (Raw to Ascended), and the implants they carry. */
+grade?: number;
+implants?: string[];
 }
 
 export type AccuracyTier = 'precise' | 'variable' | 'unreliable';
@@ -158,6 +161,8 @@ type: TileType;
 hazardDamage?: number;
 icon?: string;
 name?: string;
+/** What the board draws for this tile (a chapter tileset art name). */
+art?: string;
 }
 
 export interface CombatGrid {
@@ -171,7 +176,7 @@ occupied?: TilePosition[];
 tiles: TileData[][];
 }
 
-export type AttackPatternType = 'melee' | 'melee_long' | 'diagonal_cross' | 'cone' | 'aoe' | 'ranged' | 'sweep_arc' | 'lunge' | 'knockback' | 'charge';
+export type AttackPatternType = 'melee' | 'melee_long' | 'diagonal_cross' | 'cone' | 'aoe' | 'ranged' | 'sweep_arc' | 'lunge' | 'knockback' | 'charge' | 'ring' | 'beam';
 
 export interface AttackPattern {
 type: AttackPatternType;

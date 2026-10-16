@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
-import { estimateDamage } from '@/lib/combat/actions';
+import { estimateDamage, ENEMY_GRADES } from '@/lib/combat/actions';
 import { canHitTarget } from '@/lib/combat/patterns';
 import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
@@ -78,6 +78,12 @@ function CombatHud() {
             <span className="truncate font-display text-[13px] font-semibold" style={{ color: boss.spriteColor }} title={boss.name}>{boss.name}</span>
           </div>
           <Meter value={boss.currentHp} max={boss.maxHp} tone="hostile" className="h-2" align="right" />
+          {boss.grade !== undefined && (
+            <div className="truncate text-right text-[10px]" title={boss.implants?.join(', ')}>
+              <span className="font-semibold" style={{ color: ENEMY_GRADES[boss.grade].color }}>{ENEMY_GRADES[boss.grade].name}</span>
+              {boss.implants?.length ? <span className="text-hud-faint"> · {boss.implants.join(', ')}</span> : null}
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-hud-dim">Structure {boss.currentStructuralHp}</span>
             <Meter value={boss.currentStructuralHp} max={boss.maxStructuralHp} tone="structure" className="flex-1" align="right" />
@@ -287,6 +293,33 @@ function ActionBar() {
   );
 }
 
+/** The enemy's first words on seeing a corpse get up, and the signal's own first impression. */
+function FightIntro() {
+  const { fightIntro, dismissIntro, fightId } = useCombat();
+  useEffect(() => {
+    if (!fightIntro) return;
+    const t = setTimeout(dismissIntro, fightIntro.note ? 7000 : 4500);
+    return () => clearTimeout(t);
+  }, [fightIntro, fightId, dismissIntro]);
+  if (!fightIntro) return null;
+  return (
+    <button onClick={dismissIntro} className="rise-in absolute inset-x-3 top-3 z-20 space-y-2 rounded-3xl bg-black/70 px-4 py-3 text-left shadow-[0_10px_30px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-sm" aria-label="Dismiss">
+      {fightIntro.line && (
+        <div>
+          <div className="text-[11px] font-semibold" style={{ color: fightIntro.color }}>{fightIntro.speaker}</div>
+          <div className="text-[15px] leading-snug text-white">“{fightIntro.line}”</div>
+        </div>
+      )}
+      {fightIntro.note && (
+        <div className={fightIntro.line ? 'border-t border-white/10 pt-2' : ''}>
+          <div className="text-[11px] font-semibold text-sys">The signal notes</div>
+          <div className="text-[13px] italic leading-snug text-hud-text/90">{fightIntro.note}</div>
+        </div>
+      )}
+    </button>
+  );
+}
+
 export function CombatView() {
   return (
     <div className="absolute inset-0 flex flex-col bg-hud-bg">
@@ -294,6 +327,7 @@ export function CombatView() {
       <div className="relative min-h-0 flex-1">
         <CombatScene />
         <HeatBar />
+        <FightIntro />
       </div>
       <ActionBar />
     </div>

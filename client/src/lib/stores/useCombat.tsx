@@ -7,7 +7,7 @@ PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
 } from '../combat/types';
 import {
 createPlayer, createBoss, createPatchworkKing,
-getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear,
+getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { useInventory } from './useInventory';
@@ -15,6 +15,7 @@ import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
 import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
+import { useJournal } from './useJournal';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -111,6 +112,9 @@ holdfastSpent: boolean;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
 lootChoices: { options: [Item, Item]; picked: number | null }[];
 chooseLoot: (choice: number, option: number) => void;
+/** What the enemy said when it saw you, and what the signal noticed (shown at the start of a fight). */
+fightIntro: { speaker: string; color: string; line: string | null; note: string | null } | null;
+dismissIntro: () => void;
 /** Which ally the next grid tap moves (null: taps move the player). */
 allyMoveMode: number | null;
 toggleAllyMove: (ally: number) => void;
@@ -395,6 +399,17 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, target: 0 });
+// The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
+const lead = foes[0]?.unit;
+if (lead) {
+const host = get().progression.deathCount;
+const lines = isKing ? [] : enemyLines(lead.name, host);
+const line = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
+let note: string | null = null;
+for (const f of foes) { const n = useJournal.getState().sight(f.unit.name, host + 1); if (n && !note) note = n.text; }
+if (line) log(`${lead.name}: "${line}"`);
+set({ fightIntro: line || note ? { speaker: lead.name, color: lead.spriteColor, line, note } : null });
+}
 };
 
 return {
@@ -406,6 +421,8 @@ target: 0,
 ...Fight.BASE_FIGHT_FLAGS,
 reflexMoveOpen: false,
 allyMoveMode: null,
+fightIntro: null,
+dismissIntro: () => set({ fightIntro: null }),
 holdfastSpent: false,
 lootChoices: [],
 combatLog: [],
@@ -641,6 +658,7 @@ giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
 
 resetAll: () => {
 usePlayi.getState().reset();
+useJournal.getState().reset();
 useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();

@@ -6,11 +6,12 @@ import items from '../client/src/content/items.json';
 import weapons from '../client/src/content/weapons.json';
 import enemies from '../client/src/content/enemies.json';
 import allies from '../client/src/content/allies.json';
+import chapters from '../client/src/content/chapters.json';
 import { MAKER_INFO } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-const pattern = z.enum(['melee', 'melee_long', 'diagonal_cross', 'cone', 'aoe', 'ranged', 'sweep_arc', 'lunge', 'knockback', 'charge']);
+const pattern = z.enum(['melee', 'melee_long', 'diagonal_cross', 'cone', 'aoe', 'ranged', 'sweep_arc', 'lunge', 'knockback', 'charge', 'ring', 'beam']);
 const stat = z.number().int().min(-50).max(120).optional();
 const text = z.string().trim().min(1);
 
@@ -49,6 +50,20 @@ const ally = z.object({
   move: z.number().int().min(1).max(4),
   moves: z.array(allyMove).length(2),
 }).strict();
+// Art names the board can draw (lib/rendering/board.ts)
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
+const chapterFile = z.object({
+  about: text,
+  chapters: z.array(z.object({
+    id: z.string().regex(/^[a-z-]+$/), name: text, place: text,
+    tileset: z.object({
+      floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
+      sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
+      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'rot']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
+      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump']), name: text }).strict()).min(1),
+    }).strict(),
+  }).strict()).min(1),
+}).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
 const item = z.object({
@@ -86,13 +101,17 @@ const enemy = z.object({
     .refine(s => Math.abs(s.pAtkR + s.sAtkR - 1) < 0.01 && Math.abs(s.pDefR + s.sDefR - 1) < 0.01, 'stat splits must add up to 1'),
   dossier: text,
   moves: z.array(action).min(2),
+  // What they say at the start of a fight (later ones once 5+ hosts are lost), and the signal's first impression
+  lines: z.array(z.string().trim().min(1).max(110)).min(1),
+  lateLines: z.array(z.string().trim().min(1).max(110)).optional(),
+  firstSight: z.string().trim().min(1).max(110),
 }).strict();
 
 const enemyFile = z.object({
   rotation: z.array(text).min(1),
   specials: z.array(text),
   enemies: z.record(enemy),
-  patchworkKing: z.object({ color: z.string(), dossier: text, phases: z.array(z.array(action).min(1)).length(3), monologue: z.array(text).min(4) }).strict(),
+  patchworkKing: z.object({ color: z.string(), dossier: text, firstSight: z.string().trim().min(1).max(110), phases: z.array(z.array(action).min(1)).length(3), monologue: z.array(text).min(4) }).strict(),
 }).strict();
 
 export function checkContent(): string[] {
@@ -138,6 +157,9 @@ export function checkContent(): string[] {
       if (!e.moves.some(m => m.type === 'attack' && !m.isHeavy)) problems.push(`enemies.json ${n}: needs a normal attack`);
     }
   }
+  // Chapters
+  report('chapters.json', chapterFile.safeParse(chapters));
+
   // Allies
   const ar = allyFile.safeParse(allies);
   report('allies.json', ar);
