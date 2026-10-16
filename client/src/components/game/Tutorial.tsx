@@ -14,7 +14,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   move: {
     icon: '👣',
     title: 'Moving',
-    body: 'Tap a lit tile to move. You can cover up to 2 tiles a turn. Tap your starting tile to change your mind.',
+    body: 'Tap a lit tile to move. A fresh body manages 1 tile a turn. Tap your starting tile to change your mind.',
   },
   attack: {
     icon: '⚔️',
@@ -49,7 +49,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   telegraph: {
     icon: '🟧',
     title: 'Charged attack',
-    body: 'The enemy is winding up a heavy attack. The orange tiles show where it lands next turn. Step out of them and it misses.',
+    body: 'The enemy is winding up a heavy attack. The orange tiles are exactly where it lands next turn. Step off them and it misses.',
   },
   stims: {
     icon: '💉',
@@ -64,7 +64,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   base: {
     icon: '🏚️',
     title: 'The hideout',
-    body: 'You come back here between fights. Loadout picks the four actions you take into a fight. Implants is where you install salvage. Upgrades spends points. Grey Lane buys and sells.',
+    body: 'Between fights you see the room you\'re standing in and the ways on. Pick a way to explore; enemies block every way but the one you came in by until you beat them. Loadout picks your fight actions, Implants installs salvage, Upgrades spends points, and some rooms have a Grey Lane stall.',
   },
   implants: {
     icon: '🔧',

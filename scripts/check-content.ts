@@ -7,6 +7,7 @@ import weapons from '../client/src/content/weapons.json';
 import enemies from '../client/src/content/enemies.json';
 import allies from '../client/src/content/allies.json';
 import chapters from '../client/src/content/chapters.json';
+import chapterMap from '../client/src/content/map-indian-ocean.json';
 import { MAKER_INFO } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
@@ -63,6 +64,16 @@ const chapterFile = z.object({
       obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump']), name: text }).strict()).min(1),
     }).strict(),
   }).strict()).min(1),
+}).strict();
+const DIRS = ['north', 'south', 'east', 'west', 'up', 'down', 'in', 'out'] as const;
+const mapFile = z.object({
+  about: text, chapter: text, entry: text, goals: z.array(text).min(1),
+  rooms: z.array(z.object({
+    id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
+    threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
+    look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
+    exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
+  }).strict()).min(2),
 }).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
@@ -160,6 +171,28 @@ export function checkContent(): string[] {
   // Chapters
   report('chapters.json', chapterFile.safeParse(chapters));
 
+  // The hidden map: exits lead somewhere, every room can be reached, each goal is findable once
+  const mr = mapFile.safeParse(chapterMap);
+  report('map-indian-ocean.json', mr);
+  if (mr.success) {
+    const m = mr.data;
+    const ids = new Set(m.rooms.map(r => r.id));
+    if (ids.size !== m.rooms.length) problems.push('map: duplicate room ids');
+    if (!ids.has(m.entry)) problems.push(`map: entry "${m.entry}" is not a room`);
+    for (const r of m.rooms) {
+      for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
+      if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
+      if (r.look?.goal && !m.goals.includes(r.look.goal)) problems.push(`map ${r.id}: goal "${r.look.goal}" isn't one of the chapter's goals`);
+    }
+    for (const g of m.goals) {
+      const n = m.rooms.filter(r => r.look?.goal === g).length;
+      if (n !== 1) problems.push(`map: goal "${g}" should be in exactly one room (found ${n})`);
+    }
+    const seen = new Set([m.entry]); const queue = [m.entry];
+    while (queue.length) { const at = queue.shift(); const r = m.rooms.find(x => x.id === at)!; for (const e of r.exits) if (!seen.has(e.to) && ids.has(e.to)) { seen.add(e.to); queue.push(e.to); } }
+    for (const r of m.rooms) if (!seen.has(r.id)) problems.push(`map ${r.id}: can't be reached from the entry`);
+  }
+
   // Allies
   const ar = allyFile.safeParse(allies);
   report('allies.json', ar);
@@ -180,5 +213,5 @@ export function checkContent(): string[] {
 if (process.argv[1]?.endsWith('check-content.ts')) {
   const problems = checkContent();
   if (problems.length) { console.error(problems.map(p => `  - ${p}`).join('\n')); console.error(`${problems.length} content problem(s)`); process.exit(1); }
-  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies`);
+  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies, ${chapterMap.rooms.length} map rooms`);
 }

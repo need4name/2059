@@ -16,6 +16,9 @@ import { rangeText } from '../itemText';
 import { pathSummary, statText, moveText, pathTotals as pathTotalsUpTo } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
+import { useMap } from '@/lib/stores/useMap';
+import { roomById, hasFight } from '@/lib/engine/map';
+import { RoomPanel } from './RoomPanel';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { PLAYER_BASE_MOVE } from '@/lib/engine/fight';
 
@@ -351,17 +354,19 @@ function StatusTab() {
 }
 
 export function BaseScreen() {
-  const { playerClass, progression, bossLevel, startCombat, openMarket } = useCombat();
+  const { playerClass, progression, startRoomFight } = useCombat();
+  const map = useMap();
+  const roomNow = roomById(map.room);
+  const fightHere = hasFight(map, roomNow);
+  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, progression.deathCount === 0) : null;
   const { gold, items } = useInventory();
   const { availablePoints } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();
   const [tab, setTab] = useState<Tab>('loadout');
-  const target = getBossPreview(bossLevel, progression.deathCount === 0);
-  const isKing = target.name === 'Patchwork King';
   const spare = items.filter(i => i.type === 'augmentation').length;
 
   return (
-    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={startCombat}>Engage target</Btn>}>
+    <Screen footer={fightHere && foe ? <Btn variant="primary" size="lg" className="w-full" onClick={startRoomFight}>Fight the {foe.name}</Btn> : undefined}>
       <div className="space-y-5 px-4 pb-6 pt-6">
         {/* Header */}
         <header className="flex items-start justify-between gap-3">
@@ -383,32 +388,7 @@ export function BaseScreen() {
           </div>
         </header>
 
-        {/* Next target */}
-        <div className="relative overflow-hidden rounded-3xl p-5 ring-1 ring-white/[0.06]" style={{ background: `linear-gradient(135deg, ${target.color}2e 0%, rgba(15,21,34,0.92) 55%)` }}>
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ background: `${target.color}40` }} />
-          <div className="relative flex items-center justify-between">
-            <span className="text-xs font-medium text-hud-dim">Next target</span>
-            <Chip tone={isKing ? 'cred' : 'hostile'}>{isKing ? 'Boss · ' : ''}Threat {bossLevel}</Chip>
-          </div>
-          <div className="relative mt-2 font-display text-[22px] font-semibold leading-tight" style={{ color: target.color }}>{target.name}</div>
-          <p className="relative mt-1.5 text-sm leading-relaxed text-hud-text/80">{BOSS_DOSSIERS[target.name]}</p>
-          {(() => { const g = ENEMY_GRADES[enemyGradeAt(bossLevel)]; const n = enemyImplantCount(bossLevel); return (
-            <div className="relative mt-3 flex flex-wrap items-center gap-2 text-xs text-hud-dim">
-              <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: `${g.color}22`, color: g.color }}>{g.name}</span>
-              <span>Carries {n} implant{n === 1 ? '' : 's'}</span>
-              <span>· About {target.hp} HP</span>
-            </div>
-          ); })()}
-        </div>
-
-        <button onClick={openMarket} className="flex w-full items-center gap-3 rounded-3xl bg-cred/[0.07] p-4 text-left ring-1 ring-cred/20 transition hover:bg-cred/10">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cred/10 text-xl">🛒</span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-display text-[15px] font-semibold text-hud-text">Grey Lane market</span>
-            <span className="block text-xs text-hud-dim">Buy and sell implants, stims and weapons</span>
-          </span>
-          <span className="text-hud-dim">›</span>
-        </button>
+        <RoomPanel />
 
         <Segmented
           value={tab}

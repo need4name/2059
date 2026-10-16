@@ -22,7 +22,7 @@ export function VictoryScreen() {
         <header className="rise-in space-y-2 text-center">
           <div className="text-sm font-semibold text-ok">Target down</div>
           <h1 className="font-display text-5xl font-bold text-white">Victory</h1>
-          <p className="text-balance text-[15px] text-hud-dim">{boss.name} is finished. Next up: threat {bossLevel}.</p>
+          <p className="text-balance text-[15px] text-hud-dim">{boss.name} is finished. The way on is open.</p>
         </header>
 
         {lastVictory && (

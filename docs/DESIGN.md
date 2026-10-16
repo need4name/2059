@@ -224,6 +224,19 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 
 ---
 
+## 7b. The hidden map
+
+**Where:** `client/src/content/map-indian-ocean.json` (rooms), `client/src/lib/engine/map.ts` (rules), `client/src/lib/stores/useMap.tsx`, `screens/RoomPanel.tsx`.
+
+- Chapter one is a web of 37 rooms the player never sees as a map. The hideout screen shows the room you're in (about two sentences), what's there, and its exits as buttons, each with a hint ("East: the smell of fuel"). Exits you've been through before say "familiar".
+- **Threat comes from the room.** Fight rooms hold one threat level, rising with depth from the body dock (1) to the drowned spire (30). Elites sit on 5, 15 and 25, bosses on 10 (the Patchwork King), 20 and 30. The fight footer button starts the room's fight.
+- **Enemies hold the room:** while a room's fight is uncleared, every exit but the one you came in by is blocked. Win and the room stays clear for that host.
+- **Markets** are in three safe rooms (the body dock, the Grey Lane stall, the canopy stall). The Grey Lane is only reachable from those rooms.
+- **Things to look at:** some rooms have something to look closer at once they're clear; what you see goes into the journal.
+- **Hidden goals:** three (the slab, the manifest, the Mother: placeholders until the story is written), each found by looking at something in a particular room. They're never listed. When all three are found, the sealed way from the wake down to the drowned spire opens.
+- **Death:** a new host is another corpse reanimating at the body dock. Fights refill; visited rooms, things looked at and goals are kept.
+- The content check rejects exits to missing rooms, unreachable rooms, a goal in more or fewer than one room, and fights in market rooms. The balance simulator still plays threats in order, which matches walking deeper.
+
 ## 8. Runs, seeds and saves
 
 - Every run has a seed. Each fight is seeded from the run seed and the fight number, and each market visit from the run seed and its visit key, so the same seed and choices replay exactly (`client/src/lib/engine/rng.ts`).

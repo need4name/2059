@@ -12,6 +12,8 @@ interface JournalState {
   notes: JournalNote[];
   /** The first time any host meets a kind of enemy, note the signal's impression. Returns it, or null if already seen. */
   sight: (enemy: string, host: number) => JournalNote | null;
+  /** Note something the signal found (looked at in a room). Ignored if already noted. */
+  addNote: (id: string, text: string, about: string, host: number) => void;
   reset: () => void;
 }
 
@@ -26,6 +28,10 @@ export const useJournal = create<JournalState>()(persist((set, get) => ({
     const note = { id: `sight:${enemy}`, text, about: enemy, host };
     set({ notes: [...get().notes, note] });
     return note;
+  },
+  addNote: (id, text, about, host) => {
+    if (get().notes.some(n => n.id === id)) return;
+    set({ notes: [...get().notes, { id, text, about, host }] });
   },
   reset: () => set({ seen: [], notes: [] }),
 }), { name: '2059-journal', storage: createJSONStorage(() => saveStorage), version: 1 }));

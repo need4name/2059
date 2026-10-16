@@ -16,6 +16,8 @@ import { useAudio } from './useAudio';
 import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
 import { useJournal } from './useJournal';
+import { useMap } from './useMap';
+import { roomById } from '../engine/map';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -94,6 +96,8 @@ kizunaJustFired: boolean;
 
 setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
+/** Fight whatever holds the room you're standing in on the hidden map. */
+startRoomFight: () => void;
 startFarmCombat: (level: number) => void;
 executePlayerTurn: () => void;
 moveTentatively: (position: TilePosition) => void;
@@ -291,6 +295,8 @@ if (!pool.length) { direct.push(it); continue; }
 choices.push({ options: [it, instancedItem(pool[Math.floor(random() * pool.length)])], picked: null });
 }
 }
+// The room on the hidden map is clear for this host
+if (farmLevel === null) useMap.getState().clearRoom();
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ lootChoices: choices });
@@ -459,6 +465,12 @@ if (get().classesUnlocked) set({ playerClass });
 },
 
 startCombat: () => startFight(get().bossLevel, false),
+startRoomFight: () => {
+const room = roomById(useMap.getState().room);
+if (room.threat === undefined) return;
+set({ bossLevel: room.threat });
+startFight(room.threat, false);
+},
 startFarmCombat: (level) => startFight(level, true),
 
 setSelectedMovement: (pos) => set({ selectedMovement: pos }),
@@ -652,6 +664,8 @@ playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
 holdfastSpent: false,
 });
+// The new corpse wakes at the chapter's entry; fights refill, memory stays
+useMap.getState().newHost();
 // Seeded from the host that just died, so a replayed run gets the same gifts
 giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
 },
@@ -659,6 +673,7 @@ giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
 resetAll: () => {
 usePlayi.getState().reset();
 useJournal.getState().reset();
+useMap.getState().reset();
 useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
