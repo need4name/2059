@@ -20,6 +20,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - Don't use Chakra Petch or JetBrains Mono (rejected). Current fonts: Sora for headings, Manrope for everything else.
 - Fight rules live in `client/src/lib/engine/fight.ts` as pure functions (state in, state + events out). The combat store only handles timing, sound and inventory. Put new rules in the engine and test them in `tests/fight.test.ts`.
 - Art is pixel art, always (board, tiles, hazards, models). Chapter one's rafts are lashed-together plastic, not wood.
+- On the board, visual variety must carry information. The floor stays plain; only things that matter to play (units, cover, hazards, reach, telegraphs) stand out.
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
 
 ## Content
