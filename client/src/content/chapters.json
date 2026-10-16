@@ -6,7 +6,7 @@
       "name": "The Indian Ocean",
       "place": "The plastic archipelago, Offshore Sector 7",
       "tileset": {
-        "floor": { "light": "#5f9cc2", "dark": "#3a7299", "seam": "#1f4058" },
+        "floor": { "light": "#5c7380", "dark": "#536975", "seam": "#2c3d47" },
         "sea": { "top": "#16353f", "bottom": "#071a22", "foam": "#5f8f99" },
         "hazards": [
           { "art": "fire", "name": "Fuel fire", "damage": 8 },

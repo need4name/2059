@@ -82,72 +82,26 @@ export function drawSea(ctx: Ctx, w: number, h: number, t: Tileset, now: number)
 }
 
 // ── Deck ─────────────────────────────────────────────────────────────────────
-// Four kinds of lashed plastic. Colours: sun-bleached blues, whites, a little
-// yellow and orange, all a touch grimy.
+// One plain plastic plate everywhere, so the floor never competes with what
+// matters (units, cover, hazards, reach). The only variation is a faint
+// checker to help count tiles.
 
-const DECK = {
-  crate: { edge: '#1f4058', body: '#3a7299', lit: '#5f9cc2', hole: '#14283a' },
-  sheet: { edge: '#6b6f68', body: '#b4b8ad', lit: '#d6d9cd', ridge: '#8d9187' },
-  bottles: { back: '#1d2b2e', a: '#5fa8a0', b: '#87c9b8', c: '#c8d6d0', rope: '#b39a63' },
-  tarp: { edge: '#7a3a1a', body: '#c8652a', lit: '#e48a45', fold: '#9c4a20' },
-};
-const DECK_KINDS = ['crate', 'sheet', 'bottles', 'tarp'] as const;
-
-function deckSprite(kind: typeof DECK_KINDS[number], v: number): HTMLCanvasElement {
-  return sprite(`deck:${kind}:${v}`, px => {
-    if (kind === 'crate') {
-      const c = DECK.crate;
-      rect(px, 0, 0, N, N, c.body);
-      for (let i = 0; i < N; i++) { px(i, 0, c.lit); px(0, i, c.lit); px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
-      // A grid of drainage holes, as on a crate base
-      for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) rect(px, 2 + gx * 5, 2 + gy * 5, 2, 2, c.hole);
-    } else if (kind === 'sheet') {
-      const c = DECK.sheet;
-      rect(px, 0, 0, N, N, c.body);
-      // Ridged sheeting, running across or along
-      for (let k = 2; k < N; k += 4) for (let i = 0; i < N; i++) {
-        if (v % 2) { px(i, k, c.lit); px(i, k + 1, c.ridge); } else { px(k, i, c.lit); px(k + 1, i, c.ridge); }
-      }
-      for (let i = 0; i < N; i++) { px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
-    } else if (kind === 'bottles') {
-      const c = DECK.bottles;
-      rect(px, 0, 0, N, N, c.back);
-      // Bottles packed in rows, lashed with rope
-      const cols = [c.a, c.b, c.c];
-      for (let row = 0; row < 4; row++) for (let k = 0; k < 4; k++) {
-        const x = 2 + k * 4 + (row % 2 ? 1 : 0), y = 2 + row * 4;
-        const col = cols[Math.floor(hash(v, row * 4 + k) * 3)];
-        rect(px, x - 1, y - 1, 3, 3, col);
-        px(x - 1, y - 1, 'rgba(255,255,255,0.5)');
-      }
-      for (let i = 0; i < N; i++) px(i, 7 + (v % 2), c.rope);
-    } else {
-      const c = DECK.tarp;
-      rect(px, 0, 0, N, N, c.body);
-      for (let i = 0; i < N; i++) { px(i, 0, c.lit); px(i, N - 1, c.edge); px(N - 1, i, c.edge); }
-      // Folds and a couple of grommets
-      for (let i = 0; i < N; i++) px(i, Math.min(N - 2, 5 + Math.floor(i * 0.3)), c.fold);
-      px(2, 2, '#2a1a10'); px(13, 2, '#2a1a10'); px(2, 13, '#2a1a10');
-    }
-    // Grime and sun-bleach speckle, different per variant
-    for (let k = 0; k < 7; k++) px(Math.floor(hash(v, k, 1) * N), Math.floor(hash(v, k, 2) * N), k % 2 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,240,0.22)');
+function deckSprite(t: Tileset, shade: 0 | 1): HTMLCanvasElement {
+  return sprite(`deck:${shade}:${t.floor.light}`, px => {
+    const body = shade ? t.floor.dark : t.floor.light;
+    rect(px, 0, 0, N, N, body);
+    // A lit top edge and a dark bottom edge read as moulded plastic
+    for (let i = 0; i < N; i++) { px(i, 0, 'rgba(255,255,255,0.14)'); px(i, N - 1, t.floor.seam); px(N - 1, i, t.floor.seam); }
   });
 }
 
-/** One deck tile: a piece of lashed plastic, chosen by position so the raft looks patched together. */
-export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, _t: Tileset) {
-  const roll = hash(row, col);
-  // Mostly crates and sheeting, with patches of bottles and tarp
-  const kind = roll < 0.4 ? 'crate' : roll < 0.75 ? 'sheet' : roll < 0.9 ? 'bottles' : 'tarp';
-  const v = Math.floor(hash(col, row, 3) * 4);
+/** One deck tile: the chapter's plain plastic plate. */
+export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, t: Tileset) {
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   ctx.clip();
-  blit(ctx, deckSprite(kind, v), x, y, w, h);
-  // Knock the deck back a little so units, cover and hazards read first
-  ctx.fillStyle = 'rgba(8,18,24,0.38)';
-  ctx.fillRect(x, y, w, h);
+  blit(ctx, deckSprite(t, ((row + col) % 2) as 0 | 1), x, y, w, h);
   ctx.restore();
 }
 
@@ -203,7 +157,7 @@ function holeSprite(f: number) {
     const shape = (x: number, y: number) => ((x - 7.5) / 7) ** 2 + ((y - 8) / 4.5) ** 2 + (hash(x, y, 4) - 0.5) * 0.7 + Math.sin(x * 1.7) * 0.12 < 0.85;
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (shape(x, y)) px(x, y, (y + f) % 4 === 0 && x % 3 ? '#2f6676' : '#0b2630');
     // Torn plastic lips
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!shape(x, y) && (shape(x + 1, y) || shape(x - 1, y) || shape(x, y + 1) || shape(x, y - 1))) px(x, y, hash(x, y, 8) > 0.5 ? '#8f968a' : '#6c7268');
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!shape(x, y) && (shape(x + 1, y) || shape(x - 1, y) || shape(x, y + 1) || shape(x, y - 1))) px(x, y, hash(x, y, 8) > 0.5 ? '#c9d2d6' : '#9aa6ad');
   });
 }
 
