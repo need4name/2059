@@ -7,6 +7,7 @@ import { CLASS_DEFINITIONS, getBossRoster, ENEMY_GRADES } from '@/lib/combat/act
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { drawSea, drawDeckTile, drawHazard, drawObstacle } from '@/lib/rendering/board';
+import { drawFigure } from '@/lib/rendering/figures';
 import { currentChapter } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
@@ -662,8 +663,9 @@ const playerPos = gridToScreen(playerVisualRow, playerVisualCol, width, height);
 const spriteSize = Math.max(tileW * 1.2, 30);
 const playerFacingLeft = grid.playerPosition.col > grid.bossPosition.col;
 
-drawWanderer(
+drawFigure(
 ctx,
+'host',
 playerPos.x - spriteSize / 2,
 playerPos.y - spriteSize / 2 - 8,
 spriteSize,
@@ -707,7 +709,7 @@ ctx.restore();
 const size = Math.max(tileW * 1.05, 28);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
-drawWanderer(ctx, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
+drawFigure(ctx, a.id, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
 ctx.restore();
 const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
@@ -752,8 +754,8 @@ ctx.restore();
 const stumble = v.animator.getStumbleOffset();
 ctx.save();
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
-drawDrunkard(ctx, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
-v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, v.animator.getRandomSeed());
+drawFigure(ctx, f.unit.name, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
+v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col);
 ctx.restore();
 // Implant glows: one per implant carried, in the colour of its grade, so upgraded enemies look upgraded
 if (f.unit.grade !== undefined && f.unit.implants?.length) {

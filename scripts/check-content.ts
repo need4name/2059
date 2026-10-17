@@ -8,6 +8,8 @@ import enemies from '../client/src/content/enemies.json';
 import allies from '../client/src/content/allies.json';
 import chapters from '../client/src/content/chapters.json';
 import chapterMap from '../client/src/content/map-indian-ocean.json';
+import figures from '../client/src/content/figures.json';
+import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
 import { MAKER_INFO } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
@@ -74,6 +76,12 @@ const mapFile = z.object({
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
+}).strict();
+const figure = z.object({
+  build: z.enum(['slim', 'medium', 'heavy', 'hunched']),
+  skin: hex, cloth: hex, accent: hex, eyes: hex, hair: hex,
+  head: z.enum(HEAD_KINDS), arms: z.tuple([z.enum(ARM_KINDS), z.enum(ARM_KINDS)]),
+  legs: z.enum(['flesh', 'metal']), chest: z.array(z.enum(CHEST_KINDS)), weapon: z.enum(WEAPON_KINDS),
 }).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
@@ -192,6 +200,12 @@ export function checkContent(): string[] {
     while (queue.length) { const at = queue.shift(); const r = m.rooms.find(x => x.id === at)!; for (const e of r.exits) if (!seen.has(e.to) && ids.has(e.to)) { seen.add(e.to); queue.push(e.to); } }
     for (const r of m.rooms) if (!seen.has(r.id)) problems.push(`map ${r.id}: can't be reached from the entry`);
   }
+
+  // Figures: every character that appears in a fight has a look
+  const looks = (figures as { figures: Record<string, unknown> }).figures;
+  for (const [id, f] of Object.entries(looks)) report(`figures.json ${id}`, figure.safeParse(f));
+  const needed = ['host', 'Patchwork King', ...Object.keys((enemies as { enemies: Record<string, unknown> }).enemies), ...(allies as { allies: { id: string }[] }).allies.map(a => a.id)];
+  for (const id of needed) if (!looks[id]) problems.push(`figures.json: no look for "${id}"`);
 
   // Allies
   const ar = allyFile.safeParse(allies);

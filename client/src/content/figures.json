@@ -1,0 +1,26 @@
+{
+  "about": "How each character is drawn: a 32x32 pixel figure built from parts. build: slim | medium | heavy | hunched. head: bare | hood | helmet | visor | mask | surgical | cap | scarf | crown | blank. arms (back, front): flesh | metal | crane | claw | blade | pump. legs: flesh | metal. chest: list of extras. weapon: none | hook | baton | gun | scalpel | shield. Colours are hex.",
+  "figures": {
+    "host":   { "build": "slim", "skin": "#8a9297", "cloth": "#3b4652", "accent": "#00d4ff", "eyes": "#7fe9ff", "head": "bare", "hair": "#20262c", "arms": ["flesh", "flesh"], "legs": "flesh", "chest": ["chip", "rags"], "weapon": "none" },
+
+    "Limbic Cartel Scavenger":  { "build": "hunched", "skin": "#7d7466", "cloth": "#4d5236", "accent": "#c9a227", "eyes": "#ffd84a", "head": "scarf", "hair": "#2a2418", "arms": ["claw", "flesh"], "legs": "flesh", "chest": ["rags", "belt"], "weapon": "hook" },
+    "SALV Boarder":             { "build": "heavy", "skin": "#8a6e5a", "cloth": "#d9772b", "accent": "#f2d24a", "eyes": "#ffcf4a", "head": "helmet", "hair": "#e0a020", "arms": ["flesh", "crane"], "legs": "flesh", "chest": ["stripes"], "weapon": "none" },
+    "Pump-Fleet Cadre":         { "build": "medium", "skin": "#9a7a64", "cloth": "#2f6f6a", "accent": "#a8e0d0", "eyes": "#d8fff0", "head": "scarf", "hair": "#1d2b2a", "arms": ["flesh", "pump"], "legs": "flesh", "chest": ["pump", "robe"], "weapon": "none" },
+    "Ghost-MIL Infiltrator":    { "build": "slim", "skin": "#6c7078", "cloth": "#2a2e38", "accent": "#b07cff", "eyes": "#c9a2ff", "head": "visor", "hair": "#14161c", "arms": ["metal", "flesh"], "legs": "metal", "chest": ["antenna", "belt"], "weapon": "gun" },
+    "Non-Continuous Raider":    { "build": "slim", "skin": "#8c7a70", "cloth": "#5a2e2e", "accent": "#e05a40", "eyes": "#ff7a5a", "head": "bare", "hair": "#3a1a14", "arms": ["flesh", "blade"], "legs": "flesh", "chest": ["stitches", "rags"], "weapon": "none" },
+    "CBN Extraction Surgeon":   { "build": "medium", "skin": "#a49488", "cloth": "#d8dcd6", "accent": "#3fb07a", "eyes": "#9affc8", "head": "surgical", "hair": "#2a3a30", "arms": ["flesh", "flesh"], "legs": "flesh", "chest": ["apron", "tank"], "weapon": "scalpel" },
+    "IOA Interdiction Officer": { "build": "medium", "skin": "#8c7c6c", "cloth": "#24365a", "accent": "#e8c040", "eyes": "#ffe48a", "head": "cap", "hair": "#141a24", "arms": ["flesh", "flesh"], "legs": "flesh", "chest": ["badge", "pads", "belt"], "weapon": "gun" },
+    "Tianxia Compliance Unit":  { "build": "medium", "skin": "#7a7a70", "cloth": "#8c8a4a", "accent": "#e8e070", "eyes": "#f0ff9a", "head": "mask", "hair": "#3a3a30", "arms": ["metal", "metal"], "legs": "flesh", "chest": ["number", "belt"], "weapon": "baton" },
+    "Helix Continuity Warden":  { "build": "heavy", "skin": "#9098a0", "cloth": "#d6dde2", "accent": "#38c8e0", "eyes": "#7af0ff", "head": "visor", "hair": "#4a5560", "arms": ["metal", "flesh"], "legs": "metal", "chest": ["pads"], "weapon": "shield" },
+    "Volkov Operator":          { "build": "heavy", "skin": "#8a6a5a", "cloth": "#3a3434", "accent": "#d83a2a", "eyes": "#ff5a4a", "head": "bare", "hair": "#8a6a5a", "arms": ["metal", "metal"], "legs": "metal", "chest": ["stripes", "pads"], "weapon": "none" },
+    "Cartel Enforcer":          { "build": "heavy", "skin": "#7a5e50", "cloth": "#1c1a1e", "accent": "#e0b040", "eyes": "#ff3a3a", "head": "bare", "hair": "#0e0c0e", "arms": ["flesh", "claw"], "legs": "flesh", "chest": ["chain", "coat"], "weapon": "hook" },
+    "Unregistered Operator":    { "build": "medium", "skin": "#5a5e64", "cloth": "#2c3036", "accent": "#9aa4ae", "eyes": "#e8eef4", "head": "blank", "hair": "#1a1c20", "arms": ["blade", "blade"], "legs": "metal", "chest": ["coat"], "weapon": "none" },
+    "Patchwork King":           { "build": "heavy", "skin": "#8a7a64", "cloth": "#5a3a6a", "accent": "#fbbf24", "eyes": "#ffd84a", "head": "crown", "hair": "#2a1a30", "arms": ["crane", "claw"], "legs": "metal", "chest": ["cape", "chain", "stitches"], "weapon": "none" },
+
+    "bale":      { "build": "heavy", "skin": "#7a7a70", "cloth": "#e0a020", "accent": "#3a3a30", "eyes": "#fff0a0", "head": "helmet", "hair": "#c08010", "arms": ["crane", "metal"], "legs": "metal", "chest": ["stripes"], "weapon": "none" },
+    "matron":    { "build": "medium", "skin": "#b09a8c", "cloth": "#f0d8e0", "accent": "#e05a8a", "eyes": "#ffc0d8", "head": "cap", "hair": "#5a3040", "arms": ["flesh", "flesh"], "legs": "flesh", "chest": ["apron", "cross"], "weapon": "none" },
+    "ghostline": { "build": "slim", "skin": "#6c7078", "cloth": "#5a4a8a", "accent": "#c4b5fd", "eyes": "#e9e2ff", "head": "hood", "hair": "#14161c", "arms": ["metal", "flesh"], "legs": "metal", "chest": ["antenna", "coat"], "weapon": "gun" },
+    "ward":      { "build": "heavy", "skin": "#9098a0", "cloth": "#7fa6c2", "accent": "#38bdf8", "eyes": "#9ae6ff", "head": "helmet", "hair": "#d6e4ee", "arms": ["metal", "flesh"], "legs": "metal", "chest": ["pads", "cape"], "weapon": "shield" },
+    "breaker":   { "build": "slim", "skin": "#8a6a5a", "cloth": "#4a4040", "accent": "#ef4444", "eyes": "#ff6a5a", "head": "bare", "hair": "#2a1a14", "arms": ["metal", "metal"], "legs": "flesh", "chest": ["stripes"], "weapon": "none" }
+  }
+}
