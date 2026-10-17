@@ -53,6 +53,9 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 
 ### Enemy behaviour
 - **Heavy attacks lock their tiles.** The enemy moves into position, then aims at where its target stands; the orange tiles are exactly the tiles that fire next turn. Anyone on them then is hit (allies included), anyone off them is safe, wherever they are. If the shape can't reach its target after the move, the heavy isn't wound up. Enemies only use heavies when your heat is **45 or more**.
+- **Collisions:** a knockback whose next tile is solid (cover, the arena edge, open water, another body) doesn't move its target; instead the target slams into it for 30% of the hit again (at least 4) and is **stunned**. A body it slams into takes the same damage.
+- **Stunned:** loses its next turn (an enemy also loses any heavy it was winding up; a stunned ally sits out the round).
+- **Burning:** ending a turn on a fuel fire sets you (or an enemy) burning for 2 turns: 4% of max health each turn (at least 3), at the start of that unit's turn. A flame and circling stars show over units that are burning or stunned.
 - **Signature heavies:** Scavenger charge, Boarder cone, Cadre blast, Ghost-MIL X-burst, Raider ring, Surgeon strike (a grab), IOA knockback, Tianxia beam, Warden knockback, Volkov charge, Enforcer ring, Unregistered beam.
 - **The red zone** shows only each enemy's normal attacks from where it stands; heavies show only as their locked orange tiles.
 - **Grades:** enemies show how upgraded they are: Raw (threat 1–4), Grafted (5–9), Augmented (10–19), Chromed (20–29), Ascended (30+). The target card shows the grade and how many implants they carry (1 up to threat 5, 2 up to 10, then 3); in a fight the HUD names the implants, and each glows on the sprite in the grade's colour.

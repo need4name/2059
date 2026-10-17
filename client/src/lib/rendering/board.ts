@@ -223,3 +223,27 @@ export function drawObstacle(ctx: Ctx, art: string | undefined, cx: number, cy: 
   blit(ctx, sprite(`cover:${art}`, paint, '#071014'), cx - size / 2, cy - size / 2, size, size);
   return true;
 }
+
+// ── Status marks over units ──────────────────────────────────────────────────
+
+/** Small pixel marks above a unit's head: a flame while burning, circling stars while stunned. */
+export function drawStatus(ctx: Ctx, cx: number, top: number, size: number, burning: boolean, stunned: boolean, now: number) {
+  const p = Math.max(2, Math.round(size / 24));
+  ctx.save();
+  if (burning) {
+    const fx = Math.round(cx + size * 0.28), fy = Math.round(top + p * 2);
+    const flick = Math.floor(now / 120) % 2;
+    ctx.fillStyle = '#ff5a1f'; ctx.fillRect(fx - p, fy, p * 3, p * 2);
+    ctx.fillStyle = '#ffa22e'; ctx.fillRect(fx, fy - p * (1 + flick), p, p * (2 + flick));
+    ctx.fillStyle = '#ffe08a'; ctx.fillRect(fx, fy + p, p, p);
+  }
+  if (stunned) {
+    ctx.fillStyle = '#ffe14a';
+    for (let k = 0; k < 3; k++) {
+      const a = now / 260 + (k * Math.PI * 2) / 3;
+      const sx = Math.round(cx + Math.cos(a) * size * 0.22), sy = Math.round(top + Math.sin(a) * size * 0.06);
+      ctx.fillRect(sx - p, sy, p * 3, p); ctx.fillRect(sx, sy - p, p, p * 3);
+    }
+  }
+  ctx.restore();
+}

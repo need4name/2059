@@ -228,6 +228,7 @@ overclockActive: s.overclockActive, kizunaJustFired: s.kizunaJustFired,
 doubleActionReady: s.doubleActionReady,
 perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepReady, holdfastReady: s.holdfastReady,
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
+playerBurning: s.playerBurning, playerStunned: s.playerStunned,
 };
 };
 
@@ -257,13 +258,17 @@ return false;
 };
 
 const beginPlayerTurn = () => {
-const { grid } = get();
 save(Fight.startPlayerTurn(fightState()));
+// Burning ticks now; a stun costs the whole turn
+const cond = Fight.playerConditions(fightState());
+if (apply(cond)) return;
+const { grid } = get();
 set({
-phase: 'player_turn', inputLocked: false, hasMoved: false, allyMoveMode: null,
+phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, allyMoveMode: null,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
 });
+if (cond.skipTurn) later(() => finishPlayerAction(false), TURN_HANDOFF_DELAY);
 };
 
 const handlePlayerDefeated = () => {
@@ -390,7 +395,7 @@ const grid = generateBattlefield(level, { move: moveRange, units: 1 + units.leng
 const spots = spawnFoePositions(grid, units.length);
 const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
-const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0 }));
+const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }));
 set({
 ...freshFightState(grid),
 playerHeat: perks.startHeat,
@@ -404,7 +409,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, target: 0 });
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, target: 0 });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
 if (lead) {

@@ -32,6 +32,10 @@ function CombatHud() {
     text: charging.length > 1 ? `⚠ ${charging.length} heavy attacks next turn · leave the orange tiles` : `⚠ ${charging[0].pendingAction!.name} next turn · leave the orange tiles` });
   if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction · Brace', pulse: true });
   if (s.playerHeat >= 100) chips.push({ key: 'oh', tone: 'hostile', text: 'Overheated · can\'t move' });
+  if (s.playerBurning > 0) chips.push({ key: 'burn', tone: 'hostile', text: `Burning · ${s.playerBurning} turn${s.playerBurning === 1 ? '' : 's'}`, pulse: true });
+  if (s.playerStunned) chips.push({ key: 'stun', tone: 'cred', text: 'Stunned · you lose your next turn' });
+  if (target?.burning) chips.push({ key: 'tburn', tone: 'ok', text: 'Target burning' });
+  if (target?.stunned) chips.push({ key: 'tstun', tone: 'ok', text: 'Target stunned' });
   if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
   if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Kizuna fired' });

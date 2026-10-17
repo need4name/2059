@@ -16,7 +16,7 @@ function arena(player: [number, number], boss: [number, number]): CombatGrid {
 function ally(id: string, pos: [number, number], level = 1): Ally {
   const def = allyDef(id)!;
   const moves = allyMoves(def, level);
-  return { id, unit: allyUnit(def, level), pos: { row: pos[0], col: pos[1] }, moves, move: def.move, cooldowns: moves.map(() => 0), moved: false, acted: false, taunting: false, defenseBoost: 0 };
+  return { id, unit: allyUnit(def, level), pos: { row: pos[0], col: pos[1] }, moves, move: def.move, cooldowns: moves.map(() => 0), moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false };
 }
 function fight(allies: Ally[], over: Partial<FightState> = {}): FightState {
   const grid = over.grid ?? arena([7, 3], [2, 3]);

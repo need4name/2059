@@ -62,6 +62,10 @@ export interface Foe {
   pendingVictim: number | null;
   /** The exact tiles a wound-up heavy will strike. Anyone on them when it fires is hit. */
   pendingTiles: TilePosition[] | null;
+  /** Turns of burning left (from ending a turn on a fuel fire). */
+  burning: number;
+  /** Loses its next turn (slammed into something solid). */
+  stunned: boolean;
 }
 
 /** An ally on the field. Knocked out allies sit out the rest of the fight. */
@@ -79,6 +83,8 @@ export interface Ally {
   /** Draw fire: every foe aims at this ally until the player's next turn. */
   taunting: boolean;
   defenseBoost: number;
+  burning: number;
+  stunned: boolean;
 }
 
 export interface FightState {
@@ -108,6 +114,10 @@ export interface FightState {
   allyHitFoes: number[];
   /** Guard an ally put on the player; soaks the next hit. */
   allyGuard: number;
+  /** Turns of burning left on the player. */
+  playerBurning: number;
+  /** The player loses their next turn. */
+  playerStunned: boolean;
 }
 
 export type FightEvent =
@@ -135,6 +145,7 @@ export const isAlive = (f: Foe) => f.unit.currentHp > 0;
 export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
+  playerBurning: 0, playerStunned: false,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -147,7 +158,7 @@ function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; 
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
-  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null };
+  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null, burning: 0, stunned: false };
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
@@ -217,6 +228,96 @@ export function startPlayerTurn(s: FightState): FightState {
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
   };
+}
+
+// ── Conditions ───────────────────────────────────────────────────────────────
+
+/** Knockback into something solid: share of the hit dealt again as collision damage (at least the minimum). */
+export const COLLISION = { share: 0.3, min: 4 };
+/** Burning: a share of max health each turn, for this many turns. */
+export const BURN = { share: 0.04, min: 3, turns: 2 };
+const burnDamage = (maxHp: number) => Math.max(BURN.min, Math.round(maxHp * BURN.share));
+
+type Body = { kind: 'player' } | { kind: 'foe'; i: number } | { kind: 'ally'; k: number };
+function bodyAt(s: FightState, p: TilePosition): Body | null {
+  if (same(s.grid.playerPosition, p)) return { kind: 'player' };
+  const i = s.foes.findIndex(f => isAlive(f) && same(f.pos, p));
+  if (i >= 0) return { kind: 'foe', i };
+  const k = s.allies.findIndex(a => allyAlive(a) && same(a.pos, p));
+  return k >= 0 ? { kind: 'ally', k } : null;
+}
+const posOf = (s: FightState, b: Body) => (b.kind === 'player' ? s.grid.playerPosition : b.kind === 'foe' ? s.foes[b.i].pos : s.allies[b.k].pos);
+const nameOf = (s: FightState, b: Body) => (b.kind === 'player' ? 'You' : b.kind === 'foe' ? s.foes[b.i].unit.name : s.allies[b.k].unit.name);
+
+/** Take damage that ignores defence (collisions, burning), with the right knockout events. */
+function hurt(s: FightState, b: Body, dmg: number, events: FightEvent[]): FightState {
+  if (b.kind === 'player') {
+    const held = holdOn(s, Math.max(0, s.player.currentHp - dmg), events);
+    if (held.hp <= 0) events.push({ kind: 'playerDown' });
+    return { ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady };
+  }
+  if (b.kind === 'foe') {
+    const f = s.foes[b.i];
+    const hp = Math.max(0, f.unit.currentHp - dmg);
+    if (hp <= 0 && f.unit.currentHp > 0) { events.push(say(`${f.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: b.i }); }
+    return setFoe(s, b.i, { unit: { ...f.unit, currentHp: hp } });
+  }
+  const a = s.allies[b.k];
+  const hp = Math.max(0, a.unit.currentHp - dmg);
+  if (hp <= 0 && a.unit.currentHp > 0) { events.push(say(`${a.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: b.k }); }
+  return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, unit: { ...x.unit, currentHp: hp } } : x)) };
+}
+const stun = (s: FightState, b: Body): FightState =>
+  b.kind === 'player' ? { ...s, playerStunned: true }
+  : b.kind === 'foe' ? setFoe(s, b.i, { stunned: true })
+  : { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, stunned: true } : x)) };
+
+/**
+ * Knockback from `from`: the body is pushed a tile straight on. If something solid is
+ * there (cover, the rail, open water, another body) it slams into it instead: collision
+ * damage and a stun, and a body it hits takes the same damage.
+ */
+export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[]): FightState {
+  const at = posOf(s, who);
+  const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
+  const to = { row: at.row + step.row, col: at.col + step.col };
+  const other = inBounds(to, s.grid) ? bodyAt(s, to) : null;
+  const solid = !inBounds(to, s.grid) || isImpassable(to, s.grid) || other !== null;
+  if (!solid) {
+    events.push(say(who.kind === 'player' ? 'Knocked back a tile' : `${nameOf(s, who)} is knocked back`));
+    if (who.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: to } };
+    if (who.kind === 'foe') return setFoe(s, who.i, { pos: to });
+    return { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
+  }
+  const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share));
+  const into = other ? nameOf(s, other) : !inBounds(to, s.grid) ? 'the rail' : tileAt(to, s.grid)?.type === 'void' ? 'the water' : (tileAt(to, s.grid)?.name ?? 'cover');
+  events.push(say(`${who.kind === 'player' ? 'You slam' : `${nameOf(s, who)} slams`} into ${other?.kind === 'player' ? 'you' : into}: -${dmg}, stunned`, 'critical'));
+  let state = stun(hurt(s, who, dmg, events), who);
+  if (other) { events.push(say(`${nameOf(s, other)} takes ${dmg} from the impact`, 'damage')); state = hurt(state, other, dmg, events); }
+  return state;
+}
+
+/** Start of the player's turn, after cooling: burning ticks; a stun costs the whole turn. */
+export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
+  const events: FightEvent[] = [];
+  let state = s;
+  if (s.playerBurning > 0) {
+    const dmg = burnDamage(s.player.maxHp);
+    events.push(say(`Burning: -${dmg} HP`, 'damage'));
+    state = { ...hurt(state, { kind: 'player' }, dmg, events), playerBurning: s.playerBurning - 1 };
+  }
+  // Allies burn too, and a stunned ally sits this round out
+  state.allies.forEach((a, k) => {
+    if (!allyAlive(a) || a.burning <= 0) return;
+    const dmg = burnDamage(a.unit.maxHp);
+    events.push(say(`${a.unit.name} is burning: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'ally', k }, dmg, events);
+    state = { ...state, allies: state.allies.map((x, n) => (n === k ? { ...x, burning: x.burning - 1 } : x)) };
+  });
+  state = { ...state, allies: state.allies.map(a => (a.stunned ? { ...a, stunned: false, acted: true, moved: true } : a)) };
+  const skipTurn = s.playerStunned && !events.some(e => e.kind === 'playerDown');
+  if (skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false }; }
+  return { state, events, skipTurn };
 }
 
 /** Aim at a different foe (only living ones). */
@@ -310,13 +411,11 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     const heat = clampHeat(foe.heat + heatPush);
-    const shove = attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === s.target ? pushBack(state, grid.playerPosition, foe.pos) : null;
     state = setFoe(state, i, {
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
-      ...(shove ? { pos: shove } : {}),
     });
-    if (shove) events.push(say(`${foe.unit.name} is knocked back`));
+    if (attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === s.target) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
@@ -505,12 +604,8 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (breaks) events.push(say('MALFUNCTION', 'malfunction'));
   if (hp <= 0) events.push({ kind: 'playerDown' });
 
-  // Knockback shoves you a tile straight back, if there's room
-  const pushed = action.attackPattern === 'knockback' && hp > 0 ? pushBack(s, foe.pos, grid.playerPosition) : null;
-  if (pushed) events.push(say('Knocked back a tile'));
-  const state = setFoe({
+  let state = setFoe({
     ...s,
-    ...(pushed ? { grid: { ...s.grid, playerPosition: pushed } } : {}),
     player: { ...player, currentHp: hp, currentStructuralHp: structure },
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
     // A guard soaks one hit, so a crowd can't all hit a braced player at full guard
@@ -518,16 +613,9 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     playerHeat,
     holdfastReady: held.holdfastReady,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
+  // Knockback shoves you a tile straight back, or into whatever is behind you
+  if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
   return { state, events };
-}
-
-/** Where a knockback from `from` pushes a unit at `at`: one tile straight on, if open. */
-export function pushBack(s: FightState, from: TilePosition, at: TilePosition): TilePosition | null {
-  const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
-  const to = { row: at.row + step.row, col: at.col + step.col };
-  if (!inBounds(to, s.grid) || isImpassable(to, s.grid)) return null;
-  const bodies = [s.grid.playerPosition, ...s.foes.filter(isAlive).map(f => f.pos), ...s.allies.filter(allyAlive).map(a => a.pos)];
-  return bodies.some(b => same(b, to)) ? null : to;
 }
 
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
@@ -538,9 +626,10 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
   const hp = Math.max(0, ally.unit.currentHp - lost);
   const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
   if (hp <= 0) { events.push(say(`${ally.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: k }); }
-  const pushed = action.attackPattern === 'knockback' && hp > 0 ? pushBack(s, foe.pos, ally.pos) : null;
-  const allies = s.allies.map((a, n) => (n === k ? { ...a, pos: pushed ?? a.pos, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
-  return { state: setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events };
+  const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
+  let state = setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
+  if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
+  return { state, events };
 }
 
 /**
@@ -550,6 +639,25 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
  */
 export function foeTurn(s: FightState, i: number, level: number): Step & { strikeAfterMove: CombatAction | null } {
   if (!isAlive(s.foes[i])) return { state: s, events: [], strikeAfterMove: null };
+  // Burning ticks at the start of its turn; a stun costs the turn (and any wound-up heavy)
+  if (s.foes[i].burning > 0 || s.foes[i].stunned) {
+    const events: FightEvent[] = [];
+    let state = s;
+    const f = s.foes[i];
+    if (f.burning > 0) {
+      const dmg = burnDamage(f.unit.maxHp);
+      events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'));
+      state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
+      if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, strikeAfterMove: null };
+    }
+    if (f.stunned) {
+      events.push(say(`${f.unit.name} is stunned`, 'info'));
+      state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
+      return { state, events, strikeAfterMove: null };
+    }
+    const rest = foeTurn(state, i, level);
+    return { ...rest, events: [...events, ...rest.events] };
+  }
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
     let state = rel.state;
@@ -664,10 +772,11 @@ export function applyPlayerHazard(s: FightState): Step {
   const dmg = Math.round(hazardDamageAt(pos, s.grid) * s.perks.hazardMult);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(pos, s.grid)?.name ?? 'Hazard';
-  const events: FightEvent[] = [say(`${name}: -${dmg} HP`, 'damage')];
+  const fire = tileAt(pos, s.grid)?.art === 'fire';
+  const events: FightEvent[] = [say(`${name}: -${dmg} HP${fire ? ', you catch fire' : ''}`, 'damage')];
   const held = holdOn(s, Math.max(0, s.player.currentHp - dmg), events);
   if (held.hp <= 0) events.push({ kind: 'playerDown' });
-  return { state: { ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady }, events };
+  return { state: { ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady, playerBurning: fire ? BURN.turns : s.playerBurning }, events };
 }
 
 /** Damage to foe i from the tile it ends its turn on. */
@@ -677,9 +786,10 @@ export function applyFoeHazard(s: FightState, i: number): Step {
   const dmg = hazardDamageAt(foe.pos, s.grid);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(foe.pos, s.grid)?.name ?? 'Hazard';
+  const fire = tileAt(foe.pos, s.grid)?.art === 'fire';
   const hp = Math.max(0, foe.unit.currentHp - dmg);
-  const events: FightEvent[] = [say(`${foe.unit.name} burns on ${name}: -${dmg}`, 'damage')];
-  let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp } });
+  const events: FightEvent[] = [say(`${foe.unit.name} on ${name}: -${dmg}${fire ? ', catches fire' : ''}`, 'damage')];
+  let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp }, ...(fire ? { burning: BURN.turns } : {}) });
   if (hp <= 0) { events.push({ kind: 'foeDown', foe: i }); state = afterFoeChanges(state, events); }
   return { state, events };
 }

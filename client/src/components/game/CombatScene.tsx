@@ -6,7 +6,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, getBossRoster, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
-import { drawSea, drawDeckTile, drawHazard, drawObstacle } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawHazard, drawObstacle, drawStatus } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { currentChapter } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -83,7 +83,7 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
 const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
@@ -674,6 +674,8 @@ playerAnimator.current.getFrame(),
 playerFacingLeft
 );
 
+drawStatus(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, playerBurning > 0, playerStunned, now);
+
 // Player HP bar below character
 const playerHpPercent = player.currentHp / player.maxHp;
 const barWidth = tileW * 0.9;
@@ -710,6 +712,7 @@ const size = Math.max(tileW * 1.05, 28);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
 drawFigure(ctx, a.id, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
+drawStatus(ctx, ap.x, ap.y - size / 2 - 6, size, a.burning > 0, a.stunned, now);
 ctx.restore();
 const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
@@ -757,6 +760,7 @@ if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx
 drawFigure(ctx, f.unit.name, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col);
 ctx.restore();
+drawStatus(ctx, fp.x, fp.y - size / 2 - 8, size, f.burning > 0, f.stunned, now);
 // Implant glows: one per implant carried, in the colour of its grade, so upgraded enemies look upgraded
 if (f.unit.grade !== undefined && f.unit.implants?.length) {
 const gc = ENEMY_GRADES[f.unit.grade].color;
@@ -855,7 +859,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks, allies, allyMoveMode]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {

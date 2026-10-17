@@ -193,3 +193,56 @@ test('knockback pushes you a tile straight back when there is room', () => {
   const r = Fight.resolveFoeAction(fight(), 0, kick, 1);
   assert.deepEqual(r.state.grid.playerPosition, { row: 6, col: 3 });
 });
+
+test('knockback into cover: no move, collision damage, stunned', () => {
+  const kick: CombatAction = { ...hitFor(20), attackPattern: 'knockback' };
+  const g = arena([5, 3], [4, 3]);
+  g.tiles[6][3] = { type: 'obstacle', name: 'Crate stack' } as any;
+  seedRandom(5);
+  const plain = Fight.resolveFoeAction(fight({ grid: arena([5, 3], [4, 3]) }), 0, kick, 1).state;
+  seedRandom(5);
+  const r = Fight.resolveFoeAction(fight({ grid: g }), 0, kick, 1);
+  assert.deepEqual(r.state.grid.playerPosition, { row: 5, col: 3 });
+  assert.ok(r.state.player.currentHp <= plain.player.currentHp - Fight.COLLISION.min);
+  assert.equal(r.state.playerStunned, true);
+});
+
+test('knocked into another body: both take the impact', () => {
+  const kick: CombatAction = { ...hitFor(20), attackPattern: 'knockback' };
+  const s = fight();
+  const behind = Fight.newFoe(createBoss(3), { row: 2, col: 3 }, 40);
+  const crowd = { ...s, grid: arena([5, 3], [3, 3]), foes: [{ ...s.foes[0], pos: { row: 3, col: 3 } }, behind] };
+  seedRandom(6);
+  const r = Fight.resolvePlayerAttack(crowd, { ...kick, accuracy: 'precise' }).state;
+  assert.deepEqual(r.foes[0].pos, { row: 3, col: 3 }, 'nowhere to go');
+  assert.equal(r.foes[0].stunned, true);
+  assert.ok(r.foes[1].unit.currentHp < behind.unit.currentHp, 'the one behind is hurt too');
+});
+
+test('a stunned enemy loses its turn and any wound-up heavy', () => {
+  const heavy: CombatAction = { ...hitFor(40), isHeavy: true, attackPattern: 'melee' };
+  const wound = Fight.telegraphHeavy(fight(), 0, heavy).state;
+  const stunned = { ...wound, foes: [{ ...wound.foes[0], stunned: true }] };
+  const r = Fight.foeTurn(stunned, 0, 1);
+  assert.equal(r.state.player.currentHp, stunned.player.currentHp);
+  assert.equal(r.state.foes[0].pendingAction, null);
+  assert.equal(r.state.foes[0].stunned, false);
+});
+
+test('ending a turn on a fuel fire sets you burning, which ticks for two turns', () => {
+  const g = arena([5, 3], [1, 3]);
+  g.tiles[5][3] = { type: 'hazard', name: 'Fuel fire', hazardDamage: 8, art: 'fire' } as any;
+  const lit = Fight.applyPlayerHazard(fight({ grid: g })).state;
+  assert.equal(lit.playerBurning, Fight.BURN.turns);
+  const t1 = Fight.playerConditions(lit);
+  assert.ok(t1.state.player.currentHp < lit.player.currentHp);
+  assert.equal(t1.state.playerBurning, 1);
+  assert.equal(Fight.playerConditions(Fight.playerConditions(t1.state).state).state.playerBurning, 0);
+});
+
+test('a stunned player loses one turn, then acts normally', () => {
+  const r = Fight.playerConditions(fight({ playerStunned: true }));
+  assert.equal(r.skipTurn, true);
+  assert.equal(r.state.playerStunned, false);
+  assert.equal(Fight.playerConditions(r.state).skipTurn, false);
+});
