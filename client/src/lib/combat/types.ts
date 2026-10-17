@@ -24,6 +24,8 @@ implants?: string[];
 /** Body slots of the implants it carries, and the traits they give it (see ENEMY_TRAITS). */
 implantSlots?: AugmentationSlot[];
 traits?: string[];
+/** Bosses: at this share of health they gain traits and say something (once). */
+enrage?: { at: number; gain: string[]; line: string };
 }
 
 export type AccuracyTier = 'precise' | 'variable' | 'unreliable';

@@ -648,6 +648,157 @@
         "I've been following you through bodies. You leave a trail."
       ],
       "firstSight": "No name, no maker, no mark. Like me."
+    },
+    "The Fitter": {
+      "color": "#f97316",
+      "baseAttack": 15,
+      "baseDefense": 7,
+      "startingHeat": 45,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Runs the Volkov foundry, fitting operator limbs to whoever pays. Has fitted most of them to itself.",
+      "traits": [
+        "armed",
+        "braced"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "fast"
+        ],
+        "line": "The Fitter bolts a fresh leg on mid-fight. It moves faster now."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Piston Drive",
+          "description": "",
+          "damage": 17,
+          "accuracy": "precise",
+          "physicalRatio": 0.75,
+          "heatTransfer": 6,
+          "heatGenerated": 9,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Fitting Arm Sweep",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Press Line",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.7,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "defend",
+          "name": "Torque Lock",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Hold still. I've fitted worse than you to the living.",
+        "That chip's in a dead man. I can hear it ticking."
+      ],
+      "lateLines": [
+        "You again, in someone else. I'll have that chip out this time."
+      ],
+      "firstSight": "It replaces itself one piece at a time. I wonder if it noticed when it stopped being a person."
+    },
+    "The Listener": {
+      "color": "#22d3ee",
+      "baseAttack": 14,
+      "baseDefense": 6,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.35,
+        "sAtkR": 0.65,
+        "pDefR": 0.45,
+        "sDefR": 0.55
+      },
+      "dossier": "Something living in a drowned body at the bottom of the spire, wired into every chip on the water.",
+      "traits": [
+        "sighted",
+        "focused",
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "enduring"
+        ],
+        "line": "The Listener pulls power from every chip on the water. Its wounds start closing."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Carrier Wave",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": -6,
+          "heatGenerated": 7,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "Static Cross",
+          "description": "",
+          "damage": 16,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 6,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Undertow",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.4,
+          "heatTransfer": 12,
+          "heatGenerated": 12,
+          "attackPattern": "ring"
+        },
+        {
+          "type": "defend",
+          "name": "Deep Quiet",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -10
+        }
+      ],
+      "lines": [
+        "There you are. We've been listening to you wake up, over and over.",
+        "Every body you take, we hear it. Come down."
+      ],
+      "lateLines": [
+        "How many corpses now? We counted all of them."
+      ],
+      "firstSight": "It doesn't look at me. It looks at the chip, and the chip looks back."
     }
   },
   "patchworkKing": {

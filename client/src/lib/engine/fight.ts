@@ -66,6 +66,8 @@ export interface Foe {
   burning: number;
   /** Loses its next turn (slammed into something solid). */
   stunned: boolean;
+  /** A boss has passed its half-health turn. */
+  enraged: boolean;
 }
 
 /** An ally on the field. Knocked out allies sit out the rest of the fight. */
@@ -171,7 +173,7 @@ function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; 
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
-  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null, burning: 0, stunned: false };
+  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null, burning: 0, stunned: false, enraged: false };
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
@@ -688,7 +690,14 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
   // Start of its turn: a lung pack heals, burning ticks, and a stun costs the turn (and any wound-up heavy)
   const events: FightEvent[] = [];
   let state = s;
-  const f = s.foes[i];
+  // A boss's turn: below its threshold it gains traits, once
+  const e = s.foes[i].unit.enrage;
+  if (e && !s.foes[i].enraged && s.foes[i].unit.currentHp <= s.foes[i].unit.maxHp * e.at) {
+    const u = s.foes[i].unit;
+    state = setFoe(state, i, { enraged: true, unit: { ...u, traits: [...(u.traits ?? []), ...e.gain.filter(t => !u.traits?.includes(t))] } });
+    events.push(say(e.line, 'critical'));
+  }
+  const f = state.foes[i];
   if (hasTrait(f, 'enduring') && f.unit.currentHp < f.unit.maxHp) {
     const heal = Math.min(f.unit.maxHp - f.unit.currentHp, Math.max(2, Math.round(f.unit.maxHp * 0.02)));
     state = setFoe(state, i, { unit: { ...f.unit, currentHp: f.unit.currentHp + heal } });

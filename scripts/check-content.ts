@@ -124,6 +124,8 @@ const enemy = z.object({
   lines: z.array(z.string().trim().min(1).max(110)).min(1),
   lateLines: z.array(z.string().trim().min(1).max(110)).optional(),
   firstSight: z.string().trim().min(1).max(110),
+  traits: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).optional(),
+  enrage: z.object({ at: z.number().gt(0).lt(1), gain: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).min(1), line: text }).strict().optional(),
 }).strict();
 
 const enemyFile = z.object({

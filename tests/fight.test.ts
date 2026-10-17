@@ -287,3 +287,17 @@ test('implant traits: optic shoots, leg moves further, spine braces, ears stop f
   seedRandom(9); const hitBraced = 9999 - Fight.resolvePlayerAttack(sturdy(['braced']), strike).state.foes[0].unit.currentHp;
   assert.ok(hitBraced < hitPlain);
 });
+
+test('chapter bosses: the Fitter guards threat 20 and turns faster below half health', () => {
+  seedRandom(3);
+  const fitter = createBoss(20);
+  assert.equal(fitter.name, 'The Fitter');
+  assert.ok(fitter.traits!.includes('armed') && fitter.traits!.includes('braced'));
+  assert.equal(createBoss(30).name, 'The Listener');
+  const s = fight({ grid: arena([8, 3], [0, 3]) });
+  const hurtBoss = { ...s, foes: [{ ...Fight.newFoe({ ...fitter, currentHp: Math.floor(fitter.maxHp * 0.4) }, { row: 0, col: 3 }, 40) }] };
+  const r = Fight.foeTurn(hurtBoss, 0, 20);
+  assert.equal(r.state.foes[0].enraged, true);
+  assert.ok(r.state.foes[0].unit.traits!.includes('fast'));
+  assert.ok(r.events.some(e => e.kind === 'log' && /fresh leg/.test(e.message)));
+});

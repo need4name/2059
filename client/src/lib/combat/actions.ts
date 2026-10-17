@@ -327,6 +327,7 @@ color: string; baseAttack: number; baseDefense: number; startingHeat: number;
 statSplit: { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number };
 dossier: string; moves: CombatAction[];
 lines: string[]; lateLines?: string[]; firstSight: string;
+traits?: string[]; enrage?: { at: number; gain: string[]; line: string };
 }
 const ENEMY_DATA = enemyContent as unknown as {
 rotation: string[]; specials: string[]; enemies: Record<string, EnemyData>;
@@ -357,8 +358,8 @@ export const BOSS_DOSSIERS: Record<string, string> = {
 /** Which enemy you face at a threat level. Threat 10 and 20 are bosses. */
 /** Elites guard the 5th level of each sector; bosses the 10th (the King is built separately). */
 const ELITES = ['Cartel Enforcer', 'CBN Extraction Surgeon', 'Unregistered Operator'];
-// Stand-ins until the CBN chief surgeon and the corporate hunter-program are built
-const BOSS_STAND_INS = ['Volkov Operator', 'Helix Continuity Warden'];
+// Chapter one's bosses: the Fitter at threat 20 (the foundry), the Listener at 30 (the spire)
+const CHAPTER_BOSSES = ['The Fitter', 'The Listener'];
 
 export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
 export function enemyRole(level: number, firstRun = false): EnemyRole {
@@ -374,7 +375,7 @@ const role = enemyRole(level, firstRun);
 if (role === 'setpiece') return SPECIAL_TYPES[0];
 const sector = Math.floor((level - 1) / 10);
 if (role === 'elite') return enemyType(ELITES[sector % ELITES.length]);
-if (role === 'boss') return enemyType(BOSS_STAND_INS[(sector - 1 + BOSS_STAND_INS.length) % BOSS_STAND_INS.length]);
+if (role === 'boss') return enemyType(CHAPTER_BOSSES[(sector - 1 + CHAPTER_BOSSES.length) % CHAPTER_BOSSES.length]);
 // Regular levels walk the rotation, skipping the elite and boss levels
 const idx = level - 1 - Math.floor(level / 5);
 return BOSS_TYPES[idx % BOSS_TYPES.length];
@@ -519,7 +520,8 @@ spriteColor: bossType.color,
 grade: enemyGradeAt(level),
 implants: implantNames.filter(Boolean),
 implantSlots,
-traits: implantSlots.map(sl => TRAIT_OF_SLOT[sl]).filter((t, n, all) => t && all.indexOf(t) === n),
+traits: [...(bossType.traits ?? []), ...implantSlots.map(sl => TRAIT_OF_SLOT[sl])].filter((t, n, all) => t && all.indexOf(t) === n),
+...(bossType.enrage ? { enrage: bossType.enrage } : {}),
 };
 }
 
