@@ -246,3 +246,20 @@ test('a stunned player loses one turn, then acts normally', () => {
   assert.equal(r.state.playerStunned, false);
   assert.equal(Fight.playerConditions(r.state).skipTurn, false);
 });
+
+test('overload fills from trading blows; a full meter surges every enemy within 2 tiles', () => {
+  seedRandom(7);
+  const hit = Fight.resolveFoeAction(fight(), 0, hitFor(30), 3).state;
+  assert.ok(hit.overload > 0, 'taking a hit fills it');
+  const s = fight({ overload: 100, playerHeat: 70 });
+  const far = Fight.newFoe(createBoss(3), { row: 0, col: 0 }, 40);
+  const crowd = { ...s, foes: [s.foes[0], far] };
+  assert.equal(Fight.canSurge(crowd), true);
+  assert.deepEqual(Fight.surgeTargets(crowd), [0]);
+  const r = Fight.resolveSurge(crowd, 20).state;
+  assert.ok(r.foes[0].unit.currentHp < crowd.foes[0].unit.currentHp);
+  assert.equal(r.foes[1].unit.currentHp, far.unit.currentHp, 'out of reach');
+  assert.equal(r.overload, 0);
+  assert.equal(r.playerHeat, 0, 'heat vents');
+  assert.equal(Fight.canSurge({ ...crowd, overload: 99 }), false);
+});

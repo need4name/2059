@@ -96,6 +96,10 @@ kizunaJustFired: boolean;
 
 setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
+/** Signal Surge: spend a full overload meter (see the engine). */
+surge: () => void;
+/** The enemy taking its turn right now (for the turn-order strip), or null. */
+actingFoe: number | null;
 /** Fight whatever holds the room you're standing in on the hidden map. */
 startRoomFight: () => void;
 startFarmCombat: (level: number) => void;
@@ -228,7 +232,7 @@ overclockActive: s.overclockActive, kizunaJustFired: s.kizunaJustFired,
 doubleActionReady: s.doubleActionReady,
 perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepReady, holdfastReady: s.holdfastReady,
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
-playerBurning: s.playerBurning, playerStunned: s.playerStunned,
+playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 };
 };
 
@@ -260,6 +264,7 @@ return false;
 const beginPlayerTurn = () => {
 save(Fight.startPlayerTurn(fightState()));
 // Burning ticks now; a stun costs the whole turn
+set({ actingFoe: null });
 const cond = Fight.playerConditions(fightState());
 if (apply(cond)) return;
 const { grid } = get();
@@ -353,6 +358,7 @@ const runFoeTurn = (i: number) => {
 const s = get();
 if (i >= s.foes.length) { beginPlayerTurn(); return; }
 if (!Fight.isAlive(s.foes[i])) { runFoeTurn(i + 1); return; }
+set({ actingFoe: i });
 const level = s.farmLevel ?? s.bossLevel;
 const step = Fight.foeTurn(fightState(), i, level);
 if (apply(step)) return;
@@ -409,7 +415,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, target: 0 });
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0 });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
 if (lead) {
@@ -432,6 +438,7 @@ target: 0,
 ...Fight.BASE_FIGHT_FLAGS,
 reflexMoveOpen: false,
 allyMoveMode: null,
+actingFoe: null,
 fightIntro: null,
 dismissIntro: () => set({ fightIntro: null }),
 holdfastSpent: false,
@@ -574,6 +581,16 @@ finishPlayerAction(true);
 },
 
 enemyTurn: () => runFoeTurn(0),
+
+surge: () => {
+const { phase, inputLocked, reflexMoveOpen } = get();
+if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || !Fight.canSurge(fightState())) return;
+// Scaled from the strongest move on your fight bar
+const best = Math.max(10, ...useLoadout.getState().slots.map(a => (a && a.type !== 'brace' ? a.damage ?? 0 : 0)));
+set({ inputLocked: true, selectedAction: null });
+if (apply(Fight.resolveSurge(fightState(), best))) return;
+finishPlayerAction(false);
+},
 
 toggleAllyMove: (ally) => {
 const { phase, inputLocked, reflexMoveOpen, allies, allyMoveMode } = get();

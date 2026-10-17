@@ -118,6 +118,8 @@ export interface FightState {
   playerBurning: number;
   /** The player loses their next turn. */
   playerStunned: boolean;
+  /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
+  overload: number;
 }
 
 export type FightEvent =
@@ -145,7 +147,7 @@ export const isAlive = (f: Foe) => f.unit.currentHp > 0;
 export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
-  playerBurning: 0, playerStunned: false,
+  playerBurning: 0, playerStunned: false, overload: 0,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -228,6 +230,36 @@ export function startPlayerTurn(s: FightState): FightState {
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
   };
+}
+
+// ── Overload ─────────────────────────────────────────────────────────────────
+
+/**
+ * Overload fills as blows are traded: a share of each hit you land (relative to the
+ * target's health) and more for each hit you take (relative to yours). Full = one Surge.
+ */
+export const OVERLOAD = { dealt: 25, taken: 50, full: 100, reach: 2, mult: 1.5 };
+const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, overload: Math.min(OVERLOAD.full, s.overload + Math.max(0, Math.round(amount))) });
+const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
+
+export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => chebyshev(x.f.pos, s.grid.playerPosition) <= OVERLOAD.reach).map(x => x.i);
+export const canSurge = (s: FightState) => s.overload >= OVERLOAD.full && surgeTargets(s).length > 0;
+
+/** Signal Surge: every enemy within 2 tiles takes 1.5x your best move's damage, and your heat vents to zero. */
+export function resolveSurge(s: FightState, bestDamage: number): Step {
+  const events: FightEvent[] = [say('SIGNAL SURGE -- the body screams and everything near it reels', 'critical'), { kind: 'hit' }];
+  let state: FightState = { ...s, overload: 0, playerHeat: 0 };
+  const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * OVERLOAD.mult)) };
+  for (const i of surgeTargets(s)) {
+    const foe = state.foes[i];
+    const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult, 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
+    const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
+    const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
+    state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
+    events.push(say(`${foe.unit.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage'));
+    if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
+  }
+  return { state: afterFoeChanges(state, events), events };
 }
 
 // ── Conditions ───────────────────────────────────────────────────────────────
@@ -415,6 +447,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
     });
+    state = gainOverload(state, (dmg.bioDamage / Math.max(1, foe.unit.maxHp)) * OVERLOAD.dealt);
     if (attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === s.target) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
@@ -613,6 +646,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     playerHeat,
     holdfastReady: held.holdfastReady,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
+  state = gainOverload(state, ((player.currentHp - hp) / Math.max(1, player.maxHp)) * OVERLOAD.taken);
   // Knockback shoves you a tile straight back, or into whatever is behind you
   if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
   return { state, events };

@@ -72,6 +72,8 @@ function allyTurn() {
 // ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
 function playerTurn(skill: number) {
   allyTurn();
+  // A full overload meter with enemies close: surge
+  if (F.canSurge(C.getState() as any)) { C.getState().surge(); return; }
   const s = C.getState(); const slots = L.getState().slots.filter(Boolean) as any[];
   const stims = I.getState().items.filter((i: any) => i.type === 'consumable');
   if (s.player.currentHp < s.player.maxHp * 0.35) { const bio = stims.find((i: any) => i.consumableEffect === 'bio_stim'); if (bio) { s.useConsumableItem(bio.id); return; } }

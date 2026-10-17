@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
@@ -13,6 +13,7 @@ import { Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
 import { stimInfo } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
+import { drawFigure } from '@/lib/rendering/figures';
 
 const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
 
@@ -223,6 +224,63 @@ function AllyStrip() {
   );
 }
 
+/** Overload: fills as blows are traded; when full, one Signal Surge. */
+function OverloadBar() {
+  const s = useCombat();
+  const full = s.overload >= Fight.OVERLOAD.full;
+  const ready = full && Fight.canSurge(useCombat.getState());
+  const myTurn = s.phase === 'player_turn' && !s.inputLocked && !s.reflexMoveOpen;
+  if (ready) {
+    return (
+      <button onClick={s.surge} disabled={!myTurn}
+        className="mb-2 w-full animate-pulse rounded-2xl bg-gradient-to-r from-violet-500/80 to-sys/80 px-4 py-2.5 text-left shadow-[0_0_24px_rgba(167,139,250,0.35)] transition disabled:animate-none disabled:opacity-50">
+        <span className="block font-display text-[15px] font-semibold text-white">Signal Surge</span>
+        <span className="block text-[11px] text-white/80">Hits every enemy within 2 tiles hard and vents your heat. Uses your turn.</span>
+      </button>
+    );
+  }
+  return (
+    <div className="mb-2 flex items-center gap-2 px-1">
+      <span className="text-[11px] font-semibold text-hud-dim">Overload</span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sys transition-all" style={{ width: `${s.overload}%` }} />
+      </div>
+      <span className="w-[86px] text-right text-[10px] text-hud-faint">{full ? 'Get within 2 tiles' : `${s.overload}%`}</span>
+    </div>
+  );
+}
+
+/** A small pixel portrait of a character. */
+function Portrait({ id, size = 26 }: { id: string; size?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current; if (!c) return;
+    const ctx = c.getContext('2d'); if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    // Head and shoulders: draw the figure large and let the canvas crop it
+    drawFigure(ctx, id, -c.width * 0.45, -c.height * 0.05, c.width * 1.9, 'idle', 0, false);
+  }, [id]);
+  // Canvases fill their parent (index.css), so the box sets the size
+  return <div className="overflow-hidden rounded-full bg-hud-panel" style={{ width: size, height: size }}><canvas ref={ref} width={size * 2} height={size * 2} style={{ imageRendering: 'pixelated' }} /></div>;
+}
+
+/** Who acts, in order, once a fight holds 3 or more units. */
+function TurnStrip() {
+  const { foes, allies, phase, actingFoe } = useCombat();
+  const liveFoes = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
+  const liveAllies = allies.filter(a => a.unit.currentHp > 0);
+  if (1 + liveAllies.length + liveFoes.length < 3) return null;
+  const yourSide = phase === 'player_turn';
+  return (
+    <div className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-1 ring-1 ring-white/10" aria-label="Turn order">
+      <div className={cx('rounded-full p-0.5', yourSide ? 'bg-sys/40 ring-1 ring-sys' : '')}><Portrait id="host" /></div>
+      {liveAllies.map(a => <div key={a.id} className={cx('rounded-full p-0.5', yourSide ? 'bg-sys/25' : '')}><Portrait id={a.id} /></div>)}
+      <span className="px-0.5 text-[10px] text-hud-faint">›</span>
+      {liveFoes.map(({ f, i }) => <div key={i} className={cx('rounded-full p-0.5', actingFoe === i ? 'bg-hostile/50 ring-1 ring-hostile' : '')}><Portrait id={f.unit.name} /></div>)}
+    </div>
+  );
+}
+
 function ActionBar() {
   const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player, allies } = useCombat();
   const { items } = useInventory();
@@ -234,6 +292,7 @@ function ActionBar() {
 
   return (
     <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-2.5 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
+      <OverloadBar />
       <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
@@ -331,6 +390,7 @@ export function CombatView() {
       <div className="relative min-h-0 flex-1">
         <CombatScene />
         <HeatBar />
+        <TurnStrip />
         <FightIntro />
       </div>
       <ActionBar />
