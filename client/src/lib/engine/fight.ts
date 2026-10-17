@@ -142,6 +142,17 @@ const say = (message: string, type: CombatLog['type'] = 'info'): FightEvent => (
 const same = (a: TilePosition, b: TilePosition) => a.row === b.row && a.col === b.col;
 
 export const isAlive = (f: Foe) => f.unit.currentHp > 0;
+/** Does this enemy carry an implant that gives it this trait? */
+export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
+/** Damage an enemy takes: a spine brace cuts it. */
+const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1);
+/** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
+export function foeRoster(f: Foe): CombatAction[] {
+  const roster = BOSS_ATTACKS[f.unit.name] ?? [];
+  if (!hasTrait(f, 'sighted') || roster.some(a => a.attackPattern === 'ranged')) return roster;
+  const base = roster.find(a => a.type === 'attack' && !a.isHeavy);
+  return [...roster, { type: 'attack', name: 'Optic shot', description: '', damage: Math.round((base?.damage ?? 10) * 0.8), accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 2, heatGenerated: 6, attackPattern: 'ranged' }];
+}
 
 /** A fight state with no play-i perks, for tests and set pieces. */
 export const BASE_FIGHT_FLAGS = {
@@ -252,7 +263,7 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
   const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * OVERLOAD.mult)) };
   for (const i of surgeTargets(s)) {
     const foe = state.foes[i];
-    const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult, 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
+    const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult * takenBy(foe), 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
@@ -434,8 +445,8 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated,
-      getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * takenBy(foe),
+      hasTrait(foe, 'alert') ? 0 : getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
       s.perks.runaway ? 0.45 : 0.30,
@@ -523,10 +534,11 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
     if (turn === 7) events.push(say(PATCHWORK_KING_MONOLOGUE[3]));
     return { action: getPatchworkKingAction(turn), state: setFoe(s, i, { scriptTurn: turn }), events };
   }
-  const roster = BOSS_ATTACKS[unit.name] ?? [];
+  const roster = foeRoster(foe);
   const dist = chebyshev(foe.pos, grid.playerPosition);
+  const heavyFrom = hasTrait(foe, 'focused') ? 30 : HEAVY_MIN_PLAYER_HEAT;
   const filtered = roster.filter(a => {
-    if (a.isHeavy && s.playerHeat < HEAVY_MIN_PLAYER_HEAT) return false;
+    if (a.isHeavy && s.playerHeat < heavyFrom) return false;
     // Shields only come out when the enemy is hurt, and not every time
     if (a.type === 'defend' && (unit.currentHp > unit.maxHp * 0.5 || random() > 0.35)) return false;
     const pat = a.attackPattern;
@@ -554,7 +566,7 @@ export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternTy
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)], moved: false };
   let pos = foe.pos, moved = false;
   const view = foeView(s, i);
-  for (let k = 0; k < BOSS_MOVE; k++) {
+  for (let k = 0; k < BOSS_MOVE + (hasTrait(foe, 'fast') ? 1 : 0); k++) {
     const step = stepTowardAttackPosition({ ...view, bossPosition: pos }, pattern ?? 'melee_long');
     if (!step) break;
     pos = step; moved = true;
@@ -619,7 +631,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   }
   if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level);
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
-  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
+  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1);
   const dmg = calculateDamage(foe.unit, player, scaleBossAction(action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [];
@@ -655,7 +667,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
 function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number): Step {
   const foe = s.foes[i], ally = s.allies[k];
-  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, 1, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
+  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, hasTrait(foe, 'armed') ? 1.1 : 1, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
   const lost = dmg.bioDamage + Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const hp = Math.max(0, ally.unit.currentHp - lost);
   const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
@@ -673,25 +685,32 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
  */
 export function foeTurn(s: FightState, i: number, level: number): Step & { strikeAfterMove: CombatAction | null } {
   if (!isAlive(s.foes[i])) return { state: s, events: [], strikeAfterMove: null };
-  // Burning ticks at the start of its turn; a stun costs the turn (and any wound-up heavy)
-  if (s.foes[i].burning > 0 || s.foes[i].stunned) {
-    const events: FightEvent[] = [];
-    let state = s;
-    const f = s.foes[i];
-    if (f.burning > 0) {
-      const dmg = burnDamage(f.unit.maxHp);
-      events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'));
-      state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
-      if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, strikeAfterMove: null };
-    }
-    if (f.stunned) {
-      events.push(say(`${f.unit.name} is stunned`, 'info'));
-      state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
-      return { state, events, strikeAfterMove: null };
-    }
-    const rest = foeTurn(state, i, level);
-    return { ...rest, events: [...events, ...rest.events] };
+  // Start of its turn: a lung pack heals, burning ticks, and a stun costs the turn (and any wound-up heavy)
+  const events: FightEvent[] = [];
+  let state = s;
+  const f = s.foes[i];
+  if (hasTrait(f, 'enduring') && f.unit.currentHp < f.unit.maxHp) {
+    const heal = Math.min(f.unit.maxHp - f.unit.currentHp, Math.max(2, Math.round(f.unit.maxHp * 0.02)));
+    state = setFoe(state, i, { unit: { ...f.unit, currentHp: f.unit.currentHp + heal } });
+    events.push(say(`${f.unit.name} patches up: +${heal}`, 'heal'));
   }
+  if (f.burning > 0) {
+    const dmg = burnDamage(f.unit.maxHp);
+    events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'));
+    state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
+    if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, strikeAfterMove: null };
+  }
+  if (f.stunned) {
+    events.push(say(`${f.unit.name} is stunned`, 'info'));
+    state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
+    return { state, events, strikeAfterMove: null };
+  }
+  const act = foeAct(state, i, level);
+  return { ...act, events: [...events, ...act.events] };
+}
+
+/** The foe's action itself, once start-of-turn effects are done. */
+function foeAct(s: FightState, i: number, level: number): Step & { strikeAfterMove: CombatAction | null } {
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
     let state = rel.state;
@@ -771,7 +790,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
   const i = s.target, foe = s.foes[i];
   if (move.effect === 'attack') {
     const dist = chebyshev(a.pos, foe.pos);
-    const dmg = calculateDamage(a.unit, foe.unit, move, foe.defenseBoost, 1, getFlankBonus(a.pos, foe.pos), dist, false, 0);
+    const dmg = calculateDamage(a.unit, foe.unit, move, foe.defenseBoost, takenBy(foe), hasTrait(foe, 'alert') ? 0 : getFlankBonus(a.pos, foe.pos), dist, false, 0);
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
@@ -817,7 +836,7 @@ export function applyPlayerHazard(s: FightState): Step {
 export function applyFoeHazard(s: FightState, i: number): Step {
   const foe = s.foes[i];
   if (!foe || !isAlive(foe)) return { state: s, events: [] };
-  const dmg = hazardDamageAt(foe.pos, s.grid);
+  const dmg = hasTrait(foe, 'filtered') ? 0 : hazardDamageAt(foe.pos, s.grid);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(foe.pos, s.grid)?.name ?? 'Hazard';
   const fire = tileAt(foe.pos, s.grid)?.art === 'fire';

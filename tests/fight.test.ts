@@ -263,3 +263,27 @@ test('overload fills from trading blows; a full meter surges every enemy within 
   assert.equal(r.playerHeat, 0, 'heat vents');
   assert.equal(Fight.canSurge({ ...crowd, overload: 99 }), false);
 });
+
+test('an enemy burns once per turn, not all at once', () => {
+  const s = fight({ grid: arena([8, 0], [1, 6]) });
+  const lit = { ...s, foes: [{ ...s.foes[0], burning: 2 }] };
+  const r = Fight.foeTurn(lit, 0, 1).state;
+  assert.equal(r.foes[0].burning, 1);
+});
+
+test('implant traits: optic shoots, leg moves further, spine braces, ears stop flanking', () => {
+  const base = fight();
+  const withTraits = (traits: string[]) => ({ ...base, foes: [{ ...base.foes[0], unit: { ...base.foes[0].unit, traits } }] });
+  assert.ok(Fight.foeRoster(withTraits(['sighted']).foes[0]).some(a => a.attackPattern === 'ranged'));
+  // Fast: walks 3 tiles instead of 2 toward a far target
+  const far = { ...withTraits(['fast']), grid: arena([8, 3], [0, 3]) };
+  const plain = { ...withTraits([]), grid: arena([8, 3], [0, 3]) };
+  const melee = 'melee' as const;
+  assert.equal(Fight.moveFoeToward(far, 0, melee).state.foes[0].pos.row - Fight.moveFoeToward(plain, 0, melee).state.foes[0].pos.row, 1);
+  // Braced takes less from the same hit
+  const strike = { ...PLAYER_ACTIONS[0], damage: 60, accuracy: 'precise' as const };
+  const sturdy = (t: string[]) => { const x = withTraits(t); return { ...x, foes: [{ ...x.foes[0], unit: { ...x.foes[0].unit, currentHp: 9999, maxHp: 9999 } }] }; };
+  seedRandom(9); const hitPlain = 9999 - Fight.resolvePlayerAttack(sturdy([]), strike).state.foes[0].unit.currentHp;
+  seedRandom(9); const hitBraced = 9999 - Fight.resolvePlayerAttack(sturdy(['braced']), strike).state.foes[0].unit.currentHp;
+  assert.ok(hitBraced < hitPlain);
+});

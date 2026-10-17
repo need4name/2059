@@ -293,7 +293,7 @@ const { farmLevel, bossLevel } = get();
 const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null;
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
-const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
+const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun, get().foes.flatMap(f => f.unit.implantSlots ?? []));
 // Pick of the wreck: each implant drop comes with a second option of the same rarity
 const choices: { options: [Item, Item]; picked: number | null }[] = [];
 let direct = loot.items;

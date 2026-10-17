@@ -1,4 +1,4 @@
-import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand } from './types';
+import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
 import { MIN_PLAYER_HP } from './augments';
@@ -432,6 +432,22 @@ export const ENEMY_GRADES = [
   { name: 'Ascended', from: 30, color: '#fbbf24' },
 ] as const;
 export const enemyGradeAt = (level: number) => ENEMY_GRADES.reduce((g, x, i) => (level >= x.from ? i : g), 0);
+/** What an implant does for an enemy, by the body slot it sits in. */
+export const ENEMY_TRAITS: Record<string, { name: string; text: string }> = {
+  sighted: { name: 'Sighted', text: 'An optic: it can shoot along clear lines' },
+  fast: { name: 'Fast', text: 'A leg graft: it moves an extra tile' },
+  armed: { name: 'Armed', text: 'An arm graft: its hits land 10% harder' },
+  enduring: { name: 'Enduring', text: 'A lung pack: it heals a little every turn' },
+  focused: { name: 'Focused', text: 'A brain graft: it uses heavy attacks from 30 heat' },
+  alert: { name: 'Alert', text: 'An ear graft: it can\'t be flanked' },
+  filtered: { name: 'Filtered', text: 'A nose filter: hazards don\'t hurt it' },
+  braced: { name: 'Braced', text: 'A spine brace: it takes 10% less damage' },
+};
+export const TRAIT_OF_SLOT: Record<AugmentationSlot, string> = {
+  eyes: 'sighted', left_leg: 'fast', right_leg: 'fast', left_arm: 'armed', right_arm: 'armed',
+  lungs: 'enduring', brain: 'focused', ears: 'alert', nose: 'filtered', misc: 'braced',
+};
+
 /** How many implants an enemy carries at a threat level. */
 export const enemyImplantCount = (level: number) => (level <= 5 ? 1 : level <= 10 ? 2 : 3);
 
@@ -455,6 +471,7 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 // Rare+ items have defenseBonus up to 16 which can make bosses unkillable at low levels.
 const numAugs = enemyImplantCount(level);
 const implantNames: string[] = [];
+const implantSlots: AugmentationSlot[] = [];
 let bonusPAtk = 0, bonusSAtk = 0, bonusPDef = 0, bonusSDef = 0, bonusHp = 0;
 const cappedPool = PATCHWORK_AUG_POOL.filter(i =>
 (i as any).rarity === 'common' || (i as any).rarity === 'uncommon'
@@ -464,6 +481,7 @@ for (let i = 0; i < numAugs; i++) {
 if (pool.length === 0) break;
 const idx = Math.floor(random() * pool.length);
 const aug = pool.splice(idx, 1)[0];
+if ((aug as any).slot) implantSlots.push((aug as any).slot);
 // Short names for the target card: no maker tag, side or condition
 implantNames.push(String((aug as any).name ?? '').replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*-\s*[A-Z]+$/, '').replace(/\s*\([LR]\)/, '').trim());
 // attackBonus -> physical attack (crude weapons), defenseBonus -> physical defense
@@ -500,6 +518,8 @@ evasion: 0,
 spriteColor: bossType.color,
 grade: enemyGradeAt(level),
 implants: implantNames.filter(Boolean),
+implantSlots,
+traits: implantSlots.map(sl => TRAIT_OF_SLOT[sl]).filter((t, n, all) => t && all.indexOf(t) === n),
 };
 }
 

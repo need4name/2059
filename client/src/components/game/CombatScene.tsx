@@ -3,7 +3,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
-import { CLASS_DEFINITIONS, getBossRoster, ENEMY_GRADES } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { drawSea, drawDeckTile, drawHazard, drawObstacle, drawStatus } from '@/lib/rendering/board';
@@ -458,7 +458,7 @@ for (const { f, i } of living) {
 if (f.pendingAction) continue;
 // Normal attacks only: heavies show as their own locked orange tiles when they wind up
 const patterns = new Set<AttackPatternType>();
-getBossRoster(f.unit.name).forEach(a => { if (a.attackPattern && !a.isHeavy) patterns.add(a.attackPattern); });
+Fight.foeRoster(f).forEach(a => { if (a.attackPattern && !a.isHeavy) patterns.add(a.attackPattern); });
 if (!patterns.size) patterns.add('melee');
 const view = { ...grid, bossPosition: f.pos, occupied: [...living.filter(x => x.i !== i).map(x => x.f.pos), ...allies.filter(a => a.unit.currentHp > 0).map(a => a.pos)] };
 patterns.forEach(pat => getTargetableTiles(f.pos, pat, view).forEach(k => union.add(k)));

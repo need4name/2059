@@ -21,6 +21,9 @@ weakness?: string;
 /** Enemies: how upgraded they are (Raw to Ascended), and the implants they carry. */
 grade?: number;
 implants?: string[];
+/** Body slots of the implants it carries, and the traits they give it (see ENEMY_TRAITS). */
+implantSlots?: AugmentationSlot[];
+traits?: string[];
 }
 
 export type AccuracyTier = 'precise' | 'variable' | 'unreliable';

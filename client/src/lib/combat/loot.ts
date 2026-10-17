@@ -81,7 +81,8 @@ if (bossLevel === 2) return getRandomItemFromPool('uncommon', ITEM_POOLS, pick(P
 return null;
 }
 
-export function generateLoot(bossLevel: number = 1, firstRun = false): LootDrop {
+/** `carried`: body slots of the implants the beaten enemies had; implant drops come from those first. */
+export function generateLoot(bossLevel: number = 1, firstRun = false, carried: AugmentationSlot[] = []): LootDrop {
 const items: Item[] = [];
 const teach = firstRun ? firstRunTeachingDrop(bossLevel) : null;
 if (teach) {
@@ -94,8 +95,10 @@ const isBoss = bossLevel % 10 === 0;
 const isElite = bossLevel % 10 === 5;
 const rarityAtLeast = (r: ItemRarity, floor: ItemRarity): ItemRarity =>
 (RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r);
+const salvage = [...carried];
 const dropImplant = (rarity: ItemRarity) => {
-const slot = AUGMENTATION_SLOTS[Math.floor(random() * AUGMENTATION_SLOTS.length)];
+// Salvage what they were carrying (the same body slot, at this fight's rarity), else anything
+const slot = salvage.length ? salvage.splice(Math.floor(random() * salvage.length), 1)[0] : AUGMENTATION_SLOTS[Math.floor(random() * AUGMENTATION_SLOTS.length)];
 const item = getRandomItemFromPool(rarity, ITEM_POOLS, slot);
 if (item) items.push(instancedItem(item));
 };

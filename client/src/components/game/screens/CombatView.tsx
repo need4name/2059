@@ -3,7 +3,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
-import { estimateDamage, ENEMY_GRADES } from '@/lib/combat/actions';
+import { estimateDamage, ENEMY_GRADES, ENEMY_TRAITS } from '@/lib/combat/actions';
 import { canHitTarget } from '@/lib/combat/patterns';
 import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
@@ -84,9 +84,9 @@ function CombatHud() {
           </div>
           <Meter value={boss.currentHp} max={boss.maxHp} tone="hostile" className="h-2" align="right" />
           {boss.grade !== undefined && (
-            <div className="truncate text-right text-[10px]" title={boss.implants?.join(', ')}>
+            <div className="truncate text-right text-[10px]" title={[...(boss.implants ?? []), ...(boss.traits ?? []).map(t => ENEMY_TRAITS[t]?.text ?? t)].join('\n')}>
               <span className="font-semibold" style={{ color: ENEMY_GRADES[boss.grade].color }}>{ENEMY_GRADES[boss.grade].name}</span>
-              {boss.implants?.length ? <span className="text-hud-faint"> · {boss.implants.join(', ')}</span> : null}
+              {boss.traits?.length ? <span className="text-hud-dim"> · {boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(', ')}</span> : null}
             </div>
           )}
           <div className="flex items-center gap-1.5">
