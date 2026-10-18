@@ -208,3 +208,24 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
     </div>
   );
 }
+
+/** A full-screen page over the hub, with a way back. */
+export function Page({ open, title, back = 'Back', onClose, children }: { open: boolean; title: string; back?: string; onClose: () => void; children: ReactNode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-40 flex justify-center bg-hud-bg">
+      <div className="pointer-events-none absolute inset-0 ambient" />
+      <div className="rise-in relative flex w-full max-w-[520px] flex-col">
+        <header className="flex items-center gap-2 px-3 pb-2" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
+          <button onClick={onClose} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-hud-dim transition hover:bg-white/[0.06] hover:text-hud-text">
+            <span aria-hidden className="text-lg leading-none">‹</span>{back}
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-10 no-scrollbar">
+          <h1 className="mb-4 font-display text-[26px] font-semibold leading-tight text-white">{title}</h1>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}

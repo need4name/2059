@@ -68,7 +68,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   base: {
     icon: '🏚️',
     title: 'The hideout',
-    body: 'Between fights you see the room you\'re standing in and the ways on. Pick a way to explore; enemies block every way but the one you came in by until you beat them. Loadout picks your fight actions, Implants installs salvage, Upgrades spends points, and some rooms have a Grey Lane stall.',
+    body: 'Between fights you see the room you\'re standing in and the ways on. Pick a way to explore; enemies block every way but the one you came in by until you beat them. The Next step card at the top always says what to do now, and the Get ready tiles open your fight bar, implants, upgrades and status.',
   },
   implants: {
     icon: '🔧',
