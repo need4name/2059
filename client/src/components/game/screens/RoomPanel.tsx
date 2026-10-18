@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useMap } from '@/lib/stores/useMap';
 import { useJournal } from '@/lib/stores/useJournal';
-import { roomById, hasFight, exitState, allGoals, cacheReady, DIR_LABEL } from '@/lib/engine/map';
+import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, DIR_LABEL } from '@/lib/engine/map';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { allyDef } from '@/lib/combat/allies';
@@ -34,7 +34,7 @@ export function RoomPanel() {
         style={fight && enemy ? { background: `linear-gradient(135deg, ${enemy.color}26 0%, rgba(15,21,34,0.94) 60%)` } : undefined}>
         <div className="font-display text-[22px] font-semibold leading-tight text-white">{room.name}</div>
         {wakingHere && progression.deathCount > 0 && <p className="mt-1.5 text-sm text-sys">Another body. Another pair of eyes.</p>}
-        <p className="mt-1.5 text-[15px] leading-relaxed text-hud-text/85">{room.text}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-hud-text/85">{roomText(map, room)}</p>
 
         {fight && enemy && (() => { const g = ENEMY_GRADES[enemyGradeAt(room.threat!)]; const n = enemyImplantCount(room.threat!); return (
           <div className="mt-4 space-y-1.5 rounded-2xl bg-black/25 p-3.5">

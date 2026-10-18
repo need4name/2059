@@ -11,11 +11,13 @@ interface MapStore extends M.MapState {
   look: () => string | null;
   /** Mark this room's cache searched. Returns false if there was nothing to take. */
   takeCache: () => boolean;
+  /** The chapter's last fight is won. */
+  finishChapter: () => void;
   newHost: () => void;
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [] });
+const pick = (s: MapStore): M.MapState => ({ room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(),
@@ -23,6 +25,7 @@ export const useMap = create<MapStore>()(persist((set, get) => ({
   clearRoom: () => set(M.clearRoom(pick(get()))),
   look: () => { const r = M.look(pick(get())); set(r.state); return r.found; },
   takeCache: () => { const before = pick(get()); const after = M.takeCache(before); set(after); return after !== before; },
+  finishChapter: () => set(M.finishChapter(pick(get()))),
   newHost: () => set(M.newHost(pick(get()))),
   reset: () => set(M.newMapState()),
 }), { name: '2059-map', storage: createJSONStorage(() => saveStorage), version: 1, partialize: pick }));

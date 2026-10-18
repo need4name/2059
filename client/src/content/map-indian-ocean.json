@@ -1,6 +1,9 @@
 {
   "about": "Chapter one's hidden map. The player only sees the room they're in and its exits. threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences.",
   "chapter": "indian-ocean",
+  "title": "Chapter one: the Indian Ocean",
+  "end": "spire",
+  "ending": "The Listener goes dark and, for the first time since you woke, the sea has nothing in it but sea. Somewhere past the horizon another grey-market chip is warming up.",
   "entry": "dock",
   "goals": [
     "slab",
@@ -812,6 +815,7 @@
       "name": "The drowned spire",
       "threat": 30,
       "text": "A tower standing under the sea with its top just breaking the surface, lit from inside. Whatever is down there has been listening for you.",
+      "quiet": "The tower's lights are out and the water round it is still. Nothing down there is listening any more.",
       "exits": [
         {
           "dir": "north",

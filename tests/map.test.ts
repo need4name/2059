@@ -70,3 +70,16 @@ test('a supply cache can be searched once per host, once its room is clear', () 
   assert.equal(M.cacheReady(s), false);
   assert.equal(M.cacheReady(M.clearRoom({ ...M.newHost(s), room: 'pumps' })), true, 'a new host finds it restocked');
 });
+
+test('winning the end room finishes the chapter and leaves it quiet for every later host', () => {
+  const s: M.MapState = { ...M.newMapState(), room: M.CHAPTER_MAP.end };
+  assert.ok(M.isChapterEnd(s));
+  assert.ok(M.hasFight(s));
+  const done = M.finishChapter(M.clearRoom(s));
+  assert.equal(M.isChapterEnd(done), false);
+  const next = { ...M.newHost(done), room: M.CHAPTER_MAP.end };
+  assert.equal(M.hasFight(next), false, 'the end room stays quiet');
+  assert.equal(M.roomText(next), M.roomById(M.CHAPTER_MAP.end).quiet);
+  assert.equal(M.roomText(s), M.roomById(M.CHAPTER_MAP.end).text);
+  assert.ok(M.hasFight({ ...next, room: 'deck' }), 'other rooms fill up again');
+});

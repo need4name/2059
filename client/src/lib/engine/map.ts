@@ -6,8 +6,8 @@ import data from '../../content/map-indian-ocean.json';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
-export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; exits: Exit[] }
-export interface ChapterMap { chapter: string; entry: string; goals: string[]; rooms: Room[] }
+export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; exits: Exit[] }
+export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; goals: string[]; rooms: Room[] }
 
 export const CHAPTER_MAP = data as ChapterMap;
 const byId = new Map(CHAPTER_MAP.rooms.map(r => [r.id, r]));
@@ -28,12 +28,20 @@ export interface MapState {
   looked: string[];
   /** Supply caches already searched by this host. */
   taken: string[];
+  /** The chapter's last fight is won (kept across hosts; the end room stays quiet). */
+  done?: boolean;
 }
 
 export const newMapState = (): MapState => ({ room: CHAPTER_MAP.entry, cameFrom: null, cleared: [], visited: [CHAPTER_MAP.entry], goals: [], looked: [], taken: [] });
 
 /** A room with a fight nobody has cleared yet this host. */
-export const hasFight = (s: MapState, room = roomById(s.room)) => room.threat !== undefined && !s.cleared.includes(room.id);
+export const hasFight = (s: MapState, room = roomById(s.room)) =>
+  room.threat !== undefined && !s.cleared.includes(room.id) && !(s.done && room.id === CHAPTER_MAP.end);
+/** What the room says: the end room reads differently once the chapter is done. */
+export const roomText = (s: MapState, room = roomById(s.room)) => (s.done && room.quiet ? room.quiet : room.text);
+/** Is this the fight that ends the chapter? */
+export const isChapterEnd = (s: MapState) => s.room === CHAPTER_MAP.end && !s.done;
+export const finishChapter = (s: MapState): MapState => ({ ...s, done: true });
 export const allGoals = (s: MapState) => CHAPTER_MAP.goals.every(g => s.goals.includes(g));
 
 export type ExitState = 'open' | 'blocked' | 'sealed';

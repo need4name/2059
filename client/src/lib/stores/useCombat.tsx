@@ -17,7 +17,7 @@ import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, a
 import { useAllies, partyForFight } from './useAllies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
-import { roomById } from '../engine/map';
+import { roomById, isChapterEnd, hasFight } from '../engine/map';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -45,6 +45,8 @@ levelsGained: number;
 pointsGained: number;
 /** Party members that went up a level. */
 allyLevelUps: string[];
+/** This win finished the chapter (first time only). */
+chapterDone?: boolean;
 }
 
 interface CombatState extends FightState {
@@ -310,8 +312,10 @@ if (!pool.length) { direct.push(it); continue; }
 choices.push({ options: [it, instancedItem(pool[Math.floor(random() * pool.length)])], picked: null });
 }
 }
-// The room on the hidden map is clear for this host
+// The room on the hidden map is clear for this host; the last room ends the chapter
+const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
+if (chapterDone) useMap.getState().finishChapter();
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ lootChoices: choices });
@@ -333,7 +337,7 @@ const { levelsGained } = get().gainXp(xp);
 const winPoint = farmLevel === null && level > get().hostBestThreat ? 1 : 0;
 if (farmLevel === null) set({ hostBestThreat: Math.max(get().hostBestThreat, level) });
 if (winPoint) useAugmentTrees.getState().addPoints(winPoint);
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, allyLevelUps } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, allyLevelUps, chapterDone } });
 useAudio.getState().playSuccess();
 };
 
@@ -498,7 +502,7 @@ return `You find ¤${credits} in a sealed bag.`;
 },
 startRoomFight: () => {
 const room = roomById(useMap.getState().room);
-if (room.threat === undefined) return;
+if (room.threat === undefined || !hasFight(useMap.getState(), room)) return;
 set({ bossLevel: room.threat });
 startFight(room.threat, false, room.enemy);
 },

@@ -69,12 +69,12 @@ const chapterFile = z.object({
 }).strict();
 const DIRS = ['north', 'south', 'east', 'west', 'up', 'down', 'in', 'out'] as const;
 const mapFile = z.object({
-  about: text, chapter: text, entry: text, goals: z.array(text).min(1),
+  about: text, chapter: text, title: text, entry: text, end: text, ending: z.string().trim().min(1).max(300), goals: z.array(text).min(1),
   rooms: z.array(z.object({
     id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
-    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(),
+    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -190,6 +190,9 @@ export function checkContent(): string[] {
     const ids = new Set(m.rooms.map(r => r.id));
     if (ids.size !== m.rooms.length) problems.push('map: duplicate room ids');
     if (!ids.has(m.entry)) problems.push(`map: entry "${m.entry}" is not a room`);
+    const endRoom = m.rooms.find(r => r.id === m.end);
+    if (!endRoom || endRoom.threat === undefined) problems.push(`map: end "${m.end}" must be a room with a fight`);
+    else if (!endRoom.quiet) problems.push(`map ${m.end}: the end room needs quiet text for after the chapter`);
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
