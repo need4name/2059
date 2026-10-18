@@ -5,7 +5,8 @@ import { saveStorage } from '../save';
 export type HintId =
   | 'intro' | 'move' | 'attack' | 'enemy_reach' | 'heat' | 'brace' | 'structure'
   | 'malfunction' | 'telegraph' | 'stims' | 'victory' | 'base' | 'implants'
-  | 'upgrades' | 'market' | 'death' | 'enforcer';
+  | 'upgrades' | 'market' | 'death' | 'enforcer'
+  | 'look' | 'ally' | 'cache' | 'sealed' | 'reborn' | 'surge' | 'burning' | 'stunned' | 'turns' | 'traits';
 
 interface TutorialState {
   enabled: boolean;

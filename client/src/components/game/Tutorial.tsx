@@ -3,13 +3,17 @@ import { useTutorial, HintId } from '@/lib/stores/useTutorial';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
+import { useMap } from '@/lib/stores/useMap';
+import { useAllies } from '@/lib/stores/useAllies';
+import { CHAPTER_MAP, roomById, hasFight, cacheReady, exitState } from '@/lib/engine/map';
+import * as Fight from '@/lib/engine/fight';
 import { Btn } from './hud';
 
 const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   intro: {
     icon: '📡',
     title: "You're awake",
-    body: "You're a stray signal living in the grey-market brain chips that raft medics install. This body belonged to a salvager in Offshore Sector 7. A Limbic Cartel scavenger has come for its implants. Take theirs first.",
+    body: "You're a stray signal living in the grey-market brain chips that raft medics install. This body belonged to a salvager in Offshore Sector 7. A Limbic Cartel scavenger has come for its implants. Take theirs first. After that there's no map: read each place, pick a way on and see what's there.",
   },
   move: {
     icon: '👣',
@@ -86,6 +90,56 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Cartel enforcer',
     body: "This one is far beyond what your body can take. Hold out as long as you can.",
   },
+  look: {
+    icon: '🔍',
+    title: 'Look closer',
+    body: 'Some places have something worth a closer look. What you see goes into your journal, and a few things matter more than they seem.',
+  },
+  ally: {
+    icon: '🤝',
+    title: 'Someone to link with',
+    body: 'There is someone here your signal can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
+  },
+  cache: {
+    icon: '📦',
+    title: 'A cache',
+    body: 'Someone hid supplies here. Search it for a stim or credits. Each host can search it once.',
+  },
+  sealed: {
+    icon: '🔒',
+    title: 'A sealed way',
+    body: "Some ways are shut until you've found what this place is hiding. Keep looking closer at things.",
+  },
+  reborn: {
+    icon: '🧟',
+    title: 'Back at the dock',
+    body: 'A new corpse, the same signal. Every fight is back, but you remember the way, what you looked at and who you linked with. Upgrade points only come from going deeper than this host has been.',
+  },
+  surge: {
+    icon: '⚡',
+    title: 'Signal Surge',
+    body: 'Dealing and taking damage fills the overload meter. When it is full, Surge hits every enemy within 2 tiles hard and vents all your heat. It does not use up your turn.',
+  },
+  burning: {
+    icon: '🔥',
+    title: 'Burning',
+    body: 'Ending a turn on burning fuel sets you alight: you lose health at the start of the next two turns. Enemies burn too, so fight near the fire, not in it.',
+  },
+  stunned: {
+    icon: '💫',
+    title: 'Stunned',
+    body: 'Knock something into cover, a wall or another body and both take damage, and the one thrown is stunned: it loses its next turn.',
+  },
+  turns: {
+    icon: '⏱️',
+    title: 'Who goes next',
+    body: 'The strip at the top right shows the order everyone acts in this round. The highlighted face is whoever is acting now.',
+  },
+  traits: {
+    icon: '🧬',
+    title: 'Enemy traits',
+    body: "Enemies' implants give them traits: Fast, Sighted, Braced and more. Tap an enemy to see its traits. Strip a body and you might find the very implant that gave it one.",
+  },
   death: {
     icon: '📡',
     title: 'Host lost',
@@ -99,6 +153,10 @@ export function useTutorialTriggers() {
   const c = useCombat();
   const { items } = useInventory();
   const { availablePoints } = useAugmentTrees();
+  const map = useMap();
+  const room = roomById(map.room);
+  const fightHere = hasFight(map, room);
+  const inMenu = c.phase === 'menu';
   const enemyActed = useRef(false);
 
   useEffect(() => { if (c.phase === 'enemy_turn') enemyActed.current = true; }, [c.phase]);
@@ -110,7 +168,7 @@ export function useTutorialTriggers() {
     const myTurn = c.phase === 'player_turn' && !c.inputLocked;
     const candidates: [HintId, boolean][] = [
       ['enforcer', myTurn && c.boss.name.includes('Enforcer')],
-      ['intro', myTurn && c.progression.deathCount === 0 && c.bossLevel === 1],
+      ['intro', (inMenu || myTurn) && c.progression.deathCount === 0 && map.cleared.length === 0],
       ['telegraph', myTurn && c.foes.some(f => !!f.pendingAction)],
       ['malfunction', myTurn && c.playerMalfunctioning],
       ['move', myTurn && !!t.seen.intro && !c.hasMoved],
@@ -119,9 +177,19 @@ export function useTutorialTriggers() {
       ['heat', myTurn && c.playerHeat >= 35],
       ['structure', myTurn && c.player.maxStructuralHp > 0 && c.player.currentStructuralHp < c.player.maxStructuralHp],
       ['stims', myTurn && items.some(i => i.type === 'consumable')],
+      ['surge', myTurn && Fight.canSurge(c)],
+      ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
+      ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
+      ['turns', myTurn && !!t.seen.attack && c.foes.length + c.allies.length >= 2],
+      ['traits', myTurn && !!t.seen.attack && c.foes.some(f => (f.unit.traits?.length ?? 0) > 0)],
       ['victory', c.phase === 'victory'],
       ['death', c.phase === 'defeat'],
       ['base', c.phase === 'menu' && !!t.seen.victory],
+      ['reborn', inMenu && c.progression.deathCount > 0 && room.id === CHAPTER_MAP.entry && map.cleared.length === 0],
+      ['look', inMenu && !!t.seen.base && !!room.look && !fightHere && !map.looked.includes(room.id)],
+      ['ally', inMenu && !!room.ally && !fightHere && !useAllies.getState().met.includes(room.ally)],
+      ['cache', inMenu && !!t.seen.base && cacheReady(map, room)],
+      ['sealed', inMenu && room.exits.some(e => exitState(map, e) === 'sealed')],
       ['implants', c.phase === 'menu' && !!t.seen.base && items.some(i => i.type === 'augmentation')],
       ['upgrades', c.phase === 'menu' && availablePoints > 0],
       ['market', c.phase === 'shop'],
