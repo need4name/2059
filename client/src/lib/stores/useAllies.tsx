@@ -9,15 +9,15 @@ export interface AllyProgress { level: number; xp: number }
 // Allies the signal has met, how far each has grown, and who rides with this
 // host. Survives death; only a full save wipe clears it.
 interface AlliesState {
-  /** Highest level any host has cleared. Unlocks follow from it. */
-  bestCleared: number;
+  /** Allies the signal has met in rooms on the map (kept across hosts). */
+  met: string[];
   levels: Record<string, AllyProgress>;
   /** Allies with the current host (chosen when a host starts). */
   party: string[];
   unlocked: () => string[];
   progress: (id: string) => AllyProgress;
-  /** Note a cleared level. Returns allies it unlocked for the first time. */
-  recordClear: (level: number) => string[];
+  /** Meet an ally in a room. Returns true the first time. */
+  meet: (id: string) => boolean;
   setParty: (ids: string[], slots: number) => void;
   /** Wins for the party. Returns the allies that went up a level. */
   gainXp: (amount: number) => string[];
@@ -25,18 +25,18 @@ interface AlliesState {
 }
 
 export const useAllies = create<AlliesState>()(persist((set, get) => ({
-  bestCleared: 0,
+  met: [],
   levels: {},
   party: [],
 
-  unlocked: () => alliesUnlockedBy(get().bestCleared),
+  // In roster order, whatever order they were met in
+  unlocked: () => ALLIES.map(a => a.id).filter(id => get().met.includes(id)),
   progress: (id) => get().levels[id] ?? { level: 1, xp: 0 },
 
-  recordClear: (level) => {
-    const before = get().unlocked();
-    if (level <= get().bestCleared) return [];
-    set({ bestCleared: level });
-    return get().unlocked().filter(id => !before.includes(id));
+  meet: (id) => {
+    if (get().met.includes(id) || !allyDef(id)) return false;
+    set({ met: [...get().met, id] });
+    return true;
   },
 
   setParty: (ids, slots) => {
@@ -58,8 +58,12 @@ export const useAllies = create<AlliesState>()(persist((set, get) => ({
     return up;
   },
 
-  reset: () => set({ bestCleared: 0, levels: {}, party: [] }),
-}), { name: '2059-allies', storage: createJSONStorage(() => saveStorage), version: 1 }));
+  reset: () => set({ met: [], levels: {}, party: [] }),
+}), {
+  name: '2059-allies', storage: createJSONStorage(() => saveStorage), version: 2,
+  // Version 1 unlocked allies by best level cleared; those count as met
+  migrate: (old: any, version) => (version < 2 ? { ...old, met: alliesUnlockedBy(old?.bestCleared ?? 0), bestCleared: undefined } : old),
+}));
 
 /** The party as fight-ready allies (positions are filled in when the fight starts). */
 export function partyForFight(perks: Perks) {

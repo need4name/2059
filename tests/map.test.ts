@@ -60,3 +60,13 @@ test('threat rises with depth: elites and bosses sit on the 5s and 10s', () => {
   for (const r of M.CHAPTER_MAP.rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne', 'checkpoint', 'foundry', 'theatre', 'spire'].includes(r.id), r.id);
   assert.equal(M.roomById('throne').threat, 10);
 });
+
+test('a supply cache can be searched once per host, once its room is clear', () => {
+  let s: M.MapState = { ...M.newMapState(), room: 'pumps', cameFrom: 'hull' };
+  assert.equal(M.cacheReady(s), false, 'not while the enemy holds the room');
+  s = M.clearRoom(s);
+  assert.equal(M.cacheReady(s), true);
+  s = M.takeCache(s);
+  assert.equal(M.cacheReady(s), false);
+  assert.equal(M.cacheReady(M.clearRoom({ ...M.newHost(s), room: 'pumps' })), true, 'a new host finds it restocked');
+});

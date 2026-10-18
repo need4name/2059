@@ -358,7 +358,7 @@ export function BaseScreen() {
   const map = useMap();
   const roomNow = roomById(map.room);
   const fightHere = hasFight(map, roomNow);
-  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, progression.deathCount === 0) : null;
+  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, progression.deathCount === 0, roomNow.enemy) : null;
   const { gold, items } = useInventory();
   const { availablePoints } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();

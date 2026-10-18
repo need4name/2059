@@ -175,12 +175,12 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 
 ### Enemy scaling by threat
 - Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
-- On top of that, every enemy's health is × 0.36 × 1.075^(threat − 1) and its attack × 1.01 × 1.07^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
-- **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed and Braced, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Other levels walk the regular rotation.
+- On top of that, every enemy's health is × 0.36 × 1.075^(threat − 1) and its attack × 1.01 × 1.065^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
+- **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.35 health, ×1.05 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
-- **First life only:** threat 3 is the **Cartel Enforcer** (×2.6 health, ×2.7 attack). It is meant to end the first run.
-- Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 6 after 5 hosts lost, 10 after 10 and 19 after 20.
+- **First life only:** threat 3 is the **Cartel Enforcer** (×2.6 health, ×2.7 attack). It waits on the walkway and is meant to end the first run.
+- Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 9 after 5 hosts lost and 18–20 after 10.
 
 ### Drops
 - Rarity odds rise with threat: commons and uncommons only at 1–2, rares from 3, epics from 5, legendaries from 6; commons stop dropping around threat 20.
@@ -220,7 +220,7 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 
 **Where:** `client/src/content/allies.json` (roster), `client/src/lib/combat/allies.ts` (bodies, moves, levels), `client/src/lib/stores/useAllies.tsx` (unlocks, levels, party), the Allies part of `client/src/lib/engine/fight.ts`.
 
-- Five allies, each unlocked the first time any host clears its level: **Bale** (Tianxia tank, 10), **Matron** (Crown healer, 15), **Ghostline** (Kizuna spotter, 20), **Ward** (Helix shield, 25), **Breaker** (Volkov damage, 30). An unlock joins the current host straight away if there's room.
+- Five allies, each met in a room of the map: **Bale** (Tianxia tank, the cranes), **Matron** (Crown healer, the hold), **Ghostline** (Kizuna spotter, the road), **Breaker** (Volkov damage, the foundry), **Ward** (Helix shield, the theatre path). Once the room is clear the panel offers "Link with …"; linking keeps them for every later host and they join now if there's room. Their stat level still comes from their old unlock level (10/15/20/25/30). Old saves (version 1) keep the allies they had unlocked.
 - One ally per host (two with the Second link capstone), chosen on the death screen after the tree pick. The last host's ally is kept by default.
 - Each ally has two fixed moves and moves 2 tiles. Effects: **attack** (needs range on your target), **taunt** (every enemy aims at the ally until your next turn, ally guards up), **heal** (a share of your max health, any range), **mark** (your hits on the target do more this round), **guard** (you guard up against the next hit). Support moves have cooldowns of 2–3 rounds.
 - In your turn you can move the ally once (tap it, or its name, then a lit tile) and use one of its moves, before or after your own move. The turn ends when you execute.
@@ -240,15 +240,17 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Threat comes from the room.** Fight rooms hold one threat level, rising with depth from the body dock (1) to the drowned spire (30). Elites sit on 5, 15 and 25, bosses on 10 (the Patchwork King), 20 and 30. The fight footer button starts the room's fight.
 - **Enemies hold the room:** while a room's fight is uncleared, every exit but the one you came in by is blocked. Win and the room stays clear for that host.
 - **Markets** are in three safe rooms (the body dock, the Grey Lane stall, the canopy stall). The Grey Lane is only reachable from those rooms.
-- **Things to look at:** some rooms have something to look closer at once they're clear; what you see goes into the journal.
+- **Things to look at:** 21 rooms have something to look closer at once they're clear; what you see goes into the journal.
+- **Caches:** five rooms (pumps, generator, containers, smelt, drift) hide a cache that can be searched once per host once the room is clear: half the time a stim (never Overclock), otherwise 20–50 credits + 2 × threat. Seeded from the run seed and the room.
+- **Upgrade points come from new depths:** a win gives a point only when it is deeper than any fight this host has already won (`hostBestThreat`), so walking back over cleared ground can't farm points.
 - **Hidden goals:** three (the slab, the manifest, the Mother: placeholders until the story is written), each found by looking at something in a particular room. They're never listed. When all three are found, the sealed way from the wake down to the drowned spire opens.
-- **Death:** a new host is another corpse reanimating at the body dock. Fights refill; visited rooms, things looked at and goals are kept.
-- The content check rejects exits to missing rooms, unreachable rooms, a goal in more or fewer than one room, and fights in market rooms. The balance simulator still plays threats in order, which matches walking deeper.
+- **Death:** a new host is another corpse reanimating at the body dock. Fights and caches refill; visited rooms, things looked at, allies met and goals are kept.
+- The content check rejects exits to missing rooms, unreachable rooms, a goal in more or fewer than one room, and fights in market rooms. It also rejects an ally waiting in more or fewer than one room, and a named enemy that doesn't exist or sits outside a regular room. The balance simulator walks the map like a player: it takes the shortest way through cleared rooms to the easiest uncleared fight, looks at things, links allies and searches caches on the way.
 
 ## 8. Runs, seeds and saves
 
 - Every run has a seed. Each fight is seeded from the run seed and the fight number, and each market visit from the run seed and its visit key, so the same seed and choices replay exactly (`client/src/lib/engine/rng.ts`).
-- One versioned save holds everything (`client/src/lib/save.ts`). Players can copy it as text and restore it from the Status tab.
+- One versioned save holds everything (`client/src/lib/save.ts`). Players can copy it as text and load it back in from the Status tab.
 
 ## 9. Checks that guard these rules
 
@@ -256,4 +258,4 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Typecheck.**
 - **Content check** (`scripts/check-content.ts`): schemas, allowed values, ids, cross-references, the ally roster.
 - **Tests** (`tests/`): the rules on this page, including rarity bands, structure, health floor, dodging heavies, heat damage, the play-i tree, allies and save round trips.
-- **Balance simulator** (`scripts/sim.ts --check`): seeded bot runs. New players must die on enemy 2 or 3 in at least 85% of runs, win rates per threat band must stay within 65–99%, and the median best run must reach threat 9, regular fights must average 8 turns or fewer and bosses 16 or fewer, and the median best level must be 7–14 after 10 hosts lost and 13–25 after 20. It runs 20 seeded runs of 150 fights.
+- **Balance simulator** (`scripts/sim.ts --check`): seeded bot runs. New players must die on enemy 2 or 3 in at least 85% of runs, win rates per threat band must stay within 65–99%, and the median best run must reach threat 9, regular fights must average 8 turns or fewer and bosses 16 or fewer, and the median best level must be 9–20 after 10 hosts lost. It runs 20 seeded runs of 250 fights; the bot asks the game itself whether a shot lands, so it steps closer rather than standing out of range.

@@ -2,10 +2,11 @@
 // into a single versioned record under SAVE_KEY, so a save can be exported as
 // text, imported on another device, and migrated as the game changes.
 import type { StateStorage } from 'zustand/middleware';
+import { ALLIES } from './combat/allies';
 
 export const SAVE_KEY = '2059-save';
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -20,7 +21,20 @@ export interface SaveFile {
 }
 
 /** MIGRATIONS[n] upgrades a version-n save to version n + 1. */
-const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {};
+const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
+  // 1 -> 2: allies are met in rooms on the map instead of unlocked by best level cleared
+  1: (save) => {
+    const raw = save.parts['2059-allies'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      const best = part?.state?.bestCleared ?? 0;
+      const met = ALLIES.filter(a => best >= a.unlockLevel).map(a => a.id);
+      const { bestCleared: _old, ...rest } = part.state ?? {};
+      return { ...save, parts: { ...save.parts, '2059-allies': JSON.stringify({ ...part, state: { ...rest, met }, version: 2 }) } };
+    } catch { return save; }
+  },
+};
 
 function storage(): Storage | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }

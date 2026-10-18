@@ -47,18 +47,6 @@ export function VictoryScreen() {
           </div>
         )}
 
-        {lastVictory?.alliesUnlocked?.map(id => {
-          const def = allyDef(id);
-          if (!def) return null;
-          const joined = party.includes(id);
-          return (
-            <div key={id} className="rise-in space-y-1 rounded-3xl p-4" style={{ background: `${def.color}14`, boxShadow: `inset 0 0 0 1px ${def.color}55` }}>
-              <div className="text-sm font-semibold" style={{ color: def.color }}>New ally: {def.name}</div>
-              <p className="text-sm text-hud-dim">{def.blurb}</p>
-              <p className="text-xs text-hud-faint">{joined ? `${def.name} joins this host now.` : `Link with ${def.name} when your next host starts.`} {def.role}: {def.moves.map(m => m.name).join(' · ')}.</p>
-            </div>
-          );
-        })}
         {lastVictory?.allyLevelUps?.map(id => {
           const def = allyDef(id);
           return def ? (

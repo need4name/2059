@@ -133,13 +133,14 @@ test('a heavy wound up at an ally misses if the ally steps away', () => {
   assert.equal(Fight.releaseHeavy(wound, 0).connects, true);
 });
 
-test('the ally store: unlocks, party size, levelling to the cap', () => {
+test('the ally store: meeting, party size, levelling to the cap', () => {
   const A = useAllies.getState();
   A.reset();
-  assert.deepEqual(A.recordClear(9), []);
-  assert.deepEqual(useAllies.getState().recordClear(10), ['bale']);
-  assert.deepEqual(useAllies.getState().recordClear(10), [], 'only the first time');
-  useAllies.getState().recordClear(16);
+  assert.deepEqual(A.unlocked(), []);
+  assert.equal(useAllies.getState().meet('bale'), true);
+  assert.equal(useAllies.getState().meet('bale'), false, 'only the first time');
+  assert.equal(useAllies.getState().meet('nobody'), false);
+  useAllies.getState().meet('matron');
   useAllies.getState().setParty(['bale', 'matron', 'ghostline'], 1);
   assert.deepEqual(useAllies.getState().party, ['bale'], 'one per host, locked allies dropped');
   useAllies.getState().setParty(['bale', 'matron'], 2);

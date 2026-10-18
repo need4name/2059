@@ -21,7 +21,7 @@ import { roomById } from '../engine/map';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
-import { random, seedRandom, mixSeed, newRunSeed } from '../engine/rng';
+import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
@@ -43,8 +43,7 @@ gold: number;
 xp: number;
 levelsGained: number;
 pointsGained: number;
-/** Allies this win unlocked, and party members that went up a level. */
-alliesUnlocked: string[];
+/** Party members that went up a level. */
 allyLevelUps: string[];
 }
 
@@ -98,8 +97,12 @@ setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
 /** Signal Surge: spend a full overload meter (see the engine). */
 surge: () => void;
+/** The deepest threat this host has beaten (points come from beating deeper ones). */
+hostBestThreat: number;
 /** The enemy taking its turn right now (for the turn-order strip), or null. */
 actingFoe: number | null;
+/** Search the room's supply cache: a stim or some credits, once per host. Returns what was found. */
+openRoomCache: () => string | null;
 /** Fight whatever holds the room you're standing in on the hidden map. */
 startRoomFight: () => void;
 startFarmCombat: (level: number) => void;
@@ -182,9 +185,11 @@ overclockActive: false, kizunaJustFired: false,
 // Random for now (seeded); the story will set these later.
 const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
 
-function planFoes(level: number, firstRun: boolean, farm: boolean): Character[] {
+function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 if (!farm && level === 10) return [createPatchworkKing()];
-const lead = createBoss(level, firstRun && !farm);
+// A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
+const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
+const lead = createBoss(level, firstRun && !farm, named);
 // Set pieces fight alone: the first fight, elites and bosses, the first-life Enforcer
 if (level === 1 || level % 5 === 0 || lead.name === 'Cartel Enforcer') return [lead];
 const r = random();
@@ -312,12 +317,9 @@ useInventory.getState().addItems(direct);
 set({ lootChoices: choices });
 useInventory.getState().addGold(loot.gold);
 const xp = getXpFromBoss(level);
-// Allies: the party learns from every win; a new best level can unlock someone new
+// Allies: the party learns from every win
 const allies = useAllies.getState();
 const allyLevelUps = allies.gainXp(Math.round(get().perks.allyXpMult));
-const alliesUnlocked = farmLevel === null ? allies.recordClear(level) : [];
-const slots = get().perks.allySlots;
-if (alliesUnlocked.length && allies.party.length < slots) allies.setParty([...allies.party, ...alliesUnlocked], slots);
 if (isKing) log('PATCHWORK KING: ...well fought. Contract noted.');
 set({
 phase: 'victory', inputLocked: true, fightId: get().fightId + 1,
@@ -327,9 +329,11 @@ bossLevel: farmLevel !== null ? bossLevel : level + 1,
 });
 const { levelsGained } = get().gainXp(xp);
 // A point for every new threat cleared, on top of the level-up points
-const winPoint = farmLevel === null ? 1 : 0;
+// A point for each new depth this host reaches (a deeper threat than it has beaten before)
+const winPoint = farmLevel === null && level > get().hostBestThreat ? 1 : 0;
+if (farmLevel === null) set({ hostBestThreat: Math.max(get().hostBestThreat, level) });
 if (winPoint) useAugmentTrees.getState().addPoints(winPoint);
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, alliesUnlocked, allyLevelUps } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, allyLevelUps } });
 useAudio.getState().playSuccess();
 };
 
@@ -387,14 +391,14 @@ if (gifts.length) useInventory.getState().addItems(gifts);
 if (perks.startPoints) useAugmentTrees.getState().addPoints(perks.startPoints);
 };
 
-const startFight = (level: number, farm: boolean) => {
+const startFight = (level: number, farm: boolean, roomEnemy?: string) => {
 const { playerClass, runSeed, fightsStarted } = get();
 // Same run seed + same fight number = same arena, rolls and loot
 seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange, perks } = buildPlayer(playerClass);
 const isKing = !farm && level === 10;
-const units = planFoes(level, !farm && get().progression.deathCount === 0, farm);
+const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy);
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
 const grid = generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
@@ -439,6 +443,7 @@ target: 0,
 reflexMoveOpen: false,
 allyMoveMode: null,
 actingFoe: null,
+hostBestThreat: 0,
 fightIntro: null,
 dismissIntro: () => set({ fightIntro: null }),
 holdfastSpent: false,
@@ -477,11 +482,25 @@ if (get().classesUnlocked) set({ playerClass });
 },
 
 startCombat: () => startFight(get().bossLevel, false),
+openRoomCache: () => {
+const map = useMap.getState();
+if (!map.takeCache()) return null;
+// Seeded per host and room, so a replayed run finds the same things
+seedRandom(mixSeed(get().runSeed, hashSeed(map.room)));
+if (random() < 0.5) {
+const stims = ITEMS_2059.filter(i => i.type === 'consumable' && i.consumableEffect && i.consumableEffect !== 'overclock');
+const stim = stims[Math.floor(random() * stims.length)];
+if (stim) { useInventory.getState().addItems([instancedItem(stim)]); return `You find a ${stim.name.replace(/^\[[A-Z]+\]\s*/, '')}.`; }
+}
+const credits = 20 + Math.floor(random() * 30) + Math.max(0, roomById(map.room).threat ?? 0) * 2;
+useInventory.getState().addGold(credits);
+return `You find ¤${credits} in a sealed bag.`;
+},
 startRoomFight: () => {
 const room = roomById(useMap.getState().room);
 if (room.threat === undefined) return;
 set({ bossLevel: room.threat });
-startFight(room.threat, false);
+startFight(room.threat, false, room.enemy);
 },
 startFarmCombat: (level) => startFight(level, true),
 
@@ -685,6 +704,7 @@ fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
 holdfastSpent: false,
+hostBestThreat: 0,
 });
 // The new corpse wakes at the chapter's entry; fights refill, memory stays
 useMap.getState().newHost();
@@ -716,6 +736,7 @@ fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
 holdfastSpent: false,
+hostBestThreat: 0,
 });
 },
 
@@ -758,6 +779,7 @@ pendingShop: s.pendingShop,
 bossLevel: s.bossLevel,
 lootChoices: s.lootChoices,
 holdfastSpent: s.holdfastSpent,
+hostBestThreat: s.hostBestThreat,
 runSeed: s.runSeed,
 fightsStarted: s.fightsStarted,
 playerClass: s.playerClass,

@@ -6,7 +6,7 @@ import data from '../../content/map-indian-ocean.json';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
-export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; exits: Exit[] }
+export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; exits: Exit[] }
 export interface ChapterMap { chapter: string; entry: string; goals: string[]; rooms: Room[] }
 
 export const CHAPTER_MAP = data as ChapterMap;
@@ -26,9 +26,11 @@ export interface MapState {
   goals: string[];
   /** Things looked at (kept across hosts). */
   looked: string[];
+  /** Supply caches already searched by this host. */
+  taken: string[];
 }
 
-export const newMapState = (): MapState => ({ room: CHAPTER_MAP.entry, cameFrom: null, cleared: [], visited: [CHAPTER_MAP.entry], goals: [], looked: [] });
+export const newMapState = (): MapState => ({ room: CHAPTER_MAP.entry, cameFrom: null, cleared: [], visited: [CHAPTER_MAP.entry], goals: [], looked: [], taken: [] });
 
 /** A room with a fight nobody has cleared yet this host. */
 export const hasFight = (s: MapState, room = roomById(s.room)) => room.threat !== undefined && !s.cleared.includes(room.id);
@@ -61,8 +63,12 @@ export function look(s: MapState): { state: MapState; found: string | null } {
   return { state: { ...s, looked, goals: found ? [...s.goals, found] : s.goals }, found };
 }
 
-/** A new host wakes at the entry: fights refill, memory and goals stay. */
-export const newHost = (s: MapState): MapState => ({ ...s, room: CHAPTER_MAP.entry, cameFrom: null, cleared: [] });
+/** A supply cache this host can still search (once the room is clear). */
+export const cacheReady = (s: MapState, room = roomById(s.room)) => !!room.cache && !hasFight(s, room) && !(s.taken ?? []).includes(room.id);
+export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, taken: [...(s.taken ?? []), s.room] } : s);
+
+/** A new host wakes at the entry: fights refill, caches restock, memory and goals stay. */
+export const newHost = (s: MapState): MapState => ({ ...s, room: CHAPTER_MAP.entry, cameFrom: null, cleared: [], taken: [] });
 
 /** Exits you can see from here, as the screen shows them. */
 export const DIR_LABEL: Record<string, string> = { north: 'North', south: 'South', east: 'East', west: 'West', up: 'Up', down: 'Down', in: 'In', out: 'Out' };

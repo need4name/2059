@@ -383,10 +383,10 @@ return BOSS_TYPES[idx % BOSS_TYPES.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.35, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
-export const ENEMY_GROWTH = { hp: 1.075, atk: 1.07 };
+export const ENEMY_GROWTH = { hp: 1.075, atk: 1.065 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
 export const ENEMY_TUNING = { hp: 0.36, atk: 1.01 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
@@ -406,11 +406,13 @@ physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttac
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
-export function getBossPreview(level: number, firstRun = false): { name: string; color: string; hp: number } {
+export function getBossPreview(level: number, firstRun = false, roomEnemy?: string): { name: string; color: string; hp: number } {
 const S = BOSS_SCALING;
 const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
 if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
-const t = enemyTypeForLevel(level, firstRun);
+// A room's named enemy, for regular fights (matches planFoes)
+const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
+const t = named ?? enemyTypeForLevel(level, firstRun);
 return { name: t.name, color: t.color, hp: Math.round(baseHp * ROLE_MULT[enemyRole(level, firstRun)].hp) };
 }
 

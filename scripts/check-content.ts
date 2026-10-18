@@ -74,6 +74,7 @@ const mapFile = z.object({
     id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
+    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -192,8 +193,13 @@ export function checkContent(): string[] {
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
+      if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);
+      if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);
       if (r.look?.goal && !m.goals.includes(r.look.goal)) problems.push(`map ${r.id}: goal "${r.look.goal}" isn't one of the chapter's goals`);
     }
+    const allyIds = (allies as { allies: { id: string }[] }).allies.map(a => a.id);
+    for (const r of m.rooms) if (r.ally && !allyIds.includes(r.ally)) problems.push(`map ${r.id}: ally "${r.ally}" isn't in allies.json`);
+    for (const id of allyIds) { const n = m.rooms.filter(r => r.ally === id).length; if (n !== 1) problems.push(`map: ally "${id}" should wait in exactly one room (found ${n})`); }
     for (const g of m.goals) {
       const n = m.rooms.filter(r => r.look?.goal === g).length;
       if (n !== 1) problems.push(`map: goal "${g}" should be in exactly one room (found ${n})`);

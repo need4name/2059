@@ -48,3 +48,13 @@ test('bad or future saves are refused with a reason, and nothing is written', ()
   assert.match((r as { reason: string }).reason, /newer version/);
   assert.equal(mem.has(SAVE_KEY), false);
 });
+
+test('a version 1 save upgrades: allies unlocked by level count as met', () => {
+  mem.set(SAVE_KEY, JSON.stringify({ game: '2059', version: 1, savedAt: '', parts: { '2059-allies': '{"state":{"bestCleared":16,"levels":{},"party":["bale"]},"version":1}' } }));
+  const save = readSave();
+  assert.equal(save.version, SAVE_VERSION);
+  const part = JSON.parse(save.parts['2059-allies']);
+  assert.deepEqual(part.state.met, ['bale', 'matron']);
+  assert.equal(part.state.bestCleared, undefined);
+  assert.deepEqual(part.state.party, ['bale']);
+});

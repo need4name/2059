@@ -651,7 +651,7 @@
     },
     "The Fitter": {
       "color": "#f97316",
-      "baseAttack": 15,
+      "baseAttack": 12,
       "baseDefense": 7,
       "startingHeat": 45,
       "statSplit": {
@@ -662,8 +662,7 @@
       },
       "dossier": "Runs the Volkov foundry, fitting operator limbs to whoever pays. Has fitted most of them to itself.",
       "traits": [
-        "armed",
-        "braced"
+        "armed"
       ],
       "enrage": {
         "at": 0.5,
@@ -677,7 +676,7 @@
           "type": "attack",
           "name": "Piston Drive",
           "description": "",
-          "damage": 17,
+          "damage": 13,
           "accuracy": "precise",
           "physicalRatio": 0.75,
           "heatTransfer": 6,
@@ -688,7 +687,7 @@
           "type": "attack",
           "name": "Fitting Arm Sweep",
           "description": "",
-          "damage": 14,
+          "damage": 11,
           "accuracy": "variable",
           "physicalRatio": 0.7,
           "heatTransfer": 5,
@@ -699,7 +698,7 @@
           "type": "attack",
           "name": "Press Line",
           "description": "",
-          "damage": 30,
+          "damage": 22,
           "isHeavy": true,
           "accuracy": "precise",
           "physicalRatio": 0.7,

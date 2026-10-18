@@ -1,124 +1,824 @@
 {
-  "about": "Chapter one's hidden map. The player only sees the room they're in and its exits. threat = the fight in the room (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences.",
+  "about": "Chapter one's hidden map. The player only sees the room they're in and its exits. threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences.",
   "chapter": "indian-ocean",
   "entry": "dock",
-  "goals": ["slab", "manifest", "mother"],
+  "goals": [
+    "slab",
+    "manifest",
+    "mother"
+  ],
   "rooms": [
-    { "id": "dock", "name": "The body dock", "text": "Bodies hang in racks under a tarp, tagged at the ankle and swaying with the sea. One of them is looking out through your eyes.", "market": true,
-      "exits": [{ "dir": "south", "hint": "voices, and the creak of plastic", "to": "deck" }] },
-
-    { "id": "deck", "name": "Bleached deck", "threat": 1, "text": "Crate plates lashed edge to edge, sun-white and sticky with salt. Someone has scratched tally marks into every one.",
-      "exits": [{ "dir": "north", "hint": "the racks", "to": "dock" }, { "dir": "south", "hint": "a rope walkway", "to": "walkway" }, { "dir": "east", "hint": "glass clinking in the swell", "to": "bottles" }] },
-
-    { "id": "bottles", "name": "Bottle field", "threat": 2, "text": "Ten thousand bottles netted into a floor that shifts under every step. Some still have messages in them.",
-      "look": { "text": "One note, the ink run: 'If you find this I am already sold.'" },
-      "exits": [{ "dir": "west", "hint": "the bleached deck", "to": "deck" }, { "dir": "south", "hint": "a hull, and pumps thumping", "to": "hull" }] },
-
-    { "id": "walkway", "name": "Rope walkway", "threat": 2, "text": "A walkway of drums and rope over open water. The ropes are newer than anything else here.",
-      "exits": [{ "dir": "north", "hint": "the bleached deck", "to": "deck" }, { "dir": "south", "hint": "lanterns and haggling", "to": "stall" }, { "dir": "west", "hint": "tarp shacks, a dog barking", "to": "shacks" }] },
-
-    { "id": "shacks", "name": "Tarp shacks", "threat": 3, "text": "Shacks of blue tarp and bottle walls, doors tied shut from the outside. A pot is still warm on a stove.",
-      "look": { "text": "A child's drawing pinned to a door: a man lying down, and a little light at the back of his neck." },
-      "exits": [{ "dir": "east", "hint": "the rope walkway", "to": "walkway" }, { "dir": "down", "label": "A hatch, down", "hint": "dripping, and a chemical smell", "to": "bilge" }] },
-
-    { "id": "stall", "name": "Grey Lane stall", "text": "A lantern-lit stall selling parts from a cool box, no questions asked. The seller doesn't look up when you arrive.", "market": true,
-      "exits": [{ "dir": "north", "hint": "the rope walkway", "to": "walkway" }, { "dir": "south", "hint": "scales clanking, men shouting weights", "to": "weigh" }] },
-
-    { "id": "hull", "name": "Pump-fleet hull", "threat": 3, "text": "The upturned hull of a fishing boat, its belly painted with a woman's face. Pumps beat inside it like a slow heart.",
-      "exits": [{ "dir": "north", "hint": "the bottle field", "to": "bottles" }, { "dir": "south", "hint": "a pump room", "to": "pumps" }] },
-
-    { "id": "bilge", "name": "The bilge", "threat": 4, "text": "Knee-deep runoff under the raft, glowing faintly green. Something has been dragged through it recently.",
-      "exits": [{ "dir": "up", "label": "The hatch, up", "hint": "the shacks", "to": "shacks" }, { "dir": "east", "hint": "the thump of pumps", "to": "pumps" }] },
-
-    { "id": "pumps", "name": "Pump room", "threat": 4, "text": "Hand pumps in rows, each worked by someone with a pump of their own in their chest. They keep time without looking at each other.",
-      "exits": [{ "dir": "north", "hint": "the painted hull", "to": "hull" }, { "dir": "west", "hint": "the bilge", "to": "bilge" }, { "dir": "south", "hint": "a weigh-station", "to": "weigh" }] },
-
-    { "id": "weigh", "name": "Cartel weigh-station", "threat": 5, "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
-      "exits": [{ "dir": "north", "hint": "the stall's lanterns", "to": "stall" }, { "dir": "east", "hint": "the pump room", "to": "pumps" }, { "dir": "south", "hint": "floating lanes, traffic", "to": "lanes" }] },
-
-    { "id": "lanes", "name": "Floating lanes", "threat": 6, "text": "Canals between rafts, crowded with boats made of fridges and doors. Everyone moves aside for you, then stares.",
-      "exits": [{ "dir": "north", "hint": "the weigh-station", "to": "weigh" }, { "dir": "west", "label": "A gangway, west", "hint": "a white barge, very clean", "to": "barge" }, { "dir": "east", "hint": "humming, and the smell of ozone", "to": "cables" }, { "dir": "south", "hint": "nets drying on poles", "to": "nets" }] },
-
-    { "id": "barge", "name": "Surgery barge", "threat": 7, "text": "A white barge, scrubbed clean, with a row of steel slabs under bright lamps. It is the only quiet place on the water.",
-      "look": { "text": "One slab has restraints, and an outline in dried fluid that fits you exactly.", "goal": "slab" },
-      "exits": [{ "dir": "east", "hint": "the lanes", "to": "lanes" }] },
-
-    { "id": "cables", "name": "Cable garden", "threat": 7, "text": "Stolen power lines strung overhead like vines, sparking where they touch the water. Lights burn here day and night.",
-      "exits": [{ "dir": "west", "hint": "the lanes", "to": "lanes" }, { "dir": "south", "hint": "a generator roaring", "to": "generator" }] },
-
-    { "id": "nets", "name": "Net lofts", "threat": 8, "text": "Nets hung in layers like curtains, heavy with plastic and the odd bone. Floats knock together in the wind.",
-      "exits": [{ "dir": "north", "hint": "the lanes", "to": "lanes" }, { "dir": "south", "hint": "steps, and a crowd going quiet", "to": "approach" }] },
-
-    { "id": "generator", "name": "Generator raft", "threat": 8, "text": "A ship's engine bolted to a raft, feeding half the archipelago. The people tending it are deaf, or have stopped listening.",
-      "exits": [{ "dir": "north", "hint": "the cable garden", "to": "cables" }, { "dir": "south", "hint": "steps up to something", "to": "approach" }] },
-
-    { "id": "approach", "name": "Throne steps", "threat": 9, "text": "Steps built of welded junk, climbing to a chair made of other people's parts. Offerings rot at the bottom.",
-      "exits": [{ "dir": "north", "hint": "the net lofts", "to": "nets" }, { "dir": "east", "hint": "the generator", "to": "generator" }, { "dir": "up", "label": "Up the steps", "hint": "a throne", "to": "throne" }] },
-
-    { "id": "throne", "name": "The patchwork throne", "threat": 10, "text": "A throne of limbs and casings, and something sitting in it that wears a crown of grafts. It has been expecting a visitor.",
-      "exits": [{ "dir": "down", "label": "Down the steps", "hint": "the approach", "to": "approach" }, { "dir": "south", "label": "Behind the throne", "hint": "a drowned port", "to": "port" }] },
-
-    { "id": "port", "name": "Drowned port", "threat": 11, "text": "A container port that sank to its knees, cranes standing up out of the sea. The containers have been turned into streets.",
-      "exits": [{ "dir": "north", "hint": "the throne", "to": "throne" }, { "dir": "east", "hint": "cranes groaning", "to": "cranes" }, { "dir": "west", "hint": "container streets", "to": "containers" }, { "dir": "south", "hint": "a gantry, uniformed voices", "to": "gantry" }] },
-
-    { "id": "containers", "name": "Container streets", "threat": 12, "text": "Rusting boxes stacked into alleys, each painted with a family's name. Most of the names are crossed out.",
-      "exits": [{ "dir": "east", "hint": "the port", "to": "port" }, { "dir": "down", "label": "Into a container", "hint": "dark, and a smell of cold", "to": "hold" }] },
-
-    { "id": "hold", "name": "Cold hold", "threat": 13, "text": "A refrigerated container still running, its shelves lined with sealed bags. Each bag is labelled with a weight and a price.",
-      "look": { "text": "A bag with your old face printed on the label. It is empty, and the price has been paid." },
-      "exits": [{ "dir": "up", "label": "Back out", "hint": "the container streets", "to": "containers" }] },
-
-    { "id": "cranes", "name": "Crane yard", "threat": 12, "text": "Cranes swinging loads over the water with nobody in the cabs. The hooks know where to go.",
-      "exits": [{ "dir": "west", "hint": "the port", "to": "port" }, { "dir": "south", "hint": "a yard of stacked cargo", "to": "yard" }] },
-
-    { "id": "yard", "name": "Cargo yard", "threat": 13, "text": "Pallets wrapped in plastic, stacked three storeys high and stamped with inspection seals. The seals are newer than the cargo.",
-      "exits": [{ "dir": "north", "hint": "the cranes", "to": "cranes" }, { "dir": "south", "hint": "a checkpoint, a loudhailer", "to": "checkpoint" }] },
-
-    { "id": "gantry", "name": "IOA gantry", "threat": 14, "text": "A steel walkway over the port with an authority flag snapping at one end. Below, everyone is queuing to be counted.",
-      "exits": [{ "dir": "north", "hint": "the port", "to": "port" }, { "dir": "east", "hint": "a checkpoint", "to": "checkpoint" }, { "dir": "up", "label": "A ladder, up", "hint": "an office, papers rustling", "to": "archive" }] },
-
-    { "id": "archive", "name": "Manifest archive", "threat": 17, "text": "An office stacked with paper manifests, because paper can't be wiped remotely. A fan turns the pages back and forth.",
-      "look": { "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'", "goal": "manifest" },
-      "exits": [{ "dir": "down", "label": "The ladder, down", "hint": "the gantry", "to": "gantry" }] },
-
-    { "id": "checkpoint", "name": "IOA checkpoint", "threat": 15, "text": "A gate of shipping containers with a scanner arch and an officer behind glass. The arch beeps at you before you reach it.",
-      "exits": [{ "dir": "west", "hint": "the gantry", "to": "gantry" }, { "dir": "north", "hint": "the cargo yard", "to": "yard" }, { "dir": "south", "hint": "a road of slag, heat", "to": "road" }] },
-
-    { "id": "road", "name": "Slag road", "threat": 16, "text": "A causeway of furnace slag, still warm underfoot, leading into smoke. Barefoot workers walk it without flinching.",
-      "exits": [{ "dir": "north", "hint": "the checkpoint", "to": "checkpoint" }, { "dir": "east", "hint": "a stall under a canopy", "to": "stall2" }, { "dir": "south", "hint": "furnaces", "to": "smelt" }] },
-
-    { "id": "stall2", "name": "Canopy stall", "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.", "market": true,
-      "exits": [{ "dir": "west", "hint": "the slag road", "to": "road" }] },
-
-    { "id": "smelt", "name": "Smelting barge", "threat": 18, "text": "Plastic melted down in vats and poured into new decking for the rafts. The air tastes of it for days after.",
-      "exits": [{ "dir": "north", "hint": "the slag road", "to": "road" }, { "dir": "south", "hint": "a foundry, hammering", "to": "foundry" }] },
-
-    { "id": "foundry", "name": "Volkov foundry", "threat": 20, "text": "A foundry where operator limbs are fitted to whoever can pay, or whoever is owed. The fitting chairs face the sea.",
-      "exits": [{ "dir": "north", "hint": "the smelting barge", "to": "smelt" }, { "dir": "south", "hint": "open water, and something growing", "to": "reef" }] },
-
-    { "id": "reef", "name": "Plastic reef", "threat": 21, "text": "A reef grown from drowned plastic, coral-coloured and sharp. Fish nest in old shoes.",
-      "exits": [{ "dir": "north", "hint": "the foundry", "to": "foundry" }, { "dir": "west", "hint": "singing", "to": "path" }, { "dir": "east", "hint": "a white pontoon", "to": "theatrepath" }] },
-
-    { "id": "path", "name": "Hymn walk", "threat": 23, "text": "A path lined with pumps set into posts, each one beating at the same slow pace. Someone ahead is singing to them.",
-      "exits": [{ "dir": "east", "hint": "the reef", "to": "reef" }, { "dir": "south", "hint": "a chapel", "to": "chapel" }] },
-
-    { "id": "chapel", "name": "The Mother's chapel", "threat": 24, "text": "A chapel built inside a whale's ribcage, with a woman at the centre whose heart is a pump the size of a drum. Every pump in the fleet beats in time with hers.",
-      "look": { "text": "The Mother turns her pump toward you and says, very gently, 'There you are. We wondered which one you'd wear.'", "goal": "mother" },
-      "exits": [{ "dir": "north", "hint": "the hymn walk", "to": "path" }] },
-
-    { "id": "theatrepath", "name": "Clinic pontoon", "threat": 22, "text": "A pontoon of clean white decking with a queue of people waiting in silence. Nobody in the queue has any eyes.",
-      "exits": [{ "dir": "west", "hint": "the reef", "to": "reef" }, { "dir": "south", "hint": "an operating theatre", "to": "theatre" }] },
-
-    { "id": "theatre", "name": "CBN theatre", "threat": 25, "text": "An operating theatre with a gallery of seats, all filled. They applaud when the surgeon looks up.",
-      "exits": [{ "dir": "north", "hint": "the pontoon", "to": "theatrepath" }, { "dir": "south", "hint": "drifting debris", "to": "drift" }] },
-
-    { "id": "drift", "name": "The drift", "threat": 26, "text": "The rafts thin out into loose debris, roped together by nobody. The water here is very deep and very still.",
-      "exits": [{ "dir": "north", "hint": "the theatre", "to": "theatre" }, { "dir": "south", "hint": "a wake, where something passed", "to": "wake" }] },
-
-    { "id": "wake", "name": "The wake", "threat": 28, "text": "A long scar across the water where something huge went down. The debris all points the same way.",
-      "exits": [{ "dir": "north", "hint": "the drift", "to": "drift" }, { "dir": "south", "label": "Follow the wake down", "hint": "a spire under the water", "to": "spire", "requires": "goals" }] },
-
-    { "id": "spire", "name": "The drowned spire", "threat": 30, "text": "A tower standing under the sea with its top just breaking the surface, lit from inside. Whatever is down there has been listening for you.",
-      "exits": [{ "dir": "north", "hint": "the wake", "to": "wake" }] }
+    {
+      "id": "dock",
+      "name": "The body dock",
+      "text": "Bodies hang in racks under a tarp, tagged at the ankle and swaying with the sea. One of them is looking out through your eyes.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "voices, and the creak of plastic",
+          "to": "deck"
+        }
+      ]
+    },
+    {
+      "id": "deck",
+      "name": "Bleached deck",
+      "threat": 1,
+      "text": "Crate plates lashed edge to edge, sun-white and sticky with salt. Someone has scratched tally marks into every one.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the racks",
+          "to": "dock"
+        },
+        {
+          "dir": "south",
+          "hint": "a rope walkway",
+          "to": "walkway"
+        },
+        {
+          "dir": "east",
+          "hint": "glass clinking in the swell",
+          "to": "bottles"
+        }
+      ],
+      "look": {
+        "text": "A tally scratched into the plastic, counting to something nobody finished."
+      },
+      "enemy": "Limbic Cartel Scavenger"
+    },
+    {
+      "id": "bottles",
+      "name": "Bottle field",
+      "threat": 2,
+      "text": "Ten thousand bottles netted into a floor that shifts under every step. Some still have messages in them.",
+      "look": {
+        "text": "One note, the ink run: 'If you find this I am already sold.'"
+      },
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the bleached deck",
+          "to": "deck"
+        },
+        {
+          "dir": "south",
+          "hint": "a hull, and pumps thumping",
+          "to": "hull"
+        }
+      ],
+      "enemy": "Limbic Cartel Scavenger"
+    },
+    {
+      "id": "walkway",
+      "name": "Rope walkway",
+      "threat": 3,
+      "text": "A walkway of drums and rope over open water. The ropes are newer than anything else here.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the bleached deck",
+          "to": "deck"
+        },
+        {
+          "dir": "south",
+          "hint": "lanterns and haggling",
+          "to": "stall"
+        },
+        {
+          "dir": "west",
+          "hint": "tarp shacks, a dog barking",
+          "to": "shacks"
+        }
+      ],
+      "look": {
+        "text": "Rope knotted the way sailors do it. Whoever tied it knew the old ways, and is gone."
+      },
+      "enemy": "Non-Continuous Raider"
+    },
+    {
+      "id": "shacks",
+      "name": "Tarp shacks",
+      "threat": 3,
+      "text": "Shacks of blue tarp and bottle walls, doors tied shut from the outside. A pot is still warm on a stove.",
+      "look": {
+        "text": "A child's drawing pinned to a door: a man lying down, and a little light at the back of his neck."
+      },
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the rope walkway",
+          "to": "walkway"
+        },
+        {
+          "dir": "down",
+          "label": "A hatch, down",
+          "hint": "dripping, and a chemical smell",
+          "to": "bilge"
+        }
+      ],
+      "enemy": "Limbic Cartel Scavenger"
+    },
+    {
+      "id": "stall",
+      "name": "Grey Lane stall",
+      "text": "A lantern-lit stall selling parts from a cool box, no questions asked. The seller doesn't look up when you arrive.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the rope walkway",
+          "to": "walkway"
+        },
+        {
+          "dir": "south",
+          "hint": "scales clanking, men shouting weights",
+          "to": "weigh"
+        }
+      ]
+    },
+    {
+      "id": "hull",
+      "name": "Pump-fleet hull",
+      "threat": 3,
+      "text": "The upturned hull of a fishing boat, its belly painted with a woman's face. Pumps beat inside it like a slow heart.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the bottle field",
+          "to": "bottles"
+        },
+        {
+          "dir": "south",
+          "hint": "a pump room",
+          "to": "pumps"
+        }
+      ],
+      "look": {
+        "text": "Under the painted face, someone has scratched a smaller one. It has your jaw."
+      },
+      "enemy": "Pump-Fleet Cadre"
+    },
+    {
+      "id": "bilge",
+      "name": "The bilge",
+      "threat": 4,
+      "text": "Knee-deep runoff under the raft, glowing faintly green. Something has been dragged through it recently.",
+      "exits": [
+        {
+          "dir": "up",
+          "label": "The hatch, up",
+          "hint": "the shacks",
+          "to": "shacks"
+        },
+        {
+          "dir": "east",
+          "hint": "the thump of pumps",
+          "to": "pumps"
+        }
+      ],
+      "look": {
+        "text": "A shoe, still laced, with nothing in it. The water has rinsed it very clean."
+      },
+      "enemy": "Non-Continuous Raider"
+    },
+    {
+      "id": "pumps",
+      "name": "Pump room",
+      "threat": 4,
+      "text": "Hand pumps in rows, each worked by someone with a pump of their own in their chest. They keep time without looking at each other.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the painted hull",
+          "to": "hull"
+        },
+        {
+          "dir": "west",
+          "hint": "the bilge",
+          "to": "bilge"
+        },
+        {
+          "dir": "south",
+          "hint": "a weigh-station",
+          "to": "weigh"
+        }
+      ],
+      "cache": true,
+      "enemy": "Pump-Fleet Cadre"
+    },
+    {
+      "id": "weigh",
+      "name": "Cartel weigh-station",
+      "threat": 5,
+      "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the stall's lanterns",
+          "to": "stall"
+        },
+        {
+          "dir": "east",
+          "hint": "the pump room",
+          "to": "pumps"
+        },
+        {
+          "dir": "south",
+          "hint": "floating lanes, traffic",
+          "to": "lanes"
+        }
+      ],
+      "look": {
+        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
+      }
+    },
+    {
+      "id": "lanes",
+      "name": "Floating lanes",
+      "threat": 6,
+      "text": "Canals between rafts, crowded with boats made of fridges and doors. Everyone moves aside for you, then stares.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the weigh-station",
+          "to": "weigh"
+        },
+        {
+          "dir": "west",
+          "label": "A gangway, west",
+          "hint": "a white barge, very clean",
+          "to": "barge"
+        },
+        {
+          "dir": "east",
+          "hint": "humming, and the smell of ozone",
+          "to": "cables"
+        },
+        {
+          "dir": "south",
+          "hint": "nets drying on poles",
+          "to": "nets"
+        }
+      ],
+      "look": {
+        "text": "A boat made from a fridge door, with a child's sticker still on it."
+      },
+      "enemy": "SALV Boarder"
+    },
+    {
+      "id": "barge",
+      "name": "Surgery barge",
+      "threat": 7,
+      "text": "A white barge, scrubbed clean, with a row of steel slabs under bright lamps. It is the only quiet place on the water.",
+      "look": {
+        "text": "One slab has restraints, and an outline in dried fluid that fits you exactly.",
+        "goal": "slab"
+      },
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the lanes",
+          "to": "lanes"
+        }
+      ],
+      "enemy": "CBN Extraction Surgeon"
+    },
+    {
+      "id": "cables",
+      "name": "Cable garden",
+      "threat": 7,
+      "text": "Stolen power lines strung overhead like vines, sparking where they touch the water. Lights burn here day and night.",
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the lanes",
+          "to": "lanes"
+        },
+        {
+          "dir": "south",
+          "hint": "a generator roaring",
+          "to": "generator"
+        }
+      ],
+      "look": {
+        "text": "Every cable is labelled with whoever stole it. The labels go back forty years."
+      },
+      "enemy": "Tianxia Compliance Unit"
+    },
+    {
+      "id": "nets",
+      "name": "Net lofts",
+      "threat": 8,
+      "text": "Nets hung in layers like curtains, heavy with plastic and the odd bone. Floats knock together in the wind.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the lanes",
+          "to": "lanes"
+        },
+        {
+          "dir": "south",
+          "hint": "steps, and a crowd going quiet",
+          "to": "approach"
+        }
+      ],
+      "look": {
+        "text": "A float with a number painted on it. You know the number. You don't know how."
+      },
+      "enemy": "SALV Boarder"
+    },
+    {
+      "id": "generator",
+      "name": "Generator raft",
+      "threat": 8,
+      "text": "A ship's engine bolted to a raft, feeding half the archipelago. The people tending it are deaf, or have stopped listening.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the cable garden",
+          "to": "cables"
+        },
+        {
+          "dir": "south",
+          "hint": "steps up to something",
+          "to": "approach"
+        }
+      ],
+      "cache": true,
+      "enemy": "Tianxia Compliance Unit"
+    },
+    {
+      "id": "approach",
+      "name": "Throne steps",
+      "threat": 9,
+      "text": "Steps built of welded junk, climbing to a chair made of other people's parts. Offerings rot at the bottom.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the net lofts",
+          "to": "nets"
+        },
+        {
+          "dir": "east",
+          "hint": "the generator",
+          "to": "generator"
+        },
+        {
+          "dir": "up",
+          "label": "Up the steps",
+          "hint": "a throne",
+          "to": "throne"
+        }
+      ],
+      "look": {
+        "text": "Offerings at the foot of the steps: teeth, chips, a wedding ring with the finger still in it."
+      },
+      "enemy": "Non-Continuous Raider"
+    },
+    {
+      "id": "throne",
+      "name": "The patchwork throne",
+      "threat": 10,
+      "text": "A throne of limbs and casings, and something sitting in it that wears a crown of grafts. It has been expecting a visitor.",
+      "exits": [
+        {
+          "dir": "down",
+          "label": "Down the steps",
+          "hint": "the approach",
+          "to": "approach"
+        },
+        {
+          "dir": "south",
+          "label": "Behind the throne",
+          "hint": "a drowned port",
+          "to": "port"
+        }
+      ]
+    },
+    {
+      "id": "port",
+      "name": "Drowned port",
+      "threat": 11,
+      "text": "A container port that sank to its knees, cranes standing up out of the sea. The containers have been turned into streets.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the throne",
+          "to": "throne"
+        },
+        {
+          "dir": "east",
+          "hint": "cranes groaning",
+          "to": "cranes"
+        },
+        {
+          "dir": "west",
+          "hint": "container streets",
+          "to": "containers"
+        },
+        {
+          "dir": "south",
+          "hint": "a gantry, uniformed voices",
+          "to": "gantry"
+        }
+      ],
+      "look": {
+        "text": "A sign in four languages: CUSTOMS. Somebody has added a fifth: DON'T."
+      },
+      "enemy": "SALV Boarder"
+    },
+    {
+      "id": "containers",
+      "name": "Container streets",
+      "threat": 12,
+      "text": "Rusting boxes stacked into alleys, each painted with a family's name. Most of the names are crossed out.",
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the port",
+          "to": "port"
+        },
+        {
+          "dir": "down",
+          "label": "Into a container",
+          "hint": "dark, and a smell of cold",
+          "to": "hold"
+        }
+      ],
+      "cache": true,
+      "enemy": "Limbic Cartel Scavenger"
+    },
+    {
+      "id": "hold",
+      "name": "Cold hold",
+      "threat": 13,
+      "text": "A refrigerated container still running, its shelves lined with sealed bags. Each bag is labelled with a weight and a price.",
+      "look": {
+        "text": "A bag with your old face printed on the label. It is empty, and the price has been paid."
+      },
+      "exits": [
+        {
+          "dir": "up",
+          "label": "Back out",
+          "hint": "the container streets",
+          "to": "containers"
+        }
+      ],
+      "ally": "matron",
+      "enemy": "CBN Extraction Surgeon"
+    },
+    {
+      "id": "cranes",
+      "name": "Crane yard",
+      "threat": 12,
+      "text": "Cranes swinging loads over the water with nobody in the cabs. The hooks know where to go.",
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the port",
+          "to": "port"
+        },
+        {
+          "dir": "south",
+          "hint": "a yard of stacked cargo",
+          "to": "yard"
+        }
+      ],
+      "ally": "bale",
+      "enemy": "Tianxia Compliance Unit"
+    },
+    {
+      "id": "yard",
+      "name": "Cargo yard",
+      "threat": 13,
+      "text": "Pallets wrapped in plastic, stacked three storeys high and stamped with inspection seals. The seals are newer than the cargo.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the cranes",
+          "to": "cranes"
+        },
+        {
+          "dir": "south",
+          "hint": "a checkpoint, a loudhailer",
+          "to": "checkpoint"
+        }
+      ],
+      "look": {
+        "text": "The seal on one pallet reads INSPECTED. Inside, the pallet is full of seals."
+      },
+      "enemy": "IOA Interdiction Officer"
+    },
+    {
+      "id": "gantry",
+      "name": "IOA gantry",
+      "threat": 14,
+      "text": "A steel walkway over the port with an authority flag snapping at one end. Below, everyone is queuing to be counted.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the port",
+          "to": "port"
+        },
+        {
+          "dir": "east",
+          "hint": "a checkpoint",
+          "to": "checkpoint"
+        },
+        {
+          "dir": "up",
+          "label": "A ladder, up",
+          "hint": "an office, papers rustling",
+          "to": "archive"
+        }
+      ],
+      "look": {
+        "text": "The queue below moves one step every few minutes. Nobody at the front ever comes back."
+      },
+      "enemy": "IOA Interdiction Officer"
+    },
+    {
+      "id": "archive",
+      "name": "Manifest archive",
+      "threat": 17,
+      "text": "An office stacked with paper manifests, because paper can't be wiped remotely. A fan turns the pages back and forth.",
+      "look": {
+        "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'",
+        "goal": "manifest"
+      },
+      "exits": [
+        {
+          "dir": "down",
+          "label": "The ladder, down",
+          "hint": "the gantry",
+          "to": "gantry"
+        }
+      ],
+      "enemy": "IOA Interdiction Officer"
+    },
+    {
+      "id": "checkpoint",
+      "name": "IOA checkpoint",
+      "threat": 15,
+      "text": "A gate of shipping containers with a scanner arch and an officer behind glass. The arch beeps at you before you reach it.",
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the gantry",
+          "to": "gantry"
+        },
+        {
+          "dir": "north",
+          "hint": "the cargo yard",
+          "to": "yard"
+        },
+        {
+          "dir": "south",
+          "hint": "a road of slag, heat",
+          "to": "road"
+        }
+      ],
+      "look": {
+        "text": "The scanner arch shows a body on its screen. The body isn't yours, and it is."
+      }
+    },
+    {
+      "id": "road",
+      "name": "Slag road",
+      "threat": 16,
+      "text": "A causeway of furnace slag, still warm underfoot, leading into smoke. Barefoot workers walk it without flinching.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the checkpoint",
+          "to": "checkpoint"
+        },
+        {
+          "dir": "east",
+          "hint": "a stall under a canopy",
+          "to": "stall2"
+        },
+        {
+          "dir": "south",
+          "hint": "furnaces",
+          "to": "smelt"
+        }
+      ],
+      "ally": "ghostline",
+      "enemy": "Volkov Operator"
+    },
+    {
+      "id": "stall2",
+      "name": "Canopy stall",
+      "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the slag road",
+          "to": "road"
+        }
+      ]
+    },
+    {
+      "id": "smelt",
+      "name": "Smelting barge",
+      "threat": 18,
+      "text": "Plastic melted down in vats and poured into new decking for the rafts. The air tastes of it for days after.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the slag road",
+          "to": "road"
+        },
+        {
+          "dir": "south",
+          "hint": "a foundry, hammering",
+          "to": "foundry"
+        }
+      ],
+      "cache": true,
+      "enemy": "Volkov Operator"
+    },
+    {
+      "id": "foundry",
+      "name": "Volkov foundry",
+      "threat": 20,
+      "text": "A foundry where operator limbs are fitted to whoever can pay, or whoever is owed. The fitting chairs face the sea.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the smelting barge",
+          "to": "smelt"
+        },
+        {
+          "dir": "south",
+          "hint": "open water, and something growing",
+          "to": "reef"
+        }
+      ],
+      "ally": "breaker"
+    },
+    {
+      "id": "reef",
+      "name": "Plastic reef",
+      "threat": 21,
+      "text": "A reef grown from drowned plastic, coral-coloured and sharp. Fish nest in old shoes.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the foundry",
+          "to": "foundry"
+        },
+        {
+          "dir": "west",
+          "hint": "singing",
+          "to": "path"
+        },
+        {
+          "dir": "east",
+          "hint": "a white pontoon",
+          "to": "theatrepath"
+        }
+      ],
+      "look": {
+        "text": "A diver's mask grown into the coral, the glass still clear. The face is gone."
+      },
+      "enemy": "Ghost-MIL Infiltrator"
+    },
+    {
+      "id": "path",
+      "name": "Hymn walk",
+      "threat": 23,
+      "text": "A path lined with pumps set into posts, each one beating at the same slow pace. Someone ahead is singing to them.",
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the reef",
+          "to": "reef"
+        },
+        {
+          "dir": "south",
+          "hint": "a chapel",
+          "to": "chapel"
+        }
+      ],
+      "enemy": "Pump-Fleet Cadre"
+    },
+    {
+      "id": "chapel",
+      "name": "The Mother's chapel",
+      "threat": 24,
+      "text": "A chapel built inside a whale's ribcage, with a woman at the centre whose heart is a pump the size of a drum. Every pump in the fleet beats in time with hers.",
+      "look": {
+        "text": "The Mother turns her pump toward you and says, very gently, 'There you are. We wondered which one you'd wear.'",
+        "goal": "mother"
+      },
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the hymn walk",
+          "to": "path"
+        }
+      ],
+      "enemy": "Pump-Fleet Cadre"
+    },
+    {
+      "id": "theatrepath",
+      "name": "Clinic pontoon",
+      "threat": 22,
+      "text": "A pontoon of clean white decking with a queue of people waiting in silence. Nobody in the queue has any eyes.",
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the reef",
+          "to": "reef"
+        },
+        {
+          "dir": "south",
+          "hint": "an operating theatre",
+          "to": "theatre"
+        }
+      ],
+      "ally": "ward",
+      "enemy": "CBN Extraction Surgeon"
+    },
+    {
+      "id": "theatre",
+      "name": "CBN theatre",
+      "threat": 25,
+      "text": "An operating theatre with a gallery of seats, all filled. They applaud when the surgeon looks up.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the pontoon",
+          "to": "theatrepath"
+        },
+        {
+          "dir": "south",
+          "hint": "drifting debris",
+          "to": "drift"
+        }
+      ]
+    },
+    {
+      "id": "drift",
+      "name": "The drift",
+      "threat": 26,
+      "text": "The rafts thin out into loose debris, roped together by nobody. The water here is very deep and very still.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the theatre",
+          "to": "theatre"
+        },
+        {
+          "dir": "south",
+          "hint": "a wake, where something passed",
+          "to": "wake"
+        }
+      ],
+      "cache": true,
+      "enemy": "Ghost-MIL Infiltrator"
+    },
+    {
+      "id": "wake",
+      "name": "The wake",
+      "threat": 28,
+      "text": "A long scar across the water where something huge went down. The debris all points the same way.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the drift",
+          "to": "drift"
+        },
+        {
+          "dir": "south",
+          "label": "Follow the wake down",
+          "hint": "a spire under the water",
+          "to": "spire",
+          "requires": "goals"
+        }
+      ],
+      "look": {
+        "text": "Debris all pointing one way, like iron filings round a magnet."
+      },
+      "enemy": "Helix Continuity Warden"
+    },
+    {
+      "id": "spire",
+      "name": "The drowned spire",
+      "threat": 30,
+      "text": "A tower standing under the sea with its top just breaking the surface, lit from inside. Whatever is down there has been listening for you.",
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the wake",
+          "to": "wake"
+        }
+      ]
+    }
   ]
 }
