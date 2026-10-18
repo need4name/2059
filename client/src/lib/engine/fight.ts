@@ -134,7 +134,9 @@ export type FightEvent =
   | { kind: 'extraAction' }
   /** Holdfast spent: the player survived a killing blow. */
   | { kind: 'holdfast' }
-  | { kind: 'allyDown'; ally: number };
+  | { kind: 'allyDown'; ally: number }
+  /** Sound cues only: a body thrown into something, a burn tick, a heavy wound up, a Surge. */
+  | { kind: 'collide' } | { kind: 'burn' } | { kind: 'telegraph' } | { kind: 'surge' };
 
 export interface Step { state: FightState; events: FightEvent[] }
 
@@ -260,7 +262,7 @@ export const canSurge = (s: FightState) => s.overload >= OVERLOAD.full && surgeT
 
 /** Signal Surge: every enemy within 2 tiles takes 1.5x your best move's damage, and your heat vents to zero. */
 export function resolveSurge(s: FightState, bestDamage: number): Step {
-  const events: FightEvent[] = [say('SIGNAL SURGE -- the body screams and everything near it reels', 'critical'), { kind: 'hit' }];
+  const events: FightEvent[] = [say('SIGNAL SURGE -- the body screams and everything near it reels', 'critical'), { kind: 'surge' }];
   let state: FightState = { ...s, overload: 0, playerHeat: 0 };
   const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * OVERLOAD.mult)) };
   for (const i of surgeTargets(s)) {
@@ -336,7 +338,7 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   }
   const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share));
   const into = other ? nameOf(s, other) : !inBounds(to, s.grid) ? 'the rail' : tileAt(to, s.grid)?.type === 'void' ? 'the water' : (tileAt(to, s.grid)?.name ?? 'cover');
-  events.push(say(`${who.kind === 'player' ? 'You slam' : `${nameOf(s, who)} slams`} into ${other?.kind === 'player' ? 'you' : into}: -${dmg}, stunned`, 'critical'));
+  events.push(say(`${who.kind === 'player' ? 'You slam' : `${nameOf(s, who)} slams`} into ${other?.kind === 'player' ? 'you' : into}: -${dmg}, stunned`, 'critical'), { kind: 'collide' });
   let state = stun(hurt(s, who, dmg, events), who);
   if (other) { events.push(say(`${nameOf(s, other)} takes ${dmg} from the impact`, 'damage')); state = hurt(state, other, dmg, events); }
   return state;
@@ -348,14 +350,14 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   let state = s;
   if (s.playerBurning > 0) {
     const dmg = burnDamage(s.player.maxHp);
-    events.push(say(`Burning: -${dmg} HP`, 'damage'));
+    events.push(say(`Burning: -${dmg} HP`, 'damage'), { kind: 'burn' });
     state = { ...hurt(state, { kind: 'player' }, dmg, events), playerBurning: s.playerBurning - 1 };
   }
   // Allies burn too, and a stunned ally sits this round out
   state.allies.forEach((a, k) => {
     if (!allyAlive(a) || a.burning <= 0) return;
     const dmg = burnDamage(a.unit.maxHp);
-    events.push(say(`${a.unit.name} is burning: -${dmg}`, 'damage'));
+    events.push(say(`${a.unit.name} is burning: -${dmg}`, 'damage'), { kind: 'burn' });
     state = hurt(state, { kind: 'ally', k }, dmg, events);
     state = { ...state, allies: state.allies.map((x, n) => (n === k ? { ...x, burning: x.burning - 1 } : x)) };
   });
@@ -587,7 +589,7 @@ export function telegraphHeavy(s: FightState, i: number, action: CombatAction): 
   const at = victim >= 0 ? ` at ${s.allies[victim].unit.name}` : '';
   return {
     state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim, pendingTiles: tiles }),
-    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}${at}!`, 'critical')],
+    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}${at}!`, 'critical'), { kind: 'telegraph' }],
   };
 }
 
@@ -705,7 +707,7 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
   }
   if (f.burning > 0) {
     const dmg = burnDamage(f.unit.maxHp);
-    events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'));
+    events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'), { kind: 'burn' });
     state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
     if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, strikeAfterMove: null };
   }

@@ -1,13 +1,14 @@
 import { create } from "zustand";
+import { playSfx, startSea, stopSea, wakeAudio, type Sfx } from "../audio/sfx";
 
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
-  hitSound: HTMLAudioElement | null;
-  successSound: HTMLAudioElement | null;
   isMuted: boolean;
 
   init: () => void;
   toggleMute: () => void;
+  /** A synthesised effect (see lib/audio/sfx.ts). Silent while muted. */
+  play: (name: Sfx) => void;
   playHit: () => void;
   playSuccess: () => void;
 }
@@ -16,43 +17,28 @@ interface AudioState {
 // and the mute toggle is that tap.
 export const useAudio = create<AudioState>()((set, get) => ({
   backgroundMusic: null,
-  hitSound: null,
-  successSound: null,
   isMuted: true,
 
   init: () => {
     if (get().backgroundMusic || typeof Audio === "undefined") return;
     const music = new Audio(`${import.meta.env.BASE_URL}sounds/background.mp3`);
     music.loop = true;
-    music.volume = 0.25;
-    set({
-      backgroundMusic: music,
-      hitSound: new Audio(`${import.meta.env.BASE_URL}sounds/hit.mp3`),
-      successSound: new Audio(`${import.meta.env.BASE_URL}sounds/success.mp3`),
-    });
+    music.volume = 0.18;
+    set({ backgroundMusic: music });
   },
 
   toggleMute: () => {
     const isMuted = !get().isMuted;
     set({ isMuted });
     const music = get().backgroundMusic;
-    if (!music) return;
-    if (isMuted) music.pause();
-    else music.play().catch(() => {});
+    if (isMuted) { music?.pause(); stopSea(); return; }
+    wakeAudio();
+    startSea();
+    music?.play().catch(() => {});
+    playSfx("tap");
   },
 
-  playHit: () => {
-    const { hitSound, isMuted } = get();
-    if (!hitSound || isMuted) return;
-    const clone = hitSound.cloneNode() as HTMLAudioElement;
-    clone.volume = 0.3;
-    clone.play().catch(() => {});
-  },
-
-  playSuccess: () => {
-    const { successSound, isMuted } = get();
-    if (!successSound || isMuted) return;
-    successSound.currentTime = 0;
-    successSound.play().catch(() => {});
-  },
+  play: (name) => { if (!get().isMuted) playSfx(name); },
+  playHit: () => get().play("hit"),
+  playSuccess: () => get().play("victory"),
 }));

@@ -253,6 +253,14 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - Every run has a seed. Each fight is seeded from the run seed and the fight number, and each market visit from the run seed and its visit key, so the same seed and choices replay exactly (`client/src/lib/engine/rng.ts`).
 - One versioned save holds everything (`client/src/lib/save.ts`). Players can copy it as text and load it back in from the Status tab.
 
+## 8b. Sound
+
+**Where:** `client/src/lib/audio/sfx.ts`, `client/src/lib/stores/useAudio.tsx`.
+
+- Every effect is synthesised in the browser (square and triangle blips, filtered noise), in keeping with the pixel art; there are no effect files. A slow sea wash plays under the music.
+- The fight engine marks moments with sound-only events (`collide`, `burn`, `telegraph`, `surge`, plus `hit`, takedowns, an ally down, a chain action and the host lost). The combat store maps them to effects; moving, searching a cache and walking through a door have their own.
+- Sound starts off, since browsers only allow audio after a tap; the sound button is that tap.
+
 ## 9. Checks that guard these rules
 
 `npm run verify` runs before every deploy:

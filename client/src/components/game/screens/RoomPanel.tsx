@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useMap } from '@/lib/stores/useMap';
+import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, DIR_LABEL } from '@/lib/engine/map';
 import { useAllies } from '@/lib/stores/useAllies';
@@ -98,7 +99,7 @@ export function RoomPanel() {
             const st = exitState(map, e);
             const familiar = map.visited.includes(e.to);
             return (
-              <button key={`${e.dir}-${e.to}`} disabled={st !== 'open'} onClick={() => { setNews(null); map.go(i); }}
+              <button key={`${e.dir}-${e.to}`} disabled={st !== 'open'} onClick={() => { setNews(null); map.go(i); useAudio.getState().play('door'); }}
                 className={cx('flex min-h-[72px] flex-col justify-center rounded-2xl px-3.5 py-2.5 text-left transition',
                   st === 'open' ? 'bg-white/[0.06] ring-1 ring-white/[0.06] hover:bg-sys/10 hover:ring-sys/40' : 'bg-white/[0.02] opacity-55')}>
                 <span className="flex items-center gap-2">

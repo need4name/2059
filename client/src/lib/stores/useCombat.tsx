@@ -13,6 +13,7 @@ import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
+import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
 import { useJournal } from './useJournal';
@@ -254,14 +255,20 @@ grid: target ? { ...state.grid, bossPosition: target.pos, occupied: [...state.fo
 });
 };
 
+// Engine events that make a sound
+const CUE: Partial<Record<Fight.FightEvent['kind'], Sfx>> = {
+hit: 'hit', collide: 'collide', burn: 'burn', telegraph: 'telegraph', surge: 'surge',
+foeDown: 'foeDown', allyDown: 'allyDown', extraAction: 'chain', playerDown: 'defeat',
+};
+
 // Apply an engine step: save its state, write its log lines, play its sounds.
 // Returns true if the fight ended (and handles the ending).
 const apply = (step: Step): boolean => {
 save(step.state);
 for (const e of step.events) {
 if (e.kind === 'log') log(e.message, e.type);
-else if (e.kind === 'hit') useAudio.getState().playHit();
 else if (e.kind === 'holdfast') set({ holdfastSpent: true });
+else if (e.kind in CUE) useAudio.getState().play(CUE[e.kind]!);
 }
 if (step.events.some(e => e.kind === 'playerDown')) { handlePlayerDefeated(); return true; }
 if (step.events.some(e => e.kind === 'allFoesDown')) { handleBossDefeated(); return true; }
@@ -489,6 +496,7 @@ startCombat: () => startFight(get().bossLevel, false),
 openRoomCache: () => {
 const map = useMap.getState();
 if (!map.takeCache()) return null;
+useAudio.getState().play('cache');
 // Seeded per host and room, so a replayed run finds the same things
 seedRandom(mixSeed(get().runSeed, hashSeed(map.room)));
 if (random() < 0.5) {
@@ -532,6 +540,7 @@ const from = reflex ? grid.playerPosition : originalPosition;
 const reachable = getReachableTiles(from, { ...grid, playerPosition: from }, reflex ? 1 : playerMoveRange, get().perks.phaseStep);
 if (!reachable.has(`${position.row},${position.col}`)) return;
 set({ grid: { ...grid, playerPosition: position }, selectedMovement: position, hasMoved: true });
+useAudio.getState().play('step');
 if (reflex) { set({ inputLocked: true }); finishPlayerAction(true); }
 },
 
