@@ -6,7 +6,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
-import { drawSea, drawDeckTile, drawHazard, drawObstacle, drawStatus } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawHazard, drawObstacle, drawStatus, drawSwimming } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { currentChapter } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -676,6 +676,7 @@ playerFacingLeft
 );
 
 drawStatus(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, playerBurning > 0, playerStunned, now);
+if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, tileset.sea, now);
 
 // Player HP bar below character
 const playerHpPercent = player.currentHp / player.maxHp;
@@ -714,6 +715,7 @@ ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
 drawFigure(ctx, a.id, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
 drawStatus(ctx, ap.x, ap.y - size / 2 - 6, size, a.burning > 0, a.stunned, now);
+if (a.swimming) drawSwimming(ctx, ap.x, ap.y - size / 2 - 6, size, tileset.sea, now);
 ctx.restore();
 const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
@@ -762,6 +764,7 @@ drawFigure(ctx, f.unit.name, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + 
 v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col);
 ctx.restore();
 drawStatus(ctx, fp.x, fp.y - size / 2 - 8, size, f.burning > 0, f.stunned, now);
+if (f.swimming) drawSwimming(ctx, fp.x, fp.y - size / 2 - 8, size, tileset.sea, now);
 // Implant glows: one per implant carried, in the colour of its grade, so upgraded enemies look upgraded
 if (f.unit.grade !== undefined && f.unit.implants?.length) {
 const gc = ENEMY_GRADES[f.unit.grade].color;

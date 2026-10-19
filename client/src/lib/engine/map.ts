@@ -6,7 +6,7 @@ import data from '../../content/map-indian-ocean.json';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
-export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; exits: Exit[] }
+export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; arena?: string[]; exits: Exit[] }
 export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; goals: string[]; rooms: Room[] }
 
 export const CHAPTER_MAP = data as ChapterMap;

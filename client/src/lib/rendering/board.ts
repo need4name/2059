@@ -247,3 +247,21 @@ export function drawStatus(ctx: Ctx, cx: number, top: number, size: number, burn
   }
   ctx.restore();
 }
+
+/** A unit in the sea: water over its lower half and a pixel ripple round it. `top` is the sprite's top, `size` its size. */
+export function drawSwimming(ctx: Ctx, cx: number, top: number, size: number, sea: { top: string; foam: string }, now: number) {
+  const p = Math.max(2, Math.round(size / 24));
+  const waterY = Math.round(top + size * 0.55);
+  ctx.save();
+  ctx.fillStyle = sea.top;
+  ctx.globalAlpha = 0.92;
+  ctx.fillRect(Math.round(cx - size * 0.45), waterY, Math.round(size * 0.9), Math.round(size * 0.5));
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = sea.foam;
+  const bob = Math.floor(now / 260) % 2;
+  for (let k = -3; k <= 3; k++) {
+    if ((k + bob) % 2 === 0) continue;
+    ctx.fillRect(Math.round(cx + k * p * 2.5), waterY - p + (k % 2 === 0 ? 0 : p), p * 2, p);
+  }
+  ctx.restore();
+}

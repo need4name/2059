@@ -1,5 +1,5 @@
 {
-  "about": "Chapter one's hidden map. The player only sees the room they're in and its exits. threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences.",
+  "about": "Chapter one's hidden map. The player only sees the room they're in and its exits. threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences. arena = the fight's board, drawn as text rows: '.' deck, '~' open water, '#' crates, 'd' drums, 'n' nets, 'p' pumps, '?' a loose crate (there half the time), 'f' fuel fire, 'c' live cable, 'b' chemical bilge, 'h' split decking, 'P' your start, 'E' enemy starts (first is the lead).",
   "chapter": "indian-ocean",
   "title": "Chapter one: the Indian Ocean",
   "end": "spire",
@@ -49,7 +49,18 @@
       "look": {
         "text": "A tally scratched into the plastic, counting to something nobody finished."
       },
-      "enemy": "Limbic Cartel Scavenger"
+      "enemy": "Limbic Cartel Scavenger",
+      "arena": [
+        "..E....",
+        ".......",
+        "..#..d.",
+        ".......",
+        ".d...#.",
+        ".......",
+        "...#...",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "bottles",
@@ -71,7 +82,18 @@
           "to": "hull"
         }
       ],
-      "enemy": "Limbic Cartel Scavenger"
+      "enemy": "Limbic Cartel Scavenger",
+      "arena": [
+        "...E...",
+        ".h.....",
+        ".....h.",
+        "..#....",
+        "....h..",
+        ".h...#.",
+        ".......",
+        "..d....",
+        "...P..."
+      ]
     },
     {
       "id": "walkway",
@@ -98,7 +120,20 @@
       "look": {
         "text": "Rope knotted the way sailors do it. Whoever tied it knew the old ways, and is gone."
       },
-      "enemy": "Non-Continuous Raider"
+      "enemy": "Non-Continuous Raider",
+      "arena": [
+        "~.E.~",
+        "~...~",
+        "~.d.~",
+        "~...~",
+        "~~.~~",
+        "~~.~~",
+        "~...~",
+        "~.#.~",
+        "~...~",
+        "~...~",
+        "~.P.~"
+      ]
     },
     {
       "id": "shacks",
@@ -121,7 +156,18 @@
           "to": "bilge"
         }
       ],
-      "enemy": "Limbic Cartel Scavenger"
+      "enemy": "Limbic Cartel Scavenger",
+      "arena": [
+        "E.....E",
+        ".##.##.",
+        ".#...#.",
+        "...?...",
+        ".#...#.",
+        ".##.##.",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ]
     },
     {
       "id": "stall",
@@ -161,7 +207,16 @@
       "look": {
         "text": "Under the painted face, someone has scratched a smaller one. It has your jaw."
       },
-      "enemy": "Pump-Fleet Cadre"
+      "enemy": "Pump-Fleet Cadre",
+      "arena": [
+        "...E.E...",
+        ".p.....p.",
+        ".........",
+        "....p....",
+        ".........",
+        ".p.....p.",
+        "....P...."
+      ]
     },
     {
       "id": "bilge",
@@ -184,7 +239,18 @@
       "look": {
         "text": "A shoe, still laced, with nothing in it. The water has rinsed it very clean."
       },
-      "enemy": "Non-Continuous Raider"
+      "enemy": "Non-Continuous Raider",
+      "arena": [
+        "...E...",
+        ".b...b.",
+        ".b.#.b.",
+        ".......",
+        "bb.?.bb",
+        ".......",
+        ".b.#.b.",
+        ".b...b.",
+        "...P..."
+      ]
     },
     {
       "id": "pumps",
@@ -209,7 +275,18 @@
         }
       ],
       "cache": true,
-      "enemy": "Pump-Fleet Cadre"
+      "enemy": "Pump-Fleet Cadre",
+      "arena": [
+        ".E...E.",
+        ".p.p.p.",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".p.?.p.",
+        ".......",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "weigh",
@@ -235,7 +312,18 @@
       ],
       "look": {
         "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
-      }
+      },
+      "arena": [
+        "...E...",
+        ".......",
+        ".~~.~~.",
+        ".~...~.",
+        "...#...",
+        ".~...~.",
+        ".~~.~~.",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "lanes",
@@ -268,7 +356,20 @@
       "look": {
         "text": "A boat made from a fridge door, with a child's sticker still on it."
       },
-      "enemy": "SALV Boarder"
+      "enemy": "SALV Boarder",
+      "arena": [
+        "..E~~.E..",
+        "...~~....",
+        ".#.......",
+        "...~~..d.",
+        "~.~~~~.~~",
+        "...~~....",
+        ".d.~~..#.",
+        ".........",
+        "~~~~.~~~~",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "barge",
@@ -286,7 +387,18 @@
           "to": "lanes"
         }
       ],
-      "enemy": "CBN Extraction Surgeon"
+      "enemy": "CBN Extraction Surgeon",
+      "arena": [
+        ".......",
+        ".#.#.#.",
+        "...E...",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        "E.....E",
+        "...P..."
+      ]
     },
     {
       "id": "cables",
@@ -308,7 +420,18 @@
       "look": {
         "text": "Every cable is labelled with whoever stole it. The labels go back forty years."
       },
-      "enemy": "Tianxia Compliance Unit"
+      "enemy": "Tianxia Compliance Unit",
+      "arena": [
+        "...E...",
+        "c.c.c.c",
+        ".......",
+        ".#...#.",
+        "c.c.c.c",
+        ".......",
+        "...?...",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "nets",
@@ -330,7 +453,19 @@
       "look": {
         "text": "A float with a number painted on it. You know the number. You don't know how."
       },
-      "enemy": "SALV Boarder"
+      "enemy": "SALV Boarder",
+      "arena": [
+        ".E...E.",
+        "nnn.nnn",
+        ".......",
+        ".nnnnn.",
+        ".......",
+        "nn.n.nn",
+        ".......",
+        ".n...n.",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "generator",
@@ -350,7 +485,18 @@
         }
       ],
       "cache": true,
-      "enemy": "Tianxia Compliance Unit"
+      "enemy": "Tianxia Compliance Unit",
+      "arena": [
+        "....E....",
+        ".........",
+        "..##.##..",
+        "..#f.f#..",
+        "...fff...",
+        "..#f.f#..",
+        "..##.##..",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "approach",
@@ -378,7 +524,20 @@
       "look": {
         "text": "Offerings at the foot of the steps: teeth, chips, a wedding ring with the finger still in it."
       },
-      "enemy": "Non-Continuous Raider"
+      "enemy": "Non-Continuous Raider",
+      "arena": [
+        "..E.E..",
+        ".......",
+        "#.....#",
+        ".#...#.",
+        ".......",
+        "##...##",
+        ".......",
+        "###.###",
+        ".......",
+        "...P...",
+        "......."
+      ]
     },
     {
       "id": "throne",
@@ -398,6 +557,19 @@
           "hint": "a drowned port",
           "to": "port"
         }
+      ],
+      "arena": [
+        "###.E.###",
+        ".........",
+        ".p.....p.",
+        ".........",
+        ".........",
+        ".p.....p.",
+        ".........",
+        ".........",
+        ".p.....p.",
+        ".........",
+        "....P...."
       ]
     },
     {
@@ -430,7 +602,20 @@
       "look": {
         "text": "A sign in four languages: CUSTOMS. Somebody has added a fifth: DON'T."
       },
-      "enemy": "SALV Boarder"
+      "enemy": "SALV Boarder",
+      "arena": [
+        "....E....",
+        ".##...##.",
+        ".##~~~##.",
+        "...~~~...",
+        ".........",
+        "~~.....~~",
+        "~~..#..~~",
+        ".........",
+        ".##...##.",
+        ".##...##.",
+        "....P...."
+      ]
     },
     {
       "id": "containers",
@@ -451,7 +636,20 @@
         }
       ],
       "cache": true,
-      "enemy": "Limbic Cartel Scavenger"
+      "enemy": "Limbic Cartel Scavenger",
+      "arena": [
+        "E...#...E",
+        ".##.#.##.",
+        ".#.....#.",
+        ".#.###.#.",
+        ".........",
+        "###.#.###",
+        ".........",
+        ".#.###.#.",
+        ".#.....#.",
+        ".##...##.",
+        "....P...."
+      ]
     },
     {
       "id": "hold",
@@ -470,7 +668,20 @@
         }
       ],
       "ally": "matron",
-      "enemy": "CBN Extraction Surgeon"
+      "enemy": "CBN Extraction Surgeon",
+      "arena": [
+        "...E...",
+        ".#.#.#.",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".#.#.#.",
+        ".......",
+        ".#.?.#.",
+        ".#...#.",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "cranes",
@@ -490,7 +701,22 @@
         }
       ],
       "ally": "bale",
-      "enemy": "Tianxia Compliance Unit"
+      "enemy": "Tianxia Compliance Unit",
+      "arena": [
+        "~.E.~",
+        ".....",
+        "..#..",
+        ".....",
+        "~...~",
+        "~...~",
+        ".....",
+        "..d..",
+        ".....",
+        "~...~",
+        ".....",
+        ".....",
+        "~.P.~"
+      ]
     },
     {
       "id": "yard",
@@ -512,7 +738,20 @@
       "look": {
         "text": "The seal on one pallet reads INSPECTED. Inside, the pallet is full of seals."
       },
-      "enemy": "IOA Interdiction Officer"
+      "enemy": "IOA Interdiction Officer",
+      "arena": [
+        ".E.....E.",
+        ".........",
+        ".##.#.##.",
+        ".##.#.##.",
+        ".........",
+        "#.#...#.#",
+        "#.#...#.#",
+        ".........",
+        ".##.#.##.",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "gantry",
@@ -540,7 +779,22 @@
       "look": {
         "text": "The queue below moves one step every few minutes. Nobody at the front ever comes back."
       },
-      "enemy": "IOA Interdiction Officer"
+      "enemy": "IOA Interdiction Officer",
+      "arena": [
+        "~.E.~",
+        "~...~",
+        "~.#.~",
+        "~...~",
+        ".....",
+        "~...~",
+        "~~.~~",
+        "~...~",
+        "~.#.~",
+        "~...~",
+        ".....",
+        "~...~",
+        "~.P.~"
+      ]
     },
     {
       "id": "archive",
@@ -559,7 +813,16 @@
           "to": "gantry"
         }
       ],
-      "enemy": "IOA Interdiction Officer"
+      "enemy": "IOA Interdiction Officer",
+      "arena": [
+        "E.#.#.E",
+        ".......",
+        "#.....#",
+        "...P...",
+        "#.....#",
+        ".......",
+        "E.#.#.."
+      ]
     },
     {
       "id": "checkpoint",
@@ -585,7 +848,20 @@
       ],
       "look": {
         "text": "The scanner arch shows a body on its screen. The body isn't yours, and it is."
-      }
+      },
+      "arena": [
+        "....E....",
+        ".........",
+        ".#.....#.",
+        ".#.....#.",
+        "####c####",
+        ".........",
+        ".#.....#.",
+        ".........",
+        "..d...d..",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "road",
@@ -610,7 +886,20 @@
         }
       ],
       "ally": "ghostline",
-      "enemy": "Volkov Operator"
+      "enemy": "Volkov Operator",
+      "arena": [
+        "~..E..~",
+        "~.....~",
+        "~.f.f.~",
+        "~.....~",
+        "~~...~~",
+        "~~...~~",
+        "~.f.f.~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~..P..~"
+      ]
     },
     {
       "id": "stall2",
@@ -643,7 +932,19 @@
         }
       ],
       "cache": true,
-      "enemy": "Volkov Operator"
+      "enemy": "Volkov Operator",
+      "arena": [
+        "..E.E..",
+        ".......",
+        ".ff.ff.",
+        ".ff.ff.",
+        ".......",
+        "...#...",
+        ".......",
+        ".ff.ff.",
+        ".......",
+        "...P..."
+      ]
     },
     {
       "id": "foundry",
@@ -662,7 +963,20 @@
           "to": "reef"
         }
       ],
-      "ally": "breaker"
+      "ally": "breaker",
+      "arena": [
+        "....E....",
+        ".........",
+        ".p.....p.",
+        ".........",
+        "fff...fff",
+        ".........",
+        ".p.....p.",
+        ".........",
+        "...#.#...",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "reef",
@@ -689,7 +1003,20 @@
       "look": {
         "text": "A diver's mask grown into the coral, the glass still clear. The face is gone."
       },
-      "enemy": "Ghost-MIL Infiltrator"
+      "enemy": "Ghost-MIL Infiltrator",
+      "arena": [
+        "..E...E..",
+        ".~~...~~.",
+        ".~h...h~.",
+        ".........",
+        "...~~~...",
+        ".h.~~~.h.",
+        ".........",
+        ".~~...~~.",
+        ".~.....~.",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "path",
@@ -708,7 +1035,20 @@
           "to": "chapel"
         }
       ],
-      "enemy": "Pump-Fleet Cadre"
+      "enemy": "Pump-Fleet Cadre",
+      "arena": [
+        "E......",
+        ".....~~",
+        ".p.p.~~",
+        ".....~~",
+        "~~.....",
+        "~~.p.p.",
+        "~~.....",
+        ".....~~",
+        ".p.p.~~",
+        ".....~~",
+        "P......"
+      ]
     },
     {
       "id": "chapel",
@@ -726,7 +1066,20 @@
           "to": "path"
         }
       ],
-      "enemy": "Pump-Fleet Cadre"
+      "enemy": "Pump-Fleet Cadre",
+      "arena": [
+        "....E....",
+        ".#.....#.",
+        ".........",
+        ".#.....#.",
+        ".........",
+        ".#..p..#.",
+        ".........",
+        ".#.....#.",
+        ".........",
+        ".#.....#.",
+        "....P...."
+      ]
     },
     {
       "id": "theatrepath",
@@ -746,7 +1099,21 @@
         }
       ],
       "ally": "ward",
-      "enemy": "CBN Extraction Surgeon"
+      "enemy": "CBN Extraction Surgeon",
+      "arena": [
+        "..E..",
+        ".....",
+        ".d.d.",
+        ".....",
+        "~...~",
+        "~...~",
+        ".d.d.",
+        ".....",
+        "~...~",
+        "~...~",
+        ".....",
+        "..P.."
+      ]
     },
     {
       "id": "theatre",
@@ -764,6 +1131,18 @@
           "hint": "drifting debris",
           "to": "drift"
         }
+      ],
+      "arena": [
+        "##.#E#.##",
+        ".........",
+        "#.#####.#",
+        ".........",
+        "....#....",
+        ".........",
+        ".........",
+        "..#...#..",
+        ".........",
+        "....P...."
       ]
     },
     {
@@ -784,7 +1163,20 @@
         }
       ],
       "cache": true,
-      "enemy": "Ghost-MIL Infiltrator"
+      "enemy": "Ghost-MIL Infiltrator",
+      "arena": [
+        ".E.~~~.E.",
+        "...~~~...",
+        "~.~~~~~.~",
+        "~.~...~.~",
+        "~...#...~",
+        "~~~...~~~",
+        "~.......~",
+        "~.~~.~~.~",
+        "~.~~.~~.~",
+        ".........",
+        "....P...."
+      ]
     },
     {
       "id": "wake",
@@ -808,7 +1200,20 @@
       "look": {
         "text": "Debris all pointing one way, like iron filings round a magnet."
       },
-      "enemy": "Helix Continuity Warden"
+      "enemy": "Helix Continuity Warden",
+      "arena": [
+        "....E...E",
+        ".......#.",
+        "......#..",
+        ".~...#...",
+        ".~~.#....",
+        ".........",
+        "....#.~~.",
+        "...#...~.",
+        "..#......",
+        ".#.......",
+        "P........"
+      ]
     },
     {
       "id": "spire",
@@ -822,6 +1227,19 @@
           "hint": "the wake",
           "to": "wake"
         }
+      ],
+      "arena": [
+        "...#E#...",
+        ".........",
+        "..~~~~~..",
+        ".~~~~~~~.",
+        ".~~~~~~~.",
+        ".~~~~~~~.",
+        ".~~~~~~~.",
+        ".~~~~~~~.",
+        "..~~~~~..",
+        ".........",
+        "....P...."
       ]
     }
   ]

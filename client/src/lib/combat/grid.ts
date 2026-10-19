@@ -256,15 +256,51 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
   return grid;
 }
 
+// ── Drawn arenas ─────────────────────────────────────────────────────────────
+// Fight rooms carry their own board, drawn as text in the map file, so a place
+// is the same place every run. Only loose crates ('?') vary.
+
+const COVER_ART: Record<string, string> = { '#': 'crate', d: 'drum', n: 'nets', p: 'pump' };
+const HAZARD_ART: Record<string, string> = { f: 'fire', c: 'cable', b: 'chem', h: 'hole' };
+export const ARENA_CHARS = '.~#dnp?fcbhPE';
+
+/** Build a board from a drawn layout (see the map file's notes for the characters). */
+export function buildArena(layout: string[]): CombatGrid {
+  const rows = layout.length, cols = layout[0].length;
+  const cover = OBSTACLE_TYPES(), hazards = HAZARD_TYPES();
+  const coverOf = (art: string) => cover.find(o => o.art === art) ?? cover[0];
+  const hazardOf = (art: string) => hazards.find(h => h.art === art) ?? hazards[0];
+  let playerPosition = { row: rows - 1, col: Math.floor(cols / 2) };
+  const spawns: TilePosition[] = [];
+  const tiles: TileData[][] = layout.map((line, r) => Array.from(line).map((ch, c): TileData => {
+    if (ch === 'P') playerPosition = { row: r, col: c };
+    if (ch === 'E') spawns.push({ row: r, col: c });
+    if (ch === '~') return { type: 'void' };
+    if (ch === '?') {
+      if (random() >= 0.5) return { type: 'empty' };
+      const o = randomOf(cover);
+      return { type: 'obstacle', art: o.art, name: o.name };
+    }
+    if (COVER_ART[ch]) { const o = coverOf(COVER_ART[ch]); return { type: 'obstacle', art: o.art, name: o.name }; }
+    if (HAZARD_ART[ch]) { const h = hazardOf(HAZARD_ART[ch]); return { type: 'hazard', art: h.art, name: h.name, hazardDamage: h.damage }; }
+    return { type: 'empty' };
+  }));
+  return { rows, cols, tiles, arenaShape: 'drawn', playerPosition, bossPosition: spawns[0] ?? { row: 0, col: Math.floor(cols / 2) }, spawns };
+}
+
 /**
  * Where a fight's foes start: the first at the grid's enemy spawn, the rest on
  * nearby open tiles in the top rows, spread out and reachable.
  */
 export function spawnFoePositions(grid: CombatGrid, count: number): TilePosition[] {
   const out: TilePosition[] = [grid.bossPosition];
+  // A drawn arena says where enemies start; extra enemies stand near those spots
+  for (const p of grid.spawns ?? []) if (out.length < count && !out.some(o => samePos(o, p))) out.push(p);
   const reach = stepDistances(grid.playerPosition, grid);
   const candidates: TilePosition[] = [];
-  for (let r = 0; r < Math.min(3, grid.rows); r++) for (let c = 0; c < grid.cols; c++) {
+  const near = (p: TilePosition) => grid.spawns?.length ? grid.spawns.some(s => chebyshev(s, p) <= 2) : p.row < Math.min(3, grid.rows);
+  for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) {
+    if (!near({ row: r, col: c }) || chebyshev({ row: r, col: c }, grid.playerPosition) < 2) continue;
     const p = { row: r, col: c };
     if (tileAt(p, grid)?.type === 'empty' && reach.has(key(p))) candidates.push(p);
   }

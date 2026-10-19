@@ -14,7 +14,7 @@ import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
-import { generateBattlefield, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
+import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
@@ -425,7 +425,9 @@ const isKing = !farm && level === 10;
 const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy);
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
-const grid = generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
+// Map fights use the room's own drawn arena; farm fights roll one
+const drawn = !farm ? roomById(useMap.getState().room).arena : undefined;
+const grid = drawn ? buildArena(drawn) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 const spots = spawnFoePositions(grid, units.length);
 const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));

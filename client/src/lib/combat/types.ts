@@ -175,7 +175,9 @@ art?: string;
 export interface CombatGrid {
 rows: number;
 cols: number;
-arenaShape?: 'open' | 'corridor' | 'l_shape' | 'cross';
+arenaShape?: 'open' | 'corridor' | 'l_shape' | 'cross' | 'drawn';
+/** Drawn arenas: where enemies start, lead first. */
+spawns?: TilePosition[];
 playerPosition: TilePosition;
 bossPosition: TilePosition;
 /** Other units standing on the field (blocks movement and paths). */

@@ -1,6 +1,7 @@
 // Checks every content file before it can ship: shapes, allowed values, unique
 // ids and cross-references. `npm run check:content` prints problems and fails;
 // tests/content.test.ts runs the same check.
+import { ARENA_CHARS } from '../client/src/lib/combat/grid';
 import { z } from 'zod';
 import items from '../client/src/content/items.json';
 import weapons from '../client/src/content/weapons.json';
@@ -68,13 +69,39 @@ const chapterFile = z.object({
   }).strict()).min(1),
 }).strict();
 const DIRS = ['north', 'south', 'east', 'west', 'up', 'down', 'in', 'out'] as const;
+/** A drawn arena: rectangular, known characters, one player start, enemy starts the player can reach. */
+function arenaProblems(id: string, rows?: string[]): string[] {
+  if (!rows) return [`map ${id}: a fight room needs an arena`];
+  const out: string[] = [];
+  const w = rows[0].length;
+  if (rows.some(r => r.length !== w)) out.push(`map ${id}: arena rows must all be the same width`);
+  const bad = Array.from(new Set(rows.join(''))).filter(ch => !ARENA_CHARS.includes(ch));
+  if (bad.length) out.push(`map ${id}: arena uses unknown characters ${bad.join(' ')}`);
+  const at = (ch: string) => rows.flatMap((r, ri) => Array.from(r).map((c, ci) => (c === ch ? [ri, ci] : null)).filter(Boolean) as number[][]);
+  const P = at('P'), E = at('E');
+  if (P.length !== 1) out.push(`map ${id}: arena needs exactly one P`);
+  if (!E.length) out.push(`map ${id}: arena needs at least one E`);
+  if (out.length) return out;
+  const solid = (r: number, c: number) => '~#dnp?'.includes(rows[r][c]);
+  const seen = new Set([P[0].join(',')]); const queue = [P[0]];
+  while (queue.length) {
+    const [r, c] = queue.shift()!;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const nr = r + dr, nc = c + dc, k = `${nr},${nc}`;
+      if (nr < 0 || nc < 0 || nr >= rows.length || nc >= w || seen.has(k) || solid(nr, nc)) continue;
+      seen.add(k); queue.push([nr, nc]);
+    }
+  }
+  for (const e of E) if (!seen.has(e.join(','))) out.push(`map ${id}: enemy start ${e.join(',')} can't be reached from P`);
+  return out;
+}
 const mapFile = z.object({
   about: text, chapter: text, title: text, entry: text, end: text, ending: z.string().trim().min(1).max(300), goals: z.array(text).min(1),
   rooms: z.array(z.object({
     id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
-    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(),
+    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -196,6 +223,8 @@ export function checkContent(): string[] {
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
+      if (r.threat !== undefined) problems.push(...arenaProblems(r.id, r.arena));
+      else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);
       if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);
       if (r.look?.goal && !m.goals.includes(r.look.goal)) problems.push(`map ${r.id}: goal "${r.look.goal}" isn't one of the chapter's goals`);

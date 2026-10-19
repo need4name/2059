@@ -83,3 +83,20 @@ test('winning the end room finishes the chapter and leaves it quiet for every la
   assert.equal(M.roomText(s), M.roomById(M.CHAPTER_MAP.end).text);
   assert.ok(M.hasFight({ ...next, room: 'deck' }), 'other rooms fill up again');
 });
+
+test('every fight room has its own drawn arena, the same each run apart from loose crates', async () => {
+  const { buildArena, spawnFoePositions } = await import('../client/src/lib/combat/grid');
+  const { seedRandom } = await import('../client/src/lib/engine/rng');
+  for (const room of M.CHAPTER_MAP.rooms.filter(r => r.threat !== undefined)) {
+    assert.ok(room.arena, `${room.id} has an arena`);
+    seedRandom(1); const a = buildArena(room.arena!);
+    seedRandom(2); const b = buildArena(room.arena!);
+    assert.equal(a.arenaShape, 'drawn');
+    assert.deepEqual(a.playerPosition, b.playerPosition, 'same start every run');
+    const fixed = (g: typeof a) => g.tiles.map((row, r) => row.map((t, c) => (room.arena![r][c] === '?' ? '?' : t.type)).join('')).join('/');
+    assert.equal(fixed(a), fixed(b), `${room.id}: only loose crates change`);
+    const spots = spawnFoePositions(a, 3);
+    assert.deepEqual(spots[0], a.spawns![0], 'the lead starts on the first E');
+    assert.ok(spots.every(p => a.tiles[p.row][p.col].type !== 'void' && a.tiles[p.row][p.col].type !== 'obstacle'));
+  }
+});

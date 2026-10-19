@@ -377,3 +377,36 @@ test('walking away from an enemy beside you earns a parting blow; staying beside
   const stunned = { ...away, foes: [{ ...away.foes[0], stunned: true }] };
   assert.deepEqual(Fight.partingFoes(stunned, start, { row: 6, col: 3 }), [], 'a stunned enemy lets you go');
 });
+
+test('knocked into the sea: it hurts, it cannot be hit, and climbing out costs its next turn', () => {
+  const grid = arena([5, 3], [4, 3]);
+  grid.tiles[3][3] = { type: 'void' } as any; // open water behind the enemy
+  const s = fight({ grid });
+  const events: any[] = [];
+  const wet = Fight.knockBack(s, { row: 5, col: 3 }, { kind: 'foe', i: 0 }, 40, events);
+  assert.equal(wet.foes[0].swimming, true);
+  assert.deepEqual(wet.foes[0].pos, { row: 3, col: 3 });
+  assert.ok(wet.foes[0].unit.currentHp < s.foes[0].unit.currentHp, 'the fall hurts');
+  assert.ok(wet.foes[0].unit.currentHp > 0, "but doesn't drown it");
+  const jab = { ...PLAYER_ACTIONS[0], attackPattern: 'melee_long' as const };
+  assert.equal(Fight.canPlayerHit(wet, jab, 'none'), false, "can't be hit in the water");
+  assert.equal(Fight.foeThreatTiles(wet, 0).size, 0, 'no threat while climbing out');
+  seedRandom(51);
+  const climb = Fight.foeTurn(wet, 0, 3);
+  assert.equal(climb.state.foes[0].swimming, false);
+  assert.equal(climb.state.player.currentHp, wet.player.currentHp, 'climbing out is its whole turn');
+  assert.notEqual(climb.state.grid.tiles[climb.state.foes[0].pos.row][climb.state.foes[0].pos.col].type, 'void');
+});
+
+test('the player in the sea is left alone, then spends the next turn climbing out', () => {
+  const grid = arena([5, 3], [2, 3]);
+  grid.tiles[6][3] = { type: 'void' } as any;
+  const s = fight({ grid, playerHeat: 0 });
+  const wet = Fight.knockBack(s, { row: 4, col: 3 }, { kind: 'player' }, 40, []);
+  assert.equal(wet.playerSwimming, true);
+  seedRandom(52);
+  assert.equal(Fight.chooseFoeAction(wet, 0).action, null, 'nothing to hit');
+  const turn = Fight.playerConditions(wet);
+  assert.equal(turn.skipTurn, true);
+  assert.equal(turn.state.playerSwimming, false);
+});

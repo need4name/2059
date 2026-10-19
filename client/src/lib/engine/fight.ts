@@ -66,6 +66,8 @@ export interface Foe {
   burning: number;
   /** Loses its next turn (slammed into something solid). */
   stunned: boolean;
+  /** Knocked into the sea: can't be hit, and spends its next turn climbing out. */
+  swimming?: boolean;
   /** A boss has passed its half-health turn. */
   enraged: boolean;
 }
@@ -87,6 +89,8 @@ export interface Ally {
   defenseBoost: number;
   burning: number;
   stunned: boolean;
+  /** Knocked into the sea: can't be hit, and spends its next turn climbing out. */
+  swimming?: boolean;
 }
 
 export interface FightState {
@@ -120,6 +124,8 @@ export interface FightState {
   playerBurning: number;
   /** The player loses their next turn. */
   playerStunned: boolean;
+  /** The player is in the sea (see swimming on foes). */
+  playerSwimming?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
   overload: number;
 }
@@ -146,6 +152,8 @@ const say = (message: string, type: CombatLog['type'] = 'info'): FightEvent => (
 const same = (a: TilePosition, b: TilePosition) => a.row === b.row && a.col === b.col;
 
 export const isAlive = (f: Foe) => f.unit.currentHp > 0;
+/** Alive and on deck: something attacks can reach (a unit in the sea can't be hit). */
+const hittable = (f: Foe) => isAlive(f) && !f.swimming;
 /** Does this enemy carry an implant that gives it this trait? */
 export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
 /** Damage an enemy takes: a spine brace cuts it. */
@@ -162,7 +170,7 @@ export function foeRoster(f: Foe): CombatAction[] {
 export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
-  playerBurning: 0, playerStunned: false, overload: 0,
+  playerBurning: 0, playerStunned: false, playerSwimming: false, overload: 0,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -191,12 +199,13 @@ export function viewFor(s: FightState, i: number): CombatGrid {
 
 /** Who foe i goes for: -1 for the player, or an ally's index. */
 export function victimOf(s: FightState, i: number): number {
-  const taunt = s.allies.findIndex(a => allyAlive(a) && a.taunting);
+  const taunt = s.allies.findIndex(a => allyAlive(a) && !a.swimming && a.taunting);
   if (taunt >= 0) return taunt;
   const from = s.foes[i].pos;
-  let best = -1, bestDist = chebyshev(from, s.grid.playerPosition);
+  // Nobody in the sea can be reached: the player only counts while on deck
+  let best = -1, bestDist = s.playerSwimming ? Infinity : chebyshev(from, s.grid.playerPosition);
   s.allies.forEach((a, k) => {
-    if (!allyAlive(a)) return;
+    if (!allyAlive(a) || a.swimming) return;
     const d = chebyshev(from, a.pos);
     if (d < bestDist) { best = k; bestDist = d; }
   });
@@ -257,7 +266,7 @@ export const OVERLOAD = { dealt: 25, taken: 50, full: 100, reach: 2, mult: 1.5 }
 const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, overload: Math.min(OVERLOAD.full, s.overload + Math.max(0, Math.round(amount))) });
 const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
 
-export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => chebyshev(x.f.pos, s.grid.playerPosition) <= OVERLOAD.reach).map(x => x.i);
+export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => !x.f.swimming && chebyshev(x.f.pos, s.grid.playerPosition) <= OVERLOAD.reach).map(x => x.i);
 export const canSurge = (s: FightState) => s.overload >= OVERLOAD.full && surgeTargets(s).length > 0;
 
 /** Signal Surge: every enemy within 2 tiles takes 1.5x your best move's damage, and your heat vents to zero. */
@@ -320,8 +329,8 @@ const stun = (s: FightState, b: Body): FightState =>
   : { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, stunned: true } : x)) };
 
 /**
- * Knockback from `from`: the body is pushed a tile straight on. If something solid is
- * there (cover, the rail, open water, another body) it slams into it instead: collision
+ * Knockback from `from`: the body is pushed a tile straight on. Open water swallows
+ * it (see swimming). If something solid is there (cover, the rail, another body) it slams into it instead: collision
  * damage and a stun, and a body it hits takes the same damage.
  */
 export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[]): FightState {
@@ -329,6 +338,15 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
   const to = { row: at.row + step.row, col: at.col + step.col };
   const other = inBounds(to, s.grid) ? bodyAt(s, to) : null;
+  // Open water: in it goes. It hurts, and it spends its next turn climbing out (unhittable meanwhile)
+  if (inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' && !other) {
+    const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share));
+    events.push(say(`${who.kind === 'player' ? 'You go' : `${nameOf(s, who)} goes`} into the sea: -${dmg}`, 'critical'), { kind: 'collide' });
+    const wet = hurt(s, who, dmg, events);
+    if (who.kind === 'player') return { ...wet, grid: { ...wet.grid, playerPosition: to }, playerSwimming: true };
+    if (who.kind === 'foe') return setFoe(wet, who.i, { pos: to, swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
+    return { ...wet, allies: wet.allies.map((x, n) => (n === who.k ? { ...x, pos: to, swimming: true, taunting: false } : x)) };
+  }
   const solid = !inBounds(to, s.grid) || isImpassable(to, s.grid) || other !== null;
   if (!solid) {
     events.push(say(who.kind === 'player' ? 'Knocked back a tile' : `${nameOf(s, who)} is knocked back`));
@@ -344,7 +362,24 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   return state;
 }
 
-/** Start of the player's turn, after cooling: burning ticks; a stun costs the whole turn. */
+/** Out of the sea onto the nearest open deck tile (nobody on it). */
+function climbOut(s: FightState, b: Body, events: FightEvent[]): FightState {
+  const from = posOf(s, b);
+  let best: TilePosition | null = null, bestD = Infinity;
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    const p = { row, col };
+    if (isImpassable(p, s.grid) || bodyAt(s, p)) continue;
+    const d = chebyshev(p, from) + (tileAt(p, s.grid)?.type === 'hazard' ? 0.5 : 0);
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  events.push(say(`${b.kind === 'player' ? 'You climb' : `${nameOf(s, b)} climbs`} out of the sea`));
+  const to = best ?? from;
+  if (b.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: to }, playerSwimming: false };
+  if (b.kind === 'foe') return setFoe(s, b.i, { pos: to, swimming: false });
+  return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, pos: to, swimming: false, acted: true, moved: true } : x)) };
+}
+
+/** Start of the player's turn, after cooling: burning ticks; a stun or a climb out of the sea costs the whole turn. */
 export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   const events: FightEvent[] = [];
   let state = s;
@@ -362,8 +397,12 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
     state = { ...state, allies: state.allies.map((x, n) => (n === k ? { ...x, burning: x.burning - 1 } : x)) };
   });
   state = { ...state, allies: state.allies.map(a => (a.stunned ? { ...a, stunned: false, acted: true, moved: true } : a)) };
-  const skipTurn = s.playerStunned && !events.some(e => e.kind === 'playerDown');
-  if (skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false }; }
+  state.allies.forEach((a, k) => { if (allyAlive(a) && a.swimming) state = climbOut(state, { kind: 'ally', k }, events); });
+  const down = events.some(e => e.kind === 'playerDown');
+  const swam = !!s.playerSwimming && !down;
+  if (swam) state = climbOut(state, { kind: 'player' }, events);
+  const skipTurn = (s.playerStunned || swam) && !down;
+  if (s.playerStunned && skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false }; }
   return { state, events, skipTurn };
 }
 
@@ -422,7 +461,7 @@ export function aimTiles(s: FightState, action: CombatAction, playerClass: Playe
 /** Every living foe standing on the tiles an aim lands on. */
 export function struckAt(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition): number[] {
   const tiles = aimTiles(s, action, playerClass, aim);
-  return s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
+  return s.foes.map((_, i) => i).filter(i => hittable(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
 }
 
 /** Every tile the attack can be aimed at from where the player stands. */
@@ -583,6 +622,8 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
     if (turn === 7) events.push(say(PATCHWORK_KING_MONOLOGUE[3]));
     return { action: getPatchworkKingAction(turn), state: setFoe(s, i, { scriptTurn: turn }), events };
   }
+  // Its victim is in the sea: nothing to hit this turn
+  if (victimOf(s, i) === -1 && s.playerSwimming) return { action: null, state: s, events: [] };
   const roster = foeRoster(foe);
   const dist = chebyshev(foe.pos, grid.playerPosition);
   const heavyFrom = hasTrait(foe, 'focused') ? 30 : HEAVY_MIN_PLAYER_HEAT;
@@ -617,7 +658,7 @@ const approachPattern = (f: Foe): AttackPatternType | undefined =>
 export function foeThreatTiles(s: FightState, i: number): Set<string> {
   const out = new Set<string>();
   const f = s.foes[i];
-  if (!f || !isAlive(f) || f.pendingAction || f.stunned) return out;
+  if (!f || !isAlive(f) || f.pendingAction || f.stunned || f.swimming) return out;
   const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS];
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
   for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
@@ -677,13 +718,13 @@ export function releaseHeavy(s: FightState, i: number): Step & { action: CombatA
   const on = (p: TilePosition) => tiles.some(t => same(t, p));
   const events: FightEvent[] = [];
   let victims: number[] = [];
-  if (on(s.grid.playerPosition)) {
+  if (on(s.grid.playerPosition) && !s.playerSwimming) {
     if (s.sidestepReady) {
       state = { ...state, sidestepReady: false };
       events.push(say(`SIDESTEP -- ${foe.unit.name}'s ${action.name} slides past you`));
     } else victims.push(-1);
   }
-  s.allies.forEach((a, k) => { if (allyAlive(a) && on(a.pos)) victims.push(k); });
+  s.allies.forEach((a, k) => { if (allyAlive(a) && !a.swimming && on(a.pos)) victims.push(k); });
   // A charge carries the attacker down its lane, stopping short of anything in the way
   if (action.attackPattern === 'charge') {
     const blocked = (p: TilePosition) => isImpassable(p, s.grid) || same(p, s.grid.playerPosition)
@@ -785,6 +826,10 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
     state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
     if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, walkAfter: false };
   }
+  if (f.swimming) {
+    state = climbOut(state, { kind: 'foe', i }, events);
+    return { state, events, walkAfter: false };
+  }
   if (f.stunned) {
     events.push(say(`${f.unit.name} is stunned`, 'info'));
     state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
@@ -860,7 +905,7 @@ export function foeWalk(s: FightState, i: number): Step {
 
 /** Who gets a parting blow if the player walks from `from` to `to`: enemies beside `from` but not beside `to` (stunned or winding up, they don't). */
 export function partingFoes(s: FightState, from: TilePosition, to: TilePosition): number[] {
-  return livingFoes(s).filter(({ f }) => !f.stunned && !f.pendingAction && chebyshev(f.pos, from) === 1 && chebyshev(f.pos, to) > 1).map(x => x.i);
+  return livingFoes(s).filter(({ f }) => !f.stunned && !f.swimming && !f.pendingAction && chebyshev(f.pos, from) === 1 && chebyshev(f.pos, to) > 1).map(x => x.i);
 }
 
 /**
