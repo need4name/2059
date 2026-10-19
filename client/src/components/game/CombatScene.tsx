@@ -83,7 +83,7 @@ return 1 - Math.pow(1 - t, 3);
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, aim, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
 const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
@@ -400,38 +400,7 @@ if (canvas.parentElement) {
 resizeObserver.observe(canvas.parentElement);
 }
 
-const animate = () => {
-// Fallback: check if size changed and resize if needed (handles Safari toolbar collapse)
-const rect = canvas.getBoundingClientRect();
-if (rect.width !== lastWidth || rect.height !== lastHeight) {
-resize();
-}
-
-// Derive dimensions from canvas buffer size
-const dpr = window.devicePixelRatio || 1;
-const width = canvas.width / dpr;
-const height = canvas.height / dpr;
-
-// === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
-const tileset = currentChapter().tileset;
-const now = Date.now();
-drawSea(ctx, width, height, tileset, now);
-
-// Vignette for focus
-const vignette = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.7);
-vignette.addColorStop(0, 'transparent');
-vignette.addColorStop(0.5, 'transparent');
-vignette.addColorStop(0.8, 'rgba(30, 25, 15, 0.2)');
-vignette.addColorStop(1, 'rgba(20, 15, 10, 0.5)');
-ctx.fillStyle = vignette;
-ctx.fillRect(0, 0, width, height);
-
-// Get tile size dynamically for portrait/landscape
-const firstTilePos = gridToScreen(0, 0, width, height);
-const tileW = firstTilePos.tileW;
-const tileH = firstTilePos.tileH;
-
-// Pre-calculate reachable tiles once for attack range preview
+// Zones are worked out once per change, not every frame (they loop over the whole board)
 let reachableTiles: Set<string> | null = null;
 let currentAttackPattern: AttackPatternType | null = null;
 let aimedTiles: Set<string> | null = null;
@@ -472,6 +441,44 @@ const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reac
   : getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
 : null);
 const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColor ?? '#38d6f0') : null;
+// Move tiles that walk away from an enemy beside you (a parting blow): drawn orange
+const partingTiles = new Set<string>();
+if (moveTiles && allyMoveMode === null && originalPosition) {
+  const st = useCombat.getState();
+  moveTiles.forEach(k => { const [row, col] = k.split(',').map(Number); if (Fight.partingFoes(st, originalPosition, { row, col }).length) partingTiles.add(k); });
+}
+
+const animate = () => {
+// Fallback: check if size changed and resize if needed (handles Safari toolbar collapse)
+const rect = canvas.getBoundingClientRect();
+if (rect.width !== lastWidth || rect.height !== lastHeight) {
+resize();
+}
+
+// Derive dimensions from canvas buffer size
+const dpr = window.devicePixelRatio || 1;
+const width = canvas.width / dpr;
+const height = canvas.height / dpr;
+
+// === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
+const tileset = currentChapter().tileset;
+const now = Date.now();
+drawSea(ctx, width, height, tileset, now);
+
+// Vignette for focus
+const vignette = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.7);
+vignette.addColorStop(0, 'transparent');
+vignette.addColorStop(0.5, 'transparent');
+vignette.addColorStop(0.8, 'rgba(30, 25, 15, 0.2)');
+vignette.addColorStop(1, 'rgba(20, 15, 10, 0.5)');
+ctx.fillStyle = vignette;
+ctx.fillRect(0, 0, width, height);
+
+// Get tile size dynamically for portrait/landscape
+const firstTilePos = gridToScreen(0, 0, width, height);
+const tileW = firstTilePos.tileW;
+const tileH = firstTilePos.tileH;
+
 
 // Where a charged heavy attack will land next turn - step out of it to dodge
 const heavyZone = charging.length ? (() => {
@@ -561,7 +568,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
     // Orange: stepping here walks away from an enemy beside you, and it gets a parting blow
-    const parting = allyMoveMode === null && originalPosition && Fight.partingFoes(useCombat.getState(), originalPosition, { row, col }).length > 0;
+    const parting = partingTiles.has(`${row},${col}`);
     const markColor = parting ? '#f97316' : moveColor;
     ctx.strokeStyle = markColor ?? 'rgba(56, 214, 240, 0.85)';
     ctx.lineWidth = 2;
@@ -851,7 +858,7 @@ cancelAnimationFrame(animationRef.current);
 resizeObserver.disconnect();
 };
 
-}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned]);
+}, [player, boss, phase, grid, playerClass, hoveredTile, selectedAction, aim, foes, target, inputLocked, originalPosition, playerMoveRange, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned]);
 
 // Handle mouse/touch move for hover preview
 const handleCanvasMove = (event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {

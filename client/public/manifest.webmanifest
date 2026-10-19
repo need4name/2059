@@ -1,7 +1,7 @@
 {
   "name": "2059",
   "short_name": "2059",
-  "description": "Cyberpunk roguelike: hunt augmented enforcers and install their implants.",
+  "description": "Cyberpunk roguelike. You are a stray signal in grey-market brain chips, taking over the dead on the plastic rafts of the Indian Ocean.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { BaseScreen } from './screens/BaseScreen';
 import { VictoryScreen } from './screens/VictoryScreen';
 import { DefeatScreen } from './screens/DefeatScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
-import { DebugPanel } from './DebugPanel';
 import { useLoadoutSync } from './useActionPool';
 import { TutorialHint, useTutorialTriggers } from './Tutorial';
+
+// Test tools load only in development builds, so players never download them
+const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel }))) : () => null;
 
 /** Routes to the screen for the current game phase. */
 export function GameUI() {
@@ -42,7 +44,7 @@ export function GameUI() {
           {showDebug && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShowDebug(false)}>
               <div onClick={e => e.stopPropagation()} className="w-full max-w-md">
-                <DebugPanel onClose={() => setShowDebug(false)} />
+                <Suspense fallback={null}><DebugPanel onClose={() => setShowDebug(false)} /></Suspense>
               </div>
             </div>
           )}

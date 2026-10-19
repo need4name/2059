@@ -40,6 +40,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - Live game: https://need4name.github.io/2059/ (GitHub Pages, served from the `gh-pages` branch).
 - `.github/workflows/pages.yml` rebuilds and republishes on every push to `main`. Don't edit `gh-pages` by hand.
 - Asset paths must stay relative or use `import.meta.env.BASE_URL`, because the game lives under `/2059/`.
+- Offline play: `client/public/sw.js` caches the game after the first visit (production builds only). Bump its `CACHE` name if its caching rules change. Fonts are bundled from `@fontsource`, not loaded from Google.
 
 ## Commands
 
