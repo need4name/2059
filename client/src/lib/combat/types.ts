@@ -49,6 +49,8 @@ bypassStructuralDefense?: boolean; // CBN weapons: structural channel ignores en
 hasKizuna?: boolean;              // Tianxia cold-start: first attack at cool heat = precise
 attackPattern?: AttackPatternType;
 ignoreRange?: boolean;
+/** Arm moves only reach their own side of the body (left arm: left, right arm: right; straight up and down are both). */
+side?: 'left' | 'right';
 }
 
 export type WeaponType = 'pistol' | 'revolver' | 'shotgun';

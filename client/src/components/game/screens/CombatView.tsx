@@ -4,7 +4,6 @@ import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
 import { estimateDamage, ENEMY_GRADES, ENEMY_TRAITS } from '@/lib/combat/actions';
-import { canHitTarget } from '@/lib/combat/patterns';
 import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
@@ -101,7 +100,7 @@ function CombatHud() {
       </div>
 
       {foes.length > 1 && (
-        <div className="mt-2 flex gap-1.5" role="group" aria-label="Choose a target">
+        <div className="mt-2 flex gap-1.5" role="group" aria-label="Enemies">
           {foes.map((f, i) => {
             const down = f.unit.currentHp <= 0;
             return (
@@ -136,16 +135,20 @@ function CombatHud() {
 function SlotButton({ action }: { action: LoadoutAction }) {
   const s = useCombat();
   const { player, grid, playerHeat, selectedAction, setSelectedAction, phase, inputLocked } = s;
-  const target = s.foes[s.target];
-  const boss = target?.unit ?? s.boss;
   const selected = (selectedAction as LoadoutAction | null)?.key === action.key;
   const isAttack = action.type === 'attack' || action.type === 'special';
-  const inRange = !isAttack || action.ignoreRange || canHitTarget(grid.playerPosition, grid.bossPosition, action.attackPattern ?? 'melee_long', grid);
+  // Estimates are against whoever this attack would hit (its current aim when picked, else its best aim)
+  const aim = isAttack ? (selected && s.aim ? s.aim : Fight.bestAim(s, action, s.playerClass)) : null;
+  const struck = aim ? Fight.struckAt(s, action, s.playerClass, aim) : [];
+  const inRange = !isAttack || struck.length > 0;
+  const target = s.foes[struck[0] ?? s.target];
+  const boss = target?.unit ?? s.boss;
+  const foePos = target?.pos ?? grid.bossPosition;
   const est = isAttack && action.damage ? estimateDamage(player, boss, action, {
     defenseBoost: target?.defenseBoost ?? 0,
     heatMultiplier: s.overclockActive ? 2 : getHeatMultipliers(playerHeat).dealt,
-    flankBonus: getFlankBonus(grid.playerPosition, grid.bossPosition),
-    tileDistance: chebyshev(grid.playerPosition, grid.bossPosition),
+    flankBonus: getFlankBonus(grid.playerPosition, foePos),
+    tileDistance: chebyshev(grid.playerPosition, foePos),
     isMalfunctioning: s.playerMalfunctioning,
     bypassStructuralDefense: player.bypassStructuralDefense,
   }) : null;
@@ -162,14 +165,14 @@ function SlotButton({ action }: { action: LoadoutAction }) {
         selected ? 'bg-sys/15 ring-2 ring-sys/80 shadow-[0_0_20px_rgba(56,214,240,0.25)]' : 'bg-white/[0.06] hover:bg-white/[0.1]')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
-      {getMechanicTag(action) && <span className="text-[10px] capitalize text-hud-faint">{getMechanicTag(action)!.toLowerCase()}</span>}
+      {(getMechanicTag(action) || action.side) && <span className="text-[10px] text-hud-faint">{action.side === 'left' ? '◀ left side' : action.side === 'right' ? 'right side ▶' : getMechanicTag(action)!.toLowerCase().replace(/^\w/, c => c.toUpperCase())}</span>}
       <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">
-        {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}</span>}
+        {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}{struck.length > 1 ? ` ×${struck.length}` : ''}</span>}
         {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} guard</span> : null}
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
         {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
       </span>
-      {isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Out of range</span>}
+      {isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Nobody in reach</span>}
     </button>
   );
 }
@@ -316,7 +319,7 @@ function ActionBar() {
         </Btn>
       </div>
       <div className="mt-1 flex items-center justify-between px-1 text-[11px] text-hud-faint">
-        <span className="truncate">{myTurn && !selectedAction ? (allies.length ? 'Ally first, then your move and action.' : 'Move, pick an action, then execute.') : ''}</span>
+        <span className="truncate">{myTurn && !selectedAction ? (allies.length ? 'Ally first, then your move and action.' : 'Move, pick an action, then execute.') : myTurn && (selectedAction?.type === 'attack' || selectedAction?.type === 'special') ? 'Tap a lit square to aim. Everyone in the bright squares is hit.' : ''}</span>
         <button className="shrink-0 py-1.5 pl-3 text-hud-dim hover:text-hud-text" onClick={() => setConfirmExit(true)}>Retreat</button>
       </div>
 

@@ -23,12 +23,12 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   attack: {
     icon: '⚔️',
     title: 'Attacking',
-    body: 'Pick Strike below. The tiles you can hit light up, and the enemy shows "In range" when you can reach it. Then press Execute. The numbers on each button are the damage you\'ll do.',
+    body: 'Pick Strike below. Faint outlines show everywhere it can reach; the bright squares are where it will land, already aimed for you. Tap another outlined square to aim there. Every enemy in the bright squares is hit. Then press Execute.',
   },
   enemy_reach: {
     icon: '🟥',
     title: 'Reading the enemy',
-    body: 'Red tiles show where the enemy can reach on its turn. Ending your turn outside them buys you time.',
+    body: "Red tiles are exactly where enemies can hit on their turn. They attack first and move after, so end your turn outside the red and they can't touch you. Then they close in.",
   },
   heat: {
     icon: '🌡️',
@@ -140,6 +140,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Enemy traits',
     body: "Enemies' implants give them traits: Fast, Sighted, Braced and more. Tap an enemy to see its traits. Strip a body and you might find the very implant that gave it one.",
   },
+  parting: {
+    icon: '🦶',
+    title: 'Parting blows',
+    body: 'An enemy right beside you gets a free hit if you walk away from it. Move squares that would do that have orange dots. Kill it first, or step to a square still beside it.',
+  },
   death: {
     icon: '📡',
     title: 'Host lost',
@@ -174,6 +179,7 @@ export function useTutorialTriggers() {
       ['move', myTurn && !!t.seen.intro && !c.hasMoved],
       ['attack', myTurn && !!t.seen.move],
       ['enemy_reach', myTurn && enemyActed.current],
+      ['parting', myTurn && !!t.seen.enemy_reach && c.foes.some(f => f.unit.currentHp > 0 && !f.stunned && Math.max(Math.abs(f.pos.row - c.grid.playerPosition.row), Math.abs(f.pos.col - c.grid.playerPosition.col)) === 1)],
       ['heat', myTurn && c.playerHeat >= 35],
       ['structure', myTurn && c.player.maxStructuralHp > 0 && c.player.currentStructuralHp < c.player.maxStructuralHp],
       ['stims', myTurn && items.some(i => i.type === 'consumable')],

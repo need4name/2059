@@ -82,23 +82,23 @@ function playerTurn(skill: number) {
   const living = s.foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
   const atks = slots.filter(a => a.type !== 'brace' && a.damage).sort((a, b) => (b.damage || 0) - (a.damage || 0));
   const g = s.grid;
-  const viewAt = (pos: any, i: number) => ({ ...g, playerPosition: pos, bossPosition: s.foes[i].pos, occupied: living.filter(x => x.i !== i).map(x => x.f.pos) });
-  const canHit = (pos: any, a: any, i: number) => a.ignoreRange || P.canHitTarget(pos, s.foes[i].pos, a.attackPattern || 'melee_long', viewAt(pos, i));
+  // Could this attack hit anyone if the bot stood at pos? (the game's own aiming rules)
+  const canHitFrom = (pos: any, a: any) => F.canPlayerHitAny({ ...(s as any), grid: { ...g, playerPosition: pos } }, a, s.playerClass);
   const danger = new Set<string>();
   // Heavies lock their tiles when they wind up: step off them (most of the time)
   for (const { f } of living) if (f.pendingTiles && botRandom() < skill) for (const t of f.pendingTiles) danger.add(`${t.row},${t.col}`);
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
+  // The red tiles are honest (enemies hit before they move): a sensible player prefers a safe tile it can still attack from
+  const red = new Set<string>(); for (const { i } of living) F.foeThreatTiles(s as any, i).forEach(k => red.add(k));
   const opts = [g.playerPosition, ...Array.from(G.getReachableTiles(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
-  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (living.some(x => atks.some(a => canHit(pos, a, x.i)))) v += 50; v -= nearest(pos); return v; };
+  // Only dodge the red when there's a safe tile to fight from; otherwise walk in
+  const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
+  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (canAttackSomewhere && red.has(`${pos.row},${pos.col}`)) v -= 20 * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };
   const best = opts.sort((a, b) => score(b) - score(a))[0];
   if (s.playerHeat < 100 && (best.row !== g.playerPosition.row || best.col !== g.playerPosition.col)) s.moveTentatively(best);
   const pos = C.getState().grid.playerPosition; const brace = slots.find(a => a.type === 'brace');
-  // Aim at the weakest foe this position can hit, else the nearest
-  const hittable = living.filter(x => atks.some(a => canHit(pos, a, x.i))).sort((a, b) => a.f.unit.currentHp - b.f.unit.currentHp);
-  const aim = hittable[0] ?? living.sort((a, b) => G.chebyshev(pos, a.f.pos) - G.chebyshev(pos, b.f.pos))[0];
-  if (aim) C.getState().setTarget(aim.i);
-  // Ask the game itself whether the hit lands from here (cover, bodies and allies block shots)
-  let act = aim ? atks.find(a => F.canPlayerHit(C.getState() as any, a, C.getState().playerClass, aim.i)) : undefined;
+  // The strongest attack that hits anyone from here; picking it aims it at its best tiles
+  let act = atks.find(a => F.canPlayerHitAny(C.getState() as any, a, C.getState().playerClass));
   if ((s.playerMalfunctioning || s.playerHeat >= 85) && brace && botRandom() < skill) act = brace;
   if (act) C.getState().setSelectedAction(act);
   C.getState().endTurn();
@@ -160,7 +160,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { playerTurn(skill); turns++; }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);
       if (turns > 80) {
-        if (process.env.DEBUGTO && !debugShown) { debugShown = true; const st = C.getState(); console.log('TIMEOUT threat', lvl, 'shape', st.grid.arenaShape, 'player', JSON.stringify(st.grid.playerPosition), 'hp', st.player.currentHp, 'foes', JSON.stringify(st.foes.map(f => [f.unit.name, f.unit.currentHp, f.pos, f.unit.traits])), 'allies', st.allies.length); console.log(st.grid.tiles.map((r, ri) => r.map((t, ci) => st.grid.playerPosition.row === ri && st.grid.playerPosition.col === ci ? 'P' : st.foes.some(f => f.unit.currentHp > 0 && f.pos.row === ri && f.pos.col === ci) ? 'E' : t.type === 'void' ? ' ' : t.type === 'obstacle' ? '#' : t.type === 'hazard' ? '~' : '.').join('')).join('\n')); console.log(st.combatLog.slice(-6).map(l => l.message).join(' | ')); }
+        if (process.env.DEBUGTO && !debugShown && (process.env.DEBUGTO === '1' || Number(process.env.DEBUGTO) === lvl)) { debugShown = true; const st = C.getState(); console.log('TIMEOUT threat', lvl, 'shape', st.grid.arenaShape, 'player', JSON.stringify(st.grid.playerPosition), 'hp', st.player.currentHp, 'foes', JSON.stringify(st.foes.map(f => [f.unit.name, f.unit.currentHp, f.pos, f.unit.traits])), 'allies', JSON.stringify(st.allies.map(a => [a.id, a.unit.currentHp, a.pos, a.taunting])), 'foeState', JSON.stringify(st.foes.map(f => ({ heat: f.heat, pend: f.pendingAction?.name, stun: f.stunned })))); console.log(st.grid.tiles.map((r, ri) => r.map((t, ci) => st.grid.playerPosition.row === ri && st.grid.playerPosition.col === ci ? 'P' : st.foes.some(f => f.unit.currentHp > 0 && f.pos.row === ri && f.pos.col === ci) ? 'E' : t.type === 'void' ? ' ' : t.type === 'obstacle' ? '#' : t.type === 'hazard' ? '~' : '.').join('')).join('\n')); console.log(st.combatLog.slice(-14).map(l => l.message).join(' | ')); }
         C.getState().resetCombat(); timedOut = true; break;
       }
     }

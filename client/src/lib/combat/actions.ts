@@ -383,12 +383,12 @@ return BOSS_TYPES[idx % BOSS_TYPES.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.35, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
-export const ENEMY_GROWTH = { hp: 1.075, atk: 1.065 };
+export const ENEMY_GROWTH = { hp: 1.07, atk: 1.055 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
-export const ENEMY_TUNING = { hp: 0.36, atk: 1.01 };
+export const ENEMY_TUNING = { hp: 0.36, atk: 1.12 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */

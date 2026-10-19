@@ -181,5 +181,6 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
     physicalRatio: t.phys ?? 0.7,
     healing: t.healing ? Math.round(t.healing * RARITY_DAMAGE[item.rarity]) : undefined,
     bypassStructuralDefense: item.passiveEffect === 'bypass_sdef' || undefined,
+    side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,
   };
 }

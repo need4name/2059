@@ -434,6 +434,7 @@ const tileH = firstTilePos.tileH;
 // Pre-calculate reachable tiles once for attack range preview
 let reachableTiles: Set<string> | null = null;
 let currentAttackPattern: AttackPatternType | null = null;
+let aimedTiles: Set<string> | null = null;
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 // Read attack pattern directly from the action - this is the single source of truth.
@@ -445,24 +446,19 @@ currentAttackPattern = (
 'melee_long'
 ) as AttackPatternType;
 
-reachableTiles = getTargetableTiles(grid.playerPosition, currentAttackPattern, grid);
+// Where it can be aimed (dim), and where the current aim lands (bright)
+const fs = useCombat.getState();
+reachableTiles = new Set(Fight.aimableTiles(fs, selectedAction, playerClass).map(t => `${t.row},${t.col}`));
+if (fs.aim) aimedTiles = new Set(Fight.aimTiles(fs, selectedAction, playerClass, fs.aim).map(t => `${t.row},${t.col}`));
 
 }
 
-// Pre-calculate enemy attack range: union of ALL patterns this boss can use.
-// This ensures every tile the boss might hit is shown as a danger zone.
-// Enemies that aren't winding up a heavy show everywhere they could reach next turn.
+// Every tile an enemy can hit on its next turn. Enemies attack before they
+// move, so standing outside these at the end of your turn is safe.
 const enemyReachableTiles = phase === 'player_turn' ? (() => {
+const st = useCombat.getState();
 const union = new Set<string>();
-for (const { f, i } of living) {
-if (f.pendingAction) continue;
-// Normal attacks only: heavies show as their own locked orange tiles when they wind up
-const patterns = new Set<AttackPatternType>();
-Fight.foeRoster(f).forEach(a => { if (a.attackPattern && !a.isHeavy) patterns.add(a.attackPattern); });
-if (!patterns.size) patterns.add('melee');
-const view = { ...grid, bossPosition: f.pos, occupied: [...living.filter(x => x.i !== i).map(x => x.f.pos), ...allies.filter(a => a.unit.currentHp > 0).map(a => a.pos)] };
-patterns.forEach(pat => getTargetableTiles(f.pos, pat, view).forEach(k => union.add(k)));
-}
+for (const { i } of living) Fight.foeThreatTiles(st, i).forEach(k => union.add(k));
 return union.size ? union : null;
 })() : null;
 
@@ -497,6 +493,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Check if tile is in player's attack range using pre-calculated set
   const isInAttackRange = reachableTiles ? reachableTiles.has(`${row},${col}`) : false;
+  const isAimed = aimedTiles ? aimedTiles.has(`${row},${col}`) : false;
 
   // Check if tile is in enemy's attack range (danger zone for player)
   const isInEnemyRange = enemyReachableTiles ? enemyReachableTiles.has(`${row},${col}`) : false;
@@ -521,16 +518,21 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   const radius = tileW * 0.16;
   drawDeckTile(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius, row, col, tileset);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
-    : isInAttackRange ? attackColors.fill
+    : isAimed ? attackColors.fill
     : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   if (tint) { ctx.fillStyle = tint; ctx.fill(); }
 
   // Tile border - vivid glow on attack range tiles
-  if (isInAttackRange) {
+  if (isAimed) {
     ctx.strokeStyle = attackColors.stroke;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+  } else if (isInAttackRange) {
+    // Somewhere else it could be aimed: a faint outline, tap to aim there
+    ctx.strokeStyle = attackColors.stroke;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 1.5;
   } else if (isHovered) {
     ctx.strokeStyle = '#d8c89a';
     ctx.lineWidth = 2;
@@ -542,6 +544,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.lineWidth = 1;
   }
   ctx.stroke();
+  ctx.globalAlpha = 1;
 
   // Charged heavy attack danger zone
   if (heavyZone?.has(`${row},${col}`)) {
@@ -557,26 +560,17 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
-    ctx.strokeStyle = moveColor ?? 'rgba(56, 214, 240, 0.85)';
+    // Orange: stepping here walks away from an enemy beside you, and it gets a parting blow
+    const parting = allyMoveMode === null && originalPosition && Fight.partingFoes(useCombat.getState(), originalPosition, { row, col }).length > 0;
+    const markColor = parting ? '#f97316' : moveColor;
+    ctx.strokeStyle = markColor ?? 'rgba(56, 214, 240, 0.85)';
     ctx.lineWidth = 2;
     roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
     ctx.stroke();
-    ctx.fillStyle = moveColor ?? 'rgba(56, 214, 240, 0.55)';
+    ctx.fillStyle = markColor ?? 'rgba(56, 214, 240, 0.55)';
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
     ctx.fill();
-  }
-
-  // Pattern label on attack range tiles - small text showing pattern type
-  if (isInAttackRange && currentAttackPattern && tileW > 40) {
-    ctx.fillStyle = attackColors.stroke;
-    ctx.globalAlpha = 0.7;
-    ctx.font = `700 ${Math.floor(tileW * 0.16)}px Manrope, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    const label = currentAttackPattern.replace('_', ' ').slice(0, 7);
-    ctx.fillText(label, pos.x, pos.y + tileH * 0.45);
-    ctx.globalAlpha = 1.0;
   }
 
   // Draw obstacles and hazards with simple markers
@@ -744,7 +738,7 @@ const fp = gridToScreen(visRow, visCol, width, height);
 const isTarget = i === target;
 const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 30);
 
-if (isTarget && foes.length > 1) {
+if (isTarget && foes.length > 1 && !reachableTiles) {
 ctx.save();
 ctx.strokeStyle = 'rgba(248,113,113,0.9)';
 ctx.lineWidth = 2;
@@ -788,18 +782,16 @@ ctx.strokeStyle = '#1f2937';
 ctx.lineWidth = 1;
 ctx.strokeRect(fp.x - barW / 2, barY, barW, barH);
 
-// Range label over the target while an attack is selected
-if (isTarget && reachableTiles && phase === 'player_turn') {
-const inRange = reachableTiles.has(`${f.pos.row},${f.pos.col}`);
-const label = inRange ? 'In range' : 'Out of range';
+// "Hit" over every enemy the current aim lands on
+if (aimedTiles?.has(`${f.pos.row},${f.pos.col}`) && phase === 'player_turn') {
+const label = 'Hit';
 ctx.font = '700 13px Manrope, sans-serif';
 ctx.textAlign = 'center';
-ctx.fillStyle = inRange ? '#22c55e' : '#ef4444';
+ctx.fillStyle = '#22c55e';
 ctx.strokeStyle = '#000';
 ctx.lineWidth = 3;
-const lx = Math.min(width - ctx.measureText(label).width / 2 - 4, Math.max(ctx.measureText(label).width / 2 + 4, fp.x));
-ctx.strokeText(label, lx, fp.y - tileH * 0.8);
-ctx.fillText(label, lx, fp.y - tileH * 0.8);
+ctx.strokeText(label, fp.x, fp.y - tileH * 0.8);
+ctx.fillText(label, fp.x, fp.y - tileH * 0.8);
 }
 }
 
@@ -943,6 +935,8 @@ const tileBottom = pos.y + tileH / 2;
 if (x >= tileLeft && x <= tileRight && y >= tileTop && y <= tileBottom) {
   // Tapping an enemy aims at it; tapping a tile moves (can be undone)
   const st = useCombat.getState();
+  // With an attack picked, a tap inside its reach aims it there
+  if (st.setAim({ row, col })) return;
   const hit = st.foes.findIndex(f => f.unit.currentHp > 0 && f.pos.row === row && f.pos.col === col);
   if (hit >= 0) { st.setTarget(hit); return; }
   // Moving an ally: the tap picks its tile. Tapping an ally starts moving it.

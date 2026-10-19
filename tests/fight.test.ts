@@ -90,7 +90,7 @@ test('enemies hold heavy attacks against a cool player', () => {
   for (let k = 0; k < 40; k++) {
     seedRandom(k);
     const { action } = Fight.chooseFoeAction(fight({ playerHeat: 0 }), 0);
-    assert.ok(!action.isHeavy);
+    assert.ok(!action?.isHeavy);
   }
 });
 
@@ -300,4 +300,80 @@ test('chapter bosses: the Fitter guards threat 20 and turns faster below half he
   assert.equal(r.state.foes[0].enraged, true);
   assert.ok(r.state.foes[0].unit.traits!.includes('fast'));
   assert.ok(r.events.some(e => e.kind === 'log' && /fresh leg/.test(e.message)));
+});
+
+// ── Aiming and honest danger zones ──────────────────────────────────────────
+
+test('enemies attack from where they stand, then walk; out of reach they only walk', () => {
+  const far = fight({ grid: arena([8, 3], [0, 3]) });
+  seedRandom(21);
+  const walk = Fight.foeTurn(far, 0, 3);
+  assert.equal(walk.state.player.currentHp, far.player.currentHp, 'no hit after walking up');
+  assert.equal(walk.walkAfter, false);
+  assert.ok(walk.state.foes[0].pos.row > 0, 'it closed in');
+
+  const close = fight({ playerHeat: 0 });
+  let hits = 0;
+  for (let k = 0; k < 20; k++) {
+    seedRandom(100 + k);
+    const r = Fight.foeTurn(close, 0, 3);
+    if (r.state.player.currentHp < close.player.currentHp) { hits++; assert.equal(r.walkAfter, true); }
+  }
+  assert.ok(hits > 0, 'next to you, it attacks');
+});
+
+test('ending your turn outside the red tiles means no enemy can hit you', () => {
+  for (const name of [3, 7, 12]) {
+    for (let k = 0; k < 30; k++) {
+      seedRandom(300 + k);
+      const pr = 1 + (k % 8), pc = k % 7;
+      const s = fight({ playerHeat: 0, grid: arena([pr, pc], [(pr + 2 + (k % 3)) % 9, (pc + k) % 7]) });
+      const foe = { ...Fight.newFoe(createBoss(name), s.grid.bossPosition, 40), unit: { ...createBoss(name), traits: ['sighted'] } };
+      const st = { ...s, foes: [foe] };
+      if (st.foes[0].pos.row === pr && st.foes[0].pos.col === pc) continue;
+      const safe = !Fight.foeThreatTiles(st, 0).has(`${pr},${pc}`);
+      const r = Fight.foeTurn(st, 0, name);
+      if (safe) assert.equal(r.state.player.currentHp, st.player.currentHp, `hit outside the red at ${pr},${pc}`);
+    }
+  }
+});
+
+test('an aim hits everyone on its tiles; the best aim takes the most enemies', () => {
+  const s = crowd(); // foes at 4,3 and 4,4; player at 5,3
+  const sweep = { ...PLAYER_ACTIONS[0], attackPattern: 'sweep_arc' as const };
+  assert.deepEqual(Fight.struckAt(s, sweep, 'none', { row: 4, col: 3 }), [0, 1]);
+  assert.deepEqual(Fight.struckAt(s, sweep, 'none', { row: 5, col: 4 }), [1], 'a sideways arc only reaches one');
+  assert.deepEqual(Fight.foesStruck(s, sweep, 'none'), [0, 1]);
+  const strike = { ...PLAYER_ACTIONS[0], attackPattern: 'melee' as const };
+  assert.equal(Fight.struckAt(s, strike, 'none', { row: 4, col: 4 }).length, 1, 'a single-tile strike hits one');
+  assert.deepEqual(Fight.struckAt(s, strike, 'none', { row: 6, col: 3 }), [], 'aiming at empty deck hits nobody');
+  // Aiming at the second enemy hits it, whoever the target was
+  seedRandom(31);
+  const after = Fight.resolvePlayerAttack(s, { ...strike, accuracy: 'precise' }, 'none', { row: 4, col: 4 }).state;
+  assert.equal(after.foes[0].unit.currentHp, s.foes[0].unit.currentHp);
+  assert.ok(after.foes[1].unit.currentHp < s.foes[1].unit.currentHp);
+  assert.equal(after.target, 1, 'the screens follow who was hit');
+});
+
+test('arm moves only reach their own side', () => {
+  const s = fight({ grid: arena([5, 3], [4, 2]) }); // enemy up and to the left
+  const jab = { ...PLAYER_ACTIONS[0], attackPattern: 'melee' as const };
+  assert.ok(Fight.canPlayerHit(s, { ...jab, side: 'left' }, 'none'));
+  assert.equal(Fight.canPlayerHit(s, { ...jab, side: 'right' }, 'none'), false);
+  const above = fight({ grid: arena([5, 3], [4, 3]) });
+  assert.ok(Fight.canPlayerHit(above, { ...jab, side: 'right' }, 'none'), 'straight ahead works for either arm');
+  assert.ok(Fight.aimableTiles(s, { ...jab, side: 'right' }, 'none').every(t => t.col >= 3));
+});
+
+test('walking away from an enemy beside you earns a parting blow; staying beside it does not', () => {
+  const start = { row: 5, col: 3 }; // enemy at 4,3
+  const away = fight({ grid: arena([6, 3], [4, 3]) });
+  assert.deepEqual(Fight.partingFoes(away, start, { row: 6, col: 3 }), [0]);
+  seedRandom(41);
+  const hit = Fight.partingBlows(away, start, 3);
+  assert.ok(hit.state.player.currentHp < away.player.currentHp);
+  const along = fight({ grid: arena([5, 4], [4, 3]) });
+  assert.deepEqual(Fight.partingFoes(along, start, { row: 5, col: 4 }), [], 'still beside it');
+  const stunned = { ...away, foes: [{ ...away.foes[0], stunned: true }] };
+  assert.deepEqual(Fight.partingFoes(stunned, start, { row: 6, col: 3 }), [], 'a stunned enemy lets you go');
 });

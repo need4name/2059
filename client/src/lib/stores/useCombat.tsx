@@ -76,6 +76,8 @@ progression: PlayerProgression;
 originalPosition: TilePosition | null;
 selectedMovement: TilePosition | null;
 selectedAction: CombatAction | null;
+/** Where the selected attack is aimed. Everyone on the tiles it lands on is hit. */
+aim: TilePosition | null;
 hasMoved: boolean;
 playerMoveRange: number;
 
@@ -119,6 +121,8 @@ useConsumableItem: (itemId: string) => void;
 enemyTurn: () => void;
 /** Aim at a different enemy. */
 setTarget: (index: number) => void;
+/** Aim the selected attack at a tile. Returns false if it can't be aimed there. */
+setAim: (tile: TilePosition) => boolean;
 /** Reflex loop: after attacking without moving, you may still step 1 tile. */
 reflexMoveOpen: boolean;
 /** Holdfast has saved this host already. */
@@ -175,7 +179,7 @@ combatLog: [] as CombatLog[],
 playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false,
 introCompleted: true,
-selectedMovement: null, selectedAction: null, hasMoved: false,
+selectedMovement: null, selectedAction: null, aim: null, hasMoved: false,
 originalPosition: { ...grid.playerPosition },
 inputLocked: false,
 playerHeat: 20, doubleActionReady: false,
@@ -253,6 +257,13 @@ set({
 grid: target ? { ...state.grid, bossPosition: target.pos, occupied: [...state.foes.filter(f => f !== target && Fight.isAlive(f)).map(f => f.pos), ...state.allies.filter(Fight.allyAlive).map(a => a.pos)] } : state.grid,
 ...(target ? { boss: target.unit } : {}),
 });
+};
+
+// Point the selected attack at whatever it hits best from where the player now stands
+const reAim = () => {
+const { selectedAction, playerClass } = get();
+const attacking = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special');
+set({ aim: attacking ? Fight.bestAim(fightState(), selectedAction, playerClass) : null });
 };
 
 // Engine events that make a sound
@@ -354,6 +365,9 @@ useAudio.getState().playSuccess();
 // action (double action) or the enemy's turn.
 const finishPlayerAction = (allowDouble: boolean) => {
 set({ reflexMoveOpen: false });
+// Walking away from an enemy you started beside: it gets a parting blow
+const from = get().originalPosition;
+if (from && apply(Fight.partingBlows(fightState(), from, get().farmLevel ?? get().bossLevel))) return;
 if (apply(Fight.applyPlayerHazard(fightState()))) return;
 if (allowDouble && get().doubleActionReady) {
 log('DOUBLE ACTION -- cold efficiency!');
@@ -381,10 +395,9 @@ const done = () => {
 if (apply(Fight.applyFoeHazard(fightState(), i))) return;
 later(() => runFoeTurn(i + 1), i + 1 < get().foes.length ? FOE_GAP_DELAY : TURN_HANDOFF_DELAY);
 };
-if (step.strikeAfterMove) {
-const strike = step.strikeAfterMove;
-later(() => { if (apply(Fight.foeStrikeAfterMove(fightState(), i, strike, level))) return; done(); }, ENEMY_STEP_DELAY);
-} else done();
+// Enemies attack first, then walk
+if (step.walkAfter) later(() => { if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
+else done();
 };
 
 // What the play-i tree gives every new host before its first fight
@@ -476,6 +489,7 @@ debugMode: false,
 originalPosition: null,
 selectedMovement: null,
 selectedAction: null,
+aim: null,
 hasMoved: false,
 playerMoveRange: 1,
 fightId: 0,
@@ -521,6 +535,7 @@ setSelectedAction: (action) => {
 const { phase, inputLocked, reflexMoveOpen } = get();
 if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
 set({ selectedAction: action });
+reAim();
 },
 
 moveTentatively: (position) => {
@@ -541,6 +556,7 @@ const reachable = getReachableTiles(from, { ...grid, playerPosition: from }, ref
 if (!reachable.has(`${position.row},${position.col}`)) return;
 set({ grid: { ...grid, playerPosition: position }, selectedMovement: position, hasMoved: true });
 useAudio.getState().play('step');
+reAim();
 if (reflex) { set({ inputLocked: true }); finishPlayerAction(true); }
 },
 
@@ -548,6 +564,7 @@ undoMove: () => {
 const { originalPosition, grid, phase, inputLocked } = get();
 if (!originalPosition || phase !== 'player_turn' || inputLocked) return;
 set({ grid: { ...grid, playerPosition: originalPosition }, selectedMovement: null, hasMoved: false });
+reAim();
 },
 
 endTurn: () => {
@@ -591,12 +608,13 @@ finishPlayerAction(false);
 return;
 }
 
-if (!Fight.canPlayerHit(fightState(), action, playerClass)) {
-log('Out of range! Move closer.');
+const aim = get().aim;
+if (!aim || !Fight.foesStruck(fightState(), action, playerClass, aim).length) {
+log('Nothing to hit there. Move closer, or tap a lit square to aim.');
 return;
 }
 set({ inputLocked: true, selectedAction: null });
-const step = Fight.resolvePlayerAttack(fightState(), action, playerClass);
+const step = Fight.resolvePlayerAttack(fightState(), action, playerClass, aim);
 if (apply(step)) return;
 // Chain: a takedown gives you another action straight away
 if (step.events.some(e => e.kind === 'extraAction')) {
@@ -658,6 +676,14 @@ setTarget: (index) => {
 const { phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
 save(Fight.setTarget(fightState(), index));
+},
+
+setAim: (tile) => {
+const { phase, inputLocked, selectedAction, playerClass } = get();
+if (phase !== 'player_turn' || inputLocked || !selectedAction || (selectedAction.type !== 'attack' && selectedAction.type !== 'special')) return false;
+if (!Fight.aimTiles(fightState(), selectedAction, playerClass, tile).length) return false;
+set({ aim: tile });
+return true;
 },
 
 resetCombat: () => {

@@ -403,25 +403,66 @@ export function attackPatternOf(action: CombatAction, playerClass: PlayerClass):
 const ignoresRange = (action: CombatAction, playerClass: PlayerClass) =>
   !!(action.ignoreRange || (action.type === 'special' && CLASS_DEFINITIONS[playerClass]?.specialAbility?.ignoreRange));
 
+// Aiming: the player aims an attack at a tile, and every enemy standing on the
+// tiles it lands on is hit. There's no target to pick first.
+
+/** Arm moves only reach their own side: left arm left, right arm right; straight up and down are both. */
+const onSide = (action: CombatAction, from: TilePosition, to: TilePosition) =>
+  action.side === 'left' ? to.col <= from.col : action.side === 'right' ? to.col >= from.col : true;
+const foeAt = (s: FightState, p: TilePosition) => s.foes.findIndex(f => isAlive(f) && same(f.pos, p));
+
+/** The tiles an attack aimed at `aim` lands on, or [] if it can't be aimed there. */
+export function aimTiles(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition): TilePosition[] {
+  const from = s.grid.playerPosition;
+  if (same(from, aim) || !onSide(action, from, aim)) return [];
+  if (ignoresRange(action, playerClass)) return foeAt(s, aim) >= 0 ? [aim] : [];
+  return getHitTiles(from, aim, attackPatternOf(action, playerClass), playerView(s));
+}
+
+/** Every living foe standing on the tiles an aim lands on. */
+export function struckAt(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition): number[] {
+  const tiles = aimTiles(s, action, playerClass, aim);
+  return s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
+}
+
+/** Every tile the attack can be aimed at from where the player stands. */
+export function aimableTiles(s: FightState, action: CombatAction, playerClass: PlayerClass): TilePosition[] {
+  const out: TilePosition[] = [];
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    if (aimTiles(s, action, playerClass, { row, col }).length) out.push({ row, col });
+  }
+  return out;
+}
+
+/** The aim that hits the most enemies (the current target, then the nearest, winning ties), or null if nothing is in reach. */
+export function bestAim(s: FightState, action: CombatAction, playerClass: PlayerClass): TilePosition | null {
+  let best: TilePosition | null = null, score = -Infinity;
+  for (const t of aimableTiles(s, action, playerClass)) {
+    const hit = struckAt(s, action, playerClass, t);
+    if (!hit.length) continue;
+    const near = Math.min(...hit.map(i => chebyshev(s.grid.playerPosition, s.foes[i].pos)));
+    const sc = hit.length * 100 + (hit.includes(s.target) ? 10 : 0) - near - chebyshev(s.grid.playerPosition, t) * 0.01;
+    if (sc > score) { score = sc; best = t; }
+  }
+  return best;
+}
+
 /** Can the player hit foe i (the current target by default) with this action from where they stand? */
 export function canPlayerHit(s: FightState, action: CombatAction, playerClass: PlayerClass, i = s.target): boolean {
-  const foe = s.foes[i];
-  if (!foe || !isAlive(foe)) return false;
-  return ignoresRange(action, playerClass) || canHitTarget(s.grid.playerPosition, foe.pos, attackPatternOf(action, playerClass), playerView(s, i));
+  if (!s.foes[i] || !isAlive(s.foes[i])) return false;
+  return aimableTiles(s, action, playerClass).some(t => struckAt(s, action, playerClass, t).includes(i));
 }
 
-/** Which foes an attack on the current target lands on: the target, plus anyone else in the struck tiles. */
-export function foesStruck(s: FightState, action: CombatAction, playerClass: PlayerClass): number[] {
-  const target = s.foes[s.target];
-  if (!target) return [];
-  if (ignoresRange(action, playerClass)) return [s.target];
-  const tiles = getHitTiles(s.grid.playerPosition, target.pos, attackPatternOf(action, playerClass), playerView(s));
-  const others = s.foes.map((f, i) => i).filter(i => i !== s.target && isAlive(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
-  return [s.target, ...others];
+/** Can this attack hit anyone from here? */
+export const canPlayerHitAny = (s: FightState, action: CombatAction, playerClass: PlayerClass) => bestAim(s, action, playerClass) !== null;
+
+/** Which foes an attack lands on: everyone on the aimed tiles (the best aim if none is given). */
+export function foesStruck(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition | null = bestAim(s, action, playerClass)): number[] {
+  return aim ? struckAt(s, action, playerClass, aim) : [];
 }
 
-/** An attack or special. Check canPlayerHit first; this assumes it reaches the target. */
-export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none'): Step {
+/** An attack or special aimed at a tile (the best aim if none is given). Everyone on the struck tiles is hit. */
+export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
   const { player, grid, playerHeat } = s;
   const heatMult = getHeatMultipliers(playerHeat);
 
@@ -436,7 +477,9 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   if (s.playerMalfunctioning) events.push(say('MALFUNCTION', 'malfunction'));
 
   let state: FightState = s;
-  const struck = foesStruck(s, action, playerClass);
+  const struck = foesStruck(s, action, playerClass, aim);
+  // A knockback shoves the nearest one it hits
+  const pushed = struck.slice().sort((a, b) => chebyshev(grid.playerPosition, s.foes[a].pos) - chebyshev(grid.playerPosition, s.foes[b].pos))[0];
   const heatPush = action.heatTransfer ?? 0;
   let nearest = Infinity;
   events.push({ kind: 'hit' });
@@ -463,7 +506,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
     });
     state = gainOverload(state, (dmg.bioDamage / Math.max(1, foe.unit.maxHp)) * OVERLOAD.dealt);
-    if (attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === s.target) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
+    if (attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === pushed) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
@@ -482,6 +525,8 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     firstStrikeUsed: true,
     playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat),
   };
+  // The screens follow whoever was hit
+  if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };
   state = afterFoeChanges(state, events);
   // Chain: a takedown earns another action, unless that was the last enemy
   if (s.perks.chain && events.some(e => e.kind === 'foeDown') && !events.some(e => e.kind === 'allFoesDown')) {
@@ -527,7 +572,7 @@ export function resolveConsumable(s: FightState, item: Item): Step & { endsTurn:
 // ── Enemy turn ───────────────────────────────────────────────────────────────
 
 /** Foe i picks its next move from its roster, filtered by range and heat. */
-export function chooseFoeAction(s: FightState, i: number): Step & { action: CombatAction } {
+export function chooseFoeAction(s: FightState, i: number): Step & { action: CombatAction | null } {
   const foe = s.foes[i];
   const { unit } = foe;
   const grid = foeView(s, i);
@@ -551,12 +596,40 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
     if ((pat === 'sweep_arc' || pat === 'melee') && dist > 2) return false;
     return true;
   });
-  let pool = filtered.length ? filtered : roster.filter(a => a.type === 'attack');
+  // Enemies attack from where they stand, then move: only what reaches right now is on the table
+  const reaches = (a: CombatAction) => canHitTarget(foe.pos, grid.playerPosition, a.attackPattern ?? 'melee_long', grid);
+  let pool = filtered.filter(a => a.type === 'defend' || reaches(a));
   // Point blank with nothing that reaches: lash out instead of backing away
-  if (dist <= 1 && !pool.some(a => a.type === 'defend' || a.isHeavy || canHitTarget(foe.pos, grid.playerPosition, a.attackPattern ?? 'melee_long', grid))) {
-    pool = [CLOSE_QUARTERS];
-  }
+  if (dist <= 1 && !pool.some(a => a.type !== 'defend')) pool = [CLOSE_QUARTERS];
+  if (!pool.length) return { action: null, state: s, events: [] };
   return { action: pool[Math.floor(random() * pool.length)], state: s, events: [] };
+}
+
+/** The shape foe i walks to get in reach with: its first ordinary attack. */
+const approachPattern = (f: Foe): AttackPatternType | undefined =>
+  foeRoster(f).find(a => a.type === 'attack' && !a.isHeavy)?.attackPattern ?? 'melee';
+
+/**
+ * Every tile foe i could hit on its next turn. Enemies attack before they move,
+ * so ending your turn outside these tiles means it can't touch you. Other
+ * enemies don't count as cover here (they may walk away first).
+ */
+export function foeThreatTiles(s: FightState, i: number): Set<string> {
+  const out = new Set<string>();
+  const f = s.foes[i];
+  if (!f || !isAlive(f) || f.pendingAction || f.stunned) return out;
+  const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS];
+  const occupied = s.allies.filter(allyAlive).map(a => a.pos);
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    const t = { row, col };
+    if (same(t, f.pos)) continue;
+    const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
+    for (const a of moves) {
+      const tiles = getHitTiles(f.pos, t, a.attackPattern ?? 'melee_long', view);
+      if (tiles.some(x => same(x, t))) tiles.forEach(x => out.add(`${x.row},${x.col}`));
+    }
+  }
+  return out;
 }
 
 export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined, victim = victimOf(s, i)): boolean {
@@ -578,9 +651,10 @@ export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternTy
   return { state: setFoe(s, i, { pos }), events: [], moved };
 }
 
-/** A heavy attack: move into position and wind up; it fires next turn. */
+/** A heavy attack: wind up where it stands; it fires next turn at the tiles it locks now. */
 export function telegraphHeavy(s: FightState, i: number, action: CombatAction): Step {
-  const moved = moveFoeToward(s, i, action.attackPattern);
+  // Winds up where it stands
+  const moved: Step = { state: s, events: [] };
   const victim = victimOf(moved.state, i);
   const view = foeView(moved.state, i, victim);
   // The heavy is aimed where its target stands now; those tiles are locked in
@@ -684,11 +758,11 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
 
 /**
  * The first half of foe i's turn: fire a wound-up heavy, shield, wind up a new
- * heavy, attack if already in reach, or walk. When it walks into reach, the
- * attack comes back as `strikeAfterMove` for the store to land after a beat.
+ * heavy, or attack from where it stands. Then it walks: `walkAfter` tells the
+ * store to call foeWalk after a beat. With nothing in reach it just walks.
  */
-export function foeTurn(s: FightState, i: number, level: number): Step & { strikeAfterMove: CombatAction | null } {
-  if (!isAlive(s.foes[i])) return { state: s, events: [], strikeAfterMove: null };
+export function foeTurn(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
+  if (!isAlive(s.foes[i])) return { state: s, events: [], walkAfter: false };
   // Start of its turn: a lung pack heals, burning ticks, and a stun costs the turn (and any wound-up heavy)
   const events: FightEvent[] = [];
   let state = s;
@@ -709,19 +783,19 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { strik
     const dmg = burnDamage(f.unit.maxHp);
     events.push(say(`${f.unit.name} is burning: -${dmg}`, 'damage'), { kind: 'burn' });
     state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
-    if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, strikeAfterMove: null };
+    if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, walkAfter: false };
   }
   if (f.stunned) {
     events.push(say(`${f.unit.name} is stunned`, 'info'));
     state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
-    return { state, events, strikeAfterMove: null };
+    return { state, events, walkAfter: false };
   }
   const act = foeAct(state, i, level);
   return { ...act, events: [...events, ...act.events] };
 }
 
 /** The foe's action itself, once start-of-turn effects are done. */
-function foeAct(s: FightState, i: number, level: number): Step & { strikeAfterMove: CombatAction | null } {
+function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
     let state = rel.state;
@@ -731,26 +805,80 @@ function foeAct(s: FightState, i: number, level: number): Step & { strikeAfterMo
       state = hit.state; events.push(...hit.events);
       if (hit.events.some(e => e.kind === 'playerDown')) break;
     }
-    return { state, events, strikeAfterMove: null };
+    return { state, events, walkAfter: false };
   }
   const choice = chooseFoeAction(s, i);
   const action = choice.action;
-  if (action.type === 'defend' || action.isHeavy) {
-    const next = action.type === 'defend' ? resolveFoeAction(choice.state, i, action, level) : telegraphHeavy(choice.state, i, action);
-    return { state: next.state, events: [...choice.events, ...next.events], strikeAfterMove: null };
+  // Nothing reaches from here (a scripted move included): walk instead
+  if (!action || (action.type !== 'defend' && !action.isHeavy && !canFoeHit(choice.state, i, action.attackPattern))) {
+    const walk = foeWalk(choice.state, i);
+    return { state: walk.state, events: [...choice.events, ...walk.events], walkAfter: false };
   }
-  if (canFoeHit(choice.state, i, action.attackPattern)) {
-    const hit = resolveFoeAction(choice.state, i, action, level);
-    return { state: hit.state, events: [...choice.events, ...hit.events], strikeAfterMove: null };
+  if (action.isHeavy) {
+    const next = telegraphHeavy(choice.state, i, action);
+    return { state: next.state, events: [...choice.events, ...next.events], walkAfter: false };
   }
-  const walk = moveFoeToward(choice.state, i, action.attackPattern);
-  return { state: walk.state, events: [...choice.events, ...walk.events], strikeAfterMove: walk.moved ? action : null };
+  const hit = resolveFoeAction(choice.state, i, action, level);
+  return { state: hit.state, events: [...choice.events, ...hit.events], walkAfter: true };
 }
 
-/** The second half: land the attack if the walk brought foe i into reach. */
-export function foeStrikeAfterMove(s: FightState, i: number, action: CombatAction, level: number): Step {
-  if (!isAlive(s.foes[i]) || !canFoeHit(s, i, action.attackPattern)) return { state: s, events: [] };
-  return resolveFoeAction(s, i, action, level);
+/**
+ * The second half: after attacking (or when nothing reached), foe i walks. It
+ * hunts: of the tiles it can reach, it ends where its attacks cover its
+ * victim's tile and the tiles the victim could step to, so getting out of the
+ * red takes cover or a kill rather than one free step.
+ */
+export function foeWalk(s: FightState, i: number): Step {
+  const foe = s.foes[i];
+  if (!foe || !isAlive(foe)) return { state: s, events: [] };
+  if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)] };
+  const view = foeView(s, i);
+  const prey = view.playerPosition;
+  const patterns = Array.from(new Set([...foeRoster(foe).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => a.attackPattern ?? 'melee_long')));
+  const keyOf = (k: string) => { const [row, col] = k.split(',').map(Number); return { row, col }; };
+  const escape = [prey, ...Array.from(getReachableTiles(prey, { ...view, bossPosition: foe.pos }, PLAYER_BASE_MOVE + s.perks.moveBonus)).map(keyOf)];
+  const offBoard = { row: -9, col: -9 };
+  const range = BOSS_MOVE + (hasTrait(foe, 'fast') ? 1 : 0);
+  const spots = [foe.pos, ...Array.from(getReachableTiles(foe.pos, { ...view, bossPosition: offBoard }, range)).map(keyOf)].filter(p => !same(p, prey));
+  const covers = (from: TilePosition, t: TilePosition) =>
+    patterns.some(p => canHitTarget(from, t, p, { ...view, bossPosition: from, playerPosition: t, occupied: (view.occupied ?? []).filter(o => !same(o, t)) }));
+  let best = foe.pos, bestScore = -Infinity, onPrey = false;
+  for (const p of spots) {
+    const hitsPrey = covers(p, prey);
+    const hits = escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0);
+    const hazard = s.grid.tiles?.[p.row]?.[p.col]?.type === 'hazard' && !hasTrait(foe, 'filtered') ? 2 : 0;
+    const score = hits - hazard - chebyshev(p, prey) * 0.05 - (same(p, foe.pos) ? 0 : 0.01);
+    if (score > bestScore) { bestScore = score; best = p; onPrey = hitsPrey; }
+  }
+  // Nowhere it can reach covers the victim yet: close the distance the usual way
+  if (!onPrey) {
+    const walk = moveFoeToward(s, i, approachPattern(foe));
+    return { state: walk.state, events: walk.events };
+  }
+  return { state: setFoe(s, i, { pos: best }), events: [] };
+}
+
+/** Who gets a parting blow if the player walks from `from` to `to`: enemies beside `from` but not beside `to` (stunned or winding up, they don't). */
+export function partingFoes(s: FightState, from: TilePosition, to: TilePosition): number[] {
+  return livingFoes(s).filter(({ f }) => !f.stunned && !f.pendingAction && chebyshev(f.pos, from) === 1 && chebyshev(f.pos, to) > 1).map(x => x.i);
+}
+
+/**
+ * Walking away from an enemy you started next to lets it hit you as you go.
+ * Without this, hit-and-step-away beats anything that attacks before it moves.
+ * Called once the player's turn is done, so a kill on the way out escapes it.
+ */
+export function partingBlows(s: FightState, from: TilePosition, level: number): Step {
+  let state = s;
+  const events: FightEvent[] = [];
+  for (const i of partingFoes(s, from, s.grid.playerPosition)) {
+    if (!isAlive(state.foes[i])) continue;
+    events.push(say(`${state.foes[i].unit.name} catches you as you pull away`, 'critical'));
+    const hit = resolveFoeAction(state, i, { ...CLOSE_QUARTERS, name: 'Parting blow', damage: Math.round((CLOSE_QUARTERS.damage ?? 12) * 0.6) }, level, -1);
+    state = hit.state; events.push(...hit.events);
+    if (hit.events.some(e => e.kind === 'playerDown')) break;
+  }
+  return { state, events };
 }
 
 // ── Allies ───────────────────────────────────────────────────────────────────
