@@ -51,6 +51,33 @@ attackPattern?: AttackPatternType;
 ignoreRange?: boolean;
 /** Arm moves only reach their own side of the body (left arm: left, right arm: right; straight up and down are both). */
 side?: 'left' | 'right';
+/** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
+effects?: ActionEffects;
+}
+
+export interface ActionEffects {
+  /** Push every enemy hit a tile away from you. */
+  knock?: boolean;
+  /** Drag the enemy hit toward you until something is in the way. */
+  pull?: boolean;
+  /** Bleeding: a share of max health at the start of its next 2 turns. */
+  bleed?: boolean;
+  /** Chance (0-1) to stun each enemy hit. */
+  stun?: number;
+  /** Heal this share of the damage dealt. */
+  drain?: number;
+  /** Knockback collisions hit twice as hard. */
+  crush?: boolean;
+  /** Heat vented after the hit. */
+  cool?: number;
+  /** Step a tile back from the enemy after hitting (no parting blow). */
+  retreat?: boolean;
+  /** You dash to the far end of the lane. */
+  dash?: boolean;
+  /** Cheap parts: only the nearest enemy in the shape is hit. */
+  focus?: boolean;
+  /** Shots go through cover. */
+  ignoreCover?: boolean;
 }
 
 export type WeaponType = 'pistol' | 'revolver' | 'shotgun';
@@ -124,6 +151,8 @@ condition?: ItemCondition;
 icon: string;
 description?: string;
 attackPattern?: AttackPatternType;
+/** Active implants: the head (attack shape) and mods (side effects) this one was built with. */
+parts?: { head: string; mods: string[] };
 }
 
 export interface LootDrop {
@@ -185,7 +214,8 @@ occupied?: TilePosition[];
 tiles: TileData[][];
 }
 
-export type AttackPatternType = 'melee' | 'melee_long' | 'diagonal_cross' | 'cone' | 'aoe' | 'ranged' | 'sweep_arc' | 'lunge' | 'knockback' | 'charge' | 'ring' | 'beam';
+export type AttackPatternType = 'melee' | 'melee_long' | 'diagonal_cross' | 'cone' | 'aoe' | 'ranged' | 'sweep_arc' | 'lunge' | 'knockback' | 'charge' | 'ring' | 'beam'
+  | 'bolt' | 'pierce' | 'longshot' | 'lob' | 'burst' | 'grapple';
 
 export interface AttackPattern {
 type: AttackPatternType;

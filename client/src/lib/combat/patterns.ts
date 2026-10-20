@@ -178,7 +178,74 @@ getTargetTiles: (from, to, grid) => {
 },
 },
 
+// ── Shapes from implant parts ──
+
+// Bolt: a straight line up to 4 in any of 8 directions, stopping at the first body
+bolt: {
+type: 'bolt', name: 'Bolt', range: 4,
+getTargetTiles: (from, to, grid) => flight(from, to, grid, 1, 4, true),
+},
+
+// Pierce: the same line, but it goes through every body in it
+pierce: {
+type: 'pierce', name: 'Pierce', range: 4,
+getTargetTiles: (from, to, grid) => flight(from, to, grid, 1, 4, false),
+},
+
+// Long shot: any row, column or diagonal to the edge, first body only; useless within 2 tiles
+longshot: {
+type: 'longshot', name: 'Long shot', range: 13,
+getTargetTiles: (from, to, grid) => flight(from, to, grid, 3, Math.max(grid.rows, grid.cols), true),
+},
+
+// Grapple: a line up to 3 that catches the first body (the pull comes from the move's effect)
+grapple: {
+type: 'grapple', name: 'Grapple', range: 3,
+getTargetTiles: (from, to, grid) => flight(from, to, grid, 2, 3, true),
+},
+
+// Lob: arcs over anything onto a tile 2-4 away, hitting it and the four tiles beside it
+lob: {
+type: 'lob', name: 'Lob', range: 4,
+getTargetTiles: (from, to, grid) => {
+  const d = cheb(from, to);
+  if (d < 2 || d > 4) return [];
+  return inside([to, { row: to.row - 1, col: to.col }, { row: to.row + 1, col: to.col }, { row: to.row, col: to.col - 1 }, { row: to.row, col: to.col + 1 }], grid);
+},
+},
+
+// Burst: every tile around you at once
+burst: {
+type: 'burst', name: 'Burst', range: 1,
+getTargetTiles: (from, to, grid) => {
+  if (cheb(from, to) !== 1) return [];
+  const out: TilePosition[] = [];
+  for (let r = -1; r <= 1; r++) for (let c = -1; c <= 1; c++) if (r || c) out.push({ row: from.row + r, col: from.col + c });
+  return inside(out, grid);
+},
+},
+
 };
+
+/**
+ * A projectile's path from `from` toward `to` along a row, column or diagonal:
+ * the tiles from `min` to `max` away, ending early at cover or the edge, and at
+ * the first body when `stopAtBody`. Open water doesn't stop it. Returns [] if
+ * `to` isn't on that path.
+ */
+function flight(from: TilePosition, to: TilePosition, grid: CombatGrid, min: number, max: number, stopAtBody: boolean): TilePosition[] {
+  const step = lineStep(from, to);
+  if (!step) return [];
+  const bodies = [grid.playerPosition, grid.bossPosition, ...(grid.occupied ?? [])];
+  const out: TilePosition[] = [];
+  for (let k = 1; k <= max; k++) {
+    const p = { row: from.row + step.row * k, col: from.col + step.col * k };
+    if (!isValidPosition(p, grid) || grid.tiles?.[p.row]?.[p.col]?.type === 'obstacle') break;
+    if (k >= min) out.push(p);
+    if (stopAtBody && bodies.some(b => b.row === p.row && b.col === p.col)) break;
+  }
+  return out.some(t => t.row === to.row && t.col === to.col) ? out : [];
+}
 
 // Helper to check if an attack can hit a target
 export function canHitTarget(

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AUGMENTATION_SLOT_ICONS, AugmentationSlot, Item } from '@/lib/combat/types';
-import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, cx } from './hud';
-import { implantStats, passiveText, conditionText, stimInfo } from './itemText';
+import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, cx } from './hud';
+import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
-import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO } from '@/lib/combat/augments';
+import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText } from '@/lib/combat/augments';
 import { getRarityColor } from '@/lib/combat/loot';
 
 // ── Body map ─────────────────────────────────────────────────────────────────
@@ -120,6 +120,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
   const move = actionForItem(item);
   const cost = healthCostOf(item);
   const maker = MAKER_INFO[makerOf(item)];
+  const parts = partsText(item);
   return (
     <div className={cx('overflow-hidden rounded-2xl bg-gradient-to-r to-transparent ring-1 ring-white/[0.05]', RARITY_GLOW[item.rarity])}>
       <div className="flex items-center gap-3 px-3 py-3">
@@ -133,6 +134,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
               <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
               <span className="truncate">{implantStats(item)}{cost > 0 && <span className="text-hostile"> · −{cost} HP</span>}</span>
             </span>
+            {parts && <span className="block truncate text-[11px] text-ok/90">{parts}</span>}
           </span>
         </button>
         {action}
@@ -144,9 +146,13 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
             {item.rarity} · {item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''}
           </div>
           {move && (
-            <div className="text-ok">
-              Combat move: <span className="font-semibold">{move.name}</span>
-              {move.damage ? ` · ${move.damage} damage` : ` · +${move.defenseBoost} guard`} · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat
+            <div className="flex items-start gap-3 text-ok">
+              {move.type === 'attack' && <Footprint pattern={move.attackPattern} className="mt-0.5 shrink-0" />}
+              <div>
+                Combat move: <span className="font-semibold">{move.name}</span>
+                {move.damage ? ` · ${move.damage} damage` : ` · +${move.defenseBoost} guard`} · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat
+                {move.type === 'attack' && <div className="text-xs text-hud-dim">{rangeText(move)}{effectsText(move) ? ` · ${effectsText(move)}` : ''}</div>}
+              </div>
             </div>
           )}
           {kind === 'passive' && <div className="text-hud-dim">Passive: always-on stats, no combat move.</div>}

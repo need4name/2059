@@ -68,6 +68,8 @@ export interface Foe {
   stunned: boolean;
   /** Knocked into the sea: can't be hit, and spends its next turn climbing out. */
   swimming?: boolean;
+  /** Turns of bleeding left (from a Bleed mod). */
+  bleeding?: number;
   /** A boss has passed its half-health turn. */
   enraged: boolean;
 }
@@ -126,6 +128,8 @@ export interface FightState {
   playerStunned: boolean;
   /** The player is in the sea (see swimming on foes). */
   playerSwimming?: boolean;
+  /** This turn's move away came from a hit-and-run step: no parting blows. */
+  noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
   overload: number;
 }
@@ -253,6 +257,7 @@ export function startPlayerTurn(s: FightState): FightState {
     mark: null, allyHitFoes: [], allyGuard: 0,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
+    noParting: false,
   };
 }
 
@@ -333,14 +338,14 @@ const stun = (s: FightState, b: Body): FightState =>
  * it (see swimming). If something solid is there (cover, the rail, another body) it slams into it instead: collision
  * damage and a stun, and a body it hits takes the same damage.
  */
-export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[]): FightState {
+export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
   const at = posOf(s, who);
   const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
   const to = { row: at.row + step.row, col: at.col + step.col };
   const other = inBounds(to, s.grid) ? bodyAt(s, to) : null;
   // Open water: in it goes. It hurts, and it spends its next turn climbing out (unhittable meanwhile)
   if (inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' && !other) {
-    const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share));
+    const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush));
     events.push(say(`${who.kind === 'player' ? 'You go' : `${nameOf(s, who)} goes`} into the sea: -${dmg}`, 'critical'), { kind: 'collide' });
     const wet = hurt(s, who, dmg, events);
     if (who.kind === 'player') return { ...wet, grid: { ...wet.grid, playerPosition: to }, playerSwimming: true };
@@ -354,7 +359,7 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
     if (who.kind === 'foe') return setFoe(s, who.i, { pos: to });
     return { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
   }
-  const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share));
+  const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush));
   const into = other ? nameOf(s, other) : !inBounds(to, s.grid) ? 'the rail' : tileAt(to, s.grid)?.type === 'void' ? 'the water' : (tileAt(to, s.grid)?.name ?? 'cover');
   events.push(say(`${who.kind === 'player' ? 'You slam' : `${nameOf(s, who)} slams`} into ${other?.kind === 'player' ? 'you' : into}: -${dmg}, stunned`, 'critical'), { kind: 'collide' });
   let state = stun(hurt(s, who, dmg, events), who);
@@ -455,13 +460,22 @@ export function aimTiles(s: FightState, action: CombatAction, playerClass: Playe
   const from = s.grid.playerPosition;
   if (same(from, aim) || !onSide(action, from, aim)) return [];
   if (ignoresRange(action, playerClass)) return foeAt(s, aim) >= 0 ? [aim] : [];
-  return getHitTiles(from, aim, attackPatternOf(action, playerClass), playerView(s));
+  const view = playerView(s);
+  // An "ignores cover" mod: shots fly as if the cover weren't there
+  const seen = action.effects?.ignoreCover ? { ...view, tiles: view.tiles.map(r => r.map(t => (t.type === 'obstacle' ? { type: 'empty' as const } : t))) } : view;
+  return getHitTiles(from, aim, attackPatternOf(action, playerClass), seen);
 }
 
 /** Every living foe standing on the tiles an aim lands on. */
 export function struckAt(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition): number[] {
   const tiles = aimTiles(s, action, playerClass, aim);
-  return s.foes.map((_, i) => i).filter(i => hittable(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
+  const hit = s.foes.map((_, i) => i).filter(i => hittable(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
+  // Cheap parts only manage the nearest one in the shape
+  if (action.effects?.focus && hit.length > 1) {
+    const d = (i: number) => chebyshev(s.grid.playerPosition, s.foes[i].pos);
+    return [hit.reduce((a, b) => (d(b) < d(a) ? b : a))];
+  }
+  return hit;
 }
 
 /** Every tile the attack can be aimed at from where the player stands. */
@@ -500,6 +514,63 @@ export function foesStruck(s: FightState, action: CombatAction, playerClass: Pla
   return aim ? struckAt(s, action, playerClass, aim) : [];
 }
 
+/** Bleeding: a share of max health at the start of each of the next turns. */
+export const BLEED = { share: 0.05, min: 3, turns: 2 };
+
+/**
+ * Side effects of a player attack, once its damage has landed (`before` is the
+ * state the attack started from): bleed, stun, knockback, pull, drain, and moving
+ * yourself (dash down the lane, or a hit-and-run step back).
+ */
+function applyHitEffects(state: FightState, before: FightState, action: CombatAction, struck: number[], dealt: number, aim: TilePosition | null, events: FightEvent[]): FightState {
+  const fx = action.effects;
+  if (!fx) return state;
+  const me = before.grid.playerPosition;
+  const free = (p: TilePosition) => inBounds(p, state.grid) && !isImpassable(p, state.grid) && !bodyAt(state, p);
+  for (const i of struck) {
+    if (!isAlive(state.foes[i])) continue;
+    const name = state.foes[i].unit.name;
+    if (fx.bleed) { state = setFoe(state, i, { bleeding: BLEED.turns }); events.push(say(`${name} is bleeding`)); }
+    if (fx.stun && random() < fx.stun) { state = setFoe(state, i, { stunned: true }); events.push(say(`${name} is stunned`, 'critical')); }
+    if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, me, { kind: 'foe', i }, Math.round(dealt / Math.max(1, struck.length)), events, fx.crush ? 2 : 1);
+  }
+  // Pull: drag the first one caught toward you until something is in the way
+  if (fx.pull && struck.length && isAlive(state.foes[struck[0]])) {
+    const i = struck[0];
+    let at = state.foes[i].pos;
+    const step = { row: Math.sign(me.row - at.row), col: Math.sign(me.col - at.col) };
+    let moved = 0;
+    for (;;) {
+      const next = { row: at.row + step.row, col: at.col + step.col };
+      if (same(next, me) || !free(next) || tileAt(next, state.grid)?.type === 'void') break;
+      at = next; moved++;
+    }
+    if (moved) { state = setFoe(state, i, { pos: at }); events.push(say(`${state.foes[i].unit.name} is dragged ${moved} tile${moved > 1 ? 's' : ''} toward you`)); }
+  }
+  if (fx.drain && dealt > 0) {
+    const heal = Math.min(state.player.maxHp - state.player.currentHp, Math.round(dealt * fx.drain));
+    if (heal > 0) { state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + heal } }; events.push(say(`Drained ${heal} HP`, 'heal')); }
+  }
+  // Dash: you end at the far end of the lane you struck down
+  if (fx.dash && aim) {
+    const step = { row: Math.sign(aim.row - me.row), col: Math.sign(aim.col - me.col) };
+    let end = me;
+    for (let k = 1; k <= 3; k++) {
+      const p = { row: me.row + step.row * k, col: me.col + step.col * k };
+      if (!inBounds(p, state.grid) || isImpassable(p, state.grid)) break;
+      if (!bodyAt(state, p)) end = p;
+    }
+    if (!same(end, me)) { state = { ...state, grid: { ...state.grid, playerPosition: end }, noParting: true }; events.push(say('You dash through')); }
+  }
+  // Hit and run: a step straight back from whoever you hit
+  if (fx.retreat && struck.length) {
+    const from = state.foes[struck[0]].pos;
+    const back = { row: me.row + Math.sign(me.row - from.row), col: me.col + Math.sign(me.col - from.col) };
+    if (free(back) && tileAt(back, state.grid)?.type !== 'hazard') { state = { ...state, grid: { ...state.grid, playerPosition: back }, noParting: true }; events.push(say('You step back out of reach')); }
+  }
+  return state;
+}
+
 /** An attack or special aimed at a tile (the best aim if none is given). Everyone on the struck tiles is hit. */
 export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
   const { player, grid, playerHeat } = s;
@@ -520,7 +591,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   // A knockback shoves the nearest one it hits
   const pushed = struck.slice().sort((a, b) => chebyshev(grid.playerPosition, s.foes[a].pos) - chebyshev(grid.playerPosition, s.foes[b].pos))[0];
   const heatPush = action.heatTransfer ?? 0;
-  let nearest = Infinity;
+  let nearest = Infinity, dealtTotal = 0;
   events.push({ kind: 'hit' });
   for (const i of struck) {
     const foe = state.foes[i];
@@ -538,6 +609,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
       s.perks.runaway ? 0.45 : 0.30,
     );
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
+    dealtTotal += foe.unit.currentHp - hp;
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     const heat = clampHeat(foe.heat + heatPush);
     state = setFoe(state, i, {
@@ -553,16 +625,17 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
   }
 
+  state = applyHitEffects(state, s, action, struck, dealtTotal, aim, events);
   const adjacentHeat = nearest === 1 ? 2 : 0;
-  const healed = action.healing && action.healing > 0 ? Math.min(player.maxHp, player.currentHp + action.healing) : player.currentHp;
+  const healed = action.healing && action.healing > 0 ? Math.min(player.maxHp, state.player.currentHp + action.healing) : state.player.currentHp;
   state = {
     ...state,
-    player: { ...player, currentHp: healed },
+    player: { ...state.player, currentHp: healed },
     playerDefenseBoost: action.defenseBoost && action.defenseBoost > 0 ? action.defenseBoost : 0,
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
     firstStrikeUsed: true,
-    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat),
+    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat - (action.effects?.cool ?? 0)),
   };
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };
@@ -826,6 +899,12 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
     state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { burning: f.burning - 1 });
     if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, walkAfter: false };
   }
+  if ((f.bleeding ?? 0) > 0) {
+    const dmg = Math.max(BLEED.min, Math.round(f.unit.maxHp * BLEED.share));
+    events.push(say(`${f.unit.name} is bleeding: -${dmg}`, 'damage'));
+    state = setFoe(hurt(state, { kind: 'foe', i }, dmg, events), i, { bleeding: (f.bleeding ?? 0) - 1 });
+    if (!isAlive(state.foes[i])) return { state: afterFoeChanges(state, events), events, walkAfter: false };
+  }
   if (f.swimming) {
     state = climbOut(state, { kind: 'foe', i }, events);
     return { state, events, walkAfter: false };
@@ -916,6 +995,7 @@ export function partingFoes(s: FightState, from: TilePosition, to: TilePosition)
 export function partingBlows(s: FightState, from: TilePosition, level: number): Step {
   let state = s;
   const events: FightEvent[] = [];
+  if (s.noParting) return { state, events };
   for (const i of partingFoes(s, from, s.grid.playerPosition)) {
     if (!isAlive(state.foes[i])) continue;
     events.push(say(`${state.foes[i].unit.name} catches you as you pull away`, 'critical'));

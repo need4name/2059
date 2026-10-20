@@ -73,7 +73,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   implants: {
     icon: '🔧',
     title: 'Active and passive implants',
-    body: 'Active implants (arms, legs and eyes) give you a new combat action as well as stats. Passive implants (brain, ears, nose, lungs and spine) only give stats and always-on effects. Every implant adds to your structure bar, and some cost you health.',
+    body: 'Active implants (arms, legs and eyes) give you a new combat action as well as stats. Each is cobbled from parts: its head decides the attack shape (the little picture on the move) and better parts add side effects like knockback or bleeding. Cheap commons only hit one enemy. Passive implants (brain, ears, nose, lungs and spine) only give stats and always-on effects. Every implant adds to your structure bar, and some cost you health.',
   },
   upgrades: {
     icon: '⬆️',

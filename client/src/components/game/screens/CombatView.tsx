@@ -8,7 +8,7 @@ import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
-import { Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
+import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
 import { stimInfo } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
@@ -37,6 +37,8 @@ function CombatHud() {
   if (s.playerSwimming) chips.push({ key: 'swim', tone: 'cred', text: 'In the sea · climbing out next turn' });
   if (target?.burning) chips.push({ key: 'tburn', tone: 'ok', text: 'Target burning' });
   if (target?.stunned) chips.push({ key: 'tstun', tone: 'ok', text: 'Target stunned' });
+  if (target?.bleeding) chips.push({ key: 'tbleed', tone: 'ok', text: 'Target bleeding' });
+  if (target?.swimming) chips.push({ key: 'tswim', tone: 'ok', text: 'Target in the sea' });
   if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
   if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Kizuna fired' });
@@ -166,7 +168,11 @@ function SlotButton({ action }: { action: LoadoutAction }) {
         selected ? 'bg-sys/15 ring-2 ring-sys/80 shadow-[0_0_20px_rgba(56,214,240,0.25)]' : 'bg-white/[0.06] hover:bg-white/[0.1]')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
-      {(getMechanicTag(action) || action.side) && <span className="text-[10px] text-hud-faint">{action.side === 'left' ? '◀ left side' : action.side === 'right' ? 'right side ▶' : getMechanicTag(action)!.toLowerCase().replace(/^\w/, c => c.toUpperCase())}</span>}
+      {isAttack ? (
+        <span className="flex items-center gap-1 text-[10px] text-hud-faint">
+          {action.side === 'left' && '◀'}<Footprint pattern={Fight.attackPatternOf(action, s.playerClass)} />{action.side === 'right' && '▶'}
+        </span>
+      ) : getMechanicTag(action) && <span className="text-[10px] text-hud-faint">{getMechanicTag(action)!.toLowerCase().replace(/^\w/, c => c.toUpperCase())}</span>}
       <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">
         {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}{struck.length > 1 ? ` ×${struck.length}` : ''}</span>}
         {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} guard</span> : null}

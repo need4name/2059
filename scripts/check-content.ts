@@ -15,7 +15,7 @@ import { MAKER_INFO } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-const pattern = z.enum(['melee', 'melee_long', 'diagonal_cross', 'cone', 'aoe', 'ranged', 'sweep_arc', 'lunge', 'knockback', 'charge', 'ring', 'beam']);
+const pattern = z.enum(['melee', 'melee_long', 'diagonal_cross', 'cone', 'aoe', 'ranged', 'sweep_arc', 'lunge', 'knockback', 'charge', 'ring', 'beam', 'bolt', 'pierce', 'longshot', 'lob', 'burst', 'grapple']);
 const stat = z.number().int().min(-50).max(120).optional();
 const text = z.string().trim().min(1);
 

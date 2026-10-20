@@ -53,10 +53,36 @@ const PATTERN_TEXT: Record<string, string> = {
   charge: 'Charge lane, 2–3 tiles',
   ring: 'Ring, all tiles 2 away',
   beam: 'Whole row or column',
+  bolt: 'Line of 4, first body only',
+  pierce: 'Line of 4, through everyone',
+  longshot: 'Any line to the edge, not within 2',
+  grapple: 'Line of 3, catches the first body',
+  lob: 'Lobbed 2–4 away, hits a plus',
+  burst: 'Every tile around you',
 };
 
 export function rangeText(action: CombatAction): string {
   if (action.type === 'brace' || action.type === 'defend') return 'Self';
   if (action.ignoreRange) return 'Any range';
   return PATTERN_TEXT[action.attackPattern ?? 'melee_long'] ?? 'Close';
+}
+
+/** The side effects an attack carries, in plain words ("pushes back · bleeds"). */
+export function effectsText(action: CombatAction): string | null {
+  const fx = action.effects;
+  if (!fx) return null;
+  const out = [
+    fx.focus && 'hits only the nearest one',
+    fx.knock && 'pushes back',
+    fx.pull && 'drags toward you',
+    fx.bleed && 'bleeds',
+    fx.stun && `${Math.round(fx.stun * 100)}% stun`,
+    fx.drain && `heals you ${Math.round(fx.drain * 100)}% of damage`,
+    fx.crush && 'crushing collisions',
+    fx.cool && `vents ${fx.cool} heat`,
+    fx.retreat && 'you step back after',
+    fx.dash && 'you dash through',
+    fx.ignoreCover && 'through cover',
+  ].filter(Boolean);
+  return out.length ? out.join(' · ') : null;
 }

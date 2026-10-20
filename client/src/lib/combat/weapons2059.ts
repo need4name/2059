@@ -1,4 +1,4 @@
-import { Weapon, WeaponType, AttackPatternType } from './types';
+import { Weapon, WeaponType, AttackPatternType, ActionEffects } from './types';
 import rawWeapons from '../../content/weapons.json';
 
 // ── WEAPONS 2059 ──────────────────────────────────────────────────────────────
@@ -15,9 +15,11 @@ import rawWeapons from '../../content/weapons.json';
 // Weapon data lives in content/weapons.json, checked by `npm run check:content`.
 export const BASE_WEAPONS = rawWeapons as unknown as Weapon[];
 
-// Each weapon type fires its own shape: sidearms and revolvers reach across
-// the arena, shotgun-class frames spray a cone in front of you.
-const WEAPON_PATTERN: Record<WeaponType, AttackPatternType> = { pistol: 'ranged', revolver: 'ranged', shotgun: 'cone' };
+// Each weapon type fires its own shape: a sidearm's bolt stops at the first body,
+// a revolver round goes through everyone in its line, a shotgun sprays a cone.
+const WEAPON_PATTERN: Record<WeaponType, AttackPatternType> = { pistol: 'bolt', revolver: 'pierce', shotgun: 'cone' };
+// Tier-2 guns gain their maker's side effect
+const MAKER_EFFECT: Record<string, ActionEffects> = { volkov: { knock: true }, tianxia: { cool: 6 }, cbn: { bleed: true }, ioa: { stun: 0.15 } };
 
 // Shotguns are hard to line up (a short cone), so they hit steadier and run cooler than listed.
 export const WEAPONS_2059: Weapon[] = BASE_WEAPONS.map(w => ({
@@ -25,6 +27,7 @@ export const WEAPONS_2059: Weapon[] = BASE_WEAPONS.map(w => ({
 combatAction: {
 ...w.combatAction,
 attackPattern: w.combatAction.attackPattern ?? WEAPON_PATTERN[w.weaponType],
+...(w.tier >= 2 && MAKER_EFFECT[w.manufacturer] ? { effects: MAKER_EFFECT[w.manufacturer] } : {}),
 ...(w.weaponType === 'shotgun' ? { accuracy: 'variable' as const, heatGenerated: Math.round((w.combatAction.heatGenerated ?? 20) * 0.68) } : {}),
 },
 }));

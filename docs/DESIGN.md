@@ -159,6 +159,25 @@ Rarity multiplies structure by 1.00 / 1.15 / 1.30 / 1.50 / 1.75. Brace repairs 4
 ### Health cost
 CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.75), plus any condition cost. Max health never drops below **30**.
 
+### Implant parts
+Active implants (arms, legs, eyes) are built from parts when they drop, like guns in Borderlands (`rollParts` in `augments.ts`, seeded): the **frame** is the maker (base damage, heat, accuracy, structure, health cost), the **head** is the attack's shape, and **mods** are side effects. Two drops with the same name can fight differently. Helix arms and legs are braces and have no parts. Implants saved before parts existed keep their old maker shape with no mods.
+
+| Quality | Heads | Mods |
+| --- | --- | --- |
+| Common | basic heads only; **hits only the nearest enemy** in its shape | 0 |
+| Uncommon | basic heads | 0 or 1 (half the time) |
+| Rare | any non-signature head | 1 |
+| Epic | any non-signature head | 2 |
+| Legendary | half the time the maker's signature head, else any | 2 (signatures carry their own effects) |
+
+- **Heads** (damage multiplier): arms jab ×1.0, drive (reach 2) ×0.95, lash (exactly 2) ×1.1 [basic]; hook (arc) ×0.85, cutter (X-burst) ×0.8, spread (cone) ×0.85, grapple (line of 3, pulls) ×0.8. Legs stomp ×1.0, kick (knockback line) ×0.9, lunge ×1.05 [basic]; charge ×1.0, sweep ×0.85, step-cut (jab, then step back) ×0.95. Eyes bolt ×1.0, scope (2–4 shot) ×1.05 [basic]; lance (pierce) ×0.9, mortar (lob) ×0.8.
+- **Signatures** (legendary): Volkov Breach Line (charge lane, dash through, knockback), Tianxia Crowd Press (arc, pushes all back), Kizuna Monowire (pierce through cover), Crown Bedside Manner (jab, drain 50%, vents 10 heat), CBN Harvest (grapple, pull, drain 40%, bleed), IOA Override Pulse (lob, 60% stun), PARSU Ground Slam (burst, crush), Patchwork Scrapstorm (cone, bleed, knockback); any maker's legs Sprint Strike (charge, dash), any maker's eyes Long Shot.
+- **Mods:** Knockback (push every enemy hit a tile), Crush (knockback collisions ×2), Bleed (5% of max health, at least 3, at the start of its next 2 turns), Stun 25%, Drain (heal 25% of damage dealt), Coolant (vent 8 heat), Ignores cover. Makers carry their own: Volkov knockback/crush, Tianxia knockback/coolant, Kizuna cover/coolant, Crown drain/coolant, CBN bleed/drain, IOA stun/cover, PARSU crush/knockback, Patchwork any.
+- A head picks from its maker's usual heads 60% of the time (Volkov reach, jab, spread, charge, kick, scope, lance; Tianxia jab, hook, kick, stomp, bolt, scope; Kizuna cutter, lash, lunge, step-cut, scope, lance; Crown jab, reach, sweep, step-cut, scope, bolt; CBN lash, grapple, lunge, kick, bolt, lance; IOA spread, hook, charge, kick, mortar, bolt; PARSU jab, hook, stomp, kick, bolt, mortar).
+- The move's name is the maker's word plus the head ("Graft Grapple", "Hydraulic Drive"); the card shows the head and mods, and every attack button shows a small footprint picture: you in cyan, where it can reach faint, where it lands bright.
+- **New shapes:** bolt (line of 4, stops at the first body; water doesn't block, cover does), pierce (line of 4, through every body), long shot (any line to the edge, not within 2), grapple (line of 2–3, first body), lob (2–4 away over anything, hits the tile and the four beside it), burst (all 8 around you).
+- **Dash** puts you on the farthest open tile of the lane; **step-cut** steps you a tile straight back from the enemy hit (onto open, non-hazard deck). Neither earns a parting blow.
+
 ### Upgrades
 - Stored per implant (by id), so only installed implants can be upgraded and a part keeps its upgrades if you take it out.
 - Picking path A or B is free; tiers 2 and 3 cost 1 point each.
@@ -175,7 +194,7 @@ CBN parts cost 5 max health, Volkov and IOA 3, scaled by rarity (×1.00 to ×1.7
 
 ### Enemy scaling by threat
 - Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
-- On top of that, every enemy's health is × 0.36 × 1.07^(threat − 1) and its attack × 1.12 × 1.055^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
+- On top of that, every enemy's health is × 0.39 × 1.07^(threat − 1) and its attack × 1.16 × 1.055^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
@@ -202,7 +221,7 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - Buy prices: common 45, uncommon 95, rare 190, epic 360, legendary 640 credits, scaled by condition (worn ×0.75, degraded ×0.5, corroded ×0.3).
 - Selling returns 40% of the buy price (at least 5).
 - The Grey Lane stocks 7 implants and 3 stims, rerolled after every fight. Overclock appears from threat 5. From threat 12 there is a 25% chance (rising 3% a threat, up to 60%) of one legendary.
-- Weapons: 12 base weapons (4 makers × pistol, revolver, shotgun) and their 12 upgrades. Sidearms and revolvers fire at range; shotgun-class frames hit a cone, steadier and cooler than their listed heat.
+- Weapons: 12 base weapons (4 makers × pistol, revolver, shotgun) and their 12 upgrades. Pistols fire a **bolt** (stops at the first body), revolvers **pierce** (through everyone in the line), shotguns hit a **cone**, steadier and cooler than their listed heat. Tier-2 guns gain their maker's side effect: Volkov knockback, Tianxia vents 6 heat, CBN bleed, IOA 15% stun.
 
 ---
 

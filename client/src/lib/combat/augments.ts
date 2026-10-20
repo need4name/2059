@@ -1,4 +1,5 @@
-import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier } from './types';
+import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects } from './types';
+import { random } from '../engine/rng';
 import { augmentKind } from './types';
 
 // ── Makers ────────────────────────────────────────────────────────────────────
@@ -139,6 +140,116 @@ function groupOf(slot: AugmentationSlot): Group | null {
   return null;
 }
 
+// ── Implant parts ─────────────────────────────────────────────────────────────
+// Like guns in Borderlands, an active implant is built from parts when it drops:
+// the frame (its maker: base damage, heat, structure, health cost), a head (the
+// attack's shape) and 0-2 mods (side effects). Quality decides which heads and how
+// many mods. Two drops with the same name can fight differently.
+
+export interface Head { group: Group; noun: string; pattern: AttackPatternType; mult: number; basic?: boolean; effects?: ActionEffects; signature?: string }
+export const HEADS: Record<string, Head> = {
+  jab:      { group: 'arm', noun: 'Jab',      pattern: 'melee',          mult: 1.0,  basic: true },
+  reach:    { group: 'arm', noun: 'Drive',    pattern: 'melee_long',     mult: 0.95, basic: true },
+  lash:     { group: 'arm', noun: 'Lash',     pattern: 'lunge',          mult: 1.1,  basic: true },
+  hook:     { group: 'arm', noun: 'Hook',     pattern: 'sweep_arc',      mult: 0.85 },
+  cutter:   { group: 'arm', noun: 'Cutter',   pattern: 'diagonal_cross', mult: 0.8 },
+  spread:   { group: 'arm', noun: 'Spread',   pattern: 'cone',           mult: 0.85 },
+  grapple:  { group: 'arm', noun: 'Grapple',  pattern: 'grapple',        mult: 0.8,  effects: { pull: true } },
+  stomp:    { group: 'leg', noun: 'Stomp',    pattern: 'melee',          mult: 1.0,  basic: true },
+  kick:     { group: 'leg', noun: 'Kick',     pattern: 'knockback',      mult: 0.9,  basic: true },
+  lunge:    { group: 'leg', noun: 'Lunge',    pattern: 'lunge',          mult: 1.05, basic: true },
+  charge:   { group: 'leg', noun: 'Charge',   pattern: 'charge',         mult: 1.0 },
+  sweep:    { group: 'leg', noun: 'Sweep',    pattern: 'sweep_arc',      mult: 0.85 },
+  stepcut:  { group: 'leg', noun: 'Step-cut', pattern: 'melee',          mult: 0.95, effects: { retreat: true } },
+  bolt:     { group: 'eyes', noun: 'Bolt',    pattern: 'bolt',           mult: 1.0,  basic: true },
+  scope:    { group: 'eyes', noun: 'Scope',   pattern: 'ranged',         mult: 1.05, basic: true },
+  lance:    { group: 'eyes', noun: 'Lance',   pattern: 'pierce',         mult: 0.9 },
+  mortar:   { group: 'eyes', noun: 'Mortar',  pattern: 'lob',            mult: 0.8 },
+  // Signatures: legendary only
+  breachline:  { group: 'arm', noun: 'Breach Line',   pattern: 'charge',    mult: 1.1,  signature: 'VOLKOV',    effects: { dash: true, knock: true } },
+  crowdpress:  { group: 'arm', noun: 'Crowd Press',   pattern: 'sweep_arc', mult: 1.0,  signature: 'TIANXIA',   effects: { knock: true } },
+  monowire:    { group: 'arm', noun: 'Monowire',      pattern: 'pierce',    mult: 1.0,  signature: 'KIZUNA',    effects: { ignoreCover: true } },
+  bedside:     { group: 'arm', noun: 'Bedside Manner', pattern: 'melee',    mult: 1.2,  signature: 'CROWN',     effects: { drain: 0.5, cool: 10 } },
+  harvest:     { group: 'arm', noun: 'Harvest',       pattern: 'grapple',   mult: 1.0,  signature: 'CBN',       effects: { pull: true, drain: 0.4, bleed: true } },
+  override:    { group: 'arm', noun: 'Override Pulse', pattern: 'lob',      mult: 0.9,  signature: 'IOA',       effects: { stun: 0.6 } },
+  groundslam:  { group: 'arm', noun: 'Ground Slam',   pattern: 'burst',     mult: 1.0,  signature: 'PARSU',     effects: { crush: true } },
+  scrapstorm:  { group: 'arm', noun: 'Scrapstorm',    pattern: 'cone',      mult: 1.0,  signature: 'PATCHWORK', effects: { bleed: true, knock: true } },
+  sprint:      { group: 'leg', noun: 'Sprint Strike', pattern: 'charge',    mult: 1.1,  signature: 'any',       effects: { dash: true } },
+  longshot:    { group: 'eyes', noun: 'Long Shot',    pattern: 'longshot',  mult: 1.15, signature: 'any' },
+};
+
+export interface Mod { label: string; effects: ActionEffects }
+export const MODS: Record<string, Mod> = {
+  knock: { label: 'Knockback', effects: { knock: true } },
+  crush: { label: 'Crush', effects: { crush: true } },
+  bleed: { label: 'Bleed', effects: { bleed: true } },
+  stun:  { label: 'Stun 25%', effects: { stun: 0.25 } },
+  drain: { label: 'Drain', effects: { drain: 0.25 } },
+  cool:  { label: 'Coolant', effects: { cool: 8 } },
+  cover: { label: 'Ignores cover', effects: { ignoreCover: true } },
+};
+
+// What each maker leans toward: its usual heads (picked 60% of the time) and the mods it can carry
+const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string }> = {
+  VOLKOV:    { word: 'Hydraulic',    heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance'], mods: ['knock', 'crush'] },
+  TIANXIA:   { word: 'Labour',       heads: ['jab', 'hook', 'kick', 'stomp', 'bolt', 'scope'], mods: ['knock', 'cool'] },
+  KIZUNA:    { word: 'Signed',       heads: ['cutter', 'lash', 'lunge', 'stepcut', 'scope', 'lance'], mods: ['cover', 'cool'] },
+  CROWN:     { word: 'Concierge',    heads: ['jab', 'reach', 'sweep', 'stepcut', 'scope', 'bolt'], mods: ['drain', 'cool'] },
+  CBN:       { word: 'Graft',        heads: ['lash', 'grapple', 'lunge', 'kick', 'bolt', 'lance'], mods: ['bleed', 'drain'] },
+  IOA:       { word: 'Limiter-free', heads: ['spread', 'hook', 'charge', 'kick', 'mortar', 'bolt'], mods: ['stun', 'cover'] },
+  PARSU:     { word: 'Substrate',    heads: ['jab', 'hook', 'stomp', 'kick', 'bolt', 'mortar'], mods: ['crush', 'knock'] },
+  PATCHWORK: { word: 'Scrap',        heads: [], mods: Object.keys(MODS) },
+  HELIX:     { word: 'Housing',      heads: [], mods: [] },
+};
+
+const pick = <T,>(arr: T[]): T => arr[Math.floor(random() * arr.length)];
+
+/** Roll the parts for a freshly dropped active implant (seeded, so runs replay). Helix parts are braces and have none. */
+export function rollParts(item: Item): Item['parts'] {
+  if (item.type !== 'augmentation' || !item.slot) return undefined;
+  const group = groupOf(item.slot);
+  const maker = makerOf(item);
+  if (!group || maker === 'HELIX') return undefined;
+  const r = item.rarity;
+  const fits = (id: string) => HEADS[id].group === group && !HEADS[id].signature;
+  let pool = Object.keys(HEADS).filter(id => fits(id) && (r === 'common' || r === 'uncommon' ? HEADS[id].basic : true));
+  const sig = Object.keys(HEADS).filter(id => HEADS[id].group === group && (HEADS[id].signature === maker || HEADS[id].signature === 'any'));
+  let head: string;
+  if (r === 'legendary' && sig.length && random() < 0.5) head = pick(sig);
+  else {
+    const usual = pool.filter(id => MAKER_PARTS[maker].heads.includes(id));
+    head = usual.length && random() < 0.6 ? pick(usual) : pick(pool);
+  }
+  const count = r === 'common' ? 0 : r === 'uncommon' ? (random() < 0.5 ? 1 : 0) : r === 'rare' ? 1 : 2;
+  const mods: string[] = [];
+  const modPool = MAKER_PARTS[maker].mods.filter(m => !HEADS[head].effects || !Object.keys(MODS[m].effects).some(k => k in HEADS[head].effects!));
+  for (let k = 0; k < count && modPool.length; k++) {
+    const m = pick(modPool.filter(x => !mods.includes(x)).length ? modPool.filter(x => !mods.includes(x)) : modPool);
+    if (!mods.includes(m)) mods.push(m);
+  }
+  return { head, mods };
+}
+
+/** Parts for an implant saved before parts existed: its old maker shape, no mods. */
+function legacyParts(item: Item, group: Group, pattern: AttackPatternType | undefined): NonNullable<Item['parts']> {
+  const head = Object.keys(HEADS).find(id => HEADS[id].group === group && !HEADS[id].signature && HEADS[id].pattern === pattern)
+    ?? { arm: 'jab', leg: 'stomp', eyes: 'scope' }[group];
+  return { head, mods: [] };
+}
+
+/** "Hook head · Bleed, Stun 25%": how the parts read on an item card. */
+export function partsText(item: Item): string | null {
+  const group = item.slot ? groupOf(item.slot) : null;
+  if (!group || makerOf(item) === 'HELIX') return null;
+  const t = T[group][makerOf(item)] ?? T[group].default;
+  const parts = item.parts ?? legacyParts(item, group, t.pattern);
+  const head = HEADS[parts.head];
+  if (!head) return null;
+  const mods = parts.mods.map(m => MODS[m]?.label).filter(Boolean);
+  const cheap = item.rarity === 'common' && !head.signature ? ' · hits one' : '';
+  return `${head.signature ? 'Signature: ' : ''}${head.noun} head${mods.length ? ` · ${mods.join(', ')}` : ''}${cheap}`;
+}
+
 export interface ActiveTreeMod { path: 'A' | 'B' | null; tier: number }
 
 /**
@@ -160,7 +271,15 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
     return { type: 'brace', name: t.name, description, defenseBoost: guard, heatGenerated: t.heat - (mod.path === 'B' ? 3 * tierUp : 0) };
   }
 
-  let damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond;
+  // The parts decide the shape, name and side effects; the frame (maker) the base numbers
+  const parts = item.parts ?? legacyParts(item, group, t.pattern);
+  const head = HEADS[parts.head] ?? HEADS[legacyParts(item, group, t.pattern).head];
+  const effects: ActionEffects = { ...(head.effects ?? {}) };
+  for (const m of parts.mods) Object.assign(effects, MODS[m]?.effects ?? {});
+  if (item.rarity === 'common' && item.parts && !head.signature) effects.focus = true;
+  const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
+
+  let damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult;
   // Guaranteed full damage costs extra heat
   let heat = t.heat + (t.accuracy === 'precise' ? 3 : 0);
   let accuracy = t.accuracy ?? 'variable';
@@ -171,10 +290,11 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
   }
   return {
     type: 'attack',
-    name: t.name,
+    name,
     description,
     damage: Math.round(damage),
-    attackPattern: t.pattern,
+    attackPattern: head.pattern,
+    effects: Object.keys(effects).length ? effects : undefined,
     accuracy,
     heatGenerated: heat,
     heatTransfer: t.transfer ?? 0,

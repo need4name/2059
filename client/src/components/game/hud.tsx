@@ -1,5 +1,7 @@
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 import type { ItemRarity } from '@/lib/combat/types';
+import { ATTACK_PATTERNS } from '@/lib/combat/patterns';
+import type { AttackPatternType, CombatGrid } from '@/lib/combat/types';
 
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   common: 'text-slate-300',
@@ -227,5 +229,41 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A tiny pixel picture of an attack's footprint, South Park style: you in cyan,
+ * where it can reach faint, where a typical aim lands bright. Drawn on an empty
+ * 7x7 board with you near the bottom, aiming up.
+ */
+export function Footprint({ pattern, className }: { pattern?: AttackPatternType; className?: string }) {
+  if (!pattern) return null;
+  const n = 7, me = { row: 5, col: 3 };
+  const grid: CombatGrid = { rows: n, cols: n, playerPosition: me, bossPosition: { row: -9, col: -9 }, tiles: Array.from({ length: n }, () => Array.from({ length: n }, () => ({ type: 'empty' as const }))) };
+  const shape = ATTACK_PATTERNS[pattern];
+  const key = (r: number, c: number) => `${r},${c}`;
+  const reach = new Set<string>();
+  let aim: string[] = [];
+  // Prefer aiming straight up, nearest first; otherwise the first tile it can reach
+  const order: [number, number][] = [];
+  for (let d = 1; d < n; d++) order.push([me.row - d, me.col]);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) order.push([r, c]);
+  for (const [r, c] of order) {
+    if (r < 0 || (r === me.row && c === me.col)) continue;
+    const tiles = shape.getTargetTiles(me, { row: r, col: c }, grid);
+    if (!tiles.length) continue;
+    tiles.forEach(t => reach.add(key(t.row, t.col)));
+    if (!aim.length) aim = tiles.map(t => key(t.row, t.col));
+  }
+  const cell = 4, gap = 1, size = n * (cell + gap) - gap;
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className={className} aria-hidden shapeRendering="crispEdges">
+      {Array.from({ length: n * n }, (_, k) => {
+        const r = Math.floor(k / n), c = k % n, id = key(r, c);
+        const fill = r === me.row && c === me.col ? '#38d6f0' : aim.includes(id) ? '#ffb43a' : reach.has(id) ? 'rgba(255,180,58,0.3)' : 'rgba(255,255,255,0.07)';
+        return <rect key={k} x={c * (cell + gap)} y={r * (cell + gap)} width={cell} height={cell} rx={1} fill={fill} />;
+      })}
+    </svg>
   );
 }

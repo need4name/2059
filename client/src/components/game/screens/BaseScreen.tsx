@@ -9,10 +9,10 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS, ENEMY_G
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
-import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, RARITY_TEXT, cx } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, RARITY_TEXT, cx } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
-import { rangeText } from '../itemText';
+import { rangeText, effectsText } from '../itemText';
 import { pathSummary, statText, moveText } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
@@ -20,7 +20,7 @@ import { useMap } from '@/lib/stores/useMap';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { PLAYER_BASE_MOVE } from '@/lib/engine/fight';
+import { PLAYER_BASE_MOVE, attackPatternOf } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status';
 
@@ -41,6 +41,7 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
       {a.healing ? <span>+{a.healing} HP</span> : null}
       <span>{rangeText(a)}</span>
       {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat} heat</span>}
+      {effectsText(a) && <span className="text-ok/90">{effectsText(a)}</span>}
     </span>
   );
 }
@@ -54,6 +55,7 @@ const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: st
 
 function LoadoutTab() {
   const { slots, setSlot } = useLoadout();
+  const playerClass = useCombat(s => s.playerClass);
   const pool = useActionPool();
   const [replacing, setReplacing] = useState<LoadoutAction | null>(null);
   const slotOf = (a: LoadoutAction) => slots.findIndex(s => s?.key === a.key);
@@ -100,6 +102,7 @@ function LoadoutTab() {
                       <button key={a.key} onClick={() => toggle(a)} aria-pressed={on}
                         className={cx('relative flex flex-col gap-1 rounded-2xl p-3 text-left transition', on ? 'bg-sys/[0.09] ring-1 ring-sys/40' : 'bg-white/[0.04] hover:bg-white/[0.07]')}>
                         <span className={cx('pr-5 font-display text-[14px] font-semibold leading-tight', actionColor(a))}>{a.name}</span>
+                        {(a.type === 'attack' || a.type === 'special') && <Footprint pattern={attackPatternOf(a, playerClass)} className="my-0.5" />}
                         <ActionDetail a={a} />
                         <span className={cx('absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold', on ? 'bg-sys text-hud-bg' : 'bg-white/[0.08] text-hud-dim')}>{on ? '✓' : '+'}</span>
                       </button>

@@ -410,3 +410,75 @@ test('the player in the sea is left alone, then spends the next turn climbing ou
   assert.equal(turn.skipTurn, true);
   assert.equal(turn.state.playerSwimming, false);
 });
+
+// ── Implant parts and the new shapes ────────────────────────────────────────
+
+test('bolts stop at the first body, pierces go through, long shots skip the near tiles, lobs hit a plus', () => {
+  const g = arena([8, 3], [4, 3]);
+  const occ = { ...g, occupied: [{ row: 6, col: 3 }] };
+  const bolt = getHitTiles({ row: 8, col: 3 }, { row: 6, col: 3 }, 'bolt', occ);
+  assert.deepEqual(bolt.at(-1), { row: 6, col: 3 }, 'stops on the first body');
+  assert.equal(getHitTiles({ row: 8, col: 3 }, { row: 4, col: 3 }, 'bolt', occ).length, 0, "can't aim past it");
+  assert.ok(getHitTiles({ row: 8, col: 3 }, { row: 4, col: 3 }, 'pierce', occ).some(t => t.row === 6), 'pierce goes through');
+  assert.equal(getHitTiles({ row: 8, col: 3 }, { row: 7, col: 3 }, 'longshot', g).length, 0, 'useless up close');
+  assert.ok(getHitTiles({ row: 8, col: 3 }, { row: 0, col: 3 }, 'longshot', arena([8, 3], [0, 3])).length > 0, 'reaches the far edge');
+  assert.equal(getHitTiles({ row: 8, col: 3 }, { row: 5, col: 3 }, 'lob', g).length, 5);
+  assert.equal(getHitTiles({ row: 5, col: 3 }, { row: 4, col: 3 }, 'burst', g).length, 8);
+});
+
+test('implant parts: commons get basic heads and no mods, legendaries get two, and the same seed rolls the same parts', async () => {
+  const { rollParts, HEADS } = await import('../client/src/lib/combat/augments');
+  const arm = (rarity: any, name = '[CBN] Test Arm') => ({ id: 'x', name, rarity, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '' });
+  for (let k = 0; k < 30; k++) {
+    seedRandom(k);
+    const c = rollParts(arm('common'))!;
+    assert.ok(HEADS[c.head].basic, 'commons only roll basic heads');
+    assert.equal(c.mods.length, 0);
+    const l = rollParts(arm('legendary'))!;
+    assert.ok(l.mods.length >= 1 || HEADS[l.head].signature, 'legendaries carry mods or a signature');
+  }
+  seedRandom(9); const a = rollParts(arm('epic'));
+  seedRandom(9); const b = rollParts(arm('epic'));
+  assert.deepEqual(a, b);
+  assert.equal(rollParts(arm('rare', '[HELIX] Housing')), undefined, 'Helix parts are braces');
+});
+
+test('a common implant only hits the nearest enemy in its shape; better parts hit everyone', () => {
+  const s = crowd(); // player 5,3; foes 4,3 and 4,4
+  const hook = { ...PLAYER_ACTIONS[0], attackPattern: 'sweep_arc' as const };
+  assert.equal(Fight.struckAt(s, { ...hook, effects: { focus: true } }, 'none', { row: 4, col: 3 }).length, 1);
+  assert.equal(Fight.struckAt(s, hook, 'none', { row: 4, col: 3 }).length, 2);
+});
+
+test('pull drags an enemy to you; bleed ticks on its turn; drain heals; a hit-and-run step dodges the parting blow', () => {
+  const far = fight({ grid: arena([8, 3], [5, 3]), player: { ...createPlayer(), currentHp: 50 } });
+  const grab = { ...PLAYER_ACTIONS[0], damage: 10, accuracy: 'precise' as const, attackPattern: 'grapple' as const, effects: { pull: true, bleed: true, drain: 0.5 } };
+  seedRandom(61);
+  const pulled = Fight.resolvePlayerAttack(far, grab, 'none', { row: 5, col: 3 }).state;
+  assert.deepEqual(pulled.foes[0].pos, { row: 7, col: 3 }, 'dragged to the tile beside you');
+  assert.equal(pulled.foes[0].bleeding, 2);
+  assert.ok(pulled.player.currentHp > 50, 'drain heals');
+  const hp = pulled.foes[0].unit.currentHp;
+  seedRandom(62);
+  assert.ok(Fight.foeTurn(pulled, 0, 3).state.foes[0].unit.currentHp < hp, 'bleeds on its turn');
+
+  const close = fight({ grid: arena([5, 3], [4, 3]) });
+  const cut = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'melee' as const, effects: { retreat: true } };
+  seedRandom(63);
+  const ran = Fight.resolvePlayerAttack(close, cut, 'none', { row: 4, col: 3 }).state;
+  assert.deepEqual(ran.grid.playerPosition, { row: 6, col: 3 });
+  assert.equal(Fight.partingBlows(ran, { row: 5, col: 3 }, 3).events.length, 0, 'no parting blow');
+});
+
+test('a dash carries you to the end of the lane; ignore-cover shots fly through crates', () => {
+  const s = fight({ grid: arena([8, 3], [6, 3]) });
+  const dash = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'charge' as const, effects: { dash: true } };
+  seedRandom(64);
+  const after = Fight.resolvePlayerAttack(s, dash, 'none', { row: 6, col: 3 }).state;
+  assert.deepEqual(after.grid.playerPosition, { row: 5, col: 3 }, 'past the enemy to the lane end');
+  const g = arena([8, 3], [4, 3]); g.tiles[6][3] = { type: 'obstacle', name: 'Crate stack' } as any;
+  const shot = { ...PLAYER_ACTIONS[0], attackPattern: 'bolt' as const };
+  const behind = fight({ grid: g });
+  assert.equal(Fight.canPlayerHit(behind, shot, 'none'), false, 'cover blocks a plain bolt');
+  assert.ok(Fight.canPlayerHit(behind, { ...shot, effects: { ignoreCover: true } }, 'none'));
+});

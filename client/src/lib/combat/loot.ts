@@ -1,5 +1,6 @@
 import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
+import { rollParts } from './augments';
 
 import { random } from '../engine/rng';
 /** Drop tuning (see docs/DESIGN.md). */
@@ -16,6 +17,8 @@ return {
 ...item,
 templateId: item.id,
 id: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+// Active implants are built from parts when they drop (head + mods; see augments.ts)
+parts: item.parts ?? rollParts(item),
 };
 }
 
