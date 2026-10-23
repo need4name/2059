@@ -140,6 +140,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Enemy traits',
     body: "Enemies' implants give them traits: Fast, Sighted, Braced and more. Tap an enemy to see its traits. Strip a body and you might find the very implant that gave it one.",
   },
+  shove: {
+    icon: '🪝',
+    title: 'Dragged and shoved',
+    body: "Red tiles with a purple edge mean that hit also drags you toward the enemy or shoves you away. Watch what's behind you: fire, cables, or the sea.",
+  },
   parting: {
     icon: '🦶',
     title: 'Parting blows',
@@ -179,6 +184,7 @@ export function useTutorialTriggers() {
       ['move', myTurn && !!t.seen.intro && !c.hasMoved],
       ['attack', myTurn && !!t.seen.move],
       ['enemy_reach', myTurn && enemyActed.current],
+      ['shove', myTurn && !!t.seen.enemy_reach && c.foes.some(f => f.unit.currentHp > 0 && Fight.foeRoster(f).some(a => a.attackPattern === 'knockback' || !!a.effects?.knock || !!a.effects?.pull))],
       ['parting', myTurn && !!t.seen.enemy_reach && c.foes.some(f => f.unit.currentHp > 0 && !f.stunned && Math.max(Math.abs(f.pos.row - c.grid.playerPosition.row), Math.abs(f.pos.col - c.grid.playerPosition.col)) === 1)],
       ['heat', myTurn && c.playerHeat >= 35],
       ['structure', myTurn && c.player.maxStructuralHp > 0 && c.player.currentStructuralHp < c.player.maxStructuralHp],

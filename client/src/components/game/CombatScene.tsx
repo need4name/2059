@@ -430,6 +430,13 @@ const union = new Set<string>();
 for (const { i } of living) Fight.foeThreatTiles(st, i).forEach(k => union.add(k));
 return union.size ? union : null;
 })() : null;
+// Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
+const enemyShoveTiles = phase === 'player_turn' ? (() => {
+const st = useCombat.getState();
+const union = new Set<string>();
+for (const { i } of living) Fight.foeThreatTiles(st, i, true).forEach(k => union.add(k));
+return union;
+})() : null;
 
 // Tiles the player (or the ally being moved) can still move to this turn
 const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
@@ -552,6 +559,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   }
   ctx.stroke();
   ctx.globalAlpha = 1;
+  if (enemyShoveTiles?.has(`${row},${col}`) && !isAimed) {
+    ctx.strokeStyle = '#b07cff';
+    ctx.lineWidth = 2;
+    roundRectPath(ctx, pos.x - tileW / 2 + gap + 3, pos.y - tileH / 2 + gap + 3, tileW - gap * 2 - 6, tileH - gap * 2 - 6, radius * 0.7);
+    ctx.stroke();
+  }
 
   // Charged heavy attack danger zone
   if (heavyZone?.has(`${row},${col}`)) {

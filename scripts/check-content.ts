@@ -35,6 +35,7 @@ const actionFields = {
   bypassStructuralDefense: z.boolean().optional(),
   attackPattern: pattern.optional(),
   ignoreRange: z.boolean().optional(),
+  effects: z.object({ knock: z.boolean().optional(), pull: z.boolean().optional(), bleed: z.boolean().optional(), stun: z.number().gt(0).max(1).optional() }).strict().optional(),
 };
 const action = z.object(actionFields).strict().refine(a => a.type !== 'attack' || (a.damage ?? 0) > 0, 'an attack needs damage');
 

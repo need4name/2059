@@ -482,3 +482,19 @@ test('a dash carries you to the end of the lane; ignore-cover shots fly through 
   assert.equal(Fight.canPlayerHit(behind, shot, 'none'), false, 'cover blocks a plain bolt');
   assert.ok(Fight.canPlayerHit(behind, { ...shot, effects: { ignoreCover: true } }, 'none'));
 });
+
+test('enemy moves carry side effects: a hook drags you in, a bleed ticks on your turn, and purple tiles warn of it', () => {
+  const s = fight({ grid: arena([7, 3], [3, 3]), playerHeat: 0 });
+  const hook: CombatAction = { type: 'attack', name: 'Crane Hook', description: '', damage: 10, accuracy: 'precise', attackPattern: 'grapple', effects: { pull: true, bleed: true } };
+  seedRandom(71);
+  const hit = Fight.resolveFoeAction({ ...s, grid: { ...s.grid, playerPosition: { row: 6, col: 3 } } }, 0, hook, 3);
+  assert.deepEqual(hit.state.grid.playerPosition, { row: 4, col: 3 }, 'dragged up to the enemy');
+  assert.equal(hit.state.playerBleeding, 2);
+  const turn = Fight.playerConditions(hit.state);
+  assert.ok(turn.state.player.currentHp < hit.state.player.currentHp, 'bleeds at the start of your turn');
+  const boarder = { ...s.foes[0], unit: { ...createBoss(6), name: 'SALV Boarder' } };
+  const st = { ...s, foes: [boarder] };
+  const shoves = Fight.foeThreatTiles(st, 0, true);
+  assert.ok(shoves.size > 0, 'the hook shows as purple-edged tiles');
+  assert.ok(Array.from(shoves).every(k => Fight.foeThreatTiles(st, 0).has(k)), 'inside the red zone');
+});

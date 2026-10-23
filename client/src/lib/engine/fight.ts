@@ -128,6 +128,8 @@ export interface FightState {
   playerStunned: boolean;
   /** The player is in the sea (see swimming on foes). */
   playerSwimming?: boolean;
+  /** Turns of bleeding left on the player. */
+  playerBleeding?: number;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
@@ -174,7 +176,7 @@ export function foeRoster(f: Foe): CombatAction[] {
 export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
-  playerBurning: 0, playerStunned: false, playerSwimming: false, overload: 0,
+  playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -393,6 +395,11 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
     events.push(say(`Burning: -${dmg} HP`, 'damage'), { kind: 'burn' });
     state = { ...hurt(state, { kind: 'player' }, dmg, events), playerBurning: s.playerBurning - 1 };
   }
+  if ((s.playerBleeding ?? 0) > 0) {
+    const dmg = Math.max(BLEED.min, Math.round(s.player.maxHp * BLEED.share));
+    events.push(say(`Bleeding: -${dmg} HP`, 'damage'));
+    state = { ...hurt(state, { kind: 'player' }, dmg, events), playerBleeding: (s.playerBleeding ?? 0) - 1 };
+  }
   // Allies burn too, and a stunned ally sits this round out
   state.allies.forEach((a, k) => {
     if (!allyAlive(a) || a.burning <= 0) return;
@@ -514,6 +521,40 @@ export function foesStruck(s: FightState, action: CombatAction, playerClass: Pla
   return aim ? struckAt(s, action, playerClass, aim) : [];
 }
 
+/** Drag a body straight toward `toward`, tile by tile, until a body, cover or water is in the way. */
+function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEvent[]): FightState {
+  let at = posOf(s, b);
+  const step = { row: Math.sign(toward.row - at.row), col: Math.sign(toward.col - at.col) };
+  let moved = 0;
+  for (;;) {
+    const next = { row: at.row + step.row, col: at.col + step.col };
+    if (same(next, toward) || !inBounds(next, s.grid) || isImpassable(next, s.grid) || bodyAt(s, next)) break;
+    at = next; moved++;
+  }
+  if (!moved) return s;
+  events.push(say(`${b.kind === 'player' ? 'You are' : `${nameOf(s, b)} is`} dragged ${moved} tile${moved > 1 ? 's' : ''}`, 'critical'));
+  if (b.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: at } };
+  if (b.kind === 'foe') return setFoe(s, b.i, { pos: at });
+  return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, pos: at } : x)) };
+}
+
+/**
+ * An enemy move's side effects on whoever it hit (after the damage): bleed, a
+ * stun chance, knockback, or being dragged toward the attacker.
+ */
+function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction, dealt: number, events: FightEvent[]): FightState {
+  const fx = action.effects;
+  if (!fx) return s;
+  const alive = who.kind === 'player' ? s.player.currentHp > 0 : who.kind === 'ally' ? allyAlive(s.allies[who.k]) : true;
+  if (!alive) return s;
+  let state = s;
+  if (fx.bleed && who.kind === 'player') { state = { ...state, playerBleeding: BLEED.turns }; events.push(say('You are bleeding', 'critical')); }
+  if (fx.stun && random() < fx.stun) { state = stun(state, who); events.push(say(`${who.kind === 'player' ? 'You are' : `${nameOf(state, who)} is`} stunned`, 'critical')); }
+  if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, state.foes[i].pos, who, dealt, events);
+  if (fx.pull) state = pullBody(state, who, state.foes[i].pos, events);
+  return state;
+}
+
 /** Bleeding: a share of max health at the start of each of the next turns. */
 export const BLEED = { share: 0.05, min: 3, turns: 2 };
 
@@ -535,18 +576,7 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
     if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, me, { kind: 'foe', i }, Math.round(dealt / Math.max(1, struck.length)), events, fx.crush ? 2 : 1);
   }
   // Pull: drag the first one caught toward you until something is in the way
-  if (fx.pull && struck.length && isAlive(state.foes[struck[0]])) {
-    const i = struck[0];
-    let at = state.foes[i].pos;
-    const step = { row: Math.sign(me.row - at.row), col: Math.sign(me.col - at.col) };
-    let moved = 0;
-    for (;;) {
-      const next = { row: at.row + step.row, col: at.col + step.col };
-      if (same(next, me) || !free(next) || tileAt(next, state.grid)?.type === 'void') break;
-      at = next; moved++;
-    }
-    if (moved) { state = setFoe(state, i, { pos: at }); events.push(say(`${state.foes[i].unit.name} is dragged ${moved} tile${moved > 1 ? 's' : ''} toward you`)); }
-  }
+  if (fx.pull && struck.length && isAlive(state.foes[struck[0]])) state = pullBody(state, { kind: 'foe', i: struck[0] }, me, events);
   if (fx.drain && dealt > 0) {
     const heal = Math.min(state.player.maxHp - state.player.currentHp, Math.round(dealt * fx.drain));
     if (heal > 0) { state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + heal } }; events.push(say(`Drained ${heal} HP`, 'heal')); }
@@ -728,11 +758,12 @@ const approachPattern = (f: Foe): AttackPatternType | undefined =>
  * so ending your turn outside these tiles means it can't touch you. Other
  * enemies don't count as cover here (they may walk away first).
  */
-export function foeThreatTiles(s: FightState, i: number): Set<string> {
+export function foeThreatTiles(s: FightState, i: number, onlyShoves = false): Set<string> {
   const out = new Set<string>();
   const f = s.foes[i];
   if (!f || !isAlive(f) || f.pendingAction || f.stunned || f.swimming) return out;
-  const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS];
+  const shoves = (a: CombatAction) => a.attackPattern === 'knockback' || !!a.effects?.knock || !!a.effects?.pull;
+  const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].filter(a => !onlyShoves || shoves(a));
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
   for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
     const t = { row, col };
@@ -853,6 +884,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   state = gainOverload(state, ((player.currentHp - hp) / Math.max(1, player.maxHp)) * OVERLOAD.taken);
   // Knockback shoves you a tile straight back, or into whatever is behind you
   if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
+  state = foeHitEffects(state, i, { kind: 'player' }, action, dmg.bioDamage, events);
   return { state, events };
 }
 
@@ -867,6 +899,7 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
   const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
   let state = setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
+  state = foeHitEffects(state, i, { kind: 'ally', k }, action, lost, events);
   return { state, events };
 }
 

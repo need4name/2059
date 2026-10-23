@@ -84,14 +84,17 @@
       "moves": [
         {
           "type": "attack",
-          "name": "Crane Sweep",
-          "description": "",
+          "name": "Crane Hook",
+          "description": "A cargo hook on a line: it catches the first body and reels it in.",
           "damage": 11,
           "accuracy": "variable",
           "physicalRatio": 0.65,
           "heatTransfer": 6,
           "heatGenerated": 9,
-          "attackPattern": "sweep_arc"
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
         },
         {
           "type": "attack",
@@ -144,7 +147,10 @@
           "physicalRatio": 0.7,
           "heatTransfer": 5,
           "heatGenerated": 8,
-          "attackPattern": "melee_long"
+          "attackPattern": "melee_long",
+          "effects": {
+            "knock": true
+          }
         },
         {
           "type": "attack",
@@ -191,13 +197,16 @@
         {
           "type": "attack",
           "name": "Signal Bleed",
-          "description": "",
+          "description": "A shot from across the water that keeps hurting.",
           "damage": 14,
           "accuracy": "unreliable",
           "physicalRatio": 0.15,
           "heatTransfer": -6,
           "heatGenerated": 7,
-          "attackPattern": "ranged"
+          "attackPattern": "longshot",
+          "effects": {
+            "bleed": true
+          }
         },
         {
           "type": "attack",
@@ -250,7 +259,10 @@
           "physicalRatio": 0.9,
           "heatTransfer": 7,
           "heatGenerated": 9,
-          "attackPattern": "lunge"
+          "attackPattern": "lunge",
+          "effects": {
+            "bleed": true
+          }
         },
         {
           "type": "attack",
@@ -303,7 +315,10 @@
           "physicalRatio": 1,
           "heatTransfer": 3,
           "heatGenerated": 5,
-          "attackPattern": "ranged"
+          "attackPattern": "bolt",
+          "effects": {
+            "stun": 0.25
+          }
         },
         {
           "type": "attack",
@@ -356,7 +371,7 @@
           "physicalRatio": 0.6,
           "heatTransfer": 5,
           "heatGenerated": 7,
-          "attackPattern": "ranged"
+          "attackPattern": "pierce"
         },
         {
           "type": "attack",
@@ -409,7 +424,10 @@
           "physicalRatio": 0.2,
           "heatTransfer": -5,
           "heatGenerated": 6,
-          "attackPattern": "ranged"
+          "attackPattern": "ranged",
+          "effects": {
+            "stun": 0.2
+          }
         },
         {
           "type": "attack",
@@ -515,7 +533,10 @@
           "physicalRatio": 0.7,
           "heatTransfer": 7,
           "heatGenerated": 10,
-          "attackPattern": "melee_long"
+          "attackPattern": "melee_long",
+          "effects": {
+            "knock": true
+          }
         },
         {
           "type": "attack",
@@ -568,7 +589,10 @@
           "physicalRatio": 0.75,
           "heatTransfer": 8,
           "heatGenerated": 9,
-          "attackPattern": "sweep_arc"
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
         },
         {
           "type": "attack",
@@ -625,7 +649,10 @@
           "physicalRatio": 0.4,
           "heatTransfer": -8,
           "heatGenerated": 6,
-          "attackPattern": "cone"
+          "attackPattern": "cone",
+          "effects": {
+            "stun": 0.3
+          }
         },
         {
           "type": "attack",
@@ -681,7 +708,10 @@
           "physicalRatio": 0.75,
           "heatTransfer": 6,
           "heatGenerated": 9,
-          "attackPattern": "melee_long"
+          "attackPattern": "melee_long",
+          "effects": {
+            "knock": true
+          }
         },
         {
           "type": "attack",
@@ -757,7 +787,7 @@
           "physicalRatio": 0.3,
           "heatTransfer": -6,
           "heatGenerated": 7,
-          "attackPattern": "ranged"
+          "attackPattern": "pierce"
         },
         {
           "type": "attack",
@@ -780,7 +810,10 @@
           "physicalRatio": 0.4,
           "heatTransfer": 12,
           "heatGenerated": 12,
-          "attackPattern": "ring"
+          "attackPattern": "ring",
+          "effects": {
+            "pull": true
+          }
         },
         {
           "type": "defend",
