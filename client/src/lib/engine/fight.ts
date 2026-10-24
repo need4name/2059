@@ -347,7 +347,7 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   const other = inBounds(to, s.grid) ? bodyAt(s, to) : null;
   // Open water: in it goes. It hurts, and it spends its next turn climbing out (unhittable meanwhile)
   if (inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' && !other) {
-    const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush));
+    const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
     events.push(say(`${who.kind === 'player' ? 'You go' : `${nameOf(s, who)} goes`} into the sea: -${dmg}`, 'critical'), { kind: 'collide' });
     const wet = hurt(s, who, dmg, events);
     if (who.kind === 'player') return { ...wet, grid: { ...wet.grid, playerPosition: to }, playerSwimming: true };
@@ -361,7 +361,7 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
     if (who.kind === 'foe') return setFoe(s, who.i, { pos: to });
     return { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
   }
-  const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush));
+  const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
   const into = other ? nameOf(s, other) : !inBounds(to, s.grid) ? 'the rail' : tileAt(to, s.grid)?.type === 'void' ? 'the water' : (tileAt(to, s.grid)?.name ?? 'cover');
   events.push(say(`${who.kind === 'player' ? 'You slam' : `${nameOf(s, who)} slams`} into ${other?.kind === 'player' ? 'you' : into}: -${dmg}, stunned`, 'critical'), { kind: 'collide' });
   let state = stun(hurt(s, who, dmg, events), who);
@@ -430,13 +430,14 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
   const { player } = s;
   const wasMalfunctioning = isMalfunctioning(player);
   const structure = Math.min(player.maxStructuralHp, player.currentStructuralHp + Math.ceil(player.maxStructuralHp * s.perks.braceRepair));
+  const heal = Math.min(player.maxHp - player.currentHp, Math.round(player.maxHp * s.perks.braceHeal));
   const events: FightEvent[] = [];
   if (wasMalfunctioning && structure > 0) events.push(say('STRUCTURAL INTEGRITY RESTORED -- system nominal'));
-  events.push(say(`${action.name.toUpperCase()} -- guard up`));
+  events.push(say(`${action.name.toUpperCase()} -- guard up${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
   return {
     state: {
       ...s,
-      player: { ...player, currentStructuralHp: structure },
+      player: { ...player, currentStructuralHp: structure, currentHp: player.currentHp + Math.max(0, heal) },
       playerDefenseBoost: action.defenseBoost || 8,
       playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
       playerHeat: clampHeat(s.playerHeat + (action.heatGenerated ?? -25) - s.perks.ventBonus),
@@ -1032,7 +1033,7 @@ export function partingBlows(s: FightState, from: TilePosition, level: number): 
   for (const i of partingFoes(s, from, s.grid.playerPosition)) {
     if (!isAlive(state.foes[i])) continue;
     events.push(say(`${state.foes[i].unit.name} catches you as you pull away`, 'critical'));
-    const hit = resolveFoeAction(state, i, { ...CLOSE_QUARTERS, name: 'Parting blow', damage: Math.round((CLOSE_QUARTERS.damage ?? 12) * 0.6) }, level, -1);
+    const hit = resolveFoeAction(state, i, { ...CLOSE_QUARTERS, name: 'Parting blow', damage: Math.round((CLOSE_QUARTERS.damage ?? 12) * 0.6 * s.perks.partingTakenMult) }, level, -1);
     state = hit.state; events.push(...hit.events);
     if (hit.events.some(e => e.kind === 'playerDown')) break;
   }

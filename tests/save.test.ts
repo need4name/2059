@@ -57,4 +57,6 @@ test('a version 1 save upgrades: allies unlocked by level count as met', () => {
   assert.deepEqual(part.state.met, ['bale', 'matron']);
   assert.equal(part.state.bestCleared, undefined);
   assert.deepEqual(part.state.party, ['bale']);
+  assert.deepEqual(part.state.gear, {}, 'version 3 adds empty ally gear');
+  assert.equal(part.version, 3);
 });

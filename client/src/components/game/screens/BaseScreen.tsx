@@ -19,10 +19,13 @@ import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
+import { AlliesTab } from './AlliesTab';
+import { useAllies } from '@/lib/stores/useAllies';
+import { allyDef } from '@/lib/combat/allies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { PLAYER_BASE_MOVE, attackPatternOf } from '@/lib/engine/fight';
 
-type Tab = 'loadout' | 'implants' | 'upgrades' | 'status';
+type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies';
 
 export function actionColor(a: LoadoutAction) {
   if (a.type === 'brace') return 'text-sys';
@@ -441,7 +444,7 @@ function useNextStep(open: (p: Tab) => void): Next {
   return { icon: '🧭', title: 'Pick a way on', body: "Ways you haven't tried are at the bottom of the room card. Deeper places hold harder fights and better salvage." };
 }
 
-const PAGE_TITLE: Record<Tab, string> = { loadout: 'Fight bar', implants: 'Implants', upgrades: 'Upgrades', status: 'Status' };
+const PAGE_TITLE: Record<Tab, string> = { loadout: 'Fight bar', implants: 'Implants', upgrades: 'Upgrades', status: 'Status', allies: 'Allies' };
 
 function Tile({ icon, title, line, badge, onClick }: { icon: string; title: string; line: string; badge?: number | string; onClick: () => void }) {
   return (
@@ -470,6 +473,7 @@ export function BaseScreen() {
   const next = useNextStep(setPage);
   const stats = useHostStats();
   const pool = useActionPool();
+  const { met, party } = useAllies();
 
   const spare = items.filter(i => i.type === 'augmentation').length;
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
@@ -515,6 +519,7 @@ export function BaseScreen() {
             <Tile icon="🦾" title="Implants" line={`${installed.length} installed${spare ? ` · ${spare} spare` : ''}`} badge={fitsNow || undefined} onClick={() => setPage('implants')} />
             <Tile icon="⬆️" title="Upgrades" line={pathless ? `${pathless} free path${pathless > 1 ? 's' : ''} to pick` : availablePoints ? `${availablePoints} point${availablePoints > 1 ? 's' : ''} to spend` : installed.length ? 'No points yet' : 'Install an implant first'} badge={upgradeBadge || undefined} onClick={() => setPage('upgrades')} />
             <Tile icon="📡" title="Status" line={`${stats.maxHp} health · ${stats.physicalAttack} attack`} onClick={() => setPage('status')} />
+            {met.length > 0 && <Tile icon="🤝" title="Allies" line={party.length ? `${party.map(id => allyDef(id)?.name).join(' · ')} with you` : `${met.length} met`} onClick={() => setPage('allies')} />}
           </div>
         </section>
       </div>
@@ -524,6 +529,7 @@ export function BaseScreen() {
         {page === 'implants' && <Inventory />}
         {page === 'upgrades' && <UpgradesTab />}
         {page === 'status' && <StatusTab />}
+        {page === 'allies' && <AlliesTab />}
       </Page>
     </Screen>
   );

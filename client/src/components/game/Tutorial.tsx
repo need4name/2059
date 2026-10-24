@@ -100,6 +100,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Someone to link with',
     body: 'There is someone here your signal can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
   },
+  ally_gear: {
+    icon: '🦾',
+    title: 'Allies wear implants too',
+    body: 'Open Allies at the hideout to give a spare implant to an ally. A limb becomes their attack. Their favourite makers count for more, and they keep what you give them when a host is lost.',
+  },
   cache: {
     icon: '📦',
     title: 'A cache',
@@ -200,6 +205,7 @@ export function useTutorialTriggers() {
       ['reborn', inMenu && c.progression.deathCount > 0 && room.id === CHAPTER_MAP.entry && map.cleared.length === 0],
       ['look', inMenu && !!t.seen.base && !!room.look && !fightHere && !map.looked.includes(room.id)],
       ['ally', inMenu && !!room.ally && !fightHere && !useAllies.getState().met.includes(room.ally)],
+      ['ally_gear', inMenu && !!t.seen.base && useAllies.getState().met.length > 0 && Object.keys(useAllies.getState().gear).length === 0 && items.some(i => i.type === 'augmentation')],
       ['cache', inMenu && !!t.seen.base && cacheReady(map, room)],
       ['sealed', inMenu && room.exits.some(e => exitState(map, e) === 'sealed')],
       ['implants', c.phase === 'menu' && !!t.seen.base && items.some(i => i.type === 'augmentation')],

@@ -7,6 +7,7 @@ import items from '../client/src/content/items.json';
 import weapons from '../client/src/content/weapons.json';
 import enemies from '../client/src/content/enemies.json';
 import allies from '../client/src/content/allies.json';
+import { ALLY_LINKS } from '../client/src/lib/combat/allies';
 import chapters from '../client/src/content/chapters.json';
 import chapterMap from '../client/src/content/map-indian-ocean.json';
 import figures from '../client/src/content/figures.json';
@@ -53,6 +54,8 @@ const ally = z.object({
   unlockLevel: z.number().int().min(1).max(200), color: z.string().regex(/^#[0-9a-f]{6}$/i), blurb: text,
   hp: z.number().min(0.3).max(3), attack: z.number().min(0).max(40), defense: z.number().min(0).max(40),
   move: z.number().int().min(1).max(4),
+  affinity: z.array(z.enum(['HELIX', 'VOLKOV', 'TIANXIA', 'KIZUNA', 'CROWN', 'IOA', 'CBN', 'PARSU', 'PATCHWORK'])).min(1).max(3),
+  link: z.string().trim().min(1).max(120),
   moves: z.array(allyMove).length(2),
 }).strict();
 // Art names the board can draw (lib/rendering/board.ts)
@@ -271,6 +274,7 @@ export function checkContent(): string[] {
       if (a.unlockLevel <= last) problems.push(`allies.json ${a.id}: unlock levels must rise down the list`);
       last = a.unlockLevel;
       if (!a.moves.some(m => m.effect === 'attack')) problems.push(`allies.json ${a.id}: needs at least one attack`);
+      if (!(a.id in ALLY_LINKS)) problems.push(`allies.json ${a.id}: no link bonus in ALLY_LINKS (lib/combat/allies.ts)`);
     }
   }
   return problems;

@@ -4,10 +4,11 @@ import * as Fight from '../client/src/lib/engine/fight';
 import type { FightState, Ally } from '../client/src/lib/engine/fight';
 import { seedRandom } from '../client/src/lib/engine/rng';
 import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/combat/actions';
-import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
-import { ALLIES, allyDef, allyUnit, allyMoves, alliesUnlockedBy, ALLY_MAX_LEVEL } from '../client/src/lib/combat/allies';
+import type { CombatGrid, CombatAction, Item } from '../client/src/lib/combat/types';
+import { ALLIES, allyDef, allyUnit, allyMoves, alliesUnlockedBy, ALLY_MAX_LEVEL, ALLY_LINKS, allySlotFor, withLinks } from '../client/src/lib/combat/allies';
+import { useInventory } from '../client/src/lib/stores/useInventory';
 import { useAllies } from '../client/src/lib/stores/useAllies';
-import { perksFor } from '../client/src/lib/engine/playi';
+import { perksFor, NO_PERKS } from '../client/src/lib/engine/playi';
 
 function arena(player: [number, number], boss: [number, number]): CombatGrid {
   const tiles = Array.from({ length: 9 }, () => Array.from({ length: 7 }, () => ({ type: 'empty' as const })) as any[]);
@@ -149,4 +150,64 @@ test('the ally store: meeting, party size, levelling to the cap', () => {
   for (let k = 0; k < 100; k++) useAllies.getState().gainXp(2);
   assert.equal(useAllies.getState().progress('bale').level, ALLY_MAX_LEVEL);
   useAllies.getState().reset();
+});
+
+const implant = (over: Partial<Item>): Item => ({ id: `i${Math.random()}`, name: '[VOLKOV] Test Arm', rarity: 'rare', type: 'augmentation', slot: 'right_arm', icon: '', ...over });
+
+test('ally gear: a limb replaces the first attack; affinity makers count for more', () => {
+  const bale = allyDef('bale')!;
+  const limb = implant({ name: '[VOLKOV] Test Arm', parts: { head: 'fist', mods: [] } });
+  const fitLimb = { ...limb, name: '[TIANXIA] Test Arm' };
+  const plain = allyMoves(bale, 1, { limb });
+  assert.equal(plain[0].effect, 'attack');
+  assert.notEqual(plain[0].name, bale.moves[0].name, 'the limb implant is its attack now');
+  assert.equal(plain[1].name, bale.moves[1].name, 'support move kept');
+  const fit = allyMoves(bale, 1, { limb: fitLimb });
+  assert.ok(fit[0].damage! > plain[0].damage!, 'Tianxia limb hits harder on Bale');
+  const other = implant({ name: '[PARSU] Test Lung', slot: 'lungs', attackBonus: 10, hpBonus: 20 });
+  const off = implant({ name: '[CROWN] Test Lung', slot: 'lungs', attackBonus: 10, hpBonus: 20 });
+  const base = allyUnit(bale, 1);
+  assert.equal(allyUnit(bale, 1, 1, { other: off }).maxHp, base.maxHp + 20);
+  assert.equal(allyUnit(bale, 1, 1, { other }).maxHp, base.maxHp + 30, 'PARSU suits Bale: x1.5');
+  assert.equal(allySlotFor(limb), 'limb');
+  assert.equal(allySlotFor(other), 'other');
+});
+
+test('link bonuses: each ally in the party changes your perks', () => {
+  const p = withLinks(NO_PERKS, ['bale', 'matron', 'ghostline', 'ward', 'breaker']);
+  assert.ok(Math.abs(p.structureMult - 1.1) < 1e-9);
+  assert.equal(p.braceHeal, 0.05);
+  assert.equal(p.firstStrikePrecise, true);
+  assert.equal(p.partingTakenMult, 0.5);
+  assert.equal(p.collisionMult, 1.5);
+  assert.deepEqual(withLinks(NO_PERKS, []), NO_PERKS);
+  assert.ok(ALLIES.every(a => a.id in ALLY_LINKS));
+});
+
+test("Matron's link: a brace heals 5% of your health", () => {
+  const s = fight([], { perks: { ...NO_PERKS, braceHeal: 0.05 } });
+  const hurtS = { ...s, player: { ...s.player, currentHp: s.player.maxHp - 50 } };
+  const after = Fight.resolveBrace(hurtS, { type: 'brace', name: 'Brace', description: '', defenseBoost: 8 }).state;
+  assert.equal(after.player.currentHp, hurtS.player.currentHp + Math.round(s.player.maxHp * 0.05));
+});
+
+test('giving an implant to an ally moves it out of the stash; taking it back returns it', () => {
+  useAllies.getState().reset();
+  useInventory.getState().clearInventory();
+  const arm = implant({ name: '[TIANXIA] Gift Arm', parts: { head: 'fist', mods: [] } });
+  useInventory.getState().addItems([arm]);
+  assert.equal(useAllies.getState().giveImplant('bale', arm), false, 'only met allies');
+  useAllies.getState().meet('bale');
+  assert.equal(useAllies.getState().giveImplant('bale', arm), true);
+  assert.equal(useInventory.getState().items.length, 0);
+  assert.equal(useAllies.getState().gear.bale.limb?.id, arm.id);
+  const arm2 = { ...arm, id: 'second' };
+  useInventory.getState().addItems([arm2]);
+  useAllies.getState().giveImplant('bale', arm2);
+  assert.deepEqual(useInventory.getState().items.map(i => i.id), [arm.id], 'swap: the old one goes back');
+  useAllies.getState().takeImplant('bale', 'limb');
+  assert.equal(useInventory.getState().items.length, 2);
+  assert.equal(useAllies.getState().gear.bale.limb, undefined);
+  useAllies.getState().reset();
+  useInventory.getState().clearInventory();
 });

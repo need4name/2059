@@ -17,6 +17,7 @@ import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
+import { withLinks } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
 import { roomById, isChapterEnd, hasFight } from '../engine/map';
@@ -165,7 +166,8 @@ return (Object.keys(eq) as AugmentationSlot[]).filter(s => eq[s] !== null);
 }
 
 function buildPlayer(playerClass: PlayerClass) {
-const perks = usePlayi.getState().perks();
+// The play-i tree's perks plus what the allies riding with this host bring
+const perks = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) };
 const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlotList());

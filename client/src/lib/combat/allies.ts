@@ -3,8 +3,10 @@
 // body and moves for the fight engine, and answers unlocks and levelling.
 
 import data from '../../content/allies.json';
-import type { Character, CombatAction } from './types';
+import type { Character, CombatAction, Item } from './types';
 import { BOSS_SCALING, ENEMY_GROWTH, ENEMY_TUNING, scaleBossAction } from './actions';
+import { actionForItem, makerOf, type Maker } from './augments';
+import type { Perks } from '../engine/playi';
 
 export type AllyEffect = 'attack' | 'taunt' | 'heal' | 'mark' | 'guard';
 
@@ -25,8 +27,16 @@ export interface AllyDef {
   attack: number; defense: number;
   /** Tiles it can move each round. */
   move: number;
+  /** Makers it gets more out of. */
+  affinity: Maker[];
+  /** What riding with it does for you (the effect is ALLY_LINKS[id]). */
+  link: string;
   moves: AllyMove[];
 }
+
+/** The two implants an ally wears: a limb (its attack) and one other (stats only). */
+export interface AllyGear { limb?: Item; other?: Item }
+export type AllySlot = keyof AllyGear;
 
 export const ALLIES = (data as { allies: AllyDef[] }).allies;
 export const allyDef = (id: string) => ALLIES.find(a => a.id === id);
@@ -42,8 +52,35 @@ export const allyXpToNext = (level: number) => level + 1;
 /** Allies a best-ever cleared level has unlocked. */
 export const alliesUnlockedBy = (bestCleared: number) => ALLIES.filter(a => bestCleared >= a.unlockLevel).map(a => a.id);
 
-/** The ally's body at a level, built like a regular enemy of its unlock level. */
-export function allyUnit(def: AllyDef, level: number, hpMult = 1): Character {
+/** An implant from an affinity maker: its stats count this much more, a limb hits this much harder. */
+export const AFFINITY = { stats: 1.5, damage: 1.25 };
+
+/** What each ally does for you while it rides with the host (text in allies.json). */
+export const ALLY_LINKS: Record<string, (p: Perks) => void> = {
+  bale: (p) => { p.structureMult *= 1.1; },
+  matron: (p) => { p.braceHeal += 0.05; },
+  ghostline: (p) => { p.firstStrikePrecise = true; },
+  ward: (p) => { p.partingTakenMult *= 0.5; },
+  breaker: (p) => { p.collisionMult *= 1.5; },
+};
+
+/** Perks with the party's link bonuses added. */
+export function withLinks(perks: Perks, party: string[]): Perks {
+  const p = { ...perks };
+  for (const id of party) ALLY_LINKS[id]?.(p);
+  return p;
+}
+
+/** Which ally slot an implant goes in: a damaging active implant is a limb, anything else the other slot. */
+export function allySlotFor(item: Item): AllySlot | null {
+  if (item.type !== 'augmentation' || !item.slot) return null;
+  return (actionForItem(item)?.damage ?? 0) > 0 ? 'limb' : 'other';
+}
+
+export const fitsAlly = (def: AllyDef, item: Item) => def.affinity.includes(makerOf(item));
+
+/** The ally's body at a level, built like a regular enemy of its unlock level, plus its implants' stats. */
+export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear = {}): Character {
   const L = def.unlockLevel, S = BOSS_SCALING;
   const lv = Math.pow(ALLY_LEVEL_GROWTH, level - 1);
   const gHp = ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, L - 1);
@@ -51,21 +88,40 @@ export function allyUnit(def: AllyDef, level: number, hpMult = 1): Character {
   const hp = Math.round((S.hpBase + L * S.hpPerLevel + L * L * S.hpQuadratic) * gHp * def.hp * lv * hpMult * ALLY_TUNING.hp);
   const atk = (def.attack + (L - 1) * S.atkPerLevel) * gAtk * lv * ALLY_TUNING.atk;
   const dfn = (def.defense + (L - 1) * S.defPerLevel) * lv;
+  const b = { hp: 0, pa: 0, sa: 0, pd: 0, sd: 0 };
+  for (const it of [gear.limb, gear.other]) {
+    if (!it) continue;
+    const m = fitsAlly(def, it) ? AFFINITY.stats : 1;
+    b.hp += (it.hpBonus ?? 0) * m; b.pa += (it.attackBonus ?? 0) * m; b.sa += (it.structuralAttackBonus ?? 0) * m;
+    b.pd += (it.defenseBonus ?? 0) * m; b.sd += (it.structuralDefenseBonus ?? 0) * m;
+  }
+  const maxHp = hp + Math.round(b.hp);
   return {
     id: `ally_${def.id}`, name: def.name,
-    maxHp: hp, currentHp: hp,
+    maxHp, currentHp: maxHp,
     // No structure bar: hits land on the body (half the structural part spills over)
     maxStructuralHp: 0, currentStructuralHp: 0,
-    physicalAttack: Math.round(atk * 0.6), structuralAttack: Math.round(atk * 0.4),
-    physicalDefense: Math.round(dfn * 0.5), structuralDefense: Math.round(dfn * 0.5),
+    physicalAttack: Math.round(atk * 0.6 + b.pa), structuralAttack: Math.round(atk * 0.4 + b.sa),
+    physicalDefense: Math.round(dfn * 0.5 + b.pd), structuralDefense: Math.round(dfn * 0.5 + b.sd),
     evasion: 0, spriteColor: def.color,
   };
 }
 
-/** The ally's moves at a level: damage scales like an enemy's of its unlock level. */
-export function allyMoves(def: AllyDef, level: number): AllyMove[] {
+/** The ally's moves at a level: damage scales like an enemy's of its unlock level. A limb implant replaces its first attack. */
+export function allyMoves(def: AllyDef, level: number, gear: AllyGear = {}): AllyMove[] {
   const lv = Math.pow(ALLY_LEVEL_GROWTH, level - 1);
-  return def.moves.map(m => {
+  const limb = gear.limb ? actionForItem(gear.limb) : null;
+  const first = def.moves.findIndex(m => m.effect === 'attack');
+  return def.moves.map((m, n) => {
+    if (limb && n === first && limb.damage) {
+      return {
+        type: 'attack', effect: 'attack', name: limb.name, description: `${gear.limb!.name}, worn by ${def.name}`,
+        // Scaled like the ally's own moves, so a better implant out-hits its built-in attack
+        damage: Math.round((scaleBossAction(limb, def.unlockLevel).damage ?? 0) * lv * ALLY_TUNING.atk * (fitsAlly(def, gear.limb!) ? AFFINITY.damage : 1)),
+        accuracy: limb.accuracy, physicalRatio: limb.physicalRatio, attackPattern: limb.attackPattern ?? 'melee',
+        heatGenerated: 0, heatTransfer: 0,
+      };
+    }
     const scaled = scaleBossAction(m, def.unlockLevel);
     return { ...m, ...(scaled.damage ? { damage: Math.round(scaled.damage * lv * ALLY_TUNING.atk) } : {}), heatGenerated: 0, heatTransfer: 0 };
   });
