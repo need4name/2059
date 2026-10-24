@@ -1,6 +1,6 @@
 import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
-import { rollParts } from './augments';
+import { rollParts, normaliseItem } from './augments';
 
 import { random } from '../engine/rng';
 /** Drop tuning (see docs/DESIGN.md). */
@@ -25,11 +25,11 @@ parts: item.parts ?? rollParts(item),
 // Full item pools by rarity
 // Crown items (cr_) are locked to rare+ per manufacturer design - filtered from early pools
 export const ITEM_POOLS: Record<ItemRarity, Item[]> = {
-common:    ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'common'),
-uncommon:  ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'uncommon'),
-rare:      ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'rare'),
-epic:      ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'epic'),
-legendary: ITEMS_2059.filter(i => i.type === 'augmentation' && i.rarity === 'legendary'),
+common:    ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i.rarity === 'common'),
+uncommon:  ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i.rarity === 'uncommon'),
+rare:      ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i.rarity === 'rare'),
+epic:      ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i.rarity === 'epic'),
+legendary: ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i.rarity === 'legendary'),
 };
 
 // All levels use the same item pool.
@@ -74,49 +74,63 @@ return pool[Math.floor(random() * pool.length)];
 
 function pick<T>(list: T[]): T { return list[Math.floor(random() * list.length)]; }
 
+/** Salvage is used gear: half of it arrives worn or worse. */
+function usedCondition(): Item['condition'] {
+const r = random();
+return r < 0.5 ? 'pristine' : r < 0.85 ? 'worn' : 'degraded';
+}
+
+/** A signature implant at a rolled quality, its stats brought into that quality's band. */
+export function signatureImplant(id: string, rarity: ItemRarity): Item | null {
+const t = ITEMS_2059.find(i => i.id === id && i.signature);
+return t ? instancedItem(normaliseItem({ ...t, rarity })) : null;
+}
+
+/** Carried implants roll at the drop odds of this many threats lower. */
+export const CARRIED_QUALITY_LAG = 6;
+
+export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
+
 /**
- * First life only: the first win hands you an active implant (a new combat
- * move) and the second a passive one, so both kinds get introduced early.
+ * The implants an enemy carries into a fight: real items built from parts,
+ * which the player can strip from the body afterwards (see the strip screen).
+ * Bosses and elites carry their signature implant at a rolled quality.
+ * First life: the first two enemies carry a teaching implant (an arm, then a passive).
  */
-function firstRunTeachingDrop(bossLevel: number): Item | null {
-if (bossLevel === 1) return getRandomItemFromPool('common', ITEM_POOLS, pick(['left_arm', 'right_arm'] as AugmentationSlot[]));
-if (bossLevel === 2) return getRandomItemFromPool('uncommon', ITEM_POOLS, pick(PASSIVE_SLOTS));
-return null;
+export function rollCarried(level: number, count: number, role: EnemyRole, firstRun = false, signature?: string): Item[] {
+if (firstRun && level === 1) { const t = getRandomItemFromPool('common', ITEM_POOLS, pick(['left_arm', 'right_arm'] as AugmentationSlot[])); return t ? [instancedItem({ ...t, condition: 'pristine' })] : []; }
+if (firstRun && level === 2) { const t = getRandomItemFromPool('uncommon', ITEM_POOLS, pick(PASSIVE_SLOTS)); return t ? [instancedItem({ ...t, condition: 'pristine' })] : []; }
+const out: Item[] = [];
+const rarityAtLeast = (r: ItemRarity, floor: ItemRarity): ItemRarity => (RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r);
+if (signature && (role === 'boss' || role === 'elite')) {
+  const rarity = role === 'boss'
+    ? (random() < Math.min(0.5, 0.15 + 0.01 * level) ? 'legendary' : 'epic')
+    : rarityAtLeast(rollRarity(level), level >= 15 ? 'rare' : 'uncommon');
+  const sig = signatureImplant(signature, rarity);
+  if (sig) out.push(sig);
+}
+const taken = new Set(out.map(i => i.slot));
+while (out.length < count) {
+  const free = AUGMENTATION_SLOTS.filter(sl => !taken.has(sl));
+  const slot = pick(free.length ? free : AUGMENTATION_SLOTS);
+  // Worn gear: what enemies wear rolls at the odds of six threats lower
+  const worn = rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG));
+  const t = getRandomItemFromPool(role === 'elite' && !out.length ? rarityAtLeast(worn, 'uncommon') : worn, ITEM_POOLS, slot);
+  if (!t) break;
+  taken.add(t.slot);
+  out.push(instancedItem({ ...t, condition: usedCondition() }));
+}
+return out;
 }
 
-/** `carried`: body slots of the implants the beaten enemies had; implant drops come from those first. */
-export function generateLoot(bossLevel: number = 1, firstRun = false, carried: AugmentationSlot[] = []): LootDrop {
+/** What a win pays besides the bodies: credits, and sometimes a stim (always from a boss). */
+export function generateLoot(bossLevel: number = 1, firstRun = false): LootDrop {
 const items: Item[] = [];
-const teach = firstRun ? firstRunTeachingDrop(bossLevel) : null;
-if (teach) {
-const gold = LOOT.goldBase + LOOT.goldPerLevel * bossLevel;
-const extra = bossLevel === 2 ? STIM_POOL.find(s => s.id === 'stim_bio') : undefined;
-return { items: [instancedItem(teach), ...(extra ? [instancedItem(extra)] : [])], gold };
-}
-
 const isBoss = bossLevel % 10 === 0;
-const isElite = bossLevel % 10 === 5;
-const rarityAtLeast = (r: ItemRarity, floor: ItemRarity): ItemRarity =>
-(RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r);
-const salvage = [...carried];
-const dropImplant = (rarity: ItemRarity) => {
-// Salvage what they were carrying (the same body slot, at this fight's rarity), else anything
-const slot = salvage.length ? salvage.splice(Math.floor(random() * salvage.length), 1)[0] : AUGMENTATION_SLOTS[Math.floor(random() * AUGMENTATION_SLOTS.length)];
-const item = getRandomItemFromPool(rarity, ITEM_POOLS, slot);
-if (item) items.push(instancedItem(item));
-};
-
-if (isBoss) {
-// Bosses: two implants, one of them epic or better
-dropImplant(random() < Math.min(0.5, 0.15 + 0.01 * bossLevel) ? 'legendary' : 'epic');
-dropImplant(rollRarity(bossLevel));
-} else if (isElite) {
-// Elites: always one implant, rare or better from level 15
-dropImplant(rarityAtLeast(rollRarity(bossLevel), bossLevel >= 15 ? 'rare' : 'uncommon'));
-} else if (random() < LOOT.normalDropChance) {
-dropImplant(rollRarity(bossLevel));
+if (firstRun && bossLevel <= 2) {
+const extra = bossLevel === 2 ? STIM_POOL.find(st => st.id === 'stim_bio') : undefined;
+return { items: extra ? [instancedItem(extra)] : [], gold: LOOT.goldBase + LOOT.goldPerLevel * bossLevel };
 }
-
 // Stims: 15% early, rising to 25%; always one from a boss
 const stimChance = isBoss ? 1 : bossLevel < 2 ? 0 : Math.min(LOOT.stimMax, LOOT.stimMin + 0.005 * bossLevel);
 if (random() < stimChance && STIM_POOL.length > 0) {
@@ -124,24 +138,14 @@ const availableStims = bossLevel >= 5 ? STIM_POOL : STIM_POOL.filter(st => st.id
 const stim = availableStims[Math.floor(random() * availableStims.length)];
 if (stim) items.push(instancedItem(stim));
 }
-
 const baseGold = LOOT.goldBase + LOOT.goldPerLevel * bossLevel;
 const gold = baseGold + Math.floor(random() * baseGold);
 return { items, gold };
 }
 
-// Patchwork King (level 10): always better than a normal threat-9 drop.
-// A guaranteed epic, a rare, a 35% shot at a legendary, a stim and a big purse.
+/** The Patchwork King's purse: a stim and a big pile of credits (his implants are on his body). */
 export function generatePatchworkKingLoot(): LootDrop {
 const items: Item[] = [];
-const epic = getRandomItemFromPool('epic', ITEM_POOLS, pick(AUGMENTATION_SLOTS));
-const rare = getRandomItemFromPool('rare', ITEM_POOLS, pick(ACTIVE_SLOTS));
-if (epic) items.push(instancedItem(epic));
-if (rare) items.push(instancedItem(rare));
-if (random() < 0.35) {
-const leg = getRandomItemFromPool('legendary', ITEM_POOLS, pick(AUGMENTATION_SLOTS));
-if (leg) items.push(instancedItem(leg));
-}
 const stim = pick(STIM_POOL);
 if (stim) items.push(instancedItem(stim));
 const gold = 160 + Math.floor(random() * 60);

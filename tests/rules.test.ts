@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { random, seedRandom, mixSeed } from '../client/src/lib/engine/rng';
-import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT } from '../client/src/lib/combat/actions';
+import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, createPatchworkKing, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT } from '../client/src/lib/combat/actions';
 import { powerOf, structureOf, healthCostOf, actionForItem, makerOf, CONDITION_MULT, MIN_PLAYER_HP } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
-import { generateLoot, generatePatchworkKingLoot } from '../client/src/lib/combat/loot';
+import { generateLoot, generatePatchworkKingLoot, rollCarried } from '../client/src/lib/combat/loot';
 import { generateBattlefield, stepDistances, arenaSize } from '../client/src/lib/combat/grid';
 import { augmentKind, AUGMENTATION_SLOTS } from '../client/src/lib/combat/types';
 import type { Item } from '../client/src/lib/combat/types';
@@ -94,22 +94,39 @@ test('no implants means no structure bar', () => {
   assert.equal(createPlayer().maxStructuralHp, 0);
 });
 
-test('first life: threat 1 gives an active implant, threat 2 a passive one', () => {
+test('first life: the first enemy carries an active implant, the second a passive one', () => {
   seedRandom(7);
   for (let k = 0; k < 20; k++) {
-    const a = generateLoot(1, true).items.filter(i => i.type === 'augmentation');
-    assert.equal(a.length, 1); assert.equal(augmentKind(a[0].slot), 'active');
-    const b = generateLoot(2, true).items.filter(i => i.type === 'augmentation');
-    assert.equal(b.length, 1); assert.equal(augmentKind(b[0].slot), 'passive');
+    const a = rollCarried(1, 1, 'normal', true);
+    assert.equal(a.length, 1); assert.equal(augmentKind(a[0].slot!), 'active');
+    const b = rollCarried(2, 1, 'normal', true);
+    assert.equal(b.length, 1); assert.equal(augmentKind(b[0].slot!), 'passive');
   }
 });
 
-test('the Patchwork King always drops an epic and a rare', () => {
+test('the Patchwork King wears the Patchwork Crown, epic or better, and his purse is a stim and credits', () => {
   seedRandom(9);
-  for (let k = 0; k < 50; k++) {
-    const r = generatePatchworkKingLoot().items.map(i => i.rarity);
-    assert.ok(r.includes('epic') && r.includes('rare'));
+  for (let k = 0; k < 20; k++) {
+    const king = createPatchworkKing();
+    const crown = king.carried!.find(i => i.name.includes('Patchwork Crown'))!;
+    assert.ok(crown && (crown.rarity === 'epic' || crown.rarity === 'legendary'));
+    assert.ok(generatePatchworkKingLoot().items.every(i => i.type === 'consumable'));
   }
+});
+
+test('enemies carry real implants built from parts; bosses and elites wear their signature', () => {
+  seedRandom(10);
+  const scav = createBoss(8);
+  assert.equal(scav.carried!.length, 2, 'two implants up to threat 10');
+  assert.ok(scav.carried!.every(i => i.type === 'augmentation' && !i.signature));
+  assert.ok(scav.carried!.every(i => augmentKind(i.slot!) === 'passive' || i.name.startsWith('[HELIX]') || i.parts), 'actives come with parts');
+  assert.equal(new Set(scav.carried!.map(i => i.slot)).size, scav.carried!.length, 'one per body slot');
+  const listener = createBoss(30);
+  const sig = listener.carried!.find(i => i.signature)!;
+  assert.ok(sig && /Listener/.test(sig.name) && ['epic', 'legendary'].includes(sig.rarity));
+  assert.ok(['lance', 'scope', 'mortar', 'longshot'].includes(sig.parts!.head), 'rolls from its own heads');
+  assert.ok(createBoss(15).carried!.some(i => i.signature), 'the threat-15 elite wears one too');
+  assert.ok(generateLoot(8).items.every(i => i.type === 'consumable'), 'implants only come off bodies now');
 });
 
 test('arenas grow with movement and crowd size, up to 9x13', () => {

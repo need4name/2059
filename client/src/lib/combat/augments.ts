@@ -215,7 +215,10 @@ export function rollParts(item: Item): Item['parts'] {
   let pool = Object.keys(HEADS).filter(id => fits(id) && (r === 'common' || r === 'uncommon' ? HEADS[id].basic : true));
   const sig = Object.keys(HEADS).filter(id => HEADS[id].group === group && (HEADS[id].signature === maker || HEADS[id].signature === 'any'));
   let head: string;
-  if (r === 'legendary' && sig.length && random() < 0.5) head = pick(sig);
+  // A signature implant rolls from its own heads (its signature head only at legendary)
+  const own = (item.heads ?? []).filter(id => HEADS[id]?.group === group && (!HEADS[id].signature || r === 'legendary'));
+  if (own.length) head = r === 'legendary' && own.some(id => HEADS[id].signature) && random() < 0.5 ? own.find(id => HEADS[id].signature)! : pick(own.filter(id => !HEADS[id].signature).length ? own.filter(id => !HEADS[id].signature) : own);
+  else if (r === 'legendary' && sig.length && random() < 0.5) head = pick(sig);
   else {
     const usual = pool.filter(id => MAKER_PARTS[maker].heads.includes(id));
     head = usual.length && random() < 0.6 ? pick(usual) : pick(pool);

@@ -11,7 +11,7 @@ import chapters from '../client/src/content/chapters.json';
 import chapterMap from '../client/src/content/map-indian-ocean.json';
 import figures from '../client/src/content/figures.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
-import { MAKER_INFO } from '../client/src/lib/combat/augments';
+import { MAKER_INFO, HEADS } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
@@ -127,6 +127,10 @@ const item = z.object({
   consumableEffect: z.enum(['bio_stim', 'structural_patch', 'heat_flush', 'overclock']).optional(),
   condition: z.enum(['pristine', 'worn', 'degraded', 'corroded']).optional(),
   icon: text,
+  /** Signature implants: carried by one boss or elite, never in shops or random drops. */
+  signature: z.boolean().optional(),
+  /** Heads a signature implant can roll (legendaries may roll its signature head). */
+  heads: z.array(text).optional(),
 }).strict();
 
 const weapon = z.object({
@@ -154,6 +158,7 @@ const enemy = z.object({
   lateLines: z.array(z.string().trim().min(1).max(110)).optional(),
   firstSight: z.string().trim().min(1).max(110),
   traits: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).optional(),
+  signature: text.optional(),
   enrage: z.object({ at: z.number().gt(0).lt(1), gain: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).min(1), line: text }).strict().optional(),
 }).strict();
 
@@ -183,6 +188,8 @@ export function checkContent(): string[] {
       if (!it.slot) problems.push(`items.json ${it.id}: implants need a slot`);
       const maker = it.name.match(/^\[([A-Z]+)\]/)?.[1];
       if (!maker || !(maker in MAKER_INFO)) problems.push(`items.json ${it.id}: name must start with a known [MAKER]`);
+      for (const h of it.heads ?? []) if (!(h in HEADS)) problems.push(`items.json ${it.id}: unknown head "${h}"`);
+      if (it.heads && !it.signature) problems.push(`items.json ${it.id}: only signature implants list heads`);
     } else if (!it.consumableEffect && !it.hpBonus) problems.push(`items.json ${it.id}: a consumable needs an effect`);
   });
 
@@ -204,6 +211,10 @@ export function checkContent(): string[] {
     for (const n of [...er.data.rotation, ...er.data.specials]) if (!er.data.enemies[n]) problems.push(`enemies.json: "${n}" is listed but not defined`);
     for (const [n, e] of Object.entries(er.data.enemies)) {
       if (e.moves.filter(m => m.isHeavy).length > 1) problems.push(`enemies.json ${n}: keep to one heavy attack`);
+      if (e.signature) {
+        const sig = (items as { id: string; signature?: boolean }[]).find(i => i.id === e.signature);
+        if (!sig?.signature) problems.push(`enemies.json ${n}: signature "${e.signature}" isn't a signature implant in items.json`);
+      }
       if (!e.moves.some(m => m.type === 'attack' && !m.isHeavy)) problems.push(`enemies.json ${n}: needs a normal attack`);
     }
   }

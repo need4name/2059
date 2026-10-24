@@ -1,3 +1,4 @@
+import { rollCarried, signatureImplant } from './loot';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
@@ -327,7 +328,7 @@ color: string; baseAttack: number; baseDefense: number; startingHeat: number;
 statSplit: { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number };
 dossier: string; moves: CombatAction[];
 lines: string[]; lateLines?: string[]; firstSight: string;
-traits?: string[]; enrage?: { at: number; gain: string[]; line: string };
+traits?: string[]; enrage?: { at: number; gain: string[]; line: string }; signature?: string;
 }
 const ENEMY_DATA = enemyContent as unknown as {
 rotation: string[]; specials: string[]; enemies: Record<string, EnemyData>;
@@ -383,12 +384,12 @@ return BOSS_TYPES[idx % BOSS_TYPES.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.6, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.75, atk: 1.05 }, setpiece: { hp: 2.6, atk: 2.7 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
-export const ENEMY_GROWTH = { hp: 1.07, atk: 1.055 };
+export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
-export const ENEMY_TUNING = { hp: 0.39, atk: 1.16 };
+export const ENEMY_TUNING = { hp: 0.39, atk: 1.3 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
@@ -400,7 +401,10 @@ export function createPatchworkKing(): Character {
 const base = createBoss(10, false, 'Helix Continuity Warden');
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
 const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
-return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24',
+// He wears the Patchwork Crown (epic, or legendary a third of the time) over his frame's own implants
+const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'legendary' : 'epic');
+const carried = [...(crown ? [crown] : []), ...(base.carried ?? [])].slice(0, 3);
+return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24', carried, implants: carried.map(i => i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()), implantSlots: carried.flatMap(i => (i.slot ? [i.slot] : [])),
 maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
 physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
 physicalDefense: pDef, structuralDefense: sDef };
@@ -470,30 +474,26 @@ let sAtk = Math.ceil (totalAtk * profile.sAtkR);
 let pDef = Math.floor(totalDef * profile.pDefR);
 let sDef = Math.ceil (totalDef * profile.sDefR);
 
-// Roll boss augments - capped to common/uncommon to prevent runaway defense scaling.
-// Rare+ items have defenseBonus up to 16 which can make bosses unkillable at low levels.
+// The implants it carries are real items built from parts: the player strips them
+// from the body afterwards. Their stats count for less on higher-quality parts, so
+// a lucky epic doesn't make an early enemy unkillable.
 const numAugs = enemyImplantCount(level);
+const role = typeName ? 'normal' : enemyRole(level, firstRun);
+const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature);
 const implantNames: string[] = [];
 const implantSlots: AugmentationSlot[] = [];
 let bonusPAtk = 0, bonusSAtk = 0, bonusPDef = 0, bonusSDef = 0, bonusHp = 0;
-const cappedPool = PATCHWORK_AUG_POOL.filter(i =>
-(i as any).rarity === 'common' || (i as any).rarity === 'uncommon'
-);
-const pool = [...(cappedPool.length > 0 ? cappedPool : PATCHWORK_AUG_POOL)];
-for (let i = 0; i < numAugs; i++) {
-if (pool.length === 0) break;
-const idx = Math.floor(random() * pool.length);
-const aug = pool.splice(idx, 1)[0];
-if ((aug as any).slot) implantSlots.push((aug as any).slot);
+const ENEMY_PART_WEIGHT: Record<string, number> = { common: 1, uncommon: 1, rare: 0.6, epic: 0.4, legendary: 0.25 };
+for (const aug of carried) {
+if (aug.slot) implantSlots.push(aug.slot);
 // Short names for the target card: no maker tag, side or condition
-implantNames.push(String((aug as any).name ?? '').replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*-\s*[A-Z]+$/, '').replace(/\s*\([LR]\)/, '').trim());
-// attackBonus -> physical attack (crude weapons), defenseBonus -> physical defense
-// structural attack/defense get a smaller bonus derived from the same items
-bonusPAtk += aug.attackBonus  || 0;
-bonusSAtk += Math.floor((aug.attackBonus  || 0) * profile.sAtkR);
-bonusPDef += aug.defenseBonus || 0;
-bonusSDef += Math.floor((aug.defenseBonus || 0) * profile.sDefR);
-bonusHp   += aug.hpBonus      || 0;
+implantNames.push(String(aug.name ?? '').replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*-\s*[A-Z]+$/, '').replace(/\s*\([LR]\)/, '').trim());
+const k = ENEMY_PART_WEIGHT[aug.rarity] ?? 1;
+bonusPAtk += Math.round((aug.attackBonus || 0) * k);
+bonusSAtk += Math.floor((aug.attackBonus || 0) * k * profile.sAtkR);
+bonusPDef += Math.round((aug.defenseBonus || 0) * k);
+bonusSDef += Math.floor((aug.defenseBonus || 0) * k * profile.sDefR);
+bonusHp   += Math.max(0, Math.round((aug.hpBonus || 0) * k));
 }
 
 pAtk += bonusPAtk; sAtk += bonusSAtk;
@@ -501,7 +501,6 @@ pDef += bonusPDef; sDef += bonusSDef;
 let finalHp = bossHp + bonusHp;
 const structuralHp = Math.max(8, (pDef + sDef) * 3);
 // Elites, bosses and the first-life set piece are tougher; everything grows level on level
-const role = typeName ? 'normal' : enemyRole(level, firstRun);
 const g = growth(level);
 finalHp = Math.round(finalHp * ROLE_MULT[role].hp * g.hp);
 pAtk = Math.round(pAtk * ROLE_MULT[role].atk * g.atk); sAtk = Math.round(sAtk * ROLE_MULT[role].atk * g.atk);
@@ -522,6 +521,7 @@ spriteColor: bossType.color,
 grade: enemyGradeAt(level),
 implants: implantNames.filter(Boolean),
 implantSlots,
+carried,
 traits: [...(bossType.traits ?? []), ...implantSlots.map(sl => TRAIT_OF_SLOT[sl])].filter((t, n, all) => t && all.indexOf(t) === n),
 ...(bossType.enrage ? { enrage: bossType.enrage } : {}),
 };

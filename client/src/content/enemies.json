@@ -347,7 +347,8 @@
       "lateLines": [
         "They're all walking out of my theatre now. All of them."
       ],
-      "firstSight": "Clean hands. The cleanest thing I have seen here, and the most frightening."
+      "firstSight": "Clean hands. The cleanest thing I have seen here, and the most frightening.",
+      "signature": "sig_surgeon_hands"
     },
     "IOA Interdiction Officer": {
       "color": "#fb923c",
@@ -614,7 +615,8 @@
       "lateLines": [
         "How many times do I have to collect on you?"
       ],
-      "firstSight": "It counts. Everything it sees, it counts."
+      "firstSight": "It counts. Everything it sees, it counts.",
+      "signature": "sig_cartel_hook"
     },
     "Unregistered Operator": {
       "color": "#f8fafc",
@@ -674,7 +676,8 @@
       "lateLines": [
         "I've been following you through bodies. You leave a trail."
       ],
-      "firstSight": "No name, no maker, no mark. Like me."
+      "firstSight": "No name, no maker, no mark. Like me.",
+      "signature": "sig_unlogged_legs"
     },
     "The Fitter": {
       "color": "#f97316",
@@ -751,7 +754,8 @@
       "lateLines": [
         "You again, in someone else. I'll have that chip out this time."
       ],
-      "firstSight": "It replaces itself one piece at a time. I wonder if it noticed when it stopped being a person."
+      "firstSight": "It replaces itself one piece at a time. I wonder if it noticed when it stopped being a person.",
+      "signature": "sig_fitter_arm"
     },
     "The Listener": {
       "color": "#22d3ee",
@@ -830,7 +834,8 @@
       "lateLines": [
         "How many corpses now? We counted all of them."
       ],
-      "firstSight": "It doesn't look at me. It looks at the chip, and the chip looks back."
+      "firstSight": "It doesn't look at me. It looks at the chip, and the chip looks back.",
+      "signature": "sig_listener_array"
     }
   },
   "patchworkKing": {

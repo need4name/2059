@@ -1,6 +1,8 @@
 import { useCombat } from '@/lib/stores/useCombat';
 import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
-import { Screen, Card, Label, Btn, Chip, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
+import { Screen, Card, Label, Btn, Chip, Footprint, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
+import { actionForItem, partsText } from '@/lib/combat/augments';
+import { scrapValue } from '@/lib/combat/economy';
 import { implantStats, stimInfo, passiveText } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
 import { useAllies } from '@/lib/stores/useAllies';
@@ -9,9 +11,10 @@ import { CHAPTER_MAP } from '@/lib/engine/map';
 import { ALLIES } from '@/lib/combat/allies';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, lootChoices, chooseLoot } = useCombat();
-  const inChoice = new Set(lootChoices.map(c => c.options[0].id));
-  const items = (currentLoot?.items ?? []).filter(i => !inChoice.has(i.id));
+  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, strip, takePart } = useCombat();
+  const items = currentLoot?.items ?? [];
+  const picksLeft = strip ? strip.picks - strip.taken.length : 0;
+  const scrap = strip ? scrapValue(strip.bodies.flatMap(b => b.items).filter(i => !strip.taken.includes(i.id))) : 0;
   const { party, progress, met } = useAllies();
   const map = useMap();
   const ended = !!lastVictory?.chapterDone;
@@ -86,33 +89,45 @@ export function VictoryScreen() {
           ) : null;
         })}
 
-        {lootChoices.length > 0 && (
-          <div className="space-y-2.5">
-            <Label>Pick of the wreck</Label>
-            <p className="text-sm text-hud-dim">Choose one from each pair. If you leave without choosing, you keep the first.</p>
-            {lootChoices.map((c, k) => (
-              <div key={k} className="grid grid-cols-2 gap-2">
-                {c.options.map((item, o) => {
-                  const picked = c.picked === o, other = c.picked !== null && !picked;
-                  return (
-                    <button key={item.id} disabled={c.picked !== null} onClick={() => chooseLoot(k, o)} aria-pressed={picked}
-                      className={cx('flex flex-col gap-1 rounded-2xl bg-gradient-to-b to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], picked ? 'ring-2 ring-sys/70' : 'ring-white/[0.05]', other && 'opacity-40')}>
-                      <span className="text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
-                      <span className={cx('text-[13px] font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{item.name}</span>
-                      <span className="text-[11px] text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}</span>
-                      {picked && <span className="text-[11px] font-semibold text-sys">Taken</span>}
-                    </button>
-                  );
-                })}
+        {strip && (
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <Label>Strip the bodies</Label>
+              <span className={cx('text-xs font-semibold', picksLeft ? 'text-cred' : 'text-hud-dim')}>{picksLeft ? `Take ${picksLeft}` : 'Done'}</span>
+            </div>
+            <p className="text-sm text-hud-dim">These are the implants they were wearing. Keep {strip.picks === 1 ? 'one' : strip.picks}; the rest are scrapped for ¤{scrap}.</p>
+            {strip.bodies.map((b, bi) => (
+              <div key={bi} className="space-y-2">
+                <div className="text-xs font-semibold" style={{ color: b.color }}>{b.name}</div>
+                <div className="grid grid-cols-1 gap-2">
+                  {b.items.map(item => {
+                    const taken = strip.taken.includes(item.id), gone = !taken && picksLeft === 0;
+                    const move = actionForItem(item);
+                    const parts = partsText(item);
+                    return (
+                      <button key={item.id} disabled={taken || gone} onClick={() => takePart(item.id)} aria-pressed={taken}
+                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}{item.signature ? ' ★' : ''}</span>
+                          <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
+                          {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
+                        </span>
+                        {move?.type === 'attack' && <Footprint pattern={move.attackPattern} className="shrink-0" />}
+                        {taken && <Chip tone="sys">Taken</Chip>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        <div className="space-y-2.5">
+        {(items.length > 0 || !strip) && <div className="space-y-2.5">
           <Label>Salvage</Label>
           {items.length === 0 ? (
-            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">{lootChoices.length ? 'Nothing else this time.' : 'Nothing usable this time. Credits only.'}</Card>
+            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">{strip ? 'Nothing else this time.' : 'Nothing usable this time. Credits only.'}</Card>
           ) : (
             <div className="space-y-2">
               {items.map((item, i) => {
@@ -140,7 +155,7 @@ export function VictoryScreen() {
           {items.some(i => i.type === 'augmentation') && (
             <p className="text-xs text-hud-faint">New implants wait in the Implants tab at base until you install them.</p>
           )}
-        </div>
+        </div>}
       </div>
     </Screen>
   );

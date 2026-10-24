@@ -62,8 +62,8 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   },
   victory: {
     icon: '🧰',
-    title: 'Salvage',
-    body: 'Everything you take goes into your stash. Install implants back at the hideout before the next fight.',
+    title: 'Strip them for parts',
+    body: 'Strip the bodies: these are the implants they were wearing. Pick the one you want, the rest are scrapped for credits. Install it at the hideout before the next fight.',
   },
   base: {
     icon: '🏚️',

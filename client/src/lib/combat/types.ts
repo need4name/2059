@@ -23,6 +23,8 @@ grade?: number;
 implants?: string[];
 /** Body slots of the implants it carries, and the traits they give it (see ENEMY_TRAITS). */
 implantSlots?: AugmentationSlot[];
+/** Enemies: the implants it actually carries (stripped from the body after the fight). */
+carried?: Item[];
 traits?: string[];
 /** Bosses: at this share of health they gain traits and say something (once). */
 enrage?: { at: number; gain: string[]; line: string };
@@ -151,6 +153,10 @@ condition?: ItemCondition;
 icon: string;
 description?: string;
 attackPattern?: AttackPatternType;
+/** Signature implants (one per boss or elite): never sold or dropped at random. */
+signature?: boolean;
+/** Heads a signature implant can roll. */
+heads?: string[];
 /** Active implants: the head (attack shape) and mods (side effects) this one was built with. */
 parts?: { head: string; mods: string[] };
 }

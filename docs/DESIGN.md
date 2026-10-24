@@ -196,20 +196,21 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 
 ### Enemy scaling by threat
 - Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
-- On top of that, every enemy's health is × 0.39 × 1.07^(threat − 1) and its attack × 1.16 × 1.055^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
-- **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.6 health, ×1.05 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
+- On top of that, every enemy's health is × 0.39 × 1.06^(threat − 1) and its attack × 1.3 × 1.047^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
+- **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.75 health, ×1.05 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
 - **First life only:** threat 3 is the **Cartel Enforcer** (×2.6 health, ×2.7 attack). It waits on the walkway and is meant to end the first run.
 - Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 9 after 5 hosts lost and 18–20 after 10.
 
-### Drops
-- Rarity odds rise with threat: commons and uncommons only at 1–2, rares from 3, epics from 5, legendaries from 6; commons stop dropping around threat 20.
-- Implants per win: regular fights have a 50% chance of one. Elites always drop one (uncommon or better, rare or better from threat 15). Bosses drop two, one of them epic or better (legendary chance 15% + 1% per threat, up to 50%).
+### Drops: strip them for parts
+- **Implants only come off bodies.** Every enemy carries real implants (`carried`, rolled by `rollCarried` in `loot.ts` when it's created): 1 up to threat 5, 2 up to 10, then 3, one per body slot, each built from parts (see Implant parts). It's worn gear, so it rolls at the drop odds of **six threats lower** (`CARRIED_QUALITY_LAG`): at threat 1–2 odds that's commons and a few uncommons; rares appear from threat 3 odds, epics from 5, legendaries from 6, and commons stop around 20. Half are used gear: 35% worn, 15% degraded.
+- Their stats count for less on an enemy as quality rises (common and uncommon ×1, rare ×0.6, epic ×0.4, legendary ×0.25), so a lucky epic doesn't make an early enemy unkillable. The traits they give still come from the body slot.
+- **Signature implants:** each boss and elite carries one (`signature` in `enemies.json`, the item in `items.json` with `signature` and its own `heads`): Cartel Enforcer *Collector's Hook*, CBN Surgeon *Surgeon's Hands*, Unregistered Operator *Unlogged Legs*, the Fitter *Fitter's Crane Arm*, the Listener *Listener's Array*, the Patchwork King *Patchwork Crown*. The name and slot are fixed; quality rolls every time (bosses epic, or legendary 15% + 1% per threat up to 50%; the King's crown legendary 35%; elites uncommon or better, rare or better from threat 15) and so do the head (from its own list, its signature head only at legendary) and mods. Signature implants never appear in shops or random rolls.
+- **After a win you strip the bodies:** the win screen lists every beaten enemy's implants by body; you keep one (two with Pick of the wreck). Leaving without choosing takes the best one. The rest are scrapped for a quarter of their sell price (at least 2 credits each).
+- First life: the first enemy carries a common arm (an active move) and the second an uncommon passive, so both kinds are met early.
 - Stims from threat 2: 15% chance rising to 25%. Bosses always drop one.
-- Credits: 10 + 8 × threat, plus up to the same again at random.
-- First life: threat 1 always drops an active implant, threat 2 a passive one plus a Bio-Stim.
-- The King always drops an epic, a rare and a stim, with a 35% chance of a legendary, plus 160–220 credits.
+- Credits: 10 + 8 × threat, plus up to the same again at random. The King pays 160–220 and a stim.
 
 ### XP
 Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 250 XP, then +20 per threat.

@@ -1541,5 +1541,117 @@
     "attackBonus": 10,
     "defenseBonus": 8,
     "hpBonus": 12
+  },
+  {
+    "id": "sig_patchwork_crown",
+    "name": "[PATCHWORK] Patchwork Crown",
+    "description": "A ring of grafts and casings the King wore on his skull. It hums with everyone it was taken from.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "brain",
+    "attackBonus": 10,
+    "defenseBonus": 6,
+    "hpBonus": 20,
+    "structuralAttackBonus": 4,
+    "icon": "👑",
+    "signature": true
+  },
+  {
+    "id": "sig_cartel_hook",
+    "name": "[CBN] Collector's Hook (L)",
+    "description": "The Enforcer's hooked arm, still tagged with the names of what it collected.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "left_arm",
+    "attackBonus": 12,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "icon": "🪝",
+    "signature": true,
+    "heads": [
+      "grapple",
+      "hook",
+      "lash",
+      "harvest"
+    ]
+  },
+  {
+    "id": "sig_surgeon_hands",
+    "name": "[CBN] Surgeon's Hands (R)",
+    "description": "Steady to a micron and never once washed between patients.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 11,
+    "defenseBonus": 0,
+    "hpBonus": 0,
+    "structuralAttackBonus": 5,
+    "icon": "🩺",
+    "signature": true,
+    "heads": [
+      "lash",
+      "grapple",
+      "jab",
+      "harvest"
+    ]
+  },
+  {
+    "id": "sig_fitter_arm",
+    "name": "[VOLKOV] Fitter's Crane Arm (R)",
+    "description": "The arm the Fitter used to bolt limbs onto the unwilling. It still wants to lift something.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 20,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🏗️",
+    "signature": true,
+    "heads": [
+      "reach",
+      "hook",
+      "spread",
+      "breachline"
+    ]
+  },
+  {
+    "id": "sig_unlogged_legs",
+    "name": "[IOA] Unlogged Legs (L)",
+    "description": "No serial, no maker's mark, no record they were ever fitted. They move before you decide to.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "left_leg",
+    "attackBonus": 8,
+    "defenseBonus": 3,
+    "hpBonus": 0,
+    "evasionBonus": 2,
+    "icon": "🦵",
+    "signature": true,
+    "heads": [
+      "lunge",
+      "stepcut",
+      "charge",
+      "sprint"
+    ]
+  },
+  {
+    "id": "sig_listener_array",
+    "name": "[KIZUNA] Listener's Array",
+    "description": "An eye that hears. Wearing it, the sea is never quiet again.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 16,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 6,
+    "icon": "📡",
+    "signature": true,
+    "heads": [
+      "lance",
+      "scope",
+      "mortar",
+      "longshot"
+    ]
   }
 ]

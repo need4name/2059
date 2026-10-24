@@ -10,6 +10,7 @@ createPlayer, createBoss, createPatchworkKing,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
+import { scrapValue } from '../combat/economy';
 import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
@@ -38,6 +39,8 @@ const ENEMY_TURN_DELAY = 700;
 const ENEMY_STEP_DELAY = 550;
 const TURN_HANDOFF_DELAY = 600;
 const FOE_GAP_DELAY = 450;
+
+export interface Strip { bodies: { name: string; color: string; items: Item[] }[]; picks: number; taken: string[] }
 
 export interface VictorySummary {
 gold: number;
@@ -128,8 +131,10 @@ reflexMoveOpen: boolean;
 /** Holdfast has saved this host already. */
 holdfastSpent: boolean;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
-lootChoices: { options: [Item, Item]; picked: number | null }[];
-chooseLoot: (choice: number, option: number) => void;
+/** After a win: the beaten enemies' implants, to strip for parts. You keep `picks` of them; the rest are scrapped. */
+strip: Strip | null;
+/** Take one implant off a body (while picks are left). */
+takePart: (itemId: string) => void;
 /** What the enemy said when it saw you, and what the signal noticed (shown at the start of a fight). */
 fightIntro: { speaker: string; color: string; line: string | null; note: string | null } | null;
 dismissIntro: () => void;
@@ -318,25 +323,18 @@ const { farmLevel, bossLevel } = get();
 const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null;
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
-const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun, get().foes.flatMap(f => f.unit.implantSlots ?? []));
-// Pick of the wreck: each implant drop comes with a second option of the same rarity
-const choices: { options: [Item, Item]; picked: number | null }[] = [];
-let direct = loot.items;
-if (usePlayi.getState().perks().pickOfTwo) {
-direct = [];
-for (const it of loot.items) {
-const pool = it.type === 'augmentation' ? ITEM_POOLS[it.rarity].filter(o => o.id !== it.templateId) : [];
-if (!pool.length) { direct.push(it); continue; }
-choices.push({ options: [it, instancedItem(pool[Math.floor(random() * pool.length)])], picked: null });
-}
-}
+const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
+const direct = loot.items;
+// Strip the bodies: every beaten enemy's implants, to choose from (two picks with Pick of the wreck)
+const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: f.unit.carried ?? [] })).filter(b => b.items.length);
+const strip: Strip | null = bodies.length ? { bodies, picks: usePlayi.getState().perks().pickOfTwo ? 2 : 1, taken: [] } : null;
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
 if (chapterDone) useMap.getState().finishChapter();
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
-set({ lootChoices: choices });
+set({ strip });
 useInventory.getState().addGold(loot.gold);
 const xp = getXpFromBoss(level);
 // Allies: the party learns from every win
@@ -473,7 +471,7 @@ hostBestThreat: 0,
 fightIntro: null,
 dismissIntro: () => set({ fightIntro: null }),
 holdfastSpent: false,
-lootChoices: [],
+strip: null,
 combatLog: [],
 playerDefenseBoost: 0,
 currentLoot: null,
@@ -693,17 +691,27 @@ resetCombat: () => {
 set({ phase: 'menu', combatLog: [], inputLocked: false, fightId: get().fightId + 1, foes: [] });
 },
 
-chooseLoot: (choice, option) => {
-const list = get().lootChoices;
-const c = list[choice];
-if (!c || c.picked !== null) return;
-useInventory.getState().addItems([c.options[option]]);
-set({ lootChoices: list.map((x, k) => (k === choice ? { ...x, picked: option } : x)) });
+takePart: (itemId) => {
+const st = get().strip;
+if (!st || st.taken.length >= st.picks || st.taken.includes(itemId)) return;
+const item = st.bodies.flatMap(b => b.items).find(i => i.id === itemId);
+if (!item) return;
+useInventory.getState().addItems([item]);
+set({ strip: { ...st, taken: [...st.taken, itemId] } });
+useAudio.getState().play('cache');
 },
 
 continueFromVictory: () => {
-// Nothing is lost: an unanswered choice keeps its first option
-get().lootChoices.forEach((c, k) => { if (c.picked === null) get().chooseLoot(k, 0); });
+// Leaving without choosing takes the best part for you; the rest are scrapped for credits
+const st = get().strip;
+if (st) {
+  const order = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
+  const left = () => st.bodies.flatMap(b => b.items).filter(i => !get().strip!.taken.includes(i.id));
+  while (get().strip!.taken.length < st.picks && left().length) get().takePart(left().sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity))[0].id);
+  const scrap = scrapValue(left());
+  if (scrap) useInventory.getState().addGold(scrap);
+  set({ strip: null });
+}
 set({ phase: 'menu', pendingShop: false, currentLoot: null });
 },
 
@@ -818,7 +826,7 @@ currentLoot: s.currentLoot,
 lastVictory: s.lastVictory,
 pendingShop: s.pendingShop,
 bossLevel: s.bossLevel,
-lootChoices: s.lootChoices,
+strip: s.strip,
 holdfastSpent: s.holdfastSpent,
 hostBestThreat: s.hostBestThreat,
 runSeed: s.runSeed,

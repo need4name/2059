@@ -292,7 +292,8 @@ test('chapter bosses: the Fitter guards threat 20 and turns faster below half he
   seedRandom(3);
   const fitter = createBoss(20);
   assert.equal(fitter.name, 'The Fitter');
-  assert.ok(fitter.traits!.includes('armed') && fitter.traits!.includes('braced'));
+  assert.ok(fitter.traits!.includes('armed'));
+  assert.ok(fitter.carried!.some(i => i.signature && i.name.includes("Fitter's Crane Arm")), 'it wears its signature arm');
   assert.equal(createBoss(30).name, 'The Listener');
   const s = fight({ grid: arena([8, 3], [0, 3]) });
   const hurtBoss = { ...s, foes: [{ ...Fight.newFoe({ ...fitter, currentHp: Math.floor(fitter.maxHp * 0.4) }, { row: 0, col: 3 }, 40) }] };

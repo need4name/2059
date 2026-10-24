@@ -62,3 +62,6 @@ export function generateMarketStock(level: number): Item[] {
   for (let i = 0; i < 3 && stims.length; i++) stock.push(instancedItem(stims[Math.floor(random() * stims.length)]));
   return stock;
 }
+
+/** Credits for scrapping the implants left on the bodies after a fight: a quarter of their sell price. */
+export const scrapValue = (items: Item[]) => items.reduce((n, i) => n + Math.max(2, Math.round(sellPrice(i) * 0.25)), 0);
