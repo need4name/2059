@@ -23,9 +23,16 @@ export function VictoryScreen() {
 
   return (
     <Screen footer={
-      <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
-        Back to the hideout
-      </Btn>
+      picksLeft > 0 ? (
+        <div className="space-y-2">
+          <Btn variant="primary" size="lg" className="w-full" disabled>Tap an implant above to keep it</Btn>
+          <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me (keeps the rarest)</button>
+        </div>
+      ) : (
+        <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
+          Back to the hideout
+        </Btn>
+      )
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-ok/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
@@ -55,6 +62,47 @@ export function VictoryScreen() {
               The signal keeps what it always keeps: the allies you linked, everything it learned in the play-i tree, and every place it has walked. This host can go on: the spire stays quiet, and every other room still holds a fight for the next host.
             </p>
             <p className="text-sm text-hud-dim">Chapter two is still being written.</p>
+          </div>
+        )}
+
+        {strip && (
+          <div className={cx('rise-in space-y-3 rounded-3xl p-4 ring-1 transition', picksLeft ? 'bg-gradient-to-b from-cred/[0.14] to-hud-panel/60 ring-cred/40' : 'bg-hud-panel/60 ring-white/[0.06]')}>
+            <div className="flex items-center gap-3">
+              <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg', picksLeft ? 'bg-cred/15' : 'bg-ok/15')}>{picksLeft ? '🧰' : '✓'}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-[16px] font-semibold text-white">{picksLeft ? `Strip the bodies: keep ${picksLeft === 1 ? 'one implant' : `${picksLeft} implants`}` : 'Stripped'}</div>
+                <p className="text-[13px] leading-snug text-hud-dim">
+                  {picksLeft
+                    ? <>These are the implants they were wearing. <span className="text-hud-text">Tap one to keep it.</span> The rest are scrapped for ¤{scrap}.</>
+                    : <>Kept {strip.taken.map(id => strip.bodies.flatMap(b => b.items).find(i => i.id === id)?.name).join(' and ')}. Install it from Implants at the hideout. The rest scrap for ¤{scrap}.</>}
+                </p>
+              </div>
+            </div>
+            {strip.bodies.map((b, bi) => (
+              <div key={bi} className="space-y-2">
+                <div className="text-xs font-semibold" style={{ color: b.color }}>{b.name}</div>
+                <div className="grid grid-cols-1 gap-2">
+                  {b.items.map(item => {
+                    const taken = strip.taken.includes(item.id), gone = !taken && picksLeft === 0;
+                    const move = actionForItem(item);
+                    const parts = partsText(item);
+                    return (
+                      <button key={item.id} disabled={taken || gone} onClick={() => takePart(item.id)} aria-pressed={taken}
+                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}{item.signature ? ' ★' : ''}</span>
+                          <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
+                          {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
+                        </span>
+                        {move?.type === 'attack' && <Footprint pattern={move.attackPattern} className="shrink-0" />}
+                        {taken && <Chip tone="sys">Taken</Chip>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -88,41 +136,6 @@ export function VictoryScreen() {
             </div>
           ) : null;
         })}
-
-        {strip && (
-          <div className="space-y-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <Label>Strip the bodies</Label>
-              <span className={cx('text-xs font-semibold', picksLeft ? 'text-cred' : 'text-hud-dim')}>{picksLeft ? `Take ${picksLeft}` : 'Done'}</span>
-            </div>
-            <p className="text-sm text-hud-dim">These are the implants they were wearing. Keep {strip.picks === 1 ? 'one' : strip.picks}; the rest are scrapped for ¤{scrap}.</p>
-            {strip.bodies.map((b, bi) => (
-              <div key={bi} className="space-y-2">
-                <div className="text-xs font-semibold" style={{ color: b.color }}>{b.name}</div>
-                <div className="grid grid-cols-1 gap-2">
-                  {b.items.map(item => {
-                    const taken = strip.taken.includes(item.id), gone = !taken && picksLeft === 0;
-                    const move = actionForItem(item);
-                    const parts = partsText(item);
-                    return (
-                      <button key={item.id} disabled={taken || gone} onClick={() => takePart(item.id)} aria-pressed={taken}
-                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}{item.signature ? ' ★' : ''}</span>
-                          <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
-                          {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
-                        </span>
-                        {move?.type === 'attack' && <Footprint pattern={move.attackPattern} className="shrink-0" />}
-                        {taken && <Chip tone="sys">Taken</Chip>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
         {(items.length > 0 || !strip) && <div className="space-y-2.5">
           <Label>Salvage</Label>

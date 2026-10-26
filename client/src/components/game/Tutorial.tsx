@@ -63,7 +63,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   victory: {
     icon: '🧰',
     title: 'Strip them for parts',
-    body: 'Strip the bodies: these are the implants they were wearing. Pick the one you want, the rest are scrapped for credits. Install it at the hideout before the next fight.',
+    body: 'After every win you strip the bodies. The cards at the top are the implants they were wearing: tap one to keep it, and the rest are scrapped for credits. Then install it from Implants at the hideout.',
   },
   base: {
     icon: '🏚️',
