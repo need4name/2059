@@ -110,6 +110,11 @@ surge: () => void;
 hostBestThreat: number;
 /** The enemy taking its turn right now (for the turn-order strip), or null. */
 actingFoe: number | null;
+/** This round's order, fastest first (see Fight.roundOrder), and who is still to act after the current turn. */
+roundOrder: Fight.Actor[];
+turnQueue: Fight.Actor[];
+/** Rounds started this fight. */
+round: number;
 /** Search the room's supply cache: a stim or some credits, once per host. Returns what was found. */
 openRoomCache: () => string | null;
 /** Fight whatever holds the room you're standing in on the hidden map. */
@@ -252,6 +257,8 @@ doubleActionReady: s.doubleActionReady,
 perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepReady, holdfastReady: s.holdfastReady,
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
+playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive,
 };
 };
 
@@ -379,21 +386,43 @@ set({ inputLocked: false, hasMoved: false, selectedMovement: null, selectedActio
 return;
 }
 set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleActionReady: false });
-later(() => get().enemyTurn(), ENEMY_TURN_DELAY);
+later(nextActor, ENEMY_TURN_DELAY);
 };
 
-// Each living enemy takes its turn in order, then the player's turn begins.
+// A round: everyone sorted by speed (Slowed and Hasted count down once the order is set)
+const beginRound = () => {
+const order = Fight.roundOrder(fightState());
+save(Fight.tickSpeed(fightState()));
+set({ roundOrder: order, turnQueue: order, round: get().round + 1 });
+nextActor();
+};
+
+// Whoever is next this round takes their turn; when everyone has, a new round starts
+const nextActor = () => {
+const [head, ...rest] = get().turnQueue;
+if (head === undefined) { beginRound(); return; }
+set({ turnQueue: rest });
+if (head === 'player') {
+// The opening turn skips the round-start cooling, as it always has
+if (get().round === 1) { set({ phase: 'player_turn', inputLocked: false, actingFoe: null }); return; }
+beginPlayerTurn();
+return;
+}
+if (!Fight.isAlive(get().foes[head])) { nextActor(); return; }
+set({ phase: 'enemy_turn', inputLocked: true });
+runFoeTurn(head);
+};
+
+// Foe i takes its turn: attack (or wind up, or walk), then walk, then whoever is next.
 const runFoeTurn = (i: number) => {
 const s = get();
-if (i >= s.foes.length) { beginPlayerTurn(); return; }
-if (!Fight.isAlive(s.foes[i])) { runFoeTurn(i + 1); return; }
 set({ actingFoe: i });
 const level = s.farmLevel ?? s.bossLevel;
 const step = Fight.foeTurn(fightState(), i, level);
 if (apply(step)) return;
 const done = () => {
 if (apply(Fight.applyFoeHazard(fightState(), i))) return;
-later(() => runFoeTurn(i + 1), i + 1 < get().foes.length ? FOE_GAP_DELAY : TURN_HANDOFF_DELAY);
+later(nextActor, get().turnQueue[0] === undefined || get().turnQueue[0] === 'player' ? TURN_HANDOFF_DELAY : FOE_GAP_DELAY);
 };
 // Enemies attack first, then walk
 if (step.walkAfter) later(() => { if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
@@ -445,7 +474,9 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0 });
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+set({ round: 0, turnQueue: [], roundOrder: [] });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
 if (lead) {
@@ -457,6 +488,9 @@ for (const f of foes) { const n = useJournal.getState().sight(f.unit.name, host 
 if (line) log(`${lead.name}: "${line}"`);
 set({ fightIntro: line || note ? { speaker: lead.name, color: lead.spriteColor, line, note } : null });
 }
+// First round: if something is faster than you, it moves first (after a beat to see the board)
+if (Fight.roundOrder(fightState())[0] === 'player') beginRound();
+else { set({ phase: 'enemy_turn', inputLocked: true }); log('They are faster than you: they move first', 'critical'); later(beginRound, ENEMY_TURN_DELAY * 2); }
 };
 
 return {
@@ -469,6 +503,7 @@ target: 0,
 reflexMoveOpen: false,
 allyMoveMode: null,
 actingFoe: null,
+roundOrder: [], turnQueue: [], round: 0,
 hostBestThreat: 0,
 fightIntro: null,
 dismissIntro: () => set({ fightIntro: null }),
@@ -632,7 +667,7 @@ return;
 finishPlayerAction(true);
 },
 
-enemyTurn: () => runFoeTurn(0),
+enemyTurn: () => nextActor(),
 
 surge: () => {
 const { phase, inputLocked, reflexMoveOpen } = get();

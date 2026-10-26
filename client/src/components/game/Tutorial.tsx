@@ -100,6 +100,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Someone to link with',
     body: 'There is someone here your signal can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
   },
+  speed: {
+    icon: '⏱️',
+    title: 'Faster bodies act first',
+    body: 'Every round, the fastest go first. Your speed comes from your implants: Volkov parts are quick, Helix and PARSU slow, and running very hot slows you. A ×2 on the turn strip means that enemy gets two turns before your next one. Slowed and Hasted shift it for 2 rounds.',
+  },
   ally_gear: {
     icon: '🦾',
     title: 'Allies wear implants too',
@@ -138,7 +143,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   turns: {
     icon: '⏱️',
     title: 'Who goes next',
-    body: 'The strip at the top right shows the order everyone acts in this round. The highlighted face is whoever is acting now.',
+    body: 'The strip at the top right shows the order everyone acts in this round, fastest first, then who leads the next round. The highlighted face is whoever is acting now.',
   },
   traits: {
     icon: '🧬',
@@ -197,6 +202,7 @@ export function useTutorialTriggers() {
       ['surge', myTurn && Fight.canSurge(c)],
       ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
       ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
+      ['speed', myTurn && (c.roundOrder[0] !== 'player' || Fight.doubleTurns(c, c.turnQueue).length > 0)],
       ['turns', myTurn && !!t.seen.attack && c.foes.length + c.allies.length >= 2],
       ['traits', myTurn && !!t.seen.attack && c.foes.some(f => (f.unit.traits?.length ?? 0) > 0)],
       ['victory', c.phase === 'victory'],

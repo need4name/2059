@@ -23,7 +23,7 @@ import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
 import { allyDef } from '@/lib/combat/allies';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { PLAYER_BASE_MOVE, attackPatternOf } from '@/lib/engine/fight';
+import { PLAYER_BASE_MOVE, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies';
 
@@ -339,12 +339,13 @@ function StatusTab() {
           <Stat label="Evasion" value={stats.evasion} />
           <Stat label="Armour" value={stats.physicalDefense} tone="text-sky-300" />
           <Stat label="Shielding" value={stats.structuralDefense} tone="text-sky-300" />
+          <Stat label="Speed" value={Math.round((SPEED.base + implantDrive(equipped.map(sl => equippedAugmentations[sl]!))) * 10) / 10} tone="text-amber-200" />
         </div>
         {equipped.length > 0 && (() => {
           const cost = equipped.reduce((n, sl) => n + healthCostOf(equippedAugmentations[sl]!), 0);
           return cost > 0 ? <p className="mt-4 text-xs text-hostile">Your implants cost you {cost} max health (rejection, infection and strain).</p> : null;
         })()}
-        <p className="mt-4 text-xs leading-relaxed text-hud-faint">Structure is your implants' own health: each part adds to it, heavier makers more. Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up.</p>
+        <p className="mt-4 text-xs leading-relaxed text-hud-faint">Structure is your implants' own health: each part adds to it, heavier makers more. Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up. Speed decides who acts first each round: Volkov parts are fastest, then IOA and Kizuna; PARSU and Helix are slow. Running very hot slows you down.</p>
       </Panel>
 
       {notes.length > 0 && (

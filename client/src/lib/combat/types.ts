@@ -80,6 +80,10 @@ export interface ActionEffects {
   focus?: boolean;
   /** Shots go through cover. */
   ignoreCover?: boolean;
+  /** Slow everyone hit: they act later for the next 2 rounds. */
+  slow?: boolean;
+  /** Haste yourself: you act earlier for the next 2 rounds. */
+  haste?: boolean;
 }
 
 export type WeaponType = 'pistol' | 'revolver' | 'shotgun';

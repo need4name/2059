@@ -499,3 +499,56 @@ test('enemy moves carry side effects: a hook drags you in, a bleed ticks on your
   assert.ok(shoves.size > 0, 'the hook shows as purple-edged tiles');
   assert.ok(Array.from(shoves).every(k => Fight.foeThreatTiles(st, 0).has(k)), 'inside the red zone');
 });
+
+// ── Speed and turn order ──
+const imp = (maker: string) => ({ id: maker, name: `[${maker}] Part`, rarity: 'common', type: 'augmentation', slot: 'lungs', icon: '' }) as any;
+const carrying = (s: FightState, i: number, makers: string[]): FightState =>
+  ({ ...s, foes: s.foes.map((f, n) => (n === i ? { ...f, unit: { ...f.unit, carried: makers.map(imp), traits: [] } } : f)) });
+
+test('speed: base plus the average drive of the implants; hot, slowed and hasted shift it', () => {
+  assert.equal(Fight.implantDrive([]), 0);
+  assert.equal(Fight.implantDrive([imp('VOLKOV'), imp('HELIX')]), 0.5);
+  const s = carrying(fight({ playerDrive: 1 }), 0, ['VOLKOV', 'IOA']);
+  assert.equal(Fight.speedOf(s, 'player'), 11);
+  assert.equal(Fight.speedOf(s, 0), 12.5);
+  assert.equal(Fight.speedOf({ ...s, playerHeat: 90 }, 'player'), 9, 'very hot: -2');
+  assert.equal(Fight.speedOf({ ...s, playerSlowed: 1 }, 'player'), 7);
+  assert.equal(Fight.speedOf({ ...s, playerHasted: 2 }, 'player'), 15);
+});
+
+test('rounds go fastest first, the player winning ties; the order can change mid-fight', () => {
+  const base = fight();
+  const two = { ...base, foes: [base.foes[0], Fight.newFoe(createBoss(3), { row: 1, col: 1 }, 40)] };
+  const s = carrying(carrying(two, 0, ['HELIX']), 1, ['VOLKOV']);
+  assert.deepEqual(Fight.roundOrder(s), [1, 'player', 0]);
+  assert.deepEqual(Fight.roundOrder(carrying(s, 1, ['PATCHWORK'])), ['player', 1, 0], 'tie: player first, then foes in order');
+  assert.deepEqual(Fight.roundOrder({ ...s, playerHasted: 2 }), ['player', 1, 0]);
+  const dead = { ...s, foes: s.foes.map((f, n) => (n === 1 ? { ...f, unit: { ...f.unit, currentHp: 0 } } : f)) };
+  assert.deepEqual(Fight.roundOrder(dead), ['player', 0]);
+});
+
+test('slowed and hasted last two rounds', () => {
+  let s = fight({ playerSlowed: 2 });
+  s = Fight.tickSpeed(s); assert.equal(s.playerSlowed, 1);
+  s = Fight.tickSpeed(s); assert.equal(s.playerSlowed, 0);
+  assert.equal(Fight.tickSpeed(s).playerSlowed, 0);
+});
+
+test('a fast enemy that acts last this round and first next round is flagged as acting twice', () => {
+  const s = carrying(fight(), 0, ['VOLKOV']);
+  // This round the player was slowed (so the foe still has to act after you); next round it leads again
+  assert.deepEqual(Fight.doubleTurns(s, [0]), [0]);
+  assert.deepEqual(Fight.doubleTurns(s, []), [], 'it already acted this round');
+  assert.deepEqual(Fight.doubleTurns(carrying(fight(), 0, ['HELIX']), [0]), [], 'slow enemy: next round you go first');
+});
+
+test('slow and haste effects: enemy hits slow you; your hits slow them and can haste you', () => {
+  seedRandom(5);
+  const slowHit = { ...hitFor(10), effects: { slow: true } };
+  const hit = Fight.resolveFoeAction(fight(), 0, slowHit, 3, -1);
+  assert.equal(hit.state.playerSlowed, Fight.SPEED.statusRounds);
+  const mine = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'melee' as const, effects: { slow: true, haste: true } };
+  const st = Fight.resolvePlayerAttack(fight(), mine).state;
+  assert.equal(st.foes[0].slowed, Fight.SPEED.statusRounds);
+  assert.equal(st.playerHasted, Fight.SPEED.statusRounds);
+});

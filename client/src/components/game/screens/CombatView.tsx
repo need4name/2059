@@ -36,10 +36,16 @@ function CombatHud() {
   if (s.playerStunned) chips.push({ key: 'stun', tone: 'cred', text: 'Stunned · you lose your next turn' });
   if (s.playerBleeding) chips.push({ key: 'bleed', tone: 'hostile', text: `Bleeding · ${s.playerBleeding} turn${s.playerBleeding === 1 ? '' : 's'}` });
   if (s.playerSwimming) chips.push({ key: 'swim', tone: 'cred', text: 'In the sea · climbing out next turn' });
+  if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed · you act later' });
+  if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted · you act sooner' });
+  const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];
+  if (twice.length) chips.push({ key: 'twice', tone: 'hostile', pulse: true, text: twice.length > 1 ? `⚠ ${twice.length} enemies act twice before your next turn` : `⚠ ${foes[twice[0]].unit.name} acts twice before your next turn` });
   if (target?.burning) chips.push({ key: 'tburn', tone: 'ok', text: 'Target burning' });
   if (target?.stunned) chips.push({ key: 'tstun', tone: 'ok', text: 'Target stunned' });
   if (target?.bleeding) chips.push({ key: 'tbleed', tone: 'ok', text: 'Target bleeding' });
   if (target?.swimming) chips.push({ key: 'tswim', tone: 'ok', text: 'Target in the sea' });
+  if (target?.slowed) chips.push({ key: 'tslow', tone: 'ok', text: 'Target slowed' });
+  if (target?.hasted) chips.push({ key: 'thaste', tone: 'hostile', text: 'Target hasted' });
   if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
   if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Kizuna fired' });
@@ -275,19 +281,30 @@ function Portrait({ id, size = 26 }: { id: string; size?: number }) {
   return <div className="overflow-hidden rounded-full bg-hud-panel" style={{ width: size, height: size }}><canvas ref={ref} width={size * 2} height={size * 2} style={{ imageRendering: 'pixelated' }} /></div>;
 }
 
-/** Who acts, in order, once a fight holds 3 or more units. */
+/** Who acts this round, fastest first, then who leads next round. Enemies that get two turns before yours are marked ×2. */
 function TurnStrip() {
-  const { foes, allies, phase, actingFoe } = useCombat();
-  const liveFoes = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
-  const liveAllies = allies.filter(a => a.unit.currentHp > 0);
-  if (1 + liveAllies.length + liveFoes.length < 3) return null;
-  const yourSide = phase === 'player_turn';
+  const s = useCombat();
+  const { foes, allies, phase, actingFoe, roundOrder, turnQueue } = s;
+  if (!roundOrder.length) return null;
+  const now: Fight.Actor | null = phase === 'player_turn' ? 'player' : actingFoe;
+  const live = (a: Fight.Actor) => a === 'player' || foes[a]?.unit.currentHp > 0;
+  const next = Fight.roundOrder(Fight.tickSpeed(s)).filter(live);
+  const twice = new Set(Fight.doubleTurns(s, turnQueue));
+  const face = (a: Fight.Actor, key: string, dim: boolean, small = false) => {
+    const acting = a === now && !small;
+    return (
+      <div key={key} className={cx('relative flex items-center gap-0.5 rounded-full p-0.5', acting && (a === 'player' ? 'bg-sys/40 ring-1 ring-sys' : 'bg-hostile/50 ring-1 ring-hostile'), dim && 'opacity-40')}>
+        <Portrait id={a === 'player' ? 'host' : foes[a].unit.name} size={small ? 18 : undefined} />
+        {a === 'player' && !small && allies.filter(x => x.unit.currentHp > 0).map(x => <Portrait key={x.id} id={x.id} size={18} />)}
+        {a !== 'player' && twice.has(a) && !small && <span className="absolute -bottom-1 -right-1 rounded-full bg-hostile px-1 text-[9px] font-bold leading-[14px] text-white">×2</span>}
+      </div>
+    );
+  };
   return (
     <div className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-1 ring-1 ring-white/10" aria-label="Turn order">
-      <div className={cx('rounded-full p-0.5', yourSide ? 'bg-sys/40 ring-1 ring-sys' : '')}><Portrait id="host" /></div>
-      {liveAllies.map(a => <div key={a.id} className={cx('rounded-full p-0.5', yourSide ? 'bg-sys/25' : '')}><Portrait id={a.id} /></div>)}
-      <span className="px-0.5 text-[10px] text-hud-faint">›</span>
-      {liveFoes.map(({ f, i }) => <div key={i} className={cx('rounded-full p-0.5', actingFoe === i ? 'bg-hostile/50 ring-1 ring-hostile' : '')}><Portrait id={f.unit.name} /></div>)}
+      {roundOrder.filter(live).map((a, n) => face(a, `r${n}`, a !== now && !turnQueue.includes(a)))}
+      <span className="px-0.5 text-[10px] font-semibold text-hud-dim">next</span>
+      {next.slice(0, 3).map((a, n) => face(a, `n${n}`, false, true))}
     </div>
   );
 }

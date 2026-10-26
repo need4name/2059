@@ -6,6 +6,7 @@ import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, cx }
 import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
 import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText } from '@/lib/combat/augments';
+import { DRIVE } from '@/lib/engine/fight';
 import { getRarityColor } from '@/lib/combat/loot';
 
 // ── Body map ─────────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
             <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}</span>
             <span className="flex items-center gap-1.5 text-xs text-hud-dim">
               <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
+              {DRIVE[makerOf(item)] !== 0 && <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', DRIVE[makerOf(item)] > 0 ? 'bg-amber-300/10 text-amber-200' : 'bg-white/[0.06] text-hud-dim')}>{DRIVE[makerOf(item)] > 0 ? '+' : ''}{DRIVE[makerOf(item)]} speed</span>}
               <span className="truncate">{implantStats(item)}{cost > 0 && <span className="text-hostile"> · −{cost} HP</span>}</span>
             </span>
             {parts && <span className="block truncate text-[11px] text-ok/90">{parts}</span>}

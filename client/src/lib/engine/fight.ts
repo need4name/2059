@@ -22,6 +22,7 @@ import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
 import { random } from './rng';
+import { makerOf, type Maker } from '../combat/augments';
 import { NO_PERKS, type Perks } from './playi';
 
 // ── Tuning ────────────────────────────────────────────────────────────────────
@@ -70,6 +71,9 @@ export interface Foe {
   swimming?: boolean;
   /** Turns of bleeding left (from a Bleed mod). */
   bleeding?: number;
+  /** Rounds left acting slower / faster (see SPEED). */
+  slowed?: number;
+  hasted?: number;
   /** A boss has passed its half-health turn. */
   enraged: boolean;
 }
@@ -130,6 +134,11 @@ export interface FightState {
   playerSwimming?: boolean;
   /** Turns of bleeding left on the player. */
   playerBleeding?: number;
+  /** Rounds left acting slower / faster (see SPEED). */
+  playerSlowed?: number;
+  playerHasted?: number;
+  /** The host's implants' average drive (see DRIVE): speed above the base. */
+  playerDrive?: number;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
@@ -177,6 +186,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -193,6 +203,61 @@ export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
+
+// ── Speed and turn order ─────────────────────────────────────────────────────
+// Every round, everyone is sorted by speed (the player winning ties, allies
+// acting in the player's slot), so the order can change mid-fight. A fast
+// enemy that acts last one round and first the next gets two turns in a row.
+
+/** Speed is base + the average drive of the body's implants; very hot bodies and Slowed are slower, Hasted faster. */
+export const SPEED = { base: 10, hot: 85, hotPenalty: 2, status: 4, statusRounds: 2, fast: 1 };
+/** How much each maker's implants push their wearer's speed. */
+export const DRIVE: Record<Maker, number> = { VOLKOV: 3, IOA: 2, KIZUNA: 2, TIANXIA: 1, CBN: 1, CROWN: 1, PATCHWORK: 0, PARSU: -1, HELIX: -2 };
+
+/** Average drive of a set of implants (0 for none). */
+export function implantDrive(items: Item[]): number {
+  const imps = items.filter(i => i.type === 'augmentation');
+  return imps.length ? imps.reduce((n, i) => n + DRIVE[makerOf(i)], 0) / imps.length : 0;
+}
+
+/** Who takes a turn: the player (with allies) or foe i. */
+export type Actor = 'player' | number;
+
+/** Speed right now, rounded to one decimal. */
+export function speedOf(s: FightState, a: Actor): number {
+  let v: number;
+  if (a === 'player') {
+    v = SPEED.base + (s.playerDrive ?? 0) - (s.playerHeat >= SPEED.hot ? SPEED.hotPenalty : 0)
+      + ((s.playerHasted ?? 0) > 0 ? SPEED.status : 0) - ((s.playerSlowed ?? 0) > 0 ? SPEED.status : 0);
+  } else {
+    const f = s.foes[a];
+    v = SPEED.base + implantDrive(f.unit.carried ?? []) + (hasTrait(f, 'fast') ? SPEED.fast : 0) - (f.heat >= SPEED.hot ? SPEED.hotPenalty : 0)
+      + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0);
+  }
+  return Math.round(v * 10) / 10;
+}
+
+/** This round's order: fastest first; the player wins ties, then foes in their order. */
+export function roundOrder(s: FightState): Actor[] {
+  const actors: Actor[] = ['player', ...s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]))];
+  return actors.map((a, n) => ({ a, n, v: speedOf(s, a) })).sort((x, y) => y.v - x.v || x.n - y.n).map(x => x.a);
+}
+
+/** A new round starts: Slowed and Hasted count down a round. */
+export function tickSpeed(s: FightState): FightState {
+  const dec = (n?: number) => Math.max(0, (n ?? 0) - 1);
+  return { ...s, playerSlowed: dec(s.playerSlowed), playerHasted: dec(s.playerHasted), foes: s.foes.map(f => (f.slowed || f.hasted ? { ...f, slowed: dec(f.slowed), hasted: dec(f.hasted) } : f)) };
+}
+
+/**
+ * Foes that will act twice before the player's next turn: given who is still to
+ * act this round (`rest`, player excluded), and next round's order as things stand.
+ */
+export function doubleTurns(s: FightState, rest: Actor[]): number[] {
+  const next = roundOrder(tickSpeed(s));
+  const before = [...rest.filter(a => a !== 'player'), ...next.slice(0, next.indexOf('player'))] as number[];
+  return Array.from(new Set(before.filter((i, n) => before.indexOf(i) !== n))).filter(i => isAlive(s.foes[i]));
+}
 
 /** The grid with foe i as the enemy position and every other unit (foes, allies) in the way. */
 export function viewFor(s: FightState, i: number): CombatGrid {
@@ -553,6 +618,8 @@ function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction
   if (fx.stun && random() < fx.stun) { state = stun(state, who); events.push(say(`${who.kind === 'player' ? 'You are' : `${nameOf(state, who)} is`} stunned`, 'critical')); }
   if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, state.foes[i].pos, who, dealt, events);
   if (fx.pull) state = pullBody(state, who, state.foes[i].pos, events);
+  if (fx.slow && who.kind === 'player') { state = { ...state, playerSlowed: SPEED.statusRounds }; events.push(say('You are slowed: you act later for 2 rounds', 'critical')); }
+  if (fx.slow && who.kind === 'foe') state = setFoe(state, who.i, { slowed: SPEED.statusRounds });
   return state;
 }
 
@@ -574,8 +641,10 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
     const name = state.foes[i].unit.name;
     if (fx.bleed) { state = setFoe(state, i, { bleeding: BLEED.turns }); events.push(say(`${name} is bleeding`)); }
     if (fx.stun && random() < fx.stun) { state = setFoe(state, i, { stunned: true }); events.push(say(`${name} is stunned`, 'critical')); }
+    if (fx.slow) { state = setFoe(state, i, { slowed: SPEED.statusRounds }); events.push(say(`${name} is slowed`)); }
     if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, me, { kind: 'foe', i }, Math.round(dealt / Math.max(1, struck.length)), events, fx.crush ? 2 : 1);
   }
+  if (fx.haste && struck.length) { state = { ...state, playerHasted: SPEED.statusRounds }; events.push(say('Hasted: you act sooner for 2 rounds')); }
   // Pull: drag the first one caught toward you until something is in the way
   if (fx.pull && struck.length && isAlive(state.foes[struck[0]])) state = pullBody(state, { kind: 'foe', i: struck[0] }, me, events);
   if (fx.drain && dealt > 0) {

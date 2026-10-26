@@ -187,17 +187,19 @@ export const MODS: Record<string, Mod> = {
   drain: { label: 'Drain', effects: { drain: 0.25 } },
   cool:  { label: 'Coolant', effects: { cool: 8 } },
   cover: { label: 'Ignores cover', effects: { ignoreCover: true } },
+  sap:   { label: 'Slows', effects: { slow: true } },
+  rush:  { label: 'Hastes you', effects: { haste: true } },
 };
 
 // What each maker leans toward: its usual heads (picked 60% of the time) and the mods it can carry
 const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string }> = {
-  VOLKOV:    { word: 'Hydraulic',    heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance'], mods: ['knock', 'crush'] },
+  VOLKOV:    { word: 'Hydraulic',    heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance'], mods: ['knock', 'crush', 'rush'] },
   TIANXIA:   { word: 'Labour',       heads: ['jab', 'hook', 'kick', 'stomp', 'bolt', 'scope'], mods: ['knock', 'cool'] },
-  KIZUNA:    { word: 'Signed',       heads: ['cutter', 'lash', 'lunge', 'stepcut', 'scope', 'lance'], mods: ['cover', 'cool'] },
+  KIZUNA:    { word: 'Signed',       heads: ['cutter', 'lash', 'lunge', 'stepcut', 'scope', 'lance'], mods: ['cover', 'cool', 'sap'] },
   CROWN:     { word: 'Concierge',    heads: ['jab', 'reach', 'sweep', 'stepcut', 'scope', 'bolt'], mods: ['drain', 'cool'] },
   CBN:       { word: 'Graft',        heads: ['lash', 'grapple', 'lunge', 'kick', 'bolt', 'lance'], mods: ['bleed', 'drain'] },
-  IOA:       { word: 'Limiter-free', heads: ['spread', 'hook', 'charge', 'kick', 'mortar', 'bolt'], mods: ['stun', 'cover'] },
-  PARSU:     { word: 'Substrate',    heads: ['jab', 'hook', 'stomp', 'kick', 'bolt', 'mortar'], mods: ['crush', 'knock'] },
+  IOA:       { word: 'Limiter-free', heads: ['spread', 'hook', 'charge', 'kick', 'mortar', 'bolt'], mods: ['stun', 'cover', 'rush'] },
+  PARSU:     { word: 'Substrate',    heads: ['jab', 'hook', 'stomp', 'kick', 'bolt', 'mortar'], mods: ['crush', 'knock', 'sap'] },
   PATCHWORK: { word: 'Scrap',        heads: [], mods: Object.keys(MODS) },
   HELIX:     { word: 'Housing',      heads: [], mods: [] },
 };

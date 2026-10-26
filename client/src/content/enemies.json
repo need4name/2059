@@ -162,7 +162,10 @@
           "physicalRatio": 0.65,
           "heatTransfer": 10,
           "heatGenerated": 13,
-          "attackPattern": "aoe"
+          "attackPattern": "aoe",
+          "effects": {
+            "slow": true
+          }
         },
         {
           "type": "defend",
@@ -481,7 +484,10 @@
           "physicalRatio": 0.4,
           "heatTransfer": 6,
           "heatGenerated": 8,
-          "attackPattern": "sweep_arc"
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "slow": true
+          }
         },
         {
           "type": "attack",
@@ -802,7 +808,10 @@
           "physicalRatio": 0.35,
           "heatTransfer": 6,
           "heatGenerated": 8,
-          "attackPattern": "diagonal_cross"
+          "attackPattern": "diagonal_cross",
+          "effects": {
+            "slow": true
+          }
         },
         {
           "type": "attack",

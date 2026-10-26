@@ -83,6 +83,8 @@ export function effectsText(action: CombatAction): string | null {
     fx.retreat && 'you step back after',
     fx.dash && 'you dash through',
     fx.ignoreCover && 'through cover',
+    fx.slow && 'slows them',
+    fx.haste && 'hastes you',
   ].filter(Boolean);
   return out.length ? out.join(' · ') : null;
 }
