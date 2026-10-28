@@ -49,8 +49,9 @@ export const ALLY_TUNING = { hp: 0.55, atk: 0.75 };
 /** Fights won to go from level n to n + 1. */
 export const allyXpToNext = (level: number) => level + 1;
 
-/** Allies a best-ever cleared level has unlocked. */
-export const alliesUnlockedBy = (bestCleared: number) => ALLIES.filter(a => bestCleared >= a.unlockLevel).map(a => a.id);
+/** Allies a best-ever cleared level unlocked, for upgrading old saves (only the five there were then). */
+const FIRST_ROSTER = ['bale', 'matron', 'ghostline', 'ward', 'breaker'];
+export const alliesUnlockedBy = (bestCleared: number) => ALLIES.filter(a => FIRST_ROSTER.includes(a.id) && bestCleared >= a.unlockLevel).map(a => a.id);
 
 /** An implant from an affinity maker: its stats count this much more, a limb hits this much harder. */
 export const AFFINITY = { stats: 1.5, damage: 1.25 };
@@ -62,6 +63,7 @@ export const ALLY_LINKS: Record<string, (p: Perks) => void> = {
   ghostline: (p) => { p.firstStrikePrecise = true; },
   ward: (p) => { p.partingTakenMult *= 0.5; },
   breaker: (p) => { p.collisionMult *= 1.5; },
+  tally: (p) => { p.sidestep = true; },
 };
 
 /** Perks with the party's link bonuses added. */

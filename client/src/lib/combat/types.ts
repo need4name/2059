@@ -25,6 +25,8 @@ implants?: string[];
 implantSlots?: AugmentationSlot[];
 /** Enemies: the implants it actually carries (stripped from the body after the fight). */
 carried?: Item[];
+/** Enemies with their own move list (the Echo fights with its implants); others use their type's moves. */
+moves?: CombatAction[];
 traits?: string[];
 /** Bosses: at this share of health they gain traits and say something (once). */
 enrage?: { at: number; gain: string[]; line: string };

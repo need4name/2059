@@ -829,6 +829,682 @@
       ],
       "firstSight": "It doesn't look at me. It looks at the chip, and the chip looks back.",
       "signature": "sig_listener_array"
+    },
+    "Hull-Bound Deckhand": {
+      "color": "#a16207",
+      "baseAttack": 8,
+      "baseDefense": 8,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "Wired into the boat it works on; it brought the anchor chain with it. Slow, heavy, hard to move.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Anchor Swing",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Chain Haul",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Bolted Down",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Off the deck. Off. The deck is mine, I am the deck.",
+        "You don't drown. Why don't you drown?"
+      ],
+      "lateLines": [
+        "Another one up from the water. They all walk like you."
+      ],
+      "firstSight": "Cables run from its back into the hull. When the boat rocks, it rocks."
+    },
+    "Silt Diver": {
+      "color": "#78716c",
+      "baseAttack": 11,
+      "baseDefense": 2,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.75,
+        "sAtkR": 0.25,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Comes up out of the mud with a knife and goes back under. Fast and fragile.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Mud Knife",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge",
+          "effects": {
+            "bleed": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Undertow Kick",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "defend",
+          "name": "Go Under",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Down here the water remembers everyone.",
+        "I saw you sink. I saw you."
+      ],
+      "lateLines": [
+        "The mud is full of you. Every tide brings one up."
+      ],
+      "firstSight": "Its lungs are wrong. It breathes the mud like it's air."
+    },
+    "Checkpoint Scanner": {
+      "color": "#38bdf8",
+      "baseAttack": 9,
+      "baseDefense": 5,
+      "startingHeat": 45,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Carries the light that reads chips. Being read slows you down; the baton does the rest.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Read",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "beam",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Stamp Baton",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee",
+          "effects": {
+            "stun": 0.2
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Full Scan",
+          "description": "",
+          "damage": 22,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "cone",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Clearance Hold",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Hold still. You're already on file.",
+        "The record says you passed through. Twice."
+      ],
+      "lateLines": [
+        "Your record is very long now."
+      ],
+      "firstSight": "A light sweeps over me. Something on the other side of it says yes, that's the one."
+    },
+    "Record Courier": {
+      "color": "#94a3b8",
+      "baseAttack": 10,
+      "baseDefense": 4,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Carries sealed cases between the checkpoints, and shoots anyone who asks what's in them.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Courier's Bolt",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt"
+        },
+        {
+          "type": "attack",
+          "name": "Sealed Case",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "cone"
+        },
+        {
+          "type": "defend",
+          "name": "Chain to the Wrist",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Not for you. None of it is for you.",
+        "Sign here. Doesn't matter what name."
+      ],
+      "lateLines": [
+        "There's a case with your name on it. More than one."
+      ],
+      "firstSight": "The case is chained to its wrist. The wrist is not its own."
+    },
+    "The Recurring": {
+      "color": "#7dd3fc",
+      "baseAttack": 10,
+      "baseDefense": 4,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "A body that moves the way you move, a step behind. It doesn't speak. It knows your swing.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Your Strike",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Your Step",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Your Worst Habit",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "defend",
+          "name": "Your Brace",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -10
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "It turns its head the way I would. It was waiting for me to do it first."
+    },
+    "Checkpoint Commander": {
+      "color": "#0ea5e9",
+      "baseAttack": 18,
+      "baseDefense": 8,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.55,
+        "sAtkR": 0.45,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Runs the channel and the scan light. Every body that passes is stamped, and some are kept.",
+      "signature": "sig_commander_stamp",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Denied",
+          "description": "",
+          "damage": 15,
+          "accuracy": "precise",
+          "physicalRatio": 0.55,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "Detain",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true,
+            "stun": 0.25
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Processed",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "aoe",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Jurisdiction",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Papers. You don't have papers. You don't have a face.",
+        "We copied you once. It was quick."
+      ],
+      "lateLines": [
+        "We have you on file from before. And before that."
+      ],
+      "firstSight": "Behind it, racks of something glowing, one light per body that ever came through."
+    },
+    "Silt Matriarch": {
+      "color": "#a8a29e",
+      "baseAttack": 16,
+      "baseDefense": 6,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Mother of the divers, and older than the channel. She drags you down into her mud.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Mother's Hand",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Silt Burst",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ring",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Drown With Me",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "defend",
+          "name": "Settle",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -10
+        }
+      ],
+      "lines": [
+        "Come down, little one. Everyone comes down.",
+        "I raised forty in this mud. You'll make forty-one."
+      ],
+      "lateLines": [
+        "You keep coming up. I keep pulling you down."
+      ],
+      "firstSight": "She is mostly mud now. The rest of her is watching me."
+    },
+    "The Echo": {
+      "color": "#7fe9ff",
+      "baseAttack": 12,
+      "baseDefense": 6,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Wears what your last body wore and fights the way you fought. It doesn't hesitate where you would.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Strike",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Lunge",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Everything at Once",
+          "description": "",
+          "damage": 22,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 9,
+          "heatGenerated": 12,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "defend",
+          "name": "Brace",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "I was here first.",
+        "You left this body. I picked it up."
+      ],
+      "lateLines": [
+        "How many of us now?"
+      ],
+      "firstSight": "It moves the way I move. It's wearing what I wore."
+    },
+    "The Living Vessel": {
+      "color": "#c2410c",
+      "baseAttack": 13,
+      "baseDefense": 8,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "A captain grown into her own ship: ribs for a keel, cables for hair. The deck moves when she does.",
+      "signature": "sig_vessel_keel",
+      "traits": [
+        "braced"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "enduring"
+        ],
+        "line": "The Living Vessel draws water up through her hull. Her wounds close over with rust."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Keel Sweep",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Mooring Line",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Broadside",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "beam",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Batten Down",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Off my deck. My deck is me.",
+        "You took a body. I took a boat. We're the same."
+      ],
+      "lateLines": [
+        "Still taking bodies? I only ever needed the one."
+      ],
+      "firstSight": "She doesn't stand on the ship. She is the ship. I can feel the hull breathe."
+    },
+    "The Registrar": {
+      "color": "#e0f2fe",
+      "baseAttack": 14,
+      "baseDefense": 7,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.35,
+        "sAtkR": 0.65,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Fused to the scanning array at the end of the channel. It holds every record it ever made, yours included.",
+      "signature": "sig_registrar_lens",
+      "traits": [
+        "sighted",
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "focused"
+        ],
+        "line": "The Registrar opens your file. It starts reading it aloud."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Index",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Cross-Reference",
+          "description": "",
+          "damage": 16,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Copy",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.4,
+          "heatTransfer": 12,
+          "heatGenerated": 12,
+          "attackPattern": "ring",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Archive",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -10
+        }
+      ],
+      "lines": [
+        "Ah. You. We've met. You weren't there for it.",
+        "There's more than one of you on file. Did no one tell you?"
+      ],
+      "lateLines": [
+        "Every time you die, we file another."
+      ],
+      "firstSight": "It has my shape on a screen. More than one copy of it."
     }
   },
   "patchworkKing": {

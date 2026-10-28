@@ -1653,5 +1653,58 @@
       "mortar",
       "longshot"
     ]
+  },
+  {
+    "id": "sig_commander_stamp",
+    "name": "[IOA] Commander's Stamp (R)",
+    "description": "The arm that stamped every body through the channel. The ink never quite dries.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 12,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🛂",
+    "signature": true,
+    "heads": [
+      "jab",
+      "grapple",
+      "override",
+      "reach"
+    ]
+  },
+  {
+    "id": "sig_vessel_keel",
+    "name": "[PATCHWORK] Living Keel",
+    "description": "A spine of ship's ribs. It creaks with the tide whether there's water or not.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "misc",
+    "attackBonus": 6,
+    "defenseBonus": 14,
+    "hpBonus": 30,
+    "structuralDefenseBonus": 6,
+    "icon": "⚓",
+    "signature": true
+  },
+  {
+    "id": "sig_registrar_lens",
+    "name": "[IOA] Registrar's Lens",
+    "description": "It reads every chip it looks at. Looking into it, you see a file with your shape on it.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 17,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 6,
+    "icon": "🔍",
+    "signature": true,
+    "heads": [
+      "lance",
+      "scope",
+      "longshot",
+      "mortar"
+    ]
   }
 ]

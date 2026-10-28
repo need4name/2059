@@ -30,6 +30,36 @@
           { "art": "pump", "name": "Pump stack" }
         ]
       }
+    },
+    {
+      "id": "deltas",
+      "name": "The Drowned Deltas",
+      "place": "The drowned channels, where every way out is checked",
+      "map": "deltas",
+      "ready": true,
+      "cast": {
+        "rotation": ["SALV Boarder", "Silt Diver", "Hull-Bound Deckhand", "Checkpoint Scanner", "Record Courier", "IOA Interdiction Officer", "The Recurring", "CBN Extraction Surgeon"],
+        "elites": ["Silt Matriarch", "Checkpoint Commander", "Unregistered Operator"],
+        "bosses": ["The Living Vessel", "The Registrar"],
+        "firstFight": "Hull-Bound Deckhand",
+        "setPiece": "echo"
+      },
+      "tileset": {
+        "floor": { "light": "#5e5a50", "dark": "#565248", "seam": "#2b2924" },
+        "sea": { "top": "#3a3826", "bottom": "#14130c", "foam": "#8a8463" },
+        "hazards": [
+          { "art": "fire", "name": "Burning oil", "damage": 8 },
+          { "art": "cable", "name": "Live cable", "damage": 6 },
+          { "art": "chem", "name": "Silt sump", "damage": 5 },
+          { "art": "hole", "name": "Rotten plating", "damage": 4 }
+        ],
+        "obstacles": [
+          { "art": "crate", "name": "Record crate" },
+          { "art": "drum", "name": "Fuel drum" },
+          { "art": "nets", "name": "Net heap" },
+          { "art": "pump", "name": "Bilge pump" }
+        ]
+      }
     }
   ]
 }

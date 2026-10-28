@@ -3,6 +3,7 @@
 // which exits are open. Pure functions, no store.
 
 import oceanMap from '../../content/map-indian-ocean.json';
+import deltasMap from '../../content/map-deltas.json';
 import { activeChapter, chapterById } from '../combat/chapters';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
@@ -11,7 +12,7 @@ export interface Room { id: string; name: string; text: string; threat?: number;
 export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; goals: string[]; rooms: Room[] }
 
 /** Every chapter's map, by the map name in chapters.json. */
-export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as ChapterMap };
+export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as ChapterMap, deltas: deltasMap as ChapterMap };
 const index = new Map(Object.entries(MAPS).map(([k, m]) => [k, new Map(m.rooms.map(r => [r.id, r]))]));
 /** The active chapter's map. */
 export const chapterMap = (): ChapterMap => MAPS[activeChapter().map];

@@ -177,7 +177,7 @@ export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.inc
 const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
-  const roster = BOSS_ATTACKS[f.unit.name] ?? [];
+  const roster = f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
   if (!hasTrait(f, 'sighted') || roster.some(a => a.attackPattern === 'ranged')) return roster;
   const base = roster.find(a => a.type === 'attack' && !a.isHeavy);
   return [...roster, { type: 'attack', name: 'Optic shot', description: '', damage: Math.round((base?.damage ?? 10) * 0.8), accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 2, heatGenerated: 6, attackPattern: 'ranged' }];

@@ -1,9 +1,9 @@
 import { activeChapter } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
-import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot } from './types';
+import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
-import { MIN_PLAYER_HP } from './augments';
+import { MIN_PLAYER_HP, actionForItem } from './augments';
 
 import { random } from '../engine/rng';
 // ── Range falloff ─────────────────────────────────────────────────────────────
@@ -411,10 +411,45 @@ physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttac
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
+/** Chapter two's set piece: a copy of the signal. */
+export const ECHO_NAME = 'The Echo';
+const RARITY_RANK: Record<string, number> = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
+
+/**
+ * The Echo: a copy of the signal wearing the implants its last body wore when the
+ * signal left it (up to three, best first), and fighting with their moves. Its
+ * own heavy is the strongest of them, held too long. With no remembered implants
+ * it wears whatever it found. A wall like the King (KING_MULT).
+ */
+export function createEcho(lastBody: Item[], level = 10): Character {
+const base = createBoss(level, false, ECHO_NAME);
+const worn = lastBody.filter(i => i.type === 'augmentation' && i.slot).sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity]).slice(0, 3);
+const carried = worn.length ? worn.map(i => ({ ...i, id: `echo_${i.id}` })) : (base.carried ?? []);
+const attacks = carried.map(i => actionForItem(i)).filter((a): a is CombatAction => !!a && a.type === 'attack' && (a.damage ?? 0) > 0);
+const own = ENEMY_DATA.enemies[ECHO_NAME].moves;
+const strongest = attacks.reduce<CombatAction | null>((m, a) => (!m || (a.damage ?? 0) > (m.damage ?? 0) ? a : m), null);
+const moves: CombatAction[] = strongest ? [
+...attacks.map(a => ({ ...a, description: 'One of yours.', isHeavy: false, heatGenerated: 8, heatTransfer: 5 })),
+{ ...strongest, name: `${strongest.name}, held too long`, description: 'One of yours, wound up.', damage: Math.round((strongest.damage ?? 10) * 1.6), isHeavy: true, accuracy: 'precise', heatGenerated: 12, heatTransfer: 9 },
+...own.filter(m => m.type === 'defend'),
+] : own;
+const slots = carried.flatMap(i => (i.slot ? [i.slot] : []));
+const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
+const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+return { ...base, carried, moves, implantSlots: slots,
+implants: carried.map(i => i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()),
+traits: slots.map(sl => TRAIT_OF_SLOT[sl]).filter((t, n, all) => t && all.indexOf(t) === n),
+maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
+physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
+physicalDefense: pDef, structuralDefense: sDef };
+}
+
 export function getBossPreview(level: number, firstRun = false, roomEnemy?: string): { name: string; color: string; hp: number } {
 const S = BOSS_SCALING;
 const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
-if (level === 10) return { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
+if (level === 10) return cast().setPiece === 'echo'
+? { name: ECHO_NAME, color: ENEMY_DATA.enemies[ECHO_NAME]?.color ?? '#7fe9ff', hp: Math.round(baseHp * KING_MULT.hp) }
+: { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
 // A room's named enemy, for regular fights (matches planFoes)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
 const t = named ?? enemyTypeForLevel(level, firstRun);

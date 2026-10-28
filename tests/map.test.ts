@@ -87,7 +87,7 @@ test('winning the end room finishes the chapter and leaves it quiet for every la
 test('every fight room has its own drawn arena, the same each run apart from loose crates', async () => {
   const { buildArena, spawnFoePositions } = await import('../client/src/lib/combat/grid');
   const { seedRandom } = await import('../client/src/lib/engine/rng');
-  for (const room of M.chapterMap().rooms.filter(r => r.threat !== undefined)) {
+  for (const room of Object.values(M.MAPS).flatMap(m => m.rooms).filter(r => r.threat !== undefined)) {
     assert.ok(room.arena, `${room.id} has an arena`);
     seedRandom(1); const a = buildArena(room.arena!);
     seedRandom(2); const b = buildArena(room.arena!);

@@ -594,3 +594,29 @@ test('a rising tide puts everyone on the mud in the sea, without damage', () => 
   const p = cond.state.grid.playerPosition;
   assert.notEqual(cond.state.grid.tiles[p.row][p.col].type, 'void');
 });
+
+test('the Echo wears the last body\'s best implants and fights with their moves', async () => {
+  const { createEcho, KING_MULT, createBoss, ECHO_NAME } = await import('../client/src/lib/combat/actions');
+  const arm = { id: 'a1', name: '[VOLKOV] Test Arm (R)', rarity: 'epic', type: 'augmentation', slot: 'right_arm', icon: '', attackBonus: 10, parts: { head: 'reach', mods: [] } } as any;
+  const lung = { id: 'l1', name: '[HELIX] Test Lung', rarity: 'common', type: 'augmentation', slot: 'lungs', icon: '' } as any;
+  seedRandom(3);
+  const echo = createEcho([lung, arm]);
+  assert.equal(echo.name, ECHO_NAME);
+  assert.deepEqual(echo.carried!.map(i => i.slot), ['right_arm', 'lungs'], 'best first');
+  assert.ok(echo.carried!.every(i => i.id.startsWith('echo_')), 'its own copies, so stripping them is safe');
+  const moves = echo.moves!;
+  assert.ok(moves.some(m => m.type === 'attack' && !m.isHeavy && m.attackPattern === 'melee_long'), 'your arm\'s move');
+  const heavy = moves.find(m => m.isHeavy)!;
+  assert.ok(heavy.name.endsWith('held too long'));
+  assert.ok(echo.traits!.includes('armed') && echo.traits!.includes('enduring'));
+  // With nothing remembered it still stands, on its own moves
+  seedRandom(3);
+  const bare = createEcho([]);
+  assert.ok(bare.moves!.length > 0);
+  seedRandom(3);
+  const frame = createBoss(10, false, ECHO_NAME);
+  assert.ok(bare.maxHp >= Math.round(frame.maxHp * KING_MULT.hp) - 1, 'a wall like the King');
+  // The fight engine uses the Echo's own moves
+  const f = Fight.newFoe(echo, { row: 1, col: 3 }, 30);
+  assert.deepEqual(Fight.foeRoster(f).filter(a => !a.name.startsWith('Optic')), moves);
+});

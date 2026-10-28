@@ -32,7 +32,7 @@ const blow: CombatAction = { type: 'attack', name: 'Blow', description: '', dama
 test('the roster unlocks in order and later allies are stronger at level 1', () => {
   assert.deepEqual(alliesUnlockedBy(9), []);
   assert.deepEqual(alliesUnlockedBy(10), ['bale']);
-  assert.equal(alliesUnlockedBy(30).length, ALLIES.length);
+  assert.equal(alliesUnlockedBy(40).length, 5, "the first five, for old saves");
   const atk = (id: string) => allyUnit(allyDef(id)!, 1).physicalAttack;
   assert.ok(atk('breaker') > atk('bale'));
 });

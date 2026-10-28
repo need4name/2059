@@ -1,5 +1,5 @@
 {
-  "about": "Allies: other minds in metal the signal can link with. One joins each host (two with Second link). Each unlocks the first time any host clears its level. Stats are relative to a regular enemy of that level; moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you.",
+  "about": "Allies: other minds in metal the signal can link with, met in rooms on the map. One joins each host (two with Second link). unlockLevel sets their strength: stats are relative to a regular enemy of that level (match it to the threat where they are met); moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you.",
   "allies": [
     {
       "id": "bale", "name": "Bale", "maker": "Tianxia", "role": "Tank", "unlockLevel": 10, "color": "#f59e0b",
@@ -49,6 +49,16 @@
       "moves": [
         { "type": "attack", "effect": "attack", "name": "Hydraulic Drive", "description": "A piston punch with reach", "damage": 18, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee_long" },
         { "type": "attack", "effect": "attack", "name": "Breach", "description": "A charging blow. Needs a run-up", "damage": 32, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "charge", "cooldown": 3 }
+      ]
+    },
+    {
+      "id": "tally", "name": "Tally", "maker": "IOA", "role": "Decoy", "unlockLevel": 8, "color": "#7dd3fc",
+      "blurb": "Scanned at the checkpoint so many times there are several of them. This one isn't sure it was the first.",
+      "hp": 1.0, "attack": 9, "defense": 6, "move": 3,
+      "affinity": ["IOA", "KIZUNA"], "link": "Which one is real: the first heavy aimed at you each fight misses.",
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Borrowed Swing", "description": "Somebody else's swing, from somebody else's arm", "damage": 14, "accuracy": "variable", "physicalRatio": 0.6, "attackPattern": "melee_long" },
+        { "type": "defend", "effect": "taunt", "name": "Not Me, Them", "description": "Every enemy aims at Tally until your next turn. Tally guards +8", "defenseBoost": 8, "cooldown": 2 }
       ]
     }
   ]

@@ -1,0 +1,1039 @@
+{
+  "about": "Chapter two's hidden map, the drowned deltas. Same rules as chapter one's map (see map-indian-ocean.json): threat, enemy, look/goal, cache, ally, market, quiet, arena. In arenas 'm' is a mud flat that floods at high tide.",
+  "chapter": "deltas",
+  "title": "Chapter two: the Drowned Deltas",
+  "entry": "landing",
+  "end": "registry",
+  "ending": "The Registrar goes dark and the racks go out, one light at a time. One of them keeps burning, a long way upstream, and it isn't yours any more.",
+  "goals": [
+    "stamp",
+    "mirror",
+    "case"
+  ],
+  "rooms": [
+    {
+      "id": "landing",
+      "name": "The landing",
+      "text": "A mud bank where the river gives things back, bodies mostly. Someone has lined them up face down, as if they might be embarrassed.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the shallows, ankle-deep",
+          "to": "shallows"
+        },
+        {
+          "dir": "east",
+          "hint": "reeds hissing in the wind",
+          "to": "reeds"
+        }
+      ]
+    },
+    {
+      "id": "shallows",
+      "name": "The shallows",
+      "text": "Water the colour of tea over mud that holds your feet a moment too long. Footprints lead out ahead of you, already filling.",
+      "threat": 1,
+      "look": {
+        "text": "The footprints are your size. They go the way you were about to go."
+      },
+      "enemy": "Silt Diver",
+      "arena": [
+        "...E...",
+        ".......",
+        "mm...mm",
+        "mmm.mmm",
+        "mm.#.mm",
+        ".......",
+        "..d....",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the landing",
+          "to": "landing"
+        },
+        {
+          "dir": "south",
+          "hint": "stilts, and smoke",
+          "to": "stilts"
+        },
+        {
+          "dir": "west",
+          "hint": "a bell under the water",
+          "to": "sunkschool"
+        }
+      ]
+    },
+    {
+      "id": "reeds",
+      "name": "The reed beds",
+      "text": "Reeds taller than a body, bent all one way by a wind that isn't blowing. Something has been dragged through them, many times.",
+      "threat": 2,
+      "enemy": "SALV Boarder",
+      "arena": [
+        "..E....",
+        ".n...n.",
+        ".......",
+        "mmm.mmm",
+        ".......",
+        ".n.?.n.",
+        ".......",
+        "..#....",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the landing",
+          "to": "landing"
+        },
+        {
+          "dir": "south",
+          "hint": "an engine idling",
+          "to": "ferry"
+        }
+      ]
+    },
+    {
+      "id": "stilts",
+      "name": "Stilt houses",
+      "text": "Houses on legs, the ladders pulled up. Every doorway has a strip of tape across it with a number written on it.",
+      "threat": 3,
+      "look": {
+        "text": "The numbers on the tape count down from door to door. The last house has no number at all."
+      },
+      "enemy": "Hull-Bound Deckhand",
+      "arena": [
+        "E.....E",
+        ".#.~.#.",
+        "...~...",
+        "~~...~~",
+        "mm...mm",
+        "mm.d.mm",
+        ".......",
+        "..#.#..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the shallows",
+          "to": "shallows"
+        },
+        {
+          "dir": "south",
+          "hint": "a light sweeping the water",
+          "to": "scanpost"
+        }
+      ]
+    },
+    {
+      "id": "sunkschool",
+      "name": "The drowned school",
+      "text": "A school roof just above the waterline, desks floating in the classroom below. The bell still rings when the current takes it.",
+      "threat": 3,
+      "look": {
+        "text": "A register on the teacher's desk. Every child is marked present, in the same handwriting, on every day."
+      },
+      "enemy": "Silt Diver",
+      "arena": [
+        "...E...",
+        "..#.#..",
+        "mm...mm",
+        "mmmmmmm",
+        "mm.?.mm",
+        "..n.n..",
+        ".......",
+        "...P...",
+        "......."
+      ],
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the shallows",
+          "to": "shallows"
+        },
+        {
+          "dir": "south",
+          "hint": "flat grey mud to the horizon",
+          "to": "mudflats"
+        }
+      ]
+    },
+    {
+      "id": "ferry",
+      "name": "The ferry",
+      "text": "A flat ferry tied to nothing, its engine running for no one. The passengers' seats are all warm.",
+      "threat": 4,
+      "enemy": "Record Courier",
+      "arena": [
+        "~.....~",
+        "~..E..~",
+        "~.d.d.~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~..?..~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the reed beds",
+          "to": "reeds"
+        },
+        {
+          "dir": "west",
+          "hint": "a light sweeping the water",
+          "to": "scanpost"
+        },
+        {
+          "dir": "east",
+          "hint": "lanterns on a barge",
+          "to": "lantern"
+        }
+      ]
+    },
+    {
+      "id": "lantern",
+      "name": "Lantern barge",
+      "text": "A barge hung with lanterns where someone sells parts out of a cold box. They take your money without looking at your face.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the ferry",
+          "to": "ferry"
+        },
+        {
+          "dir": "south",
+          "hint": "pylons humming in the haze",
+          "to": "pylons"
+        }
+      ]
+    },
+    {
+      "id": "scanpost",
+      "name": "The scan post",
+      "text": "A tower on a raft, its light sweeping the water in slow circles. Where it passes, the water goes very still.",
+      "threat": 5,
+      "look": {
+        "text": "A stamp left on the counter, still inked. The mark it makes is a little picture of you.",
+        "goal": "stamp"
+      },
+      "arena": [
+        "...E...",
+        ".......",
+        "mm.p.mm",
+        "mm...mm",
+        "m.....m",
+        "mm.#.mm",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "stilt houses",
+          "to": "stilts"
+        },
+        {
+          "dir": "east",
+          "hint": "the ferry",
+          "to": "ferry"
+        },
+        {
+          "dir": "south",
+          "hint": "a queue that doesn't move",
+          "to": "queue"
+        }
+      ]
+    },
+    {
+      "id": "mudflats",
+      "name": "The mudflats",
+      "text": "Grey mud to the horizon, soft enough to swallow a boat. Things stand in it up to the knee, perfectly still, facing the sea.",
+      "threat": 6,
+      "cache": true,
+      "enemy": "Silt Diver",
+      "arena": [
+        "E.....E",
+        "mmmmmmm",
+        "mm.#.mm",
+        "mmmmmmm",
+        "m..b..m",
+        "mmmmmmm",
+        "mm.d.mm",
+        "mmm.mmm",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the drowned school",
+          "to": "sunkschool"
+        },
+        {
+          "dir": "east",
+          "hint": "a queue that doesn't move",
+          "to": "queue"
+        }
+      ]
+    },
+    {
+      "id": "pylons",
+      "name": "The pylons",
+      "text": "Power pylons standing in the water, cables hanging down into it. The hum gets into your teeth.",
+      "threat": 7,
+      "look": {
+        "text": "A cable has been cut and tied in a knot, very neatly. Someone wanted it quiet."
+      },
+      "enemy": "Checkpoint Scanner",
+      "arena": [
+        "..E....",
+        ".c...c.",
+        ".......",
+        "...p...",
+        ".......",
+        ".c...c.",
+        "mm...mm",
+        "mmm.mmm",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the lantern barge",
+          "to": "lantern"
+        },
+        {
+          "dir": "south",
+          "hint": "barges roped together",
+          "to": "barges"
+        }
+      ]
+    },
+    {
+      "id": "queue",
+      "name": "The queue",
+      "text": "People standing in water to the waist, in a line that goes back further than you can see. Nobody moves when the light passes, and nobody turns to look at you.",
+      "threat": 8,
+      "look": {
+        "text": "Someone near the front has your face. They step forward when the light comes, and so do you."
+      },
+      "ally": "tally",
+      "enemy": "The Recurring",
+      "arena": [
+        "E..E..E",
+        ".......",
+        "mm.mm.m",
+        "mm.mm.m",
+        "mm.mm.m",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the scan post",
+          "to": "scanpost"
+        },
+        {
+          "dir": "west",
+          "hint": "the mudflats",
+          "to": "mudflats"
+        },
+        {
+          "dir": "south",
+          "hint": "water so still it shines",
+          "to": "stillwater"
+        }
+      ]
+    },
+    {
+      "id": "barges",
+      "name": "Roped barges",
+      "text": "Barges lashed together into a street, cargo stacked under tarps. The tarps are labelled with names, and the names are crossed out.",
+      "threat": 9,
+      "cache": true,
+      "enemy": "Record Courier",
+      "arena": [
+        "...E...",
+        ".#...#.",
+        ".......",
+        "~~.?.~~",
+        "~~...~~",
+        ".......",
+        ".d.n.d.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the pylons",
+          "to": "pylons"
+        },
+        {
+          "dir": "west",
+          "hint": "water so still it shines",
+          "to": "stillwater"
+        },
+        {
+          "dir": "south",
+          "hint": "the main channel",
+          "to": "channel"
+        }
+      ]
+    },
+    {
+      "id": "stillwater",
+      "name": "Stillwater",
+      "text": "A pool so calm it is a mirror, in the middle of the moving river. Something is standing at the far side, already looking at you.",
+      "threat": 10,
+      "look": {
+        "text": "Your reflection is a moment late. When it catches up, it's smiling.",
+        "goal": "mirror"
+      },
+      "arena": [
+        "...E...",
+        ".......",
+        "..m.m..",
+        ".mmmmm.",
+        "..m.m..",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the queue",
+          "to": "queue"
+        },
+        {
+          "dir": "east",
+          "hint": "roped barges",
+          "to": "barges"
+        },
+        {
+          "dir": "south",
+          "hint": "a dry dock, hammering",
+          "to": "drydock"
+        }
+      ]
+    },
+    {
+      "id": "channel",
+      "name": "The main channel",
+      "text": "The wide brown road of the river, boats moving on it without wakes. Every one of them is heading the same way you are.",
+      "threat": 11,
+      "enemy": "IOA Interdiction Officer",
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        "~..d..~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~..n..~",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "roped barges",
+          "to": "barges"
+        },
+        {
+          "dir": "south",
+          "hint": "raft houses, washing on lines",
+          "to": "rafthouses"
+        }
+      ]
+    },
+    {
+      "id": "drydock",
+      "name": "The dry dock",
+      "text": "A ship hauled out of the water and opened up like a patient. The hammering stops when you come in and starts again behind you.",
+      "threat": 12,
+      "look": {
+        "text": "Inside the hull, bunks bolted to the ribs. The bunks have restraints, and the restraints have been used."
+      },
+      "enemy": "Hull-Bound Deckhand",
+      "arena": [
+        "..E....",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        "..f....",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "stillwater",
+          "to": "stillwater"
+        },
+        {
+          "dir": "south",
+          "hint": "a barge stacked with cases",
+          "to": "recordbarge"
+        },
+        {
+          "dir": "east",
+          "hint": "raft houses, washing on lines",
+          "to": "rafthouses"
+        }
+      ]
+    },
+    {
+      "id": "rafthouses",
+      "name": "Raft houses",
+      "text": "Houses built on rafts, washing on the lines between them. The washing is all the same shirt.",
+      "threat": 13,
+      "enemy": "SALV Boarder",
+      "arena": [
+        "E.....E",
+        ".......",
+        "~.#.#.~",
+        "~.....~",
+        "~~.n.~~",
+        "~.....~",
+        "~.d.d.~",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the main channel",
+          "to": "channel"
+        },
+        {
+          "dir": "west",
+          "hint": "the dry dock",
+          "to": "drydock"
+        },
+        {
+          "dir": "south",
+          "hint": "the checkpoint gates",
+          "to": "checkpoint"
+        }
+      ]
+    },
+    {
+      "id": "recordbarge",
+      "name": "Record barge",
+      "text": "A barge stacked to the rails with sealed cases. The cases are warm, and some of them are humming.",
+      "threat": 14,
+      "look": {
+        "text": "One case is open. Inside, a chip on a bed of foam, and a label in clean handwriting: yours, second copy.",
+        "goal": "case"
+      },
+      "enemy": "Record Courier",
+      "arena": [
+        "...E...",
+        ".#.#.#.",
+        ".......",
+        ".#.?.#.",
+        ".......",
+        ".#.#.#.",
+        "mm...mm",
+        "mmm.mmm",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the dry dock",
+          "to": "drydock"
+        },
+        {
+          "dir": "east",
+          "hint": "the checkpoint gates",
+          "to": "checkpoint"
+        }
+      ]
+    },
+    {
+      "id": "checkpoint",
+      "name": "The checkpoint",
+      "text": "Gates across the channel, and a light that reads everything that passes. The gates open for you before you reach them.",
+      "threat": 15,
+      "arena": [
+        "...E...",
+        ".......",
+        ".p...p.",
+        ".......",
+        "mm.#.mm",
+        "mm...mm",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "raft houses",
+          "to": "rafthouses"
+        },
+        {
+          "dir": "west",
+          "hint": "the record barge",
+          "to": "recordbarge"
+        },
+        {
+          "dir": "south",
+          "hint": "salt pans, glaring white",
+          "to": "saltpans"
+        },
+        {
+          "dir": "east",
+          "hint": "wrecks piled on wrecks",
+          "to": "wrecks"
+        }
+      ]
+    },
+    {
+      "id": "saltpans",
+      "name": "The salt pans",
+      "text": "Shallow pans of evaporating water, crusted white. The salt has grown over everything left lying here, and some of it has a shape.",
+      "threat": 16,
+      "cache": true,
+      "enemy": "Checkpoint Scanner",
+      "arena": [
+        "E.....E",
+        ".......",
+        "mm.b.mm",
+        "mm...mm",
+        ".......",
+        "mm...mm",
+        "mm.b.mm",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the checkpoint",
+          "to": "checkpoint"
+        },
+        {
+          "dir": "south",
+          "hint": "a lighthouse with no light",
+          "to": "lighthouse"
+        }
+      ]
+    },
+    {
+      "id": "wrecks",
+      "name": "The wrecks",
+      "text": "Boats sunk on top of boats until the pile breaks the surface. You can walk across it, if you don't look down.",
+      "threat": 17,
+      "look": {
+        "text": "A name painted on a hull, scraped off, painted on again, many times. Never the same name."
+      },
+      "enemy": "SALV Boarder",
+      "arena": [
+        "..E....",
+        ".h...h.",
+        ".......",
+        "..#.#..",
+        "~.....~",
+        "~..h..~",
+        ".......",
+        ".h...h.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the checkpoint",
+          "to": "checkpoint"
+        },
+        {
+          "dir": "south",
+          "hint": "a sluice gate, roaring",
+          "to": "sluice"
+        }
+      ]
+    },
+    {
+      "id": "lighthouse",
+      "name": "The dark lighthouse",
+      "text": "A lighthouse whose lamp has been taken out and replaced with a lens that looks inward. The stairs are worn in the middle, from somebody climbing them every day.",
+      "threat": 18,
+      "enemy": "IOA Interdiction Officer",
+      "arena": [
+        "...E...",
+        "..###..",
+        ".......",
+        "#.....#",
+        ".......",
+        "#.....#",
+        ".......",
+        "..#.#..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the salt pans",
+          "to": "saltpans"
+        },
+        {
+          "dir": "west",
+          "hint": "a ship that breathes",
+          "to": "vessel"
+        }
+      ]
+    },
+    {
+      "id": "sluice",
+      "name": "The sluice",
+      "text": "A sluice gate holding back half the river, roaring through a gap at the bottom. The other side of the gate is quiet.",
+      "threat": 19,
+      "enemy": "Hull-Bound Deckhand",
+      "arena": [
+        "E.....E",
+        ".......",
+        "~~...~~",
+        "mm...mm",
+        "mmm.mmm",
+        "mm...mm",
+        "~~...~~",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the wrecks",
+          "to": "wrecks"
+        },
+        {
+          "dir": "east",
+          "hint": "a ship that breathes",
+          "to": "vessel"
+        }
+      ]
+    },
+    {
+      "id": "vessel",
+      "name": "The living ship",
+      "text": "A ship in a dock too small for it, its hull rising and falling as if it's breathing. The gangplank is down.",
+      "threat": 20,
+      "arena": [
+        "...E...",
+        ".......",
+        "..p.p..",
+        ".......",
+        "mm...mm",
+        "mmm.mmm",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the dark lighthouse",
+          "to": "lighthouse"
+        },
+        {
+          "dir": "west",
+          "hint": "the sluice",
+          "to": "sluice"
+        },
+        {
+          "dir": "south",
+          "hint": "a graveyard of boats",
+          "to": "grave"
+        }
+      ]
+    },
+    {
+      "id": "grave",
+      "name": "The boat graveyard",
+      "text": "Hulls beached in rows like bodies on a shore. Each one has a light left burning in its wheelhouse.",
+      "threat": 21,
+      "look": {
+        "text": "In every wheelhouse, the same photograph, taped to the glass. You don't recognise anyone in it, which is somehow worse."
+      },
+      "enemy": "The Recurring",
+      "arena": [
+        "E.....E",
+        ".#...#.",
+        ".......",
+        ".#.?.#.",
+        ".......",
+        ".#...#.",
+        "mm...mm",
+        "mmm.mmm",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the living ship",
+          "to": "vessel"
+        },
+        {
+          "dir": "south",
+          "hint": "a flooded town",
+          "to": "floodtown"
+        },
+        {
+          "dir": "east",
+          "hint": "a red cross on a door",
+          "to": "clinic"
+        }
+      ]
+    },
+    {
+      "id": "clinic",
+      "name": "The drowned clinic",
+      "text": "A clinic on stilts, its beds still made, its trays still laid. Someone has been working here recently, on someone.",
+      "look": {
+        "text": "A tray of chips in numbered slots. One slot is empty, and the number is one you know."
+      },
+      "cache": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the boat graveyard",
+          "to": "grave"
+        }
+      ]
+    },
+    {
+      "id": "floodtown",
+      "name": "The flooded town",
+      "text": "Streets of water between houses with their front doors under the surface. Upstairs windows are lit, and nobody is at any of them.",
+      "threat": 22,
+      "enemy": "Silt Diver",
+      "arena": [
+        "..E....",
+        "#.....#",
+        "mm...mm",
+        "mmm.mmm",
+        "#mm.mm#",
+        "mm...mm",
+        ".......",
+        "#..d..#",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the boat graveyard",
+          "to": "grave"
+        },
+        {
+          "dir": "south",
+          "hint": "stacks of paper, dry somehow",
+          "to": "archives"
+        }
+      ]
+    },
+    {
+      "id": "archives",
+      "name": "The archives",
+      "text": "A warehouse on a hill, the only dry place for miles, full of paper. Every folder has the same thing in it: a scan of a skull, and a little light at the back.",
+      "threat": 23,
+      "look": {
+        "text": "Your folder is thick. The first page is dated before you woke."
+      },
+      "cache": true,
+      "enemy": "Record Courier",
+      "arena": [
+        "E.....E",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the flooded town",
+          "to": "floodtown"
+        },
+        {
+          "dir": "east",
+          "hint": "antennas, singing",
+          "to": "antennas"
+        }
+      ]
+    },
+    {
+      "id": "antennas",
+      "name": "The antenna field",
+      "text": "Antennas planted in the mud like a crop, singing in the wind. They are all pointed at the same place downstream.",
+      "threat": 24,
+      "enemy": "Checkpoint Scanner",
+      "arena": [
+        "...E...",
+        ".c.c.c.",
+        ".......",
+        "mmmmmmm",
+        "mm.c.mm",
+        "mmmmmmm",
+        ".......",
+        ".c...c.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the archives",
+          "to": "archives"
+        },
+        {
+          "dir": "south",
+          "hint": "a gate with no wall",
+          "to": "gate"
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "name": "The gate with no wall",
+      "text": "A gate standing on its own in the mud, nothing on either side of it. Walking round it feels like a mistake.",
+      "threat": 25,
+      "arena": [
+        "...E...",
+        ".......",
+        "mm.#.mm",
+        "mm...mm",
+        "mmm.mmm",
+        "mm...mm",
+        "mm.#.mm",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the antenna field",
+          "to": "antennas"
+        },
+        {
+          "dir": "south",
+          "hint": "a causeway of bodies",
+          "to": "causeway"
+        }
+      ]
+    },
+    {
+      "id": "causeway",
+      "name": "The causeway",
+      "text": "A raised road across the water, built from something that gives a little underfoot. Don't think about it.",
+      "threat": 26,
+      "look": {
+        "text": "Hands, here and there, holding the road together. One of them is holding a stamp."
+      },
+      "enemy": "The Recurring",
+      "arena": [
+        "~~.E.~~",
+        "~~...~~",
+        "~~.d.~~",
+        "~~...~~",
+        "~~.?.~~",
+        "~~...~~",
+        "~~...~~",
+        "~~...~~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the gate",
+          "to": "gate"
+        },
+        {
+          "dir": "south",
+          "hint": "racks of lights",
+          "to": "racks"
+        }
+      ]
+    },
+    {
+      "id": "racks",
+      "name": "The racks",
+      "text": "Racks of small lights in the dark, one for every body that ever passed the checkpoint. A few of them are flickering in time with you.",
+      "threat": 28,
+      "look": {
+        "text": "Three of the lights are yours. You can tell which one is the oldest; it's the one that's still."
+      },
+      "enemy": "CBN Extraction Surgeon",
+      "arena": [
+        "E..E..E",
+        ".p.p.p.",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "north",
+          "hint": "the causeway",
+          "to": "causeway"
+        },
+        {
+          "dir": "down",
+          "hint": "the light at the end of the channel",
+          "to": "registry",
+          "label": "Down, into the light",
+          "requires": "goals"
+        }
+      ]
+    },
+    {
+      "id": "registry",
+      "name": "The registry",
+      "text": "The light at the end of the channel, where every copy is kept. Something sits at the centre of it with your shape on its screens.",
+      "threat": 30,
+      "quiet": "The registry is dark. On the floor, broken lenses, and in each one, for a moment, your shape.",
+      "arena": [
+        "...E...",
+        ".......",
+        ".p...p.",
+        "..m.m..",
+        ".mmmmm.",
+        "..m.m..",
+        ".p...p.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "up",
+          "hint": "the racks",
+          "to": "racks"
+        }
+      ]
+    }
+  ]
+}

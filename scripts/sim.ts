@@ -162,6 +162,8 @@ let chaptersDone = 0, debugShown = false;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   botState = seed * 7919 + 1;
   C.getState().resetAll(); C.getState().setRunSeed(seed); C.getState().completeIntro();
+  // CHAPTER=<id> plays that chapter's map from a fresh start (a rough check of its numbers)
+  if (process.env.CHAPTER) MP.getState().travel(process.env.CHAPTER);
   const out: Fight[] = [];
   while (out.length < maxFights) {
     betweenFights();

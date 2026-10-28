@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { dealOffer, perksFor, FALLBACK_ID, playiNode, type Perks } from '../engine/playi';
+import type { Item } from '../combat/types';
 
 // What the signal has learned across every host. Survives death; only a full
 // save wipe clears it.
@@ -13,12 +14,16 @@ interface PlayiState {
   makeOffer: (hasAlly: boolean) => void;
   pick: (id: string) => boolean;
   perks: () => Perks;
+  /** The implants the last host was wearing when the signal left it (the Echo wears them). */
+  lastBody: Item[];
+  rememberBody: (items: Item[]) => void;
   reset: () => void;
 }
 
 export const usePlayi = create<PlayiState>()(persist((set, get) => ({
   owned: [],
   offer: null,
+  lastBody: [],
 
   makeOffer: (hasAlly) => {
     if (get().offer) return;
@@ -35,5 +40,11 @@ export const usePlayi = create<PlayiState>()(persist((set, get) => ({
 
   perks: () => perksFor(get().owned),
 
-  reset: () => set({ owned: [], offer: null }),
-}), { name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 1 }));
+  rememberBody: (items) => set({ lastBody: items }),
+
+  reset: () => set({ owned: [], offer: null, lastBody: [] }),
+}), {
+  name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 2,
+  // Version 2 remembers the last body's implants
+  migrate: (old: any, version) => (version < 2 ? { ...old, lastBody: [] } : old),
+}));

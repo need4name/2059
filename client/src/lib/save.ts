@@ -2,11 +2,11 @@
 // into a single versioned record under SAVE_KEY, so a save can be exported as
 // text, imported on another device, and migrated as the game changes.
 import type { StateStorage } from 'zustand/middleware';
-import { ALLIES } from './combat/allies';
+import { alliesUnlockedBy } from './combat/allies';
 
 export const SAVE_KEY = '2059-save';
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -29,7 +29,7 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
     try {
       const part = JSON.parse(raw);
       const best = part?.state?.bestCleared ?? 0;
-      const met = ALLIES.filter(a => best >= a.unlockLevel).map(a => a.id);
+      const met = alliesUnlockedBy(best);
       const { bestCleared: _old, ...rest } = part.state ?? {};
       return { ...save, parts: { ...save.parts, '2059-allies': JSON.stringify({ ...part, state: { ...rest, met }, version: 2 }) } };
     } catch { return save; }
@@ -50,6 +50,15 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
     try {
       const part = JSON.parse(raw);
       return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { chapter: 'indian-ocean', ...part.state }, version: 2 }) } };
+    } catch { return save; }
+  },
+  // 4 -> 5: the signal remembers the implants its last body wore (nothing yet)
+  4: (save) => {
+    const raw = save.parts['2059-playi'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      return { ...save, parts: { ...save.parts, '2059-playi': JSON.stringify({ ...part, state: { lastBody: [], ...part.state }, version: 2 }) } };
     } catch { return save; }
   },
 };

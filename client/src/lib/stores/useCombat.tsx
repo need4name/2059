@@ -3,10 +3,10 @@ import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middl
 import { saveStorage } from '../save';
 import {
 Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
-PlayerClass, CombatGrid, TilePosition, AugmentationSlot,
+PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-createPlayer, createBoss, createPatchworkKing,
+createPlayer, createBoss, createPatchworkKing, createEcho,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -17,7 +17,7 @@ import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
-import { nextChapter } from '../combat/chapters';
+import { nextChapter, activeChapter } from '../combat/chapters';
 import { withLinks } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
@@ -208,7 +208,8 @@ overclockActive: false, kizunaJustFired: false,
 const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
 
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
-if (!farm && level === 10) return [createPatchworkKing()];
+// Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
+if (!farm && level === 10) return [activeChapter().cast.setPiece === 'echo' ? createEcho(usePlayi.getState().lastBody) : createPatchworkKing()];
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
 const lead = createBoss(level, firstRun && !farm, named);
@@ -333,7 +334,7 @@ classesUnlocked: classesUnlocked || unlockNow,
 const handleBossDefeated = () => {
 const { farmLevel, bossLevel } = get();
 const level = farmLevel ?? bossLevel;
-const isKing = level === 10 && farmLevel === null;
+const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'patchworkKing';
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
 const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
 const direct = loot.items;
@@ -438,6 +439,8 @@ else done();
 // `place` puts the signal on the map (the chapter's entry, or the next chapter's).
 const wakeNewHost = (finalClass: PlayerClass, place: () => void) => {
 const { progression, runSeed: lastSeed } = get();
+// The signal remembers what the body it left was wearing (chapter two's Echo wears it)
+usePlayi.getState().rememberBody(AUGMENTATION_SLOTS.map(sl => useInventory.getState().equippedAugmentations[sl]).filter((i): i is Item => !!i));
 
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
@@ -488,7 +491,7 @@ const { playerClass, runSeed, fightsStarted } = get();
 seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange, perks } = buildPlayer(playerClass);
-const isKing = !farm && level === 10;
+const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'patchworkKing';
 const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy);
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it

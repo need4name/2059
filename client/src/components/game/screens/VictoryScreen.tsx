@@ -9,7 +9,6 @@ import { useAllies } from '@/lib/stores/useAllies';
 import { useMap } from '@/lib/stores/useMap';
 import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
-import { ALLIES } from '@/lib/combat/allies';
 
 export function VictoryScreen() {
   const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, strip, takePart } = useCombat();
@@ -23,6 +22,7 @@ export function VictoryScreen() {
   const onward = ended ? nextChapter(map.chapter) : null;
   const hosts = useCombat(s => s.progression.deathCount) + 1;
   const looks = chapterMap().rooms.filter(r => r.look);
+  const chapterAllies = chapterMap().rooms.flatMap(r => (r.ally ? [r.ally] : []));
 
   return (
     <Screen footer={
@@ -58,7 +58,7 @@ export function VictoryScreen() {
                 ['Hosts used', `${hosts}`],
                 ['Places seen', `${map.visited.length} of ${chapterMap().rooms.length}`],
                 ['Things looked at', `${looks.filter(r => map.looked.includes(r.id)).length} of ${looks.length}`],
-                ['Allies linked', `${met.length} of ${ALLIES.length}`],
+                ['Allies linked', `${chapterAllies.filter(id => met.includes(id)).length} of ${chapterAllies.length}`],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-2xl bg-black/20 px-3 py-2.5">
                   <div className="text-xs text-hud-dim">{k}</div>

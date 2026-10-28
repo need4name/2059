@@ -66,7 +66,7 @@ const chapterFile = z.object({
     id: z.string().regex(/^[a-z-]+$/), name: text, place: text, map: z.string().regex(/^[a-z-]+$/), ready: z.boolean(),
     cast: z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
-      firstFight: text, setPiece: z.enum(['patchworkKing']),
+      firstFight: text, setPiece: z.enum(['patchworkKing', 'echo']),
     }).strict(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
@@ -282,12 +282,9 @@ export function checkContent(): string[] {
   report('allies.json', ar);
   if (ar.success) {
     const seen = new Set<string>();
-    let last = 0;
     for (const a of ar.data.allies) {
       if (seen.has(a.id)) problems.push(`allies.json ${a.id}: duplicate id`);
       seen.add(a.id);
-      if (a.unlockLevel <= last) problems.push(`allies.json ${a.id}: unlock levels must rise down the list`);
-      last = a.unlockLevel;
       if (!a.moves.some(m => m.effect === 'attack')) problems.push(`allies.json ${a.id}: needs at least one attack`);
       if (!(a.id in ALLY_LINKS)) problems.push(`allies.json ${a.id}: no link bonus in ALLY_LINKS (lib/combat/allies.ts)`);
     }
