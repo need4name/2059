@@ -1184,7 +1184,7 @@
   {
     "id": "hx_la_e_01",
     "name": "[HELIX] Bulwark Housing Arm",
-    "description": "Helix continuity hardware: a limb built to take hits for the platform. Helix makes no weapons.",
+    "description": "A limb built to take hits for the platform, not to give them. Nothing in it is shaped like a weapon.",
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_arm",

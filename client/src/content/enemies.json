@@ -27,7 +27,7 @@
         "pDefR": 0.55,
         "sDefR": 0.45
       },
-      "dossier": "Raft scavenger with cheap SCAR grafts and a PLM calm in his eyes. Wants the implants in your new body.",
+      "dossier": "A raft scavenger with cheap grafts and a calm that isn’t his own. He wants the implants in your new body.",
       "moves": [
         {
           "type": "attack",
@@ -80,7 +80,7 @@
         "pDefR": 0.4,
         "sDefR": 0.6
       },
-      "dossier": "Bay of Bengal boarding crew, fused to crane limbs and spinal clamps. Sweeps wide, then hooks you in.",
+      "dossier": "Crane limbs and a clamped spine, more boat than person. Sweeps wide, then hooks you in.",
       "moves": [
         {
           "type": "attack",
@@ -136,7 +136,7 @@
         "pDefR": 0.6,
         "sDefR": 0.4
       },
-      "dossier": "Raider from the Matriarchal Pump-Fleets. Internal pumps keep her standing long after she should fall.",
+      "dossier": "Pumps thud where her heart should be. She stays standing long after she should fall.",
       "moves": [
         {
           "type": "attack",
@@ -195,7 +195,7 @@
         "pDefR": 0.5,
         "sDefR": 0.5
       },
-      "dossier": "Interface ports scavenged from robotics control rigs. Jams your sensors from range. Fragile up close.",
+      "dossier": "Ports in the skull, wired from old control rigs. Jams your sensors from range. Fragile up close.",
       "moves": [
         {
           "type": "attack",
@@ -251,7 +251,7 @@
         "pDefR": 0.7,
         "sDefR": 0.3
       },
-      "dossier": "Scarred, half-starved and fast. Raids for medical supplies and identity tokens, and hits hard.",
+      "dossier": "Scarred, half-starved and fast. Takes whatever it can carry, and hits hard.",
       "moves": [
         {
           "type": "attack",
@@ -307,7 +307,7 @@
         "pDefR": 0.65,
         "sDefR": 0.35
       },
-      "dossier": "Cartel Biotech Networks field surgeon with a BASM kit. Sedates first, harvests after.",
+      "dossier": "Clean hands and a folding surgery kit. Sedates first, harvests after.",
       "moves": [
         {
           "type": "attack",
@@ -364,7 +364,7 @@
         "pDefR": 0.5,
         "sDefR": 0.5
       },
-      "dossier": "Indian Ocean Authority maritime security. Denies transit by force, from range, by the book.",
+      "dossier": "A stamp, a uniform and a long gun. Denies passage from range, by the book.",
       "moves": [
         {
           "type": "attack",
@@ -417,7 +417,7 @@
         "pDefR": 0.45,
         "sDefR": 0.55
       },
-      "dossier": "Mass-produced labour frame repurposed for enforcement. Cools your systems to slow you down.",
+      "dossier": "A labour frame set to keeping order. Cools your systems to slow you down.",
       "moves": [
         {
           "type": "attack",
@@ -473,7 +473,7 @@
         "pDefR": 0.4,
         "sDefR": 0.6
       },
-      "dossier": "Contracted security for a Helix platform. Heavy structural housing; Helix makes no weapons, so the Warden brought his own.",
+      "dossier": "Heavy housing and a door to guard. The weapon came from somewhere else. Hard to move.",
       "moves": [
         {
           "type": "attack",
@@ -529,7 +529,7 @@
         "pDefR": 0.5,
         "sDefR": 0.5
       },
-      "dossier": "Full operator limb suite, charged on Helix power it resents. Precise, brutal, and very hard to put down.",
+      "dossier": "A full set of operator limbs on a tired body. Precise, brutal, and very hard to put down.",
       "moves": [
         {
           "type": "attack",
@@ -585,7 +585,7 @@
         "pDefR": 0.55,
         "sDefR": 0.45
       },
-      "dossier": "The Limbic Cartel's collector. Far heavier than anything this body can handle.",
+      "dossier": "A collector, far heavier than anything this body can handle. It keeps count.",
       "moves": [
         {
           "type": "attack",
@@ -635,7 +635,7 @@
         "pDefR": 0.5,
         "sDefR": 0.5
       },
-      "dossier": "A Kizuna operator who doesn't exist on any MIL register. A ghost story with a body count.",
+      "dossier": "No name, no maker’s mark, no record anywhere. A ghost story with a body count.",
       "moves": [
         {
           "type": "attack",
@@ -696,7 +696,7 @@
         "pDefR": 0.55,
         "sDefR": 0.45
       },
-      "dossier": "Runs the Volkov foundry, fitting operator limbs to whoever pays. Has fitted most of them to itself.",
+      "dossier": "Runs the foundry, fitting limbs to whoever pays. Has fitted most of them to itself.",
       "traits": [
         "armed"
       ],
@@ -849,7 +849,7 @@
   },
   "patchworkKing": {
     "color": "#fbbf24",
-    "dossier": "The pirate king of the plastic island. Once a corporate operator, discarded by the people who built him. Three phases.",
+    "dossier": "He sits on a throne of other people’s parts and wears a crown of grafts. Someone built him once, then threw him away. Three phases.",
     "phases": [
       [
         {

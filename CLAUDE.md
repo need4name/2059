@@ -11,6 +11,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 
 - The game is tied to the owner's universe notes (not in the repo; the repo is public, so don't commit lore digests). The player is a stray signal in grey-market brain chips; death means "host lost" and the signal jumps hosts. Minds can be extracted but never put back, so never write "backed up" or "restored".
 - A host death restarts the chapter at its entry room, as another corpse reanimating.
+- Tell it like Dark Souls: never explain the world. No narrator, no faction intros, no glossary. The world only shows in what's lying around (implant descriptions, room text, enemy lines, journal fragments). The story is the signal finding out what it is; each chapter asks it one question about itself. The owner's notes are the hidden truth: everything shown must agree with them, and most of it is never said.
 - Room text: about two sentences per room to start; tweak as we go. Chapter goals are placeholders until the story is written.
 - Makers: Helix (defensive, no weapons), Volkov (operator limbs), Tianxia (labour), Kizuna (MIL/neural), Crown (luxury/restorative), CBN (cartel grafts, cost health), IOA (grey firmware), PARSU (materials), Patchwork (salvage).
 

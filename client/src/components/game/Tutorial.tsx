@@ -13,7 +13,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   intro: {
     icon: '📡',
     title: "You're awake",
-    body: "You're a stray signal living in the grey-market brain chips that raft medics install. This body belonged to a salvager in Offshore Sector 7. A Limbic Cartel scavenger has come for its implants. Take theirs first. After that there's no map: read each place, pick a way on and see what's there.",
+    body: "This body is yours now. Someone has come for its implants: take theirs first. After that there's no map. Read each place, pick a way on and see what's there.",
   },
   move: {
     icon: '👣',
@@ -98,7 +98,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   ally: {
     icon: '🤝',
     title: 'Someone to link with',
-    body: 'There is someone here your signal can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
+    body: 'There is someone here you can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
   },
   speed: {
     icon: '⏱️',
@@ -163,7 +163,7 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
   death: {
     icon: '📡',
     title: 'Host lost',
-    body: "This body is finished, but you aren't. Your signal jumps into a fresh host on the rafts. The implants stay with the corpse, so you start again with only what you've learned.",
+    body: "This body is finished, but you aren't. Another one is waking on the rafts. The implants stay with the corpse, so you start again with only what you've learned.",
   },
 };
 

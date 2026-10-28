@@ -7,17 +7,18 @@ import { augmentKind } from './types';
 export type Maker = 'HELIX' | 'VOLKOV' | 'TIANXIA' | 'KIZUNA' | 'CROWN' | 'IOA' | 'CBN' | 'PARSU' | 'PATCHWORK';
 
 export const MAKER_INFO: Record<Maker, { label: string; blurb: string; tone: string }> = {
-  HELIX:     { label: 'Helix',     tone: 'text-slate-200',   blurb: 'Defensive and survival hardware. Heavy structural housing. Helix makes no weapons.' },
-  VOLKOV:    { label: 'Volkov',    tone: 'text-rose-300',    blurb: 'Operator limb suites. High torque, high heat, and a body cost.' },
-  TIANXIA:   { label: 'Tianxia',   tone: 'text-cyan-300',    blurb: 'Mass-produced labour frames. Cheap, durable, dependable.' },
-  KIZUNA:    { label: 'Kizuna',    tone: 'text-violet-300',  blurb: 'MIL-signed neural and sensory hardware. Precise and light.' },
-  CROWN:     { label: 'Crown',     tone: 'text-amber-300',   blurb: 'Luxury clinic limbs and restorative implants. Gentle on the body.' },
-  IOA:       { label: 'IOA',       tone: 'text-orange-300',  blurb: 'Grey-lane firmware and counterfeit parts. Limiter-free, unreliable.' },
-  CBN:       { label: 'CBN',       tone: 'text-emerald-300', blurb: 'Cartel grafts installed in BASM units. Powerful, with rejection and infection.' },
-  PARSU:     { label: 'PARSU',     tone: 'text-yellow-200',  blurb: 'Raw substrate and composites. Tough materials, little refinement.' },
-  PATCHWORK: { label: 'Patchwork', tone: 'text-stone-300',   blurb: 'Pirate salvage cobbled from other makers. Variable condition.' },
+  HELIX:     { label: 'Helix',     tone: 'text-slate-200',   blurb: '\u201cContinuity is a service.\u201d' },
+  VOLKOV:    { label: 'Volkov',    tone: 'text-rose-300',    blurb: '\u201cProperty of an operator. Do not remove.\u201d' },
+  TIANXIA:   { label: 'Tianxia',   tone: 'text-cyan-300',    blurb: '\u201cBuilt for a lifetime of work.\u201d' },
+  KIZUNA:    { label: 'Kizuna',    tone: 'text-violet-300',  blurb: '\u201cCertified. Tampering is logged.\u201d' },
+  CROWN:     { label: 'Crown',     tone: 'text-amber-300',   blurb: '\u201cA gift of the clinic. Wear it well.\u201d' },
+  IOA:       { label: 'IOA',       tone: 'text-orange-300',  blurb: '\u201cCleared for passage.\u201d' },
+  CBN:       { label: 'CBN',       tone: 'text-emerald-300', blurb: '\u201cNo refunds. No records.\u201d' },
+  PARSU:     { label: 'PARSU',     tone: 'text-yellow-200',  blurb: '\u201cOrigin withheld.\u201d' },
+  PATCHWORK: { label: 'Patchwork', tone: 'text-stone-300',   blurb: '\u201cSomebody else\u2019s parts.\u201d' },
 };
 
+// Blurbs are what's stamped on the part, not an explanation of the maker
 export function makerOf(item: Item): Maker {
   const m = item.name.match(/^\[([A-Z]+)\]/)?.[1] as Maker | undefined;
   return m && m in MAKER_INFO ? m : 'PATCHWORK';

@@ -2,7 +2,7 @@
 
 The rules of the game as they are built today. Every number here comes from the code; the file that owns each rule is named so the two can be kept in step. When a rule changes, change it here in the same commit.
 
-Story and setting live in the owner's universe notes, which stay out of this public repo. This file covers mechanics only.
+Story and setting live in the owner's universe notes, which stay out of this public repo. This file covers mechanics only. In-game text never explains the world: maker blurbs on implant cards are what's stamped on the part ("Cleared for passage."), enemy descriptions say what you see and how it fights, and the title, first hint and death screen don't explain what the signal is.
 
 ---
 

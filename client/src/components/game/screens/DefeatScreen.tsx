@@ -56,7 +56,7 @@ export function DefeatScreen() {
         <Card className="space-y-1.5 p-4">
           <div className="text-sm font-semibold text-sys">The signal survives</div>
           <p className="text-sm leading-relaxed text-hud-dim">
-            You were never really this body. Your signal slips out through its brain chip and into another grey-market chip, and another corpse opens its eyes at the body dock. The implants, credits, weapons and upgrades stay with the corpse.
+            You were never really this body. At the body dock, another corpse opens its eyes. The implants, credits, weapons and upgrades stay with this one.
           </p>
         </Card>
 
