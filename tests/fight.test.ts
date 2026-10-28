@@ -552,3 +552,45 @@ test('slow and haste effects: enemy hits slow you; your hits slow them and can h
   assert.equal(st.foes[0].slowed, Fight.SPEED.statusRounds);
   assert.equal(st.playerHasted, Fight.SPEED.statusRounds);
 });
+
+// ── Tides ──
+function tidal(): FightState {
+  const grid = arena([5, 3], [1, 3]);
+  // A band of mud flats across rows 3 and 4
+  for (const r of [3, 4]) for (let c = 0; c < grid.cols; c++) grid.tiles[r][c] = { type: 'empty', art: 'mud', tidal: true };
+  return fight({ grid, tide: Fight.startTide(grid) });
+}
+
+test('tides: boards without mud have none; with mud they start low and turn every 3 rounds', () => {
+  assert.equal(Fight.startTide(arena([5, 3], [1, 3])), null);
+  let s = tidal();
+  assert.deepEqual(s.tide, { high: false, turnsLeft: Fight.TIDE.every });
+  s = Fight.tideTick(s).state; s = Fight.tideTick(s).state;
+  assert.equal(s.tide!.high, false);
+  assert.equal(s.tide!.turnsLeft, 1);
+  const step = Fight.tideTick(s);
+  assert.equal(step.state.tide!.high, true);
+  assert.equal(step.state.grid.tiles[3][0].type, 'void', 'the mud is sea now');
+  assert.equal(step.state.grid.tiles[5][0].type, 'empty', 'dry ground stays');
+  let back = step.state;
+  for (let k = 0; k < Fight.TIDE.every; k++) back = Fight.tideTick(back).state;
+  assert.equal(back.tide!.high, false);
+  assert.equal(back.grid.tiles[3][0].type, 'empty');
+  assert.equal(back.grid.tiles[3][0].art, 'mud');
+});
+
+test('a rising tide puts everyone on the mud in the sea, without damage', () => {
+  let s = tidal();
+  s = { ...s, grid: { ...s.grid, playerPosition: { row: 4, col: 3 } }, foes: [{ ...s.foes[0], pos: { row: 3, col: 3 } }], tide: { high: false, turnsLeft: 1 } };
+  const hp = s.player.currentHp, foeHp = s.foes[0].unit.currentHp;
+  const after = Fight.tideTick(s).state;
+  assert.equal(after.playerSwimming, true);
+  assert.equal(after.foes[0].swimming, true);
+  assert.equal(after.player.currentHp, hp);
+  assert.equal(after.foes[0].unit.currentHp, foeHp);
+  // Climbing out next turn lands on dry ground
+  const cond = Fight.playerConditions(after);
+  assert.equal(cond.skipTurn, true);
+  const p = cond.state.grid.playerPosition;
+  assert.notEqual(cond.state.grid.tiles[p.row][p.col].type, 'void');
+});

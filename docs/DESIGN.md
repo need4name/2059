@@ -281,6 +281,14 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Death:** a new host is another corpse reanimating at the body dock. Fights and caches refill; visited rooms, things looked at, allies met and goals are kept.
 - The content check rejects exits to missing rooms, unreachable rooms, a goal in more or fewer than one room, and fights in market rooms. It also rejects an ally waiting in more or fewer than one room, and a named enemy that doesn't exist or sits outside a regular room. The balance simulator walks the map like a player: it takes the shortest way through cleared rooms to the easiest uncleared fight, looks at things, links allies and searches caches on the way.
 
+### Tides
+
+**Where:** the Tides part of `client/src/lib/engine/fight.ts` (`TIDE`, `startTide`, `tideTick`).
+
+- Drawn arenas can mark mud flats with `m`. A board with mud has a tide; one without has none.
+- Fights start at low tide. At the start of every round the tide counts down, and every 3 rounds (`TIDE.every`) it turns. When it comes in, the mud becomes open sea: anyone standing on it is in the water, with no damage, can't be hit, and spends their next turn climbing out onto the nearest dry ground (enemies also lose a wound-up heavy). When it goes out, the mud is ground again.
+- The HUD shows the tide and when it turns ("Tide comes in next round · get off the mud"), and mud about to go under glows blue. The board keeps its size while the mud is under water.
+
 ## 7c. Chapters
 
 **Where:** `client/src/content/chapters.json` (order, map, cast, tileset, ready), `client/src/lib/combat/chapters.ts`, `MAPS` in `client/src/lib/engine/map.ts`.

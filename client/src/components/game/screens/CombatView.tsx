@@ -36,6 +36,9 @@ function CombatHud() {
   if (s.playerStunned) chips.push({ key: 'stun', tone: 'cred', text: 'Stunned · you lose your next turn' });
   if (s.playerBleeding) chips.push({ key: 'bleed', tone: 'hostile', text: `Bleeding · ${s.playerBleeding} turn${s.playerBleeding === 1 ? '' : 's'}` });
   if (s.playerSwimming) chips.push({ key: 'swim', tone: 'cred', text: 'In the sea · climbing out next turn' });
+  if (s.tide) chips.push(s.tide.turnsLeft === 1
+    ? { key: 'tide', tone: 'cred', pulse: true, text: s.tide.high ? 'Tide goes out next round' : 'Tide comes in next round · get off the mud' }
+    : { key: 'tide', tone: 'sys', text: `${s.tide.high ? 'High' : 'Low'} tide · turns in ${s.tide.turnsLeft} rounds` });
   if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed · you act later' });
   if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted · you act sooner' });
   const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];

@@ -100,6 +100,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Someone to link with',
     body: 'There is someone here you can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
   },
+  tide: {
+    icon: '🌊',
+    title: 'The tide',
+    body: "The brown mud is low ground. Every few rounds the tide comes in and it becomes sea: anyone standing on it ends up in the water and loses a turn climbing out. The chip at the top says when it turns, and mud about to go under glows blue. Knock enemies onto it at the right moment.",
+  },
   speed: {
     icon: '⏱️',
     title: 'Faster bodies act first',
@@ -202,6 +207,7 @@ export function useTutorialTriggers() {
       ['surge', myTurn && Fight.canSurge(c)],
       ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
       ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
+      ['tide', myTurn && !!c.tide],
       ['speed', myTurn && (c.roundOrder[0] !== 'player' || Fight.doubleTurns(c, c.turnQueue).length > 0)],
       ['turns', myTurn && !!t.seen.attack && c.foes.length + c.allies.length >= 2],
       ['traits', myTurn && !!t.seen.attack && c.foes.some(f => (f.unit.traits?.length ?? 0) > 0)],

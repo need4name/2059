@@ -209,6 +209,8 @@ icon?: string;
 name?: string;
 /** What the board draws for this tile (a chapter tileset art name). */
 art?: string;
+/** Low ground the tide covers: mud at low tide, open sea at high tide. */
+tidal?: boolean;
 }
 
 export interface CombatGrid {

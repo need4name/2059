@@ -262,7 +262,7 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
 
 const COVER_ART: Record<string, string> = { '#': 'crate', d: 'drum', n: 'nets', p: 'pump' };
 const HAZARD_ART: Record<string, string> = { f: 'fire', c: 'cable', b: 'chem', h: 'hole' };
-export const ARENA_CHARS = '.~#dnp?fcbhPE';
+export const ARENA_CHARS = '.~#dnp?fcbhmPE';
 
 /** Build a board from a drawn layout (see the map file's notes for the characters). */
 export function buildArena(layout: string[]): CombatGrid {
@@ -276,6 +276,8 @@ export function buildArena(layout: string[]): CombatGrid {
     if (ch === 'P') playerPosition = { row: r, col: c };
     if (ch === 'E') spawns.push({ row: r, col: c });
     if (ch === '~') return { type: 'void' };
+    // Mud flats: dry at low tide, sea at high tide (fights start at low tide)
+    if (ch === 'm') return { type: 'empty', art: 'mud', tidal: true };
     if (ch === '?') {
       if (random() >= 0.5) return { type: 'empty' };
       const o = randomOf(cover);

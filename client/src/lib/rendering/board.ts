@@ -105,6 +105,40 @@ export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: numbe
   ctx.restore();
 }
 
+/** Tidal mud: wet grey-brown silt with standing puddles and a tide line of scum. */
+function mudSprite(shade: 0 | 1): HTMLCanvasElement {
+  return sprite(`mud:${shade}`, px => {
+    rect(px, 0, 0, N, N, shade ? '#4a4336' : '#524a3b');
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const h = hash(x, y, 11 + shade);
+      if (h > 0.86) px(x, y, '#5f5644');
+      else if (h < 0.08) px(x, y, '#3a3429');
+    }
+    // Puddles that catch the light
+    const pools: [number, number, number][] = shade ? [[4, 5, 2], [11, 11, 2]] : [[10, 4, 2], [5, 11, 2]];
+    for (const [cx, cy, r] of pools) { disc(px, cx, cy, r, '#2f4a50'); px(cx - 1, cy - 1, '#6f9aa0'); }
+    for (let i = 0; i < N; i++) px(i, N - 1, '#2d281f');
+  });
+}
+
+/** A mud-flat tile; `flooding` adds a pulsing waterline round it (the tide comes in next round). */
+export function drawMudTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, flooding: boolean, now: number) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  ctx.clip();
+  blit(ctx, mudSprite(((row + col) % 2) as 0 | 1), x, y, w, h);
+  if (flooding) {
+    const a = 0.35 + 0.25 * Math.sin(now / 220);
+    ctx.fillStyle = `rgba(70,150,190,${a * 0.9})`;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = `rgba(150,220,240,${a + 0.3})`;
+    ctx.lineWidth = Math.max(2, w * 0.06);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ── Hazards ──────────────────────────────────────────────────────────────────
 
 const FIRE = ['#3a0d06', '#b8280f', '#ff5a1f', '#ffa22e', '#ffe08a'];

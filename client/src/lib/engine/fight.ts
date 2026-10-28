@@ -139,6 +139,8 @@ export interface FightState {
   playerHasted?: number;
   /** The host's implants' average drive (see DRIVE): speed above the base. */
   playerDrive?: number;
+  /** Tides, on boards with mud flats: whether the water is up, and rounds until it turns. */
+  tide?: { high: boolean; turnsLeft: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
@@ -186,7 +188,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0,
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -203,6 +205,39 @@ export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
+
+// ── Tides ────────────────────────────────────────────────────────────────────
+// Boards with mud flats ('m' in a drawn arena) have a tide. Fights start at low
+// tide; every TIDE.every rounds it turns. When it comes in, the mud becomes open
+// sea and anyone standing on it is in the water (no damage: it just costs their
+// next turn climbing out, and they can't be hit meanwhile). When it goes out,
+// the mud is ground again.
+
+export const TIDE = { every: 3 };
+
+/** The tide a fight starts with: low, or none if the board has no mud flats. */
+export const startTide = (grid: CombatGrid): FightState['tide'] =>
+  grid.tiles.some(row => row.some(t => t.tidal)) ? { high: false, turnsLeft: TIDE.every } : null;
+
+/** A new round: the tide counts down, and turns when it reaches zero. */
+export function tideTick(s: FightState): Step {
+  if (!s.tide) return { state: s, events: [] };
+  const left = s.tide.turnsLeft - 1;
+  if (left > 0) return { state: { ...s, tide: { ...s.tide, turnsLeft: left } }, events: [] };
+  const high = !s.tide.high;
+  const tiles = s.grid.tiles.map(row => row.map(t => (t.tidal ? (high ? { type: 'void' as const, tidal: true } : { type: 'empty' as const, art: 'mud', tidal: true }) : t)));
+  let state: FightState = { ...s, grid: { ...s.grid, tiles }, tide: { high, turnsLeft: TIDE.every } };
+  const events: FightEvent[] = [say(high ? 'The tide comes in over the mud' : 'The tide goes out')];
+  if (high) {
+    const flooded = (p: TilePosition) => !!tileAt(p, s.grid)?.tidal;
+    if (flooded(s.grid.playerPosition) && !s.playerSwimming) { state = { ...state, playerSwimming: true }; events.push(say('The water takes your feet: you are in the sea', 'critical')); }
+    state.foes.forEach((f, i) => {
+      if (isAlive(f) && !f.swimming && flooded(f.pos)) { state = setFoe(state, i, { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null }); events.push(say(`${f.unit.name} is swept off its feet`)); }
+    });
+    state = { ...state, allies: state.allies.map(a => (allyAlive(a) && !a.swimming && flooded(a.pos) ? { ...a, swimming: true, taunting: false } : a)) };
+  }
+  return { state, events };
+}
 
 // ── Speed and turn order ─────────────────────────────────────────────────────
 // Every round, everyone is sorted by speed (the player winning ties, allies
