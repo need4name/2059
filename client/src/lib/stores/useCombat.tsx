@@ -17,6 +17,7 @@ import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
+import { nextChapter } from '../combat/chapters';
 import { withLinks } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
@@ -152,6 +153,8 @@ allyAct: (ally: number, move: number) => void;
 resetCombat: () => void;
 resetAll: () => void;
 rebirth: (newClass?: PlayerClass) => void;
+/** The chapter is done: wake in a new body at the next chapter's entry (allies, the play-i tree and ally implants come too). */
+goToNextChapter: () => void;
 continueFromVictory: () => void;
 leaveShop: () => void;
 openMarket: () => void;
@@ -427,6 +430,39 @@ later(nextActor, get().turnQueue[0] === undefined || get().turnQueue[0] === 'pla
 // Enemies attack first, then walk
 if (step.walkAfter) later(() => { if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
 else done();
+};
+
+// A new body: implants, credits, weapons, loadout and upgrade trees all start fresh.
+// `place` puts the signal on the map (the chapter's entry, or the next chapter's).
+const wakeNewHost = (finalClass: PlayerClass, place: () => void) => {
+const { progression, runSeed: lastSeed } = get();
+
+useInventory.getState().clearInventory();
+useLoadout.getState().resetLoadout();
+useAugmentTrees.getState().resetTrees();
+
+set({
+phase: 'menu',
+player: createPlayer(undefined, finalClass),
+boss: createBoss(1),
+combatLog: [],
+playerDefenseBoost: 0,
+currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
+playerClass: finalClass,
+introCompleted: true,
+selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
+progression: { ...initialProgression(), deathCount: progression.deathCount + 1 },
+runSeed: newRunSeed(), fightsStarted: 0,
+grid: emptyGrid(),
+fightId: get().fightId + 1,
+playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
+playerMalfunctioning: false,
+holdfastSpent: false,
+hostBestThreat: 0,
+});
+place();
+// Seeded from the host that just died, so a replayed run gets the same gifts
+giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
 };
 
 // What the play-i tree gives every new host before its first fight
@@ -763,39 +799,18 @@ if (get().phase === 'menu') set({ phase: 'shop' });
 completeIntro: () => set({ introCompleted: true }),
 
 rebirth: (newClass) => {
-const { progression, classesUnlocked, playerClass, runSeed: lastSeed } = get();
+const { classesUnlocked, playerClass } = get();
 const finalClass: PlayerClass = classesUnlocked
 ? (newClass && newClass !== 'none' ? newClass : (playerClass !== 'none' ? playerClass : 'melee'))
 : 'none';
-
-// A new body: implants, credits, weapons, loadout and upgrade trees all start fresh.
-useInventory.getState().clearInventory();
-useLoadout.getState().resetLoadout();
-useAugmentTrees.getState().resetTrees();
-
-set({
-phase: 'menu',
-player: createPlayer(undefined, finalClass),
-boss: createBoss(1),
-combatLog: [],
-playerDefenseBoost: 0,
-currentLoot: null, lastVictory: null, pendingShop: false, bossLevel: 1, farmLevel: null,
-playerClass: finalClass,
-introCompleted: true,
-selectedMovement: null, selectedAction: null, hasMoved: false, inputLocked: false,
-progression: { ...initialProgression(), deathCount: progression.deathCount + 1 },
-runSeed: newRunSeed(), fightsStarted: 0,
-grid: emptyGrid(),
-fightId: get().fightId + 1,
-playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
-playerMalfunctioning: false,
-holdfastSpent: false,
-hostBestThreat: 0,
-});
 // The new corpse wakes at the chapter's entry; fights refill, memory stays
-useMap.getState().newHost();
-// Seeded from the host that just died, so a replayed run gets the same gifts
-giveNewHostPerks(mixSeed(lastSeed, progression.deathCount + 1));
+wakeNewHost(finalClass, () => useMap.getState().newHost());
+},
+
+goToNextChapter: () => {
+const next = nextChapter(useMap.getState().chapter);
+if (!next || !useMap.getState().done) return;
+wakeNewHost(get().playerClass, () => useMap.getState().travel(next.id));
 },
 
 resetAll: () => {

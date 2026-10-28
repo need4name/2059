@@ -281,8 +281,18 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Death:** a new host is another corpse reanimating at the body dock. Fights and caches refill; visited rooms, things looked at, allies met and goals are kept.
 - The content check rejects exits to missing rooms, unreachable rooms, a goal in more or fewer than one room, and fights in market rooms. It also rejects an ally waiting in more or fewer than one room, and a named enemy that doesn't exist or sits outside a regular room. The balance simulator walks the map like a player: it takes the shortest way through cleared rooms to the easiest uncleared fight, looks at things, links allies and searches caches on the way.
 
+## 7c. Chapters
+
+**Where:** `client/src/content/chapters.json` (order, map, cast, tileset, ready), `client/src/lib/combat/chapters.ts`, `MAPS` in `client/src/lib/engine/map.ts`.
+
+- Chapters are played in the order of `chapters.json`. Each names its map (`content/map-<map>.json`, registered in `MAPS`), its **cast** and its tileset. The map store records which chapter the signal is in (`chapter`); everything that depends on the place reads `activeChapter()`.
+- **Cast:** regular enemies walk the `rotation` across the regular threat levels; `elites` guard threat 5, 15 and 25 in turn; `bosses` hold 20 and 30 (and every 10 after, in turn); `firstFight` is the first host's set piece on threat 3; `setPiece` is the chapter's built fight on 10 (chapter one: the Patchwork King). Enemies start at their own `startingHeat` (bosses used to start at 50 whatever their data said).
+- **Moving on:** once a chapter's end fight is won, and only if the next chapter is marked `ready`, the victory screen offers "Go on" (or "Stay here a while"; the hideout's Next step card then offers it). Going on wakes a new host at the next chapter's entry with a fresh map: implants, credits, weapons, loadout and upgrades stay behind as on a death, while allies, their implants, the play-i tree and the journal carry on. It counts as a new host but offers no play-i card. A chapter can't be returned to.
+- Each threat level means the same strength in every chapter; a chapter feels different through its cast, board rule and map, and the signal arrives stronger through its tree and allies.
+
 ## 8. Runs, seeds and saves
 
+- Save version 4 added the map's chapter (older saves are in chapter one).
 - Every run has a seed. Each fight is seeded from the run seed and the fight number, and each market visit from the run seed and its visit key, so the same seed and choices replay exactly (`client/src/lib/engine/rng.ts`).
 - One versioned save holds everything (`client/src/lib/save.ts`). Players can copy it as text and load it back in from the Status tab.
 

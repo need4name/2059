@@ -6,7 +6,7 @@ import { ALLIES } from './combat/allies';
 
 export const SAVE_KEY = '2059-save';
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -41,6 +41,15 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
     try {
       const part = JSON.parse(raw);
       return { ...save, parts: { ...save.parts, '2059-allies': JSON.stringify({ ...part, state: { gear: {}, ...part.state }, version: 3 }) } };
+    } catch { return save; }
+  },
+  // 3 -> 4: the map knows which chapter it's for (every older save is in chapter one)
+  3: (save) => {
+    const raw = save.parts['2059-map'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { chapter: 'indian-ocean', ...part.state }, version: 2 }) } };
     } catch { return save; }
   },
 };

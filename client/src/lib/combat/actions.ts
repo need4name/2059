@@ -1,3 +1,4 @@
+import { activeChapter } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot } from './types';
 import { ITEMS_2059 } from './items2059';
@@ -331,12 +332,13 @@ lines: string[]; lateLines?: string[]; firstSight: string;
 traits?: string[]; enrage?: { at: number; gain: string[]; line: string }; signature?: string;
 }
 const ENEMY_DATA = enemyContent as unknown as {
-rotation: string[]; specials: string[]; enemies: Record<string, EnemyData>;
+enemies: Record<string, EnemyData>;
 patchworkKing: { color: string; dossier: string; firstSight: string; phases: CombatAction[][]; monologue: string[] };
 };
 const enemyType = (name: string) => ({ name, ...ENEMY_DATA.enemies[name] });
-export const BOSS_TYPES = ENEMY_DATA.rotation.map(enemyType);
-export const SPECIAL_TYPES = ENEMY_DATA.specials.map(enemyType);
+// Who you fight comes from the active chapter's cast (content/chapters.json)
+const cast = () => activeChapter().cast;
+const rotationTypes = () => cast().rotation.map(enemyType);
 
 /** What an enemy says when it sees you: horror at a corpse that got up. Later lines once many hosts are lost. */
 export function enemyLines(name: string, hostsLost: number): string[] {
@@ -357,10 +359,7 @@ export const BOSS_DOSSIERS: Record<string, string> = {
 };
 
 /** Which enemy you face at a threat level. Threat 10 and 20 are bosses. */
-/** Elites guard the 5th level of each sector; bosses the 10th (the King is built separately). */
-const ELITES = ['Cartel Enforcer', 'CBN Extraction Surgeon', 'Unregistered Operator'];
-// Chapter one's bosses: the Fitter at threat 20 (the foundry), the Listener at 30 (the spire)
-const CHAPTER_BOSSES = ['The Fitter', 'The Listener'];
+// Elites guard the 5th level of each sector; bosses the 10th (the set piece on 10 is built separately)
 
 export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
 export function enemyRole(level: number, firstRun = false): EnemyRole {
@@ -373,13 +372,15 @@ return 'normal';
 /** Which enemy you face at a level. */
 function enemyTypeForLevel(level: number, firstRun = false) {
 const role = enemyRole(level, firstRun);
-if (role === 'setpiece') return SPECIAL_TYPES[0];
+const { elites, bosses, firstFight } = cast();
+if (role === 'setpiece') return enemyType(firstFight);
 const sector = Math.floor((level - 1) / 10);
-if (role === 'elite') return enemyType(ELITES[sector % ELITES.length]);
-if (role === 'boss') return enemyType(CHAPTER_BOSSES[(sector - 1 + CHAPTER_BOSSES.length) % CHAPTER_BOSSES.length]);
+if (role === 'elite') return enemyType(elites[sector % elites.length]);
+if (role === 'boss') return enemyType(bosses[(sector - 1 + bosses.length) % bosses.length]);
 // Regular levels walk the rotation, skipping the elite and boss levels
 const idx = level - 1 - Math.floor(level / 5);
-return BOSS_TYPES[idx % BOSS_TYPES.length];
+const types = rotationTypes();
+return types[idx % types.length];
 }
 
 /** How much tougher each role is than a regular enemy of the same level. */
@@ -426,8 +427,9 @@ Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.stat
 
 /** Regular enemies a group at this level can be drawn from: this level's type and the two before it. */
 export function enemyNamesNear(level: number): string[] {
-const idx = BOSS_TYPES.findIndex(t => t.name === enemyTypeForLevel(level).name);
-return [0, 1, 2].map(k => BOSS_TYPES.at((idx - k + BOSS_TYPES.length) % BOSS_TYPES.length)!.name);
+const types = rotationTypes();
+const idx = types.findIndex(t => t.name === enemyTypeForLevel(level).name);
+return [0, 1, 2].map(k => types.at((idx - k + types.length) % types.length)!.name);
 }
 
 /** How upgraded enemies are at a threat level: what you can see of the compounding growth. */
@@ -536,8 +538,7 @@ Object.fromEntries(Object.entries(ENEMY_DATA.enemies).map(([n, e]) => [n, e.move
 
 // Export for store consumption
 export function getBossStartingHeat(bossName: string): number {
-const bt = [...BOSS_TYPES, ...SPECIAL_TYPES].find(b => b.name === bossName);
-return bt?.startingHeat ?? 50;
+return ENEMY_DATA.enemies[bossName]?.startingHeat ?? 50;
 }
 
 export function getBossAction(bossName: string): CombatAction {

@@ -57,7 +57,7 @@ test('a new host wakes at the dock with fights refilled, remembering rooms and g
 });
 
 test('threat rises with depth: elites and bosses sit on the 5s and 10s', () => {
-  for (const r of M.CHAPTER_MAP.rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne', 'checkpoint', 'foundry', 'theatre', 'spire'].includes(r.id), r.id);
+  for (const r of M.chapterMap().rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne', 'checkpoint', 'foundry', 'theatre', 'spire'].includes(r.id), r.id);
   assert.equal(M.roomById('throne').threat, 10);
 });
 
@@ -72,22 +72,22 @@ test('a supply cache can be searched once per host, once its room is clear', () 
 });
 
 test('winning the end room finishes the chapter and leaves it quiet for every later host', () => {
-  const s: M.MapState = { ...M.newMapState(), room: M.CHAPTER_MAP.end };
+  const s: M.MapState = { ...M.newMapState(), room: M.chapterMap().end };
   assert.ok(M.isChapterEnd(s));
   assert.ok(M.hasFight(s));
   const done = M.finishChapter(M.clearRoom(s));
   assert.equal(M.isChapterEnd(done), false);
-  const next = { ...M.newHost(done), room: M.CHAPTER_MAP.end };
+  const next = { ...M.newHost(done), room: M.chapterMap().end };
   assert.equal(M.hasFight(next), false, 'the end room stays quiet');
-  assert.equal(M.roomText(next), M.roomById(M.CHAPTER_MAP.end).quiet);
-  assert.equal(M.roomText(s), M.roomById(M.CHAPTER_MAP.end).text);
+  assert.equal(M.roomText(next), M.roomById(M.chapterMap().end).quiet);
+  assert.equal(M.roomText(s), M.roomById(M.chapterMap().end).text);
   assert.ok(M.hasFight({ ...next, room: 'deck' }), 'other rooms fill up again');
 });
 
 test('every fight room has its own drawn arena, the same each run apart from loose crates', async () => {
   const { buildArena, spawnFoePositions } = await import('../client/src/lib/combat/grid');
   const { seedRandom } = await import('../client/src/lib/engine/rng');
-  for (const room of M.CHAPTER_MAP.rooms.filter(r => r.threat !== undefined)) {
+  for (const room of M.chapterMap().rooms.filter(r => r.threat !== undefined)) {
     assert.ok(room.arena, `${room.id} has an arena`);
     seedRandom(1); const a = buildArena(room.arena!);
     seedRandom(2); const b = buildArena(room.arena!);
@@ -98,5 +98,24 @@ test('every fight room has its own drawn arena, the same each run apart from loo
     const spots = spawnFoePositions(a, 3);
     assert.deepEqual(spots[0], a.spawns![0], 'the lead starts on the first E');
     assert.ok(spots.every(p => a.tiles[p.row][p.col].type !== 'void' && a.tiles[p.row][p.col].type !== 'obstacle'));
+  }
+});
+
+test('chapters: the map state knows its chapter; travel starts a fresh map there', async () => {
+  const { CHAPTERS, nextChapter, setActiveChapter, activeChapter } = await import('../client/src/lib/combat/chapters');
+  assert.equal(M.newMapState().chapter, CHAPTERS[0].id);
+  assert.equal(CHAPTERS[0].ready, true);
+  // Only a chapter marked ready is offered next
+  const next = CHAPTERS[1];
+  assert.equal(nextChapter(CHAPTERS[0].id), next && next.ready ? next : null);
+  assert.equal(nextChapter('nowhere'), null);
+  setActiveChapter('nowhere');
+  assert.equal(activeChapter().id, CHAPTERS[0].id, 'unknown ids fall back to chapter one');
+  for (const c of CHAPTERS) {
+    const m = M.mapOf(c.id);
+    assert.ok(m, `${c.id} has a map`);
+    const s = M.newMapState(c.id);
+    assert.equal(s.room, m.entry);
+    assert.deepEqual(s.visited, [m.entry]);
   }
 });

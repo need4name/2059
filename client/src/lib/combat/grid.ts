@@ -2,12 +2,12 @@ import type { CombatGrid, TileData, TilePosition, AttackPatternType } from './ty
 import { canHitTarget } from './patterns';
 
 import { random } from '../engine/rng';
-import { currentChapter } from './chapters';
+import { activeChapter } from './chapters';
 // ── Tile helpers ──────────────────────────────────────────────────────────────
 
 // Cover and hazards come from the current chapter's tileset (content/chapters.json)
-const OBSTACLE_TYPES = () => currentChapter().tileset.obstacles;
-const HAZARD_TYPES = () => currentChapter().tileset.hazards;
+const OBSTACLE_TYPES = () => activeChapter().tileset.obstacles;
+const HAZARD_TYPES = () => activeChapter().tileset.hazards;
 
 const NEIGHBOURS = [
   { row: -1, col: 0 }, { row: 1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 },

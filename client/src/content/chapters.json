@@ -1,10 +1,19 @@
 {
-  "about": "Chapters: self-contained awakenings in different parts of the world. Each has its own tileset (how the board looks, which hazards and cover appear). Hazard and obstacle 'art' names must be ones the board knows how to draw (lib/rendering/board.ts).",
+  "about": "Chapters: self-contained awakenings in different parts of the world, played in this order. Each has its own map (content/map-<map>.json), cast (who you fight: regular enemies in rotation, elites on threat 5/15/25, bosses on 20/30 in turn, the set piece on 10 and the first-life fight on 3) and tileset (how the board looks, which hazards and cover appear). A chapter is only offered once ready is true. Hazard and obstacle 'art' names must be ones the board knows how to draw (lib/rendering/board.ts).",
   "chapters": [
     {
       "id": "indian-ocean",
       "name": "The Indian Ocean",
       "place": "The plastic archipelago, Offshore Sector 7",
+      "map": "indian-ocean",
+      "ready": true,
+      "cast": {
+        "rotation": ["Limbic Cartel Scavenger", "SALV Boarder", "Pump-Fleet Cadre", "Ghost-MIL Infiltrator", "Non-Continuous Raider", "CBN Extraction Surgeon", "IOA Interdiction Officer", "Tianxia Compliance Unit", "Helix Continuity Warden", "Volkov Operator"],
+        "elites": ["Cartel Enforcer", "CBN Extraction Surgeon", "Unregistered Operator"],
+        "bosses": ["The Fitter", "The Listener"],
+        "firstFight": "Cartel Enforcer",
+        "setPiece": "patchworkKing"
+      },
       "tileset": {
         "floor": { "light": "#5c7380", "dark": "#536975", "seam": "#2c3d47" },
         "sea": { "top": "#16353f", "bottom": "#071a22", "foam": "#5f8f99" },

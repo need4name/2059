@@ -7,7 +7,8 @@ import { implantStats, stimInfo, passiveText } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
 import { useAllies } from '@/lib/stores/useAllies';
 import { useMap } from '@/lib/stores/useMap';
-import { CHAPTER_MAP } from '@/lib/engine/map';
+import { chapterMap } from '@/lib/engine/map';
+import { nextChapter } from '@/lib/combat/chapters';
 import { ALLIES } from '@/lib/combat/allies';
 
 export function VictoryScreen() {
@@ -18,8 +19,10 @@ export function VictoryScreen() {
   const { party, progress, met } = useAllies();
   const map = useMap();
   const ended = !!lastVictory?.chapterDone;
+  const goToNextChapter = useCombat(s => s.goToNextChapter);
+  const onward = ended ? nextChapter(map.chapter) : null;
   const hosts = useCombat(s => s.progression.deathCount) + 1;
-  const looks = CHAPTER_MAP.rooms.filter(r => r.look);
+  const looks = chapterMap().rooms.filter(r => r.look);
 
   return (
     <Screen footer={
@@ -27,6 +30,11 @@ export function VictoryScreen() {
         <div className="space-y-2">
           <Btn variant="primary" size="lg" className="w-full" disabled>Tap an implant above to keep it</Btn>
           <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me (keeps the rarest)</button>
+        </div>
+      ) : ended && onward ? (
+        <div className="space-y-2">
+          <Btn variant="primary" size="lg" className="w-full" onClick={() => { continueFromVictory(); goToNextChapter(); }}>Go on</Btn>
+          <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Stay here a while</button>
         </div>
       ) : (
         <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
@@ -39,16 +47,16 @@ export function VictoryScreen() {
         <header className="rise-in space-y-2 text-center">
           <div className="text-sm font-semibold text-ok">{ended ? 'Chapter one complete' : 'Target down'}</div>
           <h1 className="font-display text-5xl font-bold text-white">{ended ? 'The sea is quiet' : 'Victory'}</h1>
-          <p className="text-balance text-[15px] text-hud-dim">{ended ? CHAPTER_MAP.ending : `${boss.name} is finished. The way on is open.`}</p>
+          <p className="text-balance text-[15px] text-hud-dim">{ended ? chapterMap().ending : `${boss.name} is finished. The way on is open.`}</p>
         </header>
 
         {ended && (
           <div className="rise-in space-y-3 rounded-3xl bg-gradient-to-b from-sys/15 to-hud-panel/80 p-5 ring-1 ring-sys/20">
-            <div className="font-display text-lg font-semibold text-white">{CHAPTER_MAP.title}</div>
+            <div className="font-display text-lg font-semibold text-white">{chapterMap().title}</div>
             <div className="grid grid-cols-2 gap-2 text-center">
               {[
                 ['Hosts used', `${hosts}`],
-                ['Places seen', `${map.visited.length} of ${CHAPTER_MAP.rooms.length}`],
+                ['Places seen', `${map.visited.length} of ${chapterMap().rooms.length}`],
                 ['Things looked at', `${looks.filter(r => map.looked.includes(r.id)).length} of ${looks.length}`],
                 ['Allies linked', `${met.length} of ${ALLIES.length}`],
               ].map(([k, v]) => (
@@ -61,7 +69,7 @@ export function VictoryScreen() {
             <p className="text-sm leading-relaxed text-hud-text/85">
               The signal keeps what it always keeps: the allies you linked, everything it learned in the play-i tree, and every place it has walked. This host can go on: the spire stays quiet, and every other room still holds a fight for the next host.
             </p>
-            <p className="text-sm text-hud-dim">Chapter two is still being written.</p>
+            {!onward && <p className="text-sm text-hud-dim">The next chapter is still being written.</p>}
           </div>
         )}
 

@@ -60,3 +60,13 @@ test('a version 1 save upgrades: allies unlocked by level count as met', () => {
   assert.deepEqual(part.state.gear, {}, 'version 3 adds empty ally gear');
   assert.equal(part.version, 3);
 });
+
+test('a version 3 save upgrades: its map is in chapter one', () => {
+  mem.set(SAVE_KEY, JSON.stringify({ game: '2059', version: 3, savedAt: '', parts: { '2059-map': '{"state":{"room":"deck","cameFrom":null,"cleared":[],"visited":["dock","deck"],"goals":[],"looked":[],"taken":[]},"version":1}' } }));
+  const save = readSave();
+  assert.equal(save.version, SAVE_VERSION);
+  const part = JSON.parse(save.parts['2059-map']);
+  assert.equal(part.state.chapter, 'indian-ocean');
+  assert.equal(part.state.room, 'deck');
+  assert.equal(part.version, 2);
+});

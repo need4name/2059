@@ -9,7 +9,7 @@ import enemies from '../client/src/content/enemies.json';
 import allies from '../client/src/content/allies.json';
 import { ALLY_LINKS } from '../client/src/lib/combat/allies';
 import chapters from '../client/src/content/chapters.json';
-import chapterMap from '../client/src/content/map-indian-ocean.json';
+import { MAPS } from '../client/src/lib/engine/map';
 import figures from '../client/src/content/figures.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
 import { MAKER_INFO, HEADS } from '../client/src/lib/combat/augments';
@@ -63,7 +63,11 @@ const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
 const chapterFile = z.object({
   about: text,
   chapters: z.array(z.object({
-    id: z.string().regex(/^[a-z-]+$/), name: text, place: text,
+    id: z.string().regex(/^[a-z-]+$/), name: text, place: text, map: z.string().regex(/^[a-z-]+$/), ready: z.boolean(),
+    cast: z.object({
+      rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
+      firstFight: text, setPiece: z.enum(['patchworkKing']),
+    }).strict(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
@@ -166,8 +170,6 @@ const enemy = z.object({
 }).strict();
 
 const enemyFile = z.object({
-  rotation: z.array(text).min(1),
-  specials: z.array(text),
   enemies: z.record(enemy),
   patchworkKing: z.object({ color: z.string(), dossier: text, firstSight: z.string().trim().min(1).max(110), phases: z.array(z.array(action).min(1)).length(3), monologue: z.array(text).min(4) }).strict(),
 }).strict();
@@ -211,7 +213,6 @@ export function checkContent(): string[] {
   const er = enemyFile.safeParse(enemies);
   report('enemies.json', er);
   if (er.success) {
-    for (const n of [...er.data.rotation, ...er.data.specials]) if (!er.data.enemies[n]) problems.push(`enemies.json: "${n}" is listed but not defined`);
     for (const [n, e] of Object.entries(er.data.enemies)) {
       if (e.moves.filter(m => m.isHeavy).length > 1) problems.push(`enemies.json ${n}: keep to one heavy attack`);
       if (e.signature) {
@@ -222,11 +223,23 @@ export function checkContent(): string[] {
     }
   }
   // Chapters
-  report('chapters.json', chapterFile.safeParse(chapters));
+  const cr = chapterFile.safeParse(chapters);
+  report('chapters.json', cr);
+  if (cr.success) {
+    const defined = (enemies as { enemies: Record<string, unknown> }).enemies;
+    for (const c of cr.data.chapters) {
+      if (!MAPS[c.map]) problems.push(`chapters.json ${c.id}: no map "${c.map}" (add content/map-${c.map}.json to MAPS in lib/engine/map.ts)`);
+      const { rotation, elites, bosses, firstFight } = c.cast;
+      for (const n of [...rotation, ...elites, ...bosses, firstFight]) if (!defined[n]) problems.push(`chapters.json ${c.id}: "${n}" is in the cast but not in enemies.json`);
+    }
+    if (!cr.data.chapters[0].ready) problems.push('chapters.json: the first chapter must be ready');
+  }
 
   // The hidden map: exits lead somewhere, every room can be reached, each goal is findable once
-  const mr = mapFile.safeParse(chapterMap);
-  report('map-indian-ocean.json', mr);
+  const allyRooms: Record<string, number> = {};
+  for (const [mapName, mapData] of Object.entries(MAPS)) {
+  const mr = mapFile.safeParse(mapData);
+  report(`map-${mapName}.json`, mr);
   if (mr.success) {
     const m = mr.data;
     const ids = new Set(m.rooms.map(r => r.id));
@@ -246,7 +259,7 @@ export function checkContent(): string[] {
     }
     const allyIds = (allies as { allies: { id: string }[] }).allies.map(a => a.id);
     for (const r of m.rooms) if (r.ally && !allyIds.includes(r.ally)) problems.push(`map ${r.id}: ally "${r.ally}" isn't in allies.json`);
-    for (const id of allyIds) { const n = m.rooms.filter(r => r.ally === id).length; if (n !== 1) problems.push(`map: ally "${id}" should wait in exactly one room (found ${n})`); }
+    for (const r of m.rooms) if (r.ally) allyRooms[r.ally] = (allyRooms[r.ally] ?? 0) + 1;
     for (const g of m.goals) {
       const n = m.rooms.filter(r => r.look?.goal === g).length;
       if (n !== 1) problems.push(`map: goal "${g}" should be in exactly one room (found ${n})`);
@@ -255,6 +268,8 @@ export function checkContent(): string[] {
     while (queue.length) { const at = queue.shift(); const r = m.rooms.find(x => x.id === at)!; for (const e of r.exits) if (!seen.has(e.to) && ids.has(e.to)) { seen.add(e.to); queue.push(e.to); } }
     for (const r of m.rooms) if (!seen.has(r.id)) problems.push(`map ${r.id}: can't be reached from the entry`);
   }
+  }
+  for (const id of (allies as { allies: { id: string }[] }).allies.map(a => a.id)) if (allyRooms[id] !== 1) problems.push(`maps: ally "${id}" should wait in exactly one room across all chapters (found ${allyRooms[id] ?? 0})`);
 
   // Figures: every character that appears in a fight has a look
   const looks = (figures as { figures: Record<string, unknown> }).figures;
@@ -283,5 +298,5 @@ export function checkContent(): string[] {
 if (process.argv[1]?.endsWith('check-content.ts')) {
   const problems = checkContent();
   if (problems.length) { console.error(problems.map(p => `  - ${p}`).join('\n')); console.error(`${problems.length} content problem(s)`); process.exit(1); }
-  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies, ${chapterMap.rooms.length} map rooms`);
+  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies, ${chapters.chapters.length} chapters, ${Object.values(MAPS).reduce((n, m) => n + m.rooms.length, 0)} map rooms`);
 }

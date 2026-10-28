@@ -5,7 +5,7 @@ import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { useMap } from '@/lib/stores/useMap';
 import { useAllies } from '@/lib/stores/useAllies';
-import { CHAPTER_MAP, roomById, hasFight, cacheReady, exitState } from '@/lib/engine/map';
+import { chapterMap, roomById, hasFight, cacheReady, exitState } from '@/lib/engine/map';
 import * as Fight from '@/lib/engine/fight';
 import { Btn } from './hud';
 
@@ -208,7 +208,7 @@ export function useTutorialTriggers() {
       ['victory', c.phase === 'victory'],
       ['death', c.phase === 'defeat'],
       ['base', c.phase === 'menu' && !!t.seen.victory],
-      ['reborn', inMenu && c.progression.deathCount > 0 && room.id === CHAPTER_MAP.entry && map.cleared.length === 0],
+      ['reborn', inMenu && c.progression.deathCount > 0 && room.id === chapterMap().entry && map.cleared.length === 0 && map.visited.length > 1],
       ['look', inMenu && !!t.seen.base && !!room.look && !fightHere && !map.looked.includes(room.id)],
       ['ally', inMenu && !!room.ally && !fightHere && !useAllies.getState().met.includes(room.ally)],
       ['ally_gear', inMenu && !!t.seen.base && useAllies.getState().met.length > 0 && Object.keys(useAllies.getState().gear).length === 0 && items.some(i => i.type === 'augmentation')],

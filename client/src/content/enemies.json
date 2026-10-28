@@ -1,20 +1,4 @@
 {
-  "rotation": [
-    "Limbic Cartel Scavenger",
-    "SALV Boarder",
-    "Pump-Fleet Cadre",
-    "Ghost-MIL Infiltrator",
-    "Non-Continuous Raider",
-    "CBN Extraction Surgeon",
-    "IOA Interdiction Officer",
-    "Tianxia Compliance Unit",
-    "Helix Continuity Warden",
-    "Volkov Operator"
-  ],
-  "specials": [
-    "Cartel Enforcer",
-    "Unregistered Operator"
-  ],
   "enemies": {
     "Limbic Cartel Scavenger": {
       "color": "#fb7185",

@@ -8,7 +8,7 @@ import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { drawSea, drawDeckTile, drawHazard, drawObstacle, drawStatus, drawSwimming } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
-import { currentChapter } from '@/lib/combat/chapters';
+import { activeChapter } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
 // Helper to get all tiles that can be TARGETED from a position with a given pattern
@@ -468,7 +468,7 @@ const width = canvas.width / dpr;
 const height = canvas.height / dpr;
 
 // === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
-const tileset = currentChapter().tileset;
+const tileset = activeChapter().tileset;
 const now = Date.now();
 drawSea(ctx, width, height, tileset, now);
 

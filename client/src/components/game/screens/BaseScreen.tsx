@@ -19,6 +19,7 @@ import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
+import { nextChapter } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
 import { allyDef } from '@/lib/combat/allies';
@@ -423,6 +424,9 @@ function useNextStep(open: (p: Tab) => void): Next {
   const deathCount = useCombat(s => s.progression.deathCount);
   const foe = room.threat !== undefined ? getBossPreview(room.threat, deathCount === 0, room.enemy) : null;
 
+  const goOn = useCombat(s => s.goToNextChapter);
+  const onward = map.done ? nextChapter(map.chapter) : null;
+
   const fits = items.find(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null);
   if (fits?.slot) return { icon: AUGMENTATION_SLOT_ICONS[fits.slot], title: `Install your new ${AUGMENTATION_SLOT_NAMES[fits.slot].toLowerCase()} implant`, body: `${shortName(fits.name)} is sitting in your stash. Installed, it adds to your stats${augmentKind(fits.slot) === 'active' ? ' and gives you a new move' : ''}.`, action: { label: 'Open implants', go: () => open('implants') } };
 
@@ -437,6 +441,8 @@ function useNextStep(open: (p: Tab) => void): Next {
 
   const unused = pool.find(a => !slots.some(s => s?.key === a.key));
   if (unused && slots.some(s => s === null)) return { icon: '🎛️', title: `Add ${unused.name} to your fight bar`, body: 'You have a free slot. Moves only show up in a fight if they are on your bar.', action: { label: 'Open fight bar', go: () => open('loadout') } };
+
+  if (onward) return { icon: '🌊', title: 'Something is pulling you on', body: "This place has nothing left for you. Go on and you wake somewhere else, in a new body. Your allies and what you've learned come too; your implants stay here.", action: { label: 'Go on', go: goOn } };
 
   if (fight && foe) return { icon: '⚔️', title: `The ${foe.name} holds this place`, body: "Fight when you're ready, or back out the way you came. Every other way is blocked until you win." };
 
