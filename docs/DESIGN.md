@@ -290,6 +290,13 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - Enemies keep off mud the tide takes next round: they won't stop on it, and an approach walk stops short of it.
 - The HUD shows the tide and when it turns ("Tide comes in next round · get off the mud"), and mud about to go under glows blue. The board keeps its size while the mud is under water.
 
+### The alarm and dreamers (chapter rules)
+
+**Where:** `rules` on a chapter in `chapters.json`; the Alarm and Dreamers parts of `client/src/lib/engine/fight.ts`.
+
+- **Alarm** (`rules.alarm`): every fight starts quiet. At the start of round 3 the alarm trips: lights and air go off. From the next round, everyone's heat rises by 7 at the start of every round (`ALARM.heat`), and anyone beside a cold pod (`o` in an arena: cover that glows blue) sheds 14 instead (`ALARM.cold`). The floor goes dark under a slow red pulse; tiles beside a pod stay blue. The HUD counts down to the alarm and then says whether you're cool.
+- **Dreamers** (`rules.flinch`): hosts still have a sleeper inside. At the start of your turn, once a fight at most, there's a 1 in 5 chance (`FLINCH.chance`) they flinch: you take one step you didn't choose, onto open empty ground beside you (never a hazard, water or a body). Only chapters with dreamers roll for it, so other chapters' seeded runs are unchanged.
+
 ## 7c. Chapters
 
 **Where:** `client/src/content/chapters.json` (order, map, cast, tileset, ready), `client/src/lib/combat/chapters.ts`, `MAPS` in `client/src/lib/engine/map.ts`.

@@ -238,6 +238,17 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 // ── Cover ────────────────────────────────────────────────────────────────────
 
 const COVER: Record<string, Paint> = {
+  pod: px => {
+    // An incubator pod on its side: frosted glass lid, a sleeper's shape inside, cold blue light
+    for (let y = 3; y < 14; y++) for (let x = 1; x < 15; x++) {
+      const d = ((x - 7.5) / 7) ** 2 + ((y - 8.5) / 5.5) ** 2;
+      if (d < 1) px(x, y, d > 0.75 ? '#9fb4c4' : y < 8 ? '#bfe6f5' : '#7cc4de');
+    }
+    for (let x = 4; x < 12; x++) px(x, 9, '#4f7f96');
+    px(5, 8, '#e8f7fd'); px(6, 8, '#e8f7fd'); px(10, 9, '#3a6075');
+    rect(px, 3, 13, 10, 2, '#46525c');
+    px(4, 13, '#8ff0ff'); px(11, 13, '#8ff0ff');
+  },
   cases: px => {
     // Sealed record cases stacked three high, steel clasps, a stencilled number
     const box = (y0: number, w: number, x0: number, c: string, hi: string, lo: string) => {

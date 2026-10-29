@@ -141,6 +141,10 @@ export interface FightState {
   playerDrive?: number;
   /** Tides, on boards with mud flats: whether the water is up, and rounds until it turns. */
   tide?: { high: boolean; turnsLeft: number } | null;
+  /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
+  alarm?: { on: boolean; turnsLeft: number } | null;
+  /** The dreamer inside the host has flinched this fight (once at most). */
+  flinchUsed?: boolean;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
@@ -188,7 +192,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false,
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -237,6 +241,60 @@ export function tideTick(s: FightState): Step {
     state = { ...state, allies: state.allies.map(a => (allyAlive(a) && !a.swimming && flooded(a.pos) ? { ...a, swimming: true, taunting: false } : a)) };
   }
   return { state, events };
+}
+
+// ── The alarm ────────────────────────────────────────────────────────────────
+// In chapters with an alarm, it trips at the start of round ALARM.after + 1: the
+// lights and the air go off. From the next round on, everyone's heat climbs by
+// ALARM.heat at the start of every round, and anyone beside a cold pod sheds
+// ALARM.cold instead of gaining. Fights become a race before bodies cook.
+
+export const ALARM = { after: 2, heat: 7, cold: 14 };
+
+export const startAlarm = (has: boolean): FightState['alarm'] => (has ? { on: false, turnsLeft: ALARM.after } : null);
+
+/** Is p beside (or on) a cold pod? */
+export const besideColdPod = (s: FightState, p: TilePosition) => {
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (tileAt({ row: p.row + dr, col: p.col + dc }, s.grid)?.cold) return true;
+  return false;
+};
+
+/** A new round: the alarm counts down and trips; once tripped, the ward heats everyone up. */
+export function alarmTick(s: FightState): Step {
+  if (!s.alarm) return { state: s, events: [] };
+  if (!s.alarm.on) {
+    const left = s.alarm.turnsLeft - 1;
+    if (left > 0) return { state: { ...s, alarm: { on: false, turnsLeft: left } }, events: [] };
+    return { state: { ...s, alarm: { on: true, turnsLeft: 0 } }, events: [say('The alarm trips. The lights go out and the air stops moving', 'critical')] };
+  }
+  const shift = (p: TilePosition) => (besideColdPod(s, p) ? -ALARM.cold : ALARM.heat);
+  const cooled = besideColdPod(s, s.grid.playerPosition);
+  const state: FightState = {
+    ...s,
+    playerHeat: clampHeat(s.playerHeat + shift(s.grid.playerPosition)),
+    foes: s.foes.map(f => (isAlive(f) ? { ...f, heat: clampHeat(f.heat + shift(f.pos)) } : f)),
+  };
+  return { state, events: [say(cooled ? 'The ward is an oven. The pod beside you is cold' : `The ward is an oven: +${ALARM.heat} heat`)] };
+}
+
+// ── Dreamers ─────────────────────────────────────────────────────────────────
+// In chapters whose hosts still have someone asleep inside, the sleeper may
+// flinch at the start of your turn (FLINCH.chance, once a fight): you take one
+// step you didn't choose, onto open ground beside you.
+
+export const FLINCH = { chance: 0.2 };
+
+export function dreamerFlinch(s: FightState): Step {
+  if (s.flinchUsed || s.playerSwimming || random() >= FLINCH.chance) return { state: s, events: [] };
+  const me = s.grid.playerPosition;
+  const open: TilePosition[] = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+    const p = { row: me.row + dr, col: me.col + dc };
+    if ((dr || dc) && inBounds(p, s.grid) && tileAt(p, s.grid)?.type === 'empty' && !bodyAt(s, p)) open.push(p);
+  }
+  if (!open.length) return { state: s, events: [] };
+  const to = open[Math.floor(random() * open.length)];
+  return { state: { ...s, grid: { ...s.grid, playerPosition: to }, flinchUsed: true }, events: [say("The sleeper inside flinches. You take a step you didn't choose", 'critical')] };
 }
 
 // ── Speed and turn order ─────────────────────────────────────────────────────

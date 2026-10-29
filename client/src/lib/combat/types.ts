@@ -213,6 +213,8 @@ name?: string;
 art?: string;
 /** Low ground the tide covers: mud at low tide, open sea at high tide. */
 tidal?: boolean;
+/** A cold pod: standing next to one cools you while the alarm is on. */
+cold?: boolean;
 }
 
 export interface CombatGrid {

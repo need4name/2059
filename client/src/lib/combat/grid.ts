@@ -263,7 +263,7 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
 // Arena characters pick a slot in the chapter's tileset (content/chapters.json), so each chapter draws its own
 const COVER_SLOT: Record<string, number> = { '#': 0, d: 1, n: 2, p: 3 };
 const HAZARD_SLOT: Record<string, number> = { f: 0, c: 1, b: 2, h: 3 };
-export const ARENA_CHARS = '.~#dnp?fcbhmPE';
+export const ARENA_CHARS = '.~#dnp?fcbhmoPE';
 
 /** Build a board from a drawn layout (see the map file's notes for the characters). */
 export function buildArena(layout: string[]): CombatGrid {
@@ -277,6 +277,8 @@ export function buildArena(layout: string[]): CombatGrid {
     if (ch === '~') return { type: 'void' };
     // Mud flats: dry at low tide, sea at high tide (fights start at low tide)
     if (ch === 'm') return { type: 'empty', art: 'mud', tidal: true };
+    // A cold pod: cover that cools whoever stands beside it while the alarm is on
+    if (ch === 'o') return { type: 'obstacle', art: 'pod', name: 'Cold pod', cold: true };
     if (ch === '?') {
       if (random() >= 0.5) return { type: 'empty' };
       const o = randomOf(cover);

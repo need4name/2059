@@ -68,6 +68,7 @@ const chapterFile = z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
       firstFight: text, setPiece: z.enum(['patchworkKing', 'echo']),
     }).strict(),
+    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
@@ -90,7 +91,7 @@ function arenaProblems(id: string, rows?: string[]): string[] {
   if (P.length !== 1) out.push(`map ${id}: arena needs exactly one P`);
   if (!E.length) out.push(`map ${id}: arena needs at least one E`);
   if (out.length) return out;
-  const solid = (r: number, c: number) => '~#dnp?'.includes(rows[r][c]);
+  const solid = (r: number, c: number) => '~#dnp?o'.includes(rows[r][c]);
   const seen = new Set([P[0].join(',')]); const queue = [P[0]];
   while (queue.length) {
     const [r, c] = queue.shift()!;

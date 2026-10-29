@@ -262,7 +262,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed,
 };
 };
 
@@ -310,6 +310,8 @@ save(Fight.startPlayerTurn(fightState()));
 set({ actingFoe: null });
 const cond = Fight.playerConditions(fightState());
 if (apply(cond)) return;
+// A host with a sleeper inside may flinch (chapters with dreamers only, so other chapters' rolls stay the same)
+if (!cond.skipTurn && activeChapter().rules?.flinch && apply(Fight.dreamerFlinch(fightState()))) return;
 const { grid } = get();
 set({
 phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, allyMoveMode: null,
@@ -397,6 +399,7 @@ later(nextActor, ENEMY_TURN_DELAY);
 const beginRound = () => {
 // The tide turns at the start of a round (boards with mud flats only)
 if (apply(Fight.tideTick(fightState()))) return;
+if (apply(Fight.alarmTick(fightState()))) return;
 const order = Fight.roundOrder(fightState());
 save(Fight.tickSpeed(fightState()));
 set({ roundOrder: order, turnQueue: order, round: get().round + 1 });
@@ -516,7 +519,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm), flinchUsed: false, playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
 set({ round: 0, turnQueue: [], roundOrder: [] });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

@@ -39,6 +39,9 @@ function CombatHud() {
   if (s.tide) chips.push(s.tide.turnsLeft === 1
     ? { key: 'tide', tone: 'cred', pulse: true, text: s.tide.high ? 'Tide goes out next round' : 'Tide comes in next round · get off the mud' }
     : { key: 'tide', tone: 'sys', text: `${s.tide.high ? 'High' : 'Low'} tide · turns in ${s.tide.turnsLeft} rounds` });
+  if (s.alarm) chips.push(s.alarm.on
+    ? { key: 'alarm', tone: 'hostile', text: Fight.besideColdPod(s, s.grid.playerPosition) ? 'Alarm · the pod beside you keeps you cool' : `Alarm · +${Fight.ALARM.heat} heat a round · stand by a cold pod` }
+    : { key: 'alarm', tone: s.alarm.turnsLeft === 1 ? 'cred' : 'sys', pulse: s.alarm.turnsLeft === 1, text: s.alarm.turnsLeft === 1 ? 'The alarm trips next round' : `Quiet · the alarm trips in ${s.alarm.turnsLeft} rounds` });
   if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed · you act later' });
   if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted · you act sooner' });
   const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];

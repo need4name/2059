@@ -23,7 +23,14 @@ export interface Cast {
   /** The chapter's built set piece on threat 10: the Patchwork King, or the Echo (your last body's implants, fighting you). */
   setPiece: 'patchworkKing' | 'echo';
 }
-export interface Chapter { id: string; name: string; place: string; map: string; ready: boolean; cast: Cast; tileset: Tileset }
+/** Board rules that hold in every fight of a chapter. */
+export interface ChapterRules {
+  /** The alarm trips early in each fight and the whole board heats up every round (cold pods help). */
+  alarm?: boolean;
+  /** Hosts still have a dreamer inside, who may flinch once a fight and move you a tile. */
+  flinch?: boolean;
+}
+export interface Chapter { id: string; name: string; place: string; map: string; ready: boolean; cast: Cast; tileset: Tileset; rules?: ChapterRules }
 
 export const CHAPTERS = (data as { chapters: Chapter[] }).chapters;
 export const chapterById = (id: string): Chapter => CHAPTERS.find(c => c.id === id) ?? CHAPTERS[0];

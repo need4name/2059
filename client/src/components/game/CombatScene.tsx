@@ -499,6 +499,12 @@ const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 // Mud flats about to go under (the tide comes in at the start of next round)
 const tideNow = useCombat.getState().tide;
 const floodNext = !!tideNow && !tideNow.high && tideNow.turnsLeft === 1;
+const alarmOn = !!useCombat.getState().alarm?.on;
+const redPulse = 0.5 + 0.5 * Math.sin(now / 600);
+const besideCold = (row: number, col: number) => {
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (grid.tiles?.[row + dr]?.[col + dc]?.cold) return true;
+  return false;
+};
 
 // Draw tiles (rectangular grid) with industrial worn tones
 for (let row = 0; row < grid.rows; row++) {
@@ -542,6 +548,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
+  // Lights out: once the alarm trips the floor goes dark under a slow red pulse; tiles beside a cold pod stay cool blue
+  if (alarmOn) {
+    const cool = besideCold(row, col);
+    ctx.fillStyle = cool ? 'rgba(40,120,170,0.28)' : `rgba(${Math.round(60 + 50 * redPulse)},8,12,0.42)`;
+    ctx.fill();
+  }
   if (tint) { ctx.fillStyle = tint; ctx.fill(); }
 
   // Tile border - vivid glow on attack range tiles

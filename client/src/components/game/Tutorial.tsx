@@ -100,6 +100,16 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Someone to link with',
     body: 'There is someone here you can link with. Linked allies fight beside you, and they stay linked through every host you wake in.',
   },
+  alarm: {
+    icon: '🚨',
+    title: 'The alarm',
+    body: "Early in every fight here the alarm trips: the lights go out and the air stops. From then on everyone heats up every round, them too. Standing beside a cold pod (the blue ones) cools you instead. Hot bodies hit harder but take more, and at 100 they can't move.",
+  },
+  flinch: {
+    icon: '💤',
+    title: 'Someone else is in here',
+    body: "The bodies here aren't empty. Once in a while the sleeper inside flinches, and you take a step you didn't choose. It never walks you into fire or water.",
+  },
   tide: {
     icon: '🌊',
     title: 'The tide',
@@ -208,6 +218,8 @@ export function useTutorialTriggers() {
       ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
       ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
       ['tide', myTurn && !!c.tide],
+      ['alarm', myTurn && !!c.alarm],
+      ['flinch', myTurn && !!c.flinchUsed],
       ['speed', myTurn && (c.roundOrder[0] !== 'player' || Fight.doubleTurns(c, c.turnQueue).length > 0)],
       ['turns', myTurn && !!t.seen.attack && c.foes.length + c.allies.length >= 2],
       ['traits', myTurn && !!t.seen.attack && c.foes.some(f => (f.unit.traits?.length ?? 0) > 0)],

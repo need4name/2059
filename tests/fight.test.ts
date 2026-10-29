@@ -631,3 +631,36 @@ test('enemies keep off mud the tide is about to take', () => {
   const calm = Fight.moveFoeToward({ ...s, tide: { high: false, turnsLeft: 3 } }, 0, 'melee').state.foes[0].pos;
   assert.ok(calm.row > walked.row, 'with time to spare it crosses');
 });
+
+// ── Helix Hills: the alarm and dreamers ──
+test('the alarm trips after two rounds, then heats everyone each round; cold pods cool', () => {
+  const grid = arena([5, 3], [1, 3]);
+  grid.tiles[5][4] = { type: 'obstacle', art: 'pod', name: 'Cold pod', cold: true };
+  let s = fight({ grid, playerHeat: 30, alarm: Fight.startAlarm(true) });
+  assert.equal(Fight.startAlarm(false), null);
+  s = Fight.alarmTick(s).state; assert.equal(s.alarm!.on, false);
+  const trip = Fight.alarmTick(s);
+  assert.equal(trip.state.alarm!.on, true);
+  assert.equal(trip.state.playerHeat, 30, 'tripping costs nothing yet');
+  const hot = Fight.alarmTick(trip.state).state;
+  assert.equal(hot.playerHeat, 30 - Fight.ALARM.cold, 'beside the pod: cooler');
+  assert.equal(hot.foes[0].heat, 40 + Fight.ALARM.heat, 'the foe out in the room heats up');
+  assert.equal(Fight.besideColdPod(s, { row: 1, col: 3 }), false);
+});
+
+test('a dreamer flinches at most once a fight, onto open ground beside you', () => {
+  let moved = 0;
+  for (let seed = 1; seed <= 60; seed++) {
+    seedRandom(seed);
+    const s = fight({ grid: arena([5, 3], [1, 3]) });
+    const step = Fight.dreamerFlinch(s);
+    if (step.state.flinchUsed) {
+      moved++;
+      const p = step.state.grid.playerPosition;
+      assert.equal(Math.max(Math.abs(p.row - 5), Math.abs(p.col - 3)), 1);
+      assert.equal(step.state.grid.tiles[p.row][p.col].type, 'empty');
+      assert.deepEqual(Fight.dreamerFlinch(step.state).state, step.state, 'only once');
+    }
+  }
+  assert.ok(moved > 3 && moved < 25, `about one in five (${moved}/60)`);
+});
