@@ -2,7 +2,7 @@ import type { CombatGrid, TileData, TilePosition, AttackPatternType } from './ty
 import { canHitTarget } from './patterns';
 
 import { random } from '../engine/rng';
-import { activeChapter } from './chapters';
+import { activeChapter, chapterById } from './chapters';
 // ── Tile helpers ──────────────────────────────────────────────────────────────
 
 // Cover and hazards come from the current chapter's tileset (content/chapters.json)
@@ -266,9 +266,11 @@ const HAZARD_SLOT: Record<string, number> = { f: 0, c: 1, b: 2, h: 3 };
 export const ARENA_CHARS = '.~#dnp?fcbhmoPE';
 
 /** Build a board from a drawn layout (see the map file's notes for the characters). */
-export function buildArena(layout: string[]): CombatGrid {
+export function buildArena(layout: string[], tilesetOf?: string): CombatGrid {
   const rows = layout.length, cols = layout[0].length;
-  const cover = OBSTACLE_TYPES(), hazards = HAZARD_TYPES();
+  // A room can be drawn in another chapter's look (a dream of somewhere else)
+  const ts = tilesetOf ? chapterById(tilesetOf).tileset : undefined;
+  const cover = ts?.obstacles ?? OBSTACLE_TYPES(), hazards = ts?.hazards ?? HAZARD_TYPES();
   let playerPosition = { row: rows - 1, col: Math.floor(cols / 2) };
   const spawns: TilePosition[] = [];
   const tiles: TileData[][] = layout.map((line, r) => Array.from(line).map((ch, c): TileData => {
@@ -288,7 +290,7 @@ export function buildArena(layout: string[]): CombatGrid {
     if (ch in HAZARD_SLOT) { const h = hazards[HAZARD_SLOT[ch]] ?? hazards[0]; return { type: 'hazard', art: h.art, name: h.name, hazardDamage: h.damage }; }
     return { type: 'empty' };
   }));
-  return { rows, cols, tiles, arenaShape: 'drawn', playerPosition, bossPosition: spawns[0] ?? { row: 0, col: Math.floor(cols / 2) }, spawns };
+  return { rows, cols, tiles, arenaShape: 'drawn', playerPosition, bossPosition: spawns[0] ?? { row: 0, col: Math.floor(cols / 2) }, spawns, ...(tilesetOf ? { tilesetOf } : {}) };
 }
 
 /**

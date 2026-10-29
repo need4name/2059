@@ -221,6 +221,8 @@ export interface CombatGrid {
 rows: number;
 cols: number;
 arenaShape?: 'open' | 'corridor' | 'l_shape' | 'cross' | 'drawn';
+/** Draw this board in another chapter's tileset (chapters.json id). */
+tilesetOf?: string;
 /** Drawn arenas: where enemies start, lead first. */
 spawns?: TilePosition[];
 playerPosition: TilePosition;

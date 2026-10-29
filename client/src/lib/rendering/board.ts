@@ -220,6 +220,36 @@ function sumpSprite(f: number) {
   });
 }
 
+function steamSprite(f: number) {
+  return sprite(`steam:${f}`, px => {
+    // A floor vent with scalding steam rolling off it
+    rect(px, 3, 11, 10, 3, '#2a2f33');
+    for (let x = 4; x < 12; x += 2) px(x, 12, '#0d1012');
+    for (let i = 0; i < 9; i++) {
+      const x = 4 + Math.floor(hash(i, f, 3) * 8), y = 10 - Math.floor(hash(f, i, 5) * 8);
+      px(x, y, i % 3 ? '#e6edf0' : '#b8c4c9'); px(x + 1, y, '#d3dcdf');
+    }
+  });
+}
+function coolantSprite(f: number) {
+  return sprite(`coolant:${f}`, px => {
+    // A spilled pool of blue-green coolant, frosting at the edge
+    for (let y = 4; y < 15; y++) for (let x = 1; x < 15; x++) {
+      const d = Math.abs(x - 8) / 7 + Math.abs(y - 9.5) / 5.5 + (hash(x, y, 2) - 0.5) * 0.15;
+      if (d < 1) px(x, y, d > 0.82 ? '#e2f6fb' : d > 0.5 ? '#3fb8c9' : '#1d7f93');
+    }
+    px(6 + f, 8, '#bff3fb'); px(10 - f, 11, '#bff3fb');
+  });
+}
+function grateSprite() {
+  return sprite('grate', px => {
+    // An open floor grate over a dark drop
+    rect(px, 2, 2, 12, 12, '#0a0c0e');
+    for (let i = 2; i < 14; i++) { px(i, 2, '#5e676d'); px(i, 13, '#5e676d'); px(2, i, '#5e676d'); px(13, i, '#5e676d'); }
+    for (let x = 4; x < 13; x += 3) for (let y = 3; y < 13; y++) px(x, y, '#3a4146');
+  });
+}
+
 /** A hazard, drawn as what it is. Returns false if the art name isn't known. */
 export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: number, s: number, now: number): boolean {
   const size = s * 0.86, x = cx - size / 2, y = cy - size / 2;
@@ -230,6 +260,9 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
     case 'chem': blit(ctx, chemSprite(f), x, y, size, size); return true;
     case 'oil': blit(ctx, oilSprite(f), x, y, size, size); return true;
     case 'sump': blit(ctx, sumpSprite(Math.floor(now / 300) % 3), x, y, size, size); return true;
+    case 'steam': blit(ctx, steamSprite(f), x, y, size, size); return true;
+    case 'coolant': blit(ctx, coolantSprite(Math.floor(now / 400) % 3), x, y, size, size); return true;
+    case 'grate': blit(ctx, grateSprite(), x, y, size, size); return true;
     case 'hole': case 'rot': blit(ctx, holeSprite(Math.floor(now / 400) % 4), x, y, size, size); return true;
     default: return false;
   }
@@ -238,6 +271,37 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 // ── Cover ────────────────────────────────────────────────────────────────────
 
 const COVER: Record<string, Paint> = {
+  locker: px => {
+    // A dented staff locker, door ajar
+    rect(px, 4, 1, 8, 14, '#6d7c86');
+    for (let y = 1; y < 15; y++) { px(4, y, '#93a3ad'); px(11, y, '#3f4a51'); }
+    for (const y of [3, 4, 5]) for (let x = 6; x < 10; x++) px(x, y, '#3f4a51');
+    px(10, 8, '#d5dde2'); px(10, 9, '#d5dde2');
+  },
+  canister: px => {
+    // A tall gas canister with a hazard band
+    rect(px, 5, 3, 6, 12, '#7d8f6e');
+    for (let y = 3; y < 15; y++) { px(5, y, '#a1b38f'); px(10, y, '#4f5c44'); }
+    for (let x = 5; x < 11; x++) { px(x, 7, '#e0b43a'); px(x, 8, '#2b2b2b'); }
+    rect(px, 7, 1, 2, 2, '#9aa0a4');
+  },
+  cot: px => {
+    // Stacked folding cots, straps hanging
+    for (const y0 of [5, 9]) {
+      rect(px, 1, y0, 14, 2, '#7a8b94');
+      for (let x = 1; x < 15; x++) px(x, y0, '#a8b8bf');
+      px(2, y0 + 2, '#3b4448'); px(13, y0 + 2, '#3b4448'); px(2, y0 + 3, '#3b4448'); px(13, y0 + 3, '#3b4448');
+    }
+    px(7, 7, '#5b4632'); px(7, 8, '#5b4632'); px(8, 11, '#5b4632'); px(8, 12, '#5b4632');
+  },
+  terminal: px => {
+    // A ward terminal on a stand: one number on the screen, ticking down
+    rect(px, 3, 2, 10, 8, '#1f272c');
+    rect(px, 4, 3, 8, 6, '#0d3b2e');
+    for (let x = 5; x < 11; x++) px(x, 6, x % 2 ? '#5df2a8' : '#2fa874');
+    rect(px, 7, 10, 2, 4, '#3a4449');
+    rect(px, 4, 14, 8, 1, '#2a3236');
+  },
   pod: px => {
     // An incubator pod on its side: frosted glass lid, a sleeper's shape inside, cold blue light
     for (let y = 3; y < 14; y++) for (let x = 1; x < 15; x++) {

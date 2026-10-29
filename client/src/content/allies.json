@@ -60,6 +60,16 @@
         { "type": "attack", "effect": "attack", "name": "Borrowed Swing", "description": "Somebody else's swing, from somebody else's arm", "damage": 14, "accuracy": "variable", "physicalRatio": 0.6, "attackPattern": "melee_long" },
         { "type": "defend", "effect": "taunt", "name": "Not Me, Them", "description": "Every enemy aims at Tally until your next turn. Tally guards +8", "defenseBoost": 8, "cooldown": 2 }
       ]
+    },
+    {
+      "id": "ninety", "name": "Ninety", "maker": "Helix", "role": "Insomniac", "unlockLevel": 8, "color": "#facc15",
+      "blurb": "Woke up mid-sentence and has lived years in a few months. Calls the signal the thing in the walls.",
+      "hp": 1.1, "attack": 8, "defense": 6, "move": 2,
+      "affinity": ["HELIX", "CROWN"], "link": "Lucid: the sleeper inside your host never flinches.",
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Restraint Strap", "description": "A strap torn off a pod, swung hard", "damage": 13, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "melee_long" },
+        { "type": "defend", "effect": "mark", "name": "I've Dreamt This", "description": "Your hits on the target do 30% more until your next turn. Any range", "amount": 0.3, "cooldown": 2 }
+      ]
     }
   ]
 }

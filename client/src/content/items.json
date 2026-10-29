@@ -1706,5 +1706,71 @@
       "longshot",
       "mortar"
     ]
+  },
+  {
+    "id": "sig_sister_keys",
+    "name": "[HELIX] Sister's Keys",
+    "description": "A hundred and fifteen keys on a chain, one for every pod in her ward. One of them opens nothing.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "brain",
+    "attackBonus": 6,
+    "defenseBonus": 8,
+    "hpBonus": 20,
+    "icon": "🗝️",
+    "signature": true
+  },
+  {
+    "id": "sig_sleeper_eyes",
+    "name": "[KIZUNA] Sleeper's Eyes",
+    "description": "Eyes that were closed for years. Through them, everything looks a little like somewhere you've been.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 16,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 6,
+    "icon": "👁️",
+    "signature": true,
+    "heads": [
+      "scope",
+      "lance",
+      "mortar",
+      "longshot"
+    ]
+  },
+  {
+    "id": "sig_count_clicker",
+    "name": "[HELIX] The Count's Hand (R)",
+    "description": "It clicks once for every body it passes. It has been clicking since it left the wrist.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 18,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🖐️",
+    "signature": true,
+    "heads": [
+      "reach",
+      "jab",
+      "crowdpress",
+      "grapple"
+    ]
+  },
+  {
+    "id": "sig_lattice_heart",
+    "name": "[HELIX] Lattice Heart",
+    "description": "A battery lattice grown through a ribcage over forty years. It still holds a little of everyone it ran through.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "misc",
+    "attackBonus": 8,
+    "defenseBonus": 12,
+    "hpBonus": 40,
+    "structuralDefenseBonus": 6,
+    "icon": "🔋",
+    "signature": true
   }
 ]

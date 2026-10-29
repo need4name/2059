@@ -66,14 +66,14 @@ const chapterFile = z.object({
     id: z.string().regex(/^[a-z-]+$/), name: text, place: text, map: z.string().regex(/^[a-z-]+$/), ready: z.boolean(),
     cast: z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
-      firstFight: text, setPiece: z.enum(['patchworkKing', 'echo']),
+      firstFight: text, setPiece: z.enum(['patchworkKing', 'echo', 'longSleeper']),
     }).strict(),
     rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
-      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
-      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard']), name: text }).strict()).min(1),
+      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump', 'steam', 'coolant', 'grate']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
+      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal']), name: text }).strict()).min(1),
     }).strict(),
   }).strict()).min(1),
 }).strict();
@@ -109,6 +109,7 @@ const mapFile = z.object({
   rooms: z.array(z.object({
     id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
+    tileset: z.string().regex(/^[a-z-]+$/).optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
     ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),

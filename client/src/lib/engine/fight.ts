@@ -249,7 +249,7 @@ export function tideTick(s: FightState): Step {
 // ALARM.heat at the start of every round, and anyone beside a cold pod sheds
 // ALARM.cold instead of gaining. Fights become a race before bodies cook.
 
-export const ALARM = { after: 2, heat: 7, cold: 14 };
+export const ALARM = { after: 2, heat: 4, cold: 12 };
 
 export const startAlarm = (has: boolean): FightState['alarm'] => (has ? { on: false, turnsLeft: ALARM.after } : null);
 
@@ -285,7 +285,7 @@ export function alarmTick(s: FightState): Step {
 export const FLINCH = { chance: 0.2 };
 
 export function dreamerFlinch(s: FightState): Step {
-  if (s.flinchUsed || s.playerSwimming || random() >= FLINCH.chance) return { state: s, events: [] };
+  if (s.flinchUsed || s.perks.noFlinch || s.playerSwimming || random() >= FLINCH.chance) return { state: s, events: [] };
   const me = s.grid.playerPosition;
   const open: TilePosition[] = [];
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {

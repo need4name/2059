@@ -20,8 +20,8 @@ export interface Cast {
   bosses: string[];
   /** The first host's set piece on threat 3. */
   firstFight: string;
-  /** The chapter's built set piece on threat 10: the Patchwork King, or the Echo (your last body's implants, fighting you). */
-  setPiece: 'patchworkKing' | 'echo';
+  /** The chapter's built set piece on threat 10: the Patchwork King, the Echo (your last body's implants, fighting you) or the Long Sleeper. */
+  setPiece: 'patchworkKing' | 'echo' | 'longSleeper';
 }
 /** Board rules that hold in every fight of a chapter. */
 export interface ChapterRules {

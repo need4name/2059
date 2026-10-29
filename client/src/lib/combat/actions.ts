@@ -411,6 +411,18 @@ physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttac
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
+/** Chapter three's set piece: a sleeper whose dream is made of your memories. */
+export const LONG_SLEEPER = 'The Long Sleeper';
+/** A set piece from an enemies.json entry: a level-10 frame made a wall with the King's multipliers. */
+export function createSetPiece(name: string, level = 10): Character {
+const base = createBoss(level, false, name);
+const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
+const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+return { ...base, maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
+physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
+physicalDefense: pDef, structuralDefense: sDef };
+}
+
 /** Chapter two's set piece: a copy of the signal. */
 export const ECHO_NAME = 'The Echo';
 const RARITY_RANK: Record<string, number> = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
@@ -447,9 +459,11 @@ physicalDefense: pDef, structuralDefense: sDef };
 export function getBossPreview(level: number, firstRun = false, roomEnemy?: string): { name: string; color: string; hp: number } {
 const S = BOSS_SCALING;
 const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
-if (level === 10) return cast().setPiece === 'echo'
-? { name: ECHO_NAME, color: ENEMY_DATA.enemies[ECHO_NAME]?.color ?? '#7fe9ff', hp: Math.round(baseHp * KING_MULT.hp) }
-: { name: 'Patchwork King', color: '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
+if (level === 10) {
+const piece = cast().setPiece;
+const name = piece === 'echo' ? ECHO_NAME : piece === 'longSleeper' ? LONG_SLEEPER : 'Patchwork King';
+return { name, color: ENEMY_DATA.enemies[name]?.color ?? '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
+}
 // A room's named enemy, for regular fights (matches planFoes)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
 const t = named ?? enemyTypeForLevel(level, firstRun);

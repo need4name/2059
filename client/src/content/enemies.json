@@ -1505,6 +1505,860 @@
         "Every time you die, we file another."
       ],
       "firstSight": "It has my shape on a screen. More than one copy of it."
+    },
+    "Continuation Officer": {
+      "color": "#cbd5e1",
+      "baseAttack": 10,
+      "baseDefense": 8,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Would rather hold you than hurt you. Nets you, bats you, then waits for you to be counted.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Containment Net",
+          "description": "",
+          "damage": 10,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true,
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Baton",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee",
+          "effects": {
+            "stun": 0.2
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Restraint Protocol",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.55,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Shield Up",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Back to your pod. Nobody's angry.",
+        "Count again. Count again."
+      ],
+      "lateLines": [
+        "The count's off again. It's always you."
+      ],
+      "firstSight": "It says sorry while it swings. I think it means it."
+    },
+    "Sleepwalker": {
+      "color": "#94a3b8",
+      "baseAttack": 9,
+      "baseDefense": 3,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Up out of its pod and still asleep, fighting something in its dream. You're in the way.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Dream Swing",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Thrash",
+          "description": "",
+          "damage": 10,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Night Terror",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 6,
+          "heatGenerated": 10,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Curl Up",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -10
+        }
+      ],
+      "lines": [
+        "Mum? Mum, the water's coming in.",
+        "I've done my years. I've done my years."
+      ],
+      "lateLines": [
+        "You're in my dream again. You're always in it now."
+      ],
+      "firstSight": "Its eyes are open and nobody is looking out of them. I know that look. I've worn it."
+    },
+    "Night Orderly": {
+      "color": "#a7f3d0",
+      "baseAttack": 8,
+      "baseDefense": 5,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.55,
+        "sAtkR": 0.45,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Moves sleepers between wards at night. Puts you under with a dart and wheels you back.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Sedative Dart",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Gurney Hook",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Lights Out",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "cone",
+          "effects": {
+            "stun": 0.35
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Clipboard",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Wrong ward. You're in the wrong ward.",
+        "Lie down. It's easier lying down."
+      ],
+      "lateLines": [
+        "I keep wheeling you back. You keep getting up."
+      ],
+      "firstSight": "It checks a number on its wrist and then checks me. The numbers don't match."
+    },
+    "Fan Technician": {
+      "color": "#fdba74",
+      "baseAttack": 9,
+      "baseDefense": 5,
+      "startingHeat": 55,
+      "statSplit": {
+        "pAtkR": 0.5,
+        "sAtkR": 0.5,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Keeps the ceiling fans turning and the warm air moving. Turns the hot air on you.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Exhaust Blast",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 14,
+          "heatGenerated": 8,
+          "attackPattern": "cone"
+        },
+        {
+          "type": "attack",
+          "name": "Wrench",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Full Draught",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 18,
+          "heatGenerated": 12,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "defend",
+          "name": "Duct Cover",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Feel that? That's them. Every one of them, warm.",
+        "The fans never stop. If they stop, we all cook."
+      ],
+      "lateLines": [
+        "You run hot. Hotter than they do."
+      ],
+      "firstSight": "The air it breathes out is warm in a way air shouldn't be. It's been through people first."
+    },
+    "Lattice Thief": {
+      "color": "#4ade80",
+      "baseAttack": 12,
+      "baseDefense": 2,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.75,
+        "sAtkR": 0.25,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Cuts the charge out of sleepers to sell. Quick with a blade and quicker to run.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Harvest Cut",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge",
+          "effects": {
+            "bleed": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Low Slash",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Open Them Up",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 6,
+          "heatGenerated": 12,
+          "attackPattern": "melee_long",
+          "effects": {
+            "bleed": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Duck",
+          "description": "",
+          "defenseBoost": 7,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "You've got a good lattice in you. Hold still.",
+        "They don't feel it. They don't feel anything."
+      ],
+      "lateLines": [
+        "You're warm. The warm ones always have charge."
+      ],
+      "firstSight": "It holds a cut-out piece of someone up to the light, and the light comes through it, blue."
+    },
+    "Academy Graduate": {
+      "color": "#60a5fa",
+      "baseAttack": 11,
+      "baseDefense": 5,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Trained in twenty minutes and certain of everything. Precise, fast and very new.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Textbook Strike",
+          "description": "",
+          "damage": 12,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Procedure",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "Exam Conditions",
+          "description": "",
+          "damage": 21,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.6,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "defend",
+          "name": "Form",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "I know exactly what you are. I downloaded it this morning.",
+        "Section four. Unauthorised occupancy. I know this one."
+      ],
+      "lateLines": [
+        "They didn't put you in the training. Why didn't they put you in?"
+      ],
+      "firstSight": "It knows everything it was given and nothing it wasn't. I recognise that."
+    },
+    "Kizuna Auditor": {
+      "color": "#c4b5fd",
+      "baseAttack": 10,
+      "baseDefense": 6,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.35,
+        "sAtkR": 0.65,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Checks that every pod runs certified software. Looks right through you to the chip.",
+      "traits": [
+        "sighted"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Checksum",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "beam",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Revoke",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt",
+          "effects": {
+            "stun": 0.2
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Full Audit",
+          "description": "",
+          "damage": 22,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 10,
+          "heatGenerated": 12,
+          "attackPattern": "ring"
+        },
+        {
+          "type": "defend",
+          "name": "Signed",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Unsigned process detected.",
+        "You aren't on the manifest. You aren't on anything."
+      ],
+      "lateLines": [
+        "Unsigned again. Still running. How are you still running?"
+      ],
+      "firstSight": "It isn't looking at the body. It's reading what's inside the skull, and frowning."
+    },
+    "Ward Sister": {
+      "color": "#f9a8d4",
+      "baseAttack": 22,
+      "baseDefense": 7,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Runs the first ward. Knows every sleeper by number, and knows yours is wrong.",
+      "signature": "sig_sister_keys",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Firm Hand",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Night Round",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Lights Out, All of You",
+          "description": "",
+          "damage": 25,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Starch",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Back in. I don't care whose body.",
+        "I've a hundred and fifteen to see to. You're a hundred and sixteen."
+      ],
+      "lateLines": [
+        "You again. In 4471 this time. Get back in."
+      ],
+      "firstSight": "Keys on a chain round her neck, one for every pod. She touches them like a rosary."
+    },
+    "Academy Prefect": {
+      "color": "#3b82f6",
+      "baseAttack": 18,
+      "baseDefense": 8,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Top of a class that lasted twenty minutes. Fights from a manual written for something else.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Model Answer",
+          "description": "",
+          "damage": 15,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Correction",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Final Exam",
+          "description": "",
+          "damage": 27,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.6,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "defend",
+          "name": "Honours",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "There's no chapter on you. I checked.",
+        "Stand where the diagram says to stand."
+      ],
+      "lateLines": [
+        "They've added you to the course now. You're a case study."
+      ],
+      "firstSight": "It moves like a demonstration. I wonder who it learned from, and if they were ever asked."
+    },
+    "The Long Sleeper": {
+      "color": "#7dd3fc",
+      "baseAttack": 10,
+      "baseDefense": 6,
+      "startingHeat": 25,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Under so long the dream has become them. The dream is made of your memories, and so is the fight.",
+      "signature": "sig_sleeper_eyes",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Remembered Piston Drive",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Remembered Crane Hook",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Remembered Undertow",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 12,
+          "heatGenerated": 12,
+          "attackPattern": "ring"
+        },
+        {
+          "type": "defend",
+          "name": "Deeper",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "I've been dreaming you. Rafts. A king. The sea.",
+        "Stay. It's nicer in here than out there."
+      ],
+      "lateLines": [
+        "You were in it again last night. Different body. Same you."
+      ],
+      "firstSight": "This is the raft. The throne. The King's room. But it's wrong, and it's facing the other way."
+    },
+    "The Count": {
+      "color": "#e2e8f0",
+      "baseAttack": 13,
+      "baseDefense": 8,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "The officer who keeps the count. It has been one over for a long time, and it knows which one.",
+      "signature": "sig_count_clicker",
+      "traits": [
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "focused"
+        ],
+        "line": "The Count stops counting. It just looks at you."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Tally",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Recount",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.55,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "One Over",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.6,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Clipboard Wall",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Eleven thousand five hundred and one.",
+        "There should be eleven thousand five hundred. There's you."
+      ],
+      "lateLines": [
+        "One over. Always one over. Every time you come back."
+      ],
+      "firstSight": "It clicks a counter in its hand every time I move. It has been clicking a long time."
+    },
+    "The First Sleeper": {
+      "color": "#bae6fd",
+      "baseAttack": 15,
+      "baseDefense": 7,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "The oldest sleeper, under longer than the town has stood. Every dream in the ward runs through it.",
+      "signature": "sig_lattice_heart",
+      "traits": [
+        "sighted",
+        "enduring"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "fast"
+        ],
+        "line": "The First Sleeper wakes, a little. Every pod in the ward goes dark at once."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Lullaby",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ring",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Rotation",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Forty Centuries",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.4,
+          "heatTransfer": 14,
+          "heatGenerated": 12,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.35
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Dream Deeper",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "What do you dream of, little light?",
+        "Nothing? Nothing at all? Then what are you?"
+      ],
+      "lateLines": [
+        "Still nothing. You still dream of nothing."
+      ],
+      "firstSight": "It is so old it has forgotten it was ever awake. It is the only thing here that frightens me."
     }
   },
   "patchworkKing": {

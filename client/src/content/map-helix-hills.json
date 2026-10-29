@@ -1,0 +1,1015 @@
+{
+  "about": "Chapter three's hidden map, Helix Hills: the wards, the staff town and the Ridge. Same rules as the other maps. 'o' in arenas is a cold pod. dreamward is drawn in chapter one's tileset (a dream of the sea).",
+  "chapter": "helix-hills",
+  "title": "Chapter three: Helix Hills",
+  "entry": "pod",
+  "end": "oldest",
+  "ending": "The First Sleeper stops dreaming. For a moment every pod in the ward is quiet, and you are the only thing in Helix Hills that is awake. You don't dream. You never did.",
+  "goals": [
+    "sheet",
+    "file",
+    "photo"
+  ],
+  "rooms": [
+    {
+      "id": "pod",
+      "name": "Pod 4471",
+      "text": "A pod with its lid up and the gel still warm. The body in it is yours now, and the body is dreaming.",
+      "look": {
+        "text": "A number on the lid: 4471. Someone has scratched a second number beside it, and crossed it out."
+      },
+      "exits": [
+        {
+          "dir": "out",
+          "hint": "rows of pods, humming",
+          "to": "rowsa"
+        }
+      ]
+    },
+    {
+      "id": "rowsa",
+      "name": "Ward rows",
+      "text": "Pods in rows to the end of sight, each one lit from inside. Fans turn overhead and the air tastes of other people's breath.",
+      "threat": 1,
+      "enemy": "Sleepwalker",
+      "arena": [
+        "...E...",
+        ".o...o.",
+        ".......",
+        ".o.#.o.",
+        ".......",
+        ".o...o.",
+        ".......",
+        "..d....",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "in",
+          "hint": "pod 4471",
+          "to": "pod"
+        },
+        {
+          "dir": "north",
+          "hint": "a nurses' station",
+          "to": "station"
+        },
+        {
+          "dir": "east",
+          "hint": "a corridor of terminals",
+          "to": "terminals"
+        }
+      ]
+    },
+    {
+      "id": "station",
+      "name": "Nurses' station",
+      "text": "A desk with a kettle, a rota and a screen of numbers counting down. The chair is still turning.",
+      "threat": 2,
+      "look": {
+        "text": "The rota has everyone's name on it, and one line at the bottom in different ink: whoever is in 4471."
+      },
+      "enemy": "Continuation Officer",
+      "arena": [
+        "..E....",
+        ".......",
+        ".#.#.o.",
+        ".......",
+        ".n...o.",
+        ".......",
+        "..p....",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the ward rows",
+          "to": "rowsa"
+        },
+        {
+          "dir": "north",
+          "hint": "a laundry, steam rolling out",
+          "to": "laundry"
+        },
+        {
+          "dir": "east",
+          "hint": "a vending machine, lit",
+          "to": "vending"
+        }
+      ]
+    },
+    {
+      "id": "vending",
+      "name": "The vending alcove",
+      "text": "A machine that sells sweets to people who never wake up to eat them. It takes your coins and gives you what you need.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the nurses' station",
+          "to": "station"
+        }
+      ]
+    },
+    {
+      "id": "terminals",
+      "name": "Terminal corridor",
+      "text": "Terminals along both walls, one number on each, all ticking down at the same rate. Nobody reads them.",
+      "threat": 3,
+      "look": {
+        "text": "The numbers aren't time. They go up when a sleeper dreams hard, and down when they don't. Yours isn't on any of them."
+      },
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "E.....E",
+        ".p...p.",
+        ".......",
+        ".p.o.p.",
+        ".......",
+        ".p...p.",
+        ".......",
+        "...c...",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the ward rows",
+          "to": "rowsa"
+        },
+        {
+          "dir": "north",
+          "hint": "the count room",
+          "to": "countroom"
+        }
+      ]
+    },
+    {
+      "id": "laundry",
+      "name": "The laundry",
+      "text": "Sheets boiling in vats, steam rolling along the ceiling. Every sheet has a number stencilled in the corner.",
+      "threat": 3,
+      "enemy": "Night Orderly",
+      "arena": [
+        "...E...",
+        ".f...f.",
+        ".......",
+        "..n.n..",
+        ".o...o.",
+        ".......",
+        ".f.n.f.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the nurses' station",
+          "to": "station"
+        },
+        {
+          "dir": "east",
+          "hint": "the count room",
+          "to": "countroom"
+        },
+        {
+          "dir": "north",
+          "hint": "a long dark ward",
+          "to": "wardb"
+        }
+      ]
+    },
+    {
+      "id": "countroom",
+      "name": "The count room",
+      "text": "A tally board as big as a wall, filled in by hand. The last line has been rubbed out and rewritten so many times the board shows through.",
+      "threat": 4,
+      "look": {
+        "text": "Eleven thousand five hundred. Then, in a different hand: one over.",
+        "goal": "sheet"
+      },
+      "enemy": "Academy Graduate",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...o...",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the terminal corridor",
+          "to": "terminals"
+        },
+        {
+          "dir": "west",
+          "hint": "the laundry",
+          "to": "laundry"
+        },
+        {
+          "dir": "north",
+          "hint": "the first ward",
+          "to": "sisterward"
+        }
+      ]
+    },
+    {
+      "id": "sisterward",
+      "name": "The first ward",
+      "text": "The oldest ward, its pods yellowed and its fans slow. Someone walks the rows at night with a ring of keys.",
+      "threat": 5,
+      "arena": [
+        "...E...",
+        ".......",
+        ".......",
+        "...o...",
+        ".......",
+        ".......",
+        "..o.o..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the count room",
+          "to": "countroom"
+        },
+        {
+          "dir": "east",
+          "hint": "the long dark ward",
+          "to": "wardb"
+        }
+      ]
+    },
+    {
+      "id": "wardb",
+      "name": "The long dark ward",
+      "text": "A ward where half the pod lights have failed. In the dark ones you can hear breathing, slow and even.",
+      "threat": 6,
+      "look": {
+        "text": "A pod open and empty, the lattice cut out of the gel in a neat square. The square is still warm."
+      },
+      "cache": true,
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..o.o..",
+        ".......",
+        ".......",
+        ".......",
+        "..h.h..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the laundry",
+          "to": "laundry"
+        },
+        {
+          "dir": "west",
+          "hint": "the first ward",
+          "to": "sisterward"
+        },
+        {
+          "dir": "north",
+          "hint": "fans the size of rooms",
+          "to": "fanhall"
+        }
+      ]
+    },
+    {
+      "id": "fanhall",
+      "name": "The fan hall",
+      "text": "Fans the size of rooms push warm air down a shaft toward the town. The warmth comes from the wards, from everyone in them.",
+      "threat": 7,
+      "enemy": "Fan Technician",
+      "arena": [
+        "...E...",
+        ".f.f.f.",
+        ".......",
+        "..o.o..",
+        ".......",
+        ".f.f.f.",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the long dark ward",
+          "to": "wardb"
+        },
+        {
+          "dir": "east",
+          "hint": "a ward with one light on",
+          "to": "ward7"
+        }
+      ]
+    },
+    {
+      "id": "ward7",
+      "name": "Ward seven",
+      "text": "A ward where one pod is open and the sleeper in it is sitting up, wide awake, watching the door. They say they've been waiting for the thing in the walls.",
+      "threat": 8,
+      "ally": "ninety",
+      "enemy": "Sleepwalker",
+      "arena": [
+        "..E.E..",
+        ".o...o.",
+        ".......",
+        "o..#..o",
+        ".......",
+        ".o...o.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the fan hall",
+          "to": "fanhall"
+        },
+        {
+          "dir": "north",
+          "hint": "the night corridor",
+          "to": "nightway"
+        }
+      ]
+    },
+    {
+      "id": "nightway",
+      "name": "The night corridor",
+      "text": "A corridor where the lights come on as you walk and go off behind you. The orderlies use it to move sleepers between wards.",
+      "threat": 9,
+      "enemy": "Night Orderly",
+      "arena": [
+        "~~.E.~~",
+        "~~...~~",
+        "~~.p.~~",
+        "~~...~~",
+        "~~.o.~~",
+        "~~...~~",
+        "~~.p.~~",
+        "~~...~~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "ward seven",
+          "to": "ward7"
+        },
+        {
+          "dir": "north",
+          "hint": "a pod that dreams",
+          "to": "dreamward"
+        }
+      ]
+    },
+    {
+      "id": "dreamward",
+      "name": "The deep ward",
+      "text": "One pod alone in a round room, cables running into it from every wall. Inside it, someone is dreaming of the sea.",
+      "threat": 10,
+      "look": {
+        "text": "On the pod's glass, condensation in the shape of a raft, and a throne, and a crown."
+      },
+      "tileset": "indian-ocean",
+      "arena": [
+        "ppp.E.ppp",
+        ".........",
+        ".p.....p.",
+        ".........",
+        ".........",
+        ".p.....p.",
+        ".........",
+        ".........",
+        ".p.....p.",
+        ".........",
+        "....P...."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the night corridor",
+          "to": "nightway"
+        },
+        {
+          "dir": "up",
+          "hint": "stairs up into daylight",
+          "to": "gate"
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "name": "The staff gate",
+      "text": "A turnstile between the wards and the town, with a camera that looks at you for a long time. It lets you through.",
+      "threat": 11,
+      "enemy": "Continuation Officer",
+      "arena": [
+        "...E...",
+        ".......",
+        ".p.#.p.",
+        ".......",
+        "...o...",
+        ".......",
+        ".p.#.p.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the deep ward",
+          "to": "dreamward"
+        },
+        {
+          "dir": "north",
+          "hint": "a street of staff houses",
+          "to": "streets"
+        },
+        {
+          "dir": "east",
+          "hint": "a canteen, chairs stacked",
+          "to": "commissary"
+        }
+      ]
+    },
+    {
+      "id": "commissary",
+      "name": "The commissary",
+      "text": "A canteen where the staff eat under a mural of happy sleepers. Someone at the till sells parts from under the counter.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the staff gate",
+          "to": "gate"
+        }
+      ]
+    },
+    {
+      "id": "streets",
+      "name": "Staff streets",
+      "text": "Neat houses with the blinds down and hot water steaming from the drains. The water is warm because of the wards.",
+      "threat": 12,
+      "enemy": "Fan Technician",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".#...#.",
+        ".......",
+        "..fbf..",
+        ".......",
+        ".#...#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the staff gate",
+          "to": "gate"
+        },
+        {
+          "dir": "west",
+          "hint": "an academy, white and new",
+          "to": "academy"
+        },
+        {
+          "dir": "north",
+          "hint": "a clinic",
+          "to": "clinic"
+        }
+      ]
+    },
+    {
+      "id": "academy",
+      "name": "The Academy",
+      "text": "A white building where training takes twenty minutes and the students come out certain. The corridors are full of them, all walking in step.",
+      "threat": 13,
+      "look": {
+        "text": "A list of graduates on the wall. Every name has a date beside it, and every date is today."
+      },
+      "enemy": "Academy Graduate",
+      "arena": [
+        "...E...",
+        ".#.#.#.",
+        ".......",
+        ".......",
+        ".#.o.#.",
+        ".......",
+        ".......",
+        ".#.#.#.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "staff streets",
+          "to": "streets"
+        },
+        {
+          "dir": "north",
+          "hint": "the lecture hall",
+          "to": "lecture"
+        }
+      ]
+    },
+    {
+      "id": "clinic",
+      "name": "The staff clinic",
+      "text": "A clinic for the staff, clean and bright and empty. The chairs face a screen that plays the same calm video over and over.",
+      "threat": 14,
+      "cache": true,
+      "enemy": "Night Orderly",
+      "arena": [
+        "..E....",
+        ".......",
+        "b.o.o.b",
+        ".......",
+        ".n.p.n.",
+        ".......",
+        "b.....b",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "staff streets",
+          "to": "streets"
+        },
+        {
+          "dir": "east",
+          "hint": "the archive",
+          "to": "archive"
+        }
+      ]
+    },
+    {
+      "id": "lecture",
+      "name": "The lecture hall",
+      "text": "Rows of seats facing a stage where nobody stands. A voice from the ceiling explains a body, part by part.",
+      "threat": 14,
+      "enemy": "Academy Graduate",
+      "arena": [
+        "E..E..E",
+        ".......",
+        "##...##",
+        ".......",
+        "..o.o..",
+        ".......",
+        "##...##",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the Academy",
+          "to": "academy"
+        },
+        {
+          "dir": "east",
+          "hint": "the prefects' hall",
+          "to": "prefects"
+        }
+      ]
+    },
+    {
+      "id": "prefects",
+      "name": "The prefects' hall",
+      "text": "Portraits of the best students down both walls, each one painted the morning they graduated. The newest frame is empty.",
+      "threat": 15,
+      "arena": [
+        "...E...",
+        ".......",
+        ".p...p.",
+        ".......",
+        ".p.o.p.",
+        ".......",
+        ".p...p.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the lecture hall",
+          "to": "lecture"
+        },
+        {
+          "dir": "north",
+          "hint": "a records archive",
+          "to": "archive"
+        }
+      ]
+    },
+    {
+      "id": "archive",
+      "name": "The archive",
+      "text": "Files on every sleeper, back to the first. The drawers are labelled by number, not name.",
+      "threat": 16,
+      "look": {
+        "text": "A file for 4471, and in it a second file, much thinner, for whatever is in 4471 now. Date of birth: blank.",
+        "goal": "file"
+      },
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "E.....E",
+        ".#.#.#.",
+        ".......",
+        ".#.o.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the staff clinic",
+          "to": "clinic"
+        },
+        {
+          "dir": "south",
+          "hint": "the prefects' hall",
+          "to": "prefects"
+        },
+        {
+          "dir": "north",
+          "hint": "the pumping house",
+          "to": "pumphouse"
+        }
+      ]
+    },
+    {
+      "id": "pumphouse",
+      "name": "The pumping house",
+      "text": "Pipes carrying warm water from the wards to the town, lagged in grey. The pipes knock, as if something inside wants out.",
+      "threat": 17,
+      "enemy": "Fan Technician",
+      "arena": [
+        "...E...",
+        ".......",
+        "dd...dd",
+        ".......",
+        "..f.f..",
+        ".......",
+        "dd...dd",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the archive",
+          "to": "archive"
+        },
+        {
+          "dir": "east",
+          "hint": "the town square",
+          "to": "square"
+        }
+      ]
+    },
+    {
+      "id": "square",
+      "name": "Town square",
+      "text": "A square with a fountain, a bench and a statue of a man holding a light to the sky. The fountain's water is warm.",
+      "threat": 18,
+      "look": {
+        "text": "On the statue's plinth, the town's motto, worn smooth by hands: we keep them so they keep us."
+      },
+      "enemy": "Continuation Officer",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...b...",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the pumping house",
+          "to": "pumphouse"
+        },
+        {
+          "dir": "north",
+          "hint": "the count's office",
+          "to": "office"
+        },
+        {
+          "dir": "east",
+          "hint": "a chapel with no saint",
+          "to": "chapel"
+        }
+      ]
+    },
+    {
+      "id": "chapel",
+      "name": "The chapel",
+      "text": "A chapel where the pews face a window onto the wards. People come here to watch the sleepers breathe.",
+      "look": {
+        "text": "A child's photo tucked into a hymn book: a beach, a bucket, a face. You look for it in your own memory and find nothing at all.",
+        "goal": "photo"
+      },
+      "cache": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "town square",
+          "to": "square"
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "name": "The count's office",
+      "text": "An office whose walls are covered in counts, every one of them crossed out and done again. The clicking never stops.",
+      "threat": 20,
+      "arena": [
+        "...E...",
+        ".......",
+        ".#.p.#.",
+        ".......",
+        ".o...o.",
+        ".......",
+        ".#...#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "town square",
+          "to": "square"
+        },
+        {
+          "dir": "up",
+          "hint": "steps up the hill",
+          "to": "steps"
+        }
+      ]
+    },
+    {
+      "id": "steps",
+      "name": "The hill steps",
+      "text": "Stone steps up to the Ridge, where it is cooler before any machine has run. Each step is a little cleaner than the one below.",
+      "threat": 21,
+      "enemy": "Sleepwalker",
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        "~o.#.o~",
+        "~.....~",
+        "~~...~~",
+        "~.....~",
+        "~o...o~",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the count's office",
+          "to": "office"
+        },
+        {
+          "dir": "up",
+          "hint": "the Ridge gate",
+          "to": "ridgegate"
+        }
+      ]
+    },
+    {
+      "id": "ridgegate",
+      "name": "The Ridge gate",
+      "text": "A gate of glass and brushed steel, opened by a smile you don't have. It opens anyway.",
+      "threat": 22,
+      "enemy": "Night Orderly",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".p...p.",
+        "o..#..o",
+        ".......",
+        ".p...p.",
+        "o.....o",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the hill steps",
+          "to": "steps"
+        },
+        {
+          "dir": "north",
+          "hint": "gardens, watered",
+          "to": "gardens"
+        }
+      ]
+    },
+    {
+      "id": "gardens",
+      "name": "The Ridge gardens",
+      "text": "Lawns watered in a place where water is bought by the glass. The sprinklers tick round, and nothing here sweats.",
+      "threat": 23,
+      "enemy": "Night Orderly",
+      "arena": [
+        "...E...",
+        ".n...n.",
+        "o.....o",
+        "..b.b..",
+        ".......",
+        ".n...n.",
+        "o.....o",
+        "...o...",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the Ridge gate",
+          "to": "ridgegate"
+        },
+        {
+          "dir": "east",
+          "hint": "a house of glass",
+          "to": "glasshouse"
+        }
+      ]
+    },
+    {
+      "id": "glasshouse",
+      "name": "The glass house",
+      "text": "A house with walls of glass looking down over the wards. The air inside is cool, and it smells of the people below.",
+      "threat": 24,
+      "look": {
+        "text": "A thermostat on the wall, set low. A note under it in careful handwriting: thank you, all of you."
+      },
+      "enemy": "Sleepwalker",
+      "arena": [
+        "E.....E",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        ".o...o.",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the Ridge gardens",
+          "to": "gardens"
+        },
+        {
+          "dir": "north",
+          "hint": "the guard house",
+          "to": "guardhouse"
+        }
+      ]
+    },
+    {
+      "id": "guardhouse",
+      "name": "The guard house",
+      "text": "The Ridge's own guard, sharper than anything below. They don't say sorry when they swing.",
+      "threat": 25,
+      "arena": [
+        "...E...",
+        ".......",
+        ".#.o.#.",
+        "o.....o",
+        "#.....#",
+        "o.....o",
+        ".#.o.#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the glass house",
+          "to": "glasshouse"
+        },
+        {
+          "dir": "north",
+          "hint": "the lattice gallery",
+          "to": "gallery"
+        }
+      ]
+    },
+    {
+      "id": "gallery",
+      "name": "The lattice gallery",
+      "text": "Battery lattices in glass cases, lit like jewels, each one labelled with how long it ran. The longest ran for forty years.",
+      "threat": 26,
+      "enemy": "Lattice Thief",
+      "arena": [
+        "E..E..E",
+        ".p.p.p.",
+        ".......",
+        ".p.o.p.",
+        ".......",
+        ".p.p.p.",
+        "o.....o",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the guard house",
+          "to": "guardhouse"
+        },
+        {
+          "dir": "north",
+          "hint": "a shaft down into the dark",
+          "to": "shaft"
+        }
+      ]
+    },
+    {
+      "id": "shaft",
+      "name": "The cold shaft",
+      "text": "A shaft dropping from the Ridge back down under the wards, cold air pouring up it. At the bottom, something is breathing very slowly.",
+      "threat": 28,
+      "enemy": "Academy Graduate",
+      "arena": [
+        "...E...",
+        ".......",
+        "o.....o",
+        ".......",
+        "..h.h..",
+        ".......",
+        "o.....o",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "up",
+          "hint": "the lattice gallery",
+          "to": "gallery"
+        },
+        {
+          "dir": "down",
+          "hint": "the oldest pod",
+          "to": "oldest",
+          "label": "Down, into the cold",
+          "requires": "goals"
+        }
+      ]
+    },
+    {
+      "id": "oldest",
+      "name": "The oldest pod",
+      "text": "A pod older than the town, grown into the rock, every cable in the ward running into it. The sleeper inside has been dreaming for longer than anyone has been awake.",
+      "threat": 30,
+      "quiet": "The oldest pod is dark and cold. The cables running into it hang slack, and somewhere above, eleven thousand sleepers turn over in their sleep.",
+      "arena": [
+        "...E...",
+        ".......",
+        ".o...o.",
+        ".......",
+        "o.....o",
+        ".......",
+        ".o...o.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "up",
+          "hint": "the cold shaft",
+          "to": "shaft"
+        }
+      ]
+    }
+  ]
+}

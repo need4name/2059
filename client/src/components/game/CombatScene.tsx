@@ -8,7 +8,7 @@ import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
-import { activeChapter } from '@/lib/combat/chapters';
+import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
 // Helper to get all tiles that can be TARGETED from a position with a given pattern
@@ -470,7 +470,7 @@ const width = canvas.width / dpr;
 const height = canvas.height / dpr;
 
 // === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
-const tileset = activeChapter().tileset;
+const tileset = (grid.tilesetOf ? chapterById(grid.tilesetOf) : activeChapter()).tileset;
 const now = Date.now();
 drawSea(ctx, width, height, tileset, now);
 
@@ -500,7 +500,7 @@ const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 const tideNow = useCombat.getState().tide;
 const floodNext = !!tideNow && !tideNow.high && tideNow.turnsLeft === 1;
 const alarmOn = !!useCombat.getState().alarm?.on;
-const redPulse = 0.5 + 0.5 * Math.sin(now / 600);
+const dimPulse = 0.5 + 0.5 * Math.sin(now / 600);
 const besideCold = (row: number, col: number) => {
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (grid.tiles?.[row + dr]?.[col + dc]?.cold) return true;
   return false;
@@ -548,10 +548,9 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
-  // Lights out: once the alarm trips the floor goes dark under a slow red pulse; tiles beside a cold pod stay cool blue
+  // Lights out: once the alarm trips the floor goes dark (never red: red means danger); tiles beside a cold pod stay cool blue
   if (alarmOn) {
-    const cool = besideCold(row, col);
-    ctx.fillStyle = cool ? 'rgba(40,120,170,0.28)' : `rgba(${Math.round(60 + 50 * redPulse)},8,12,0.42)`;
+    ctx.fillStyle = besideCold(row, col) ? 'rgba(60,150,200,0.30)' : `rgba(4,6,10,${0.42 + 0.06 * dimPulse})`;
     ctx.fill();
   }
   if (tint) { ctx.fillStyle = tint; ctx.fill(); }

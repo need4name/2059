@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-createPlayer, createBoss, createPatchworkKing, createEcho,
+createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, LONG_SLEEPER,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -209,7 +209,10 @@ const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, a
 
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
-if (!farm && level === 10) return [activeChapter().cast.setPiece === 'echo' ? createEcho(usePlayi.getState().lastBody) : createPatchworkKing()];
+if (!farm && level === 10) {
+const piece = activeChapter().cast.setPiece;
+return [piece === 'echo' ? createEcho(usePlayi.getState().lastBody) : piece === 'longSleeper' ? createSetPiece(LONG_SLEEPER) : createPatchworkKing()];
+}
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
 const lead = createBoss(level, firstRun && !farm, named);
@@ -499,8 +502,9 @@ const units = planFoes(level, !farm && get().progression.deathCount === 0, farm,
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
 // Map fights use the room's own drawn arena; farm fights roll one
-const drawn = !farm ? roomById(useMap.getState().room).arena : undefined;
-const grid = drawn ? buildArena(drawn) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
+const fightRoom = !farm ? roomById(useMap.getState().room) : undefined;
+const drawn = fightRoom?.arena;
+const grid = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 const spots = spawnFoePositions(grid, units.length);
 const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
@@ -519,7 +523,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm), flinchUsed: false, playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
 set({ round: 0, turnQueue: [], roundOrder: [] });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

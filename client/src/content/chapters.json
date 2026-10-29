@@ -60,6 +60,37 @@
           { "art": "bollard", "name": "Mooring bollard" }
         ]
       }
+    },
+    {
+      "id": "helix-hills",
+      "name": "Helix Hills",
+      "place": "A sealed town, and the wards beneath it",
+      "map": "helix-hills",
+      "ready": true,
+      "rules": { "alarm": true, "flinch": true },
+      "cast": {
+        "rotation": ["Continuation Officer", "Sleepwalker", "Night Orderly", "Fan Technician", "Lattice Thief", "Academy Graduate", "Helix Continuity Warden", "Kizuna Auditor"],
+        "elites": ["Ward Sister", "Academy Prefect", "Unregistered Operator"],
+        "bosses": ["The Count", "The First Sleeper"],
+        "firstFight": "Continuation Officer",
+        "setPiece": "longSleeper"
+      },
+      "tileset": {
+        "floor": { "light": "#8b969a", "dark": "#838e92", "seam": "#4b5458" },
+        "sea": { "top": "#1b2126", "bottom": "#0a0d10", "foam": "#3b454c" },
+        "hazards": [
+          { "art": "steam", "name": "Steam vent", "damage": 7 },
+          { "art": "cable", "name": "Live cable", "damage": 6 },
+          { "art": "coolant", "name": "Coolant spill", "damage": 5 },
+          { "art": "grate", "name": "Open grate", "damage": 4 }
+        ],
+        "obstacles": [
+          { "art": "locker", "name": "Staff locker" },
+          { "art": "canister", "name": "Gas canister" },
+          { "art": "cot", "name": "Cot stack" },
+          { "art": "terminal", "name": "Ward terminal" }
+        ]
+      }
     }
   ]
 }
