@@ -66,14 +66,14 @@ const chapterFile = z.object({
     id: z.string().regex(/^[a-z-]+$/), name: text, place: text, map: z.string().regex(/^[a-z-]+$/), ready: z.boolean(),
     cast: z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
-      firstFight: text, setPiece: z.enum(['patchworkKing', 'echo', 'longSleeper']),
+      firstFight: text, setPiece: text,
     }).strict(),
-    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional() }).strict().optional(),
+    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
       hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump', 'steam', 'coolant', 'grate']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
-      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal']), name: text }).strict()).min(1),
+      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal', 'planter', 'mast']), name: text }).strict()).min(1),
     }).strict(),
   }).strict()).min(1),
 }).strict();
@@ -232,6 +232,7 @@ export function checkContent(): string[] {
     for (const c of cr.data.chapters) {
       if (!MAPS[c.map]) problems.push(`chapters.json ${c.id}: no map "${c.map}" (add content/map-${c.map}.json to MAPS in lib/engine/map.ts)`);
       const { rotation, elites, bosses, firstFight } = c.cast;
+      if (c.cast.setPiece !== 'Patchwork King' && !defined[c.cast.setPiece]) problems.push(`chapters.json ${c.id}: set piece "${c.cast.setPiece}" isn't in enemies.json`);
       for (const n of [...rotation, ...elites, ...bosses, firstFight]) if (!defined[n]) problems.push(`chapters.json ${c.id}: "${n}" is in the cast but not in enemies.json`);
     }
     if (!cr.data.chapters[0].ready) problems.push('chapters.json: the first chapter must be ready');

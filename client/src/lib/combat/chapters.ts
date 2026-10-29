@@ -20,8 +20,8 @@ export interface Cast {
   bosses: string[];
   /** The first host's set piece on threat 3. */
   firstFight: string;
-  /** The chapter's built set piece on threat 10: the Patchwork King, the Echo (your last body's implants, fighting you) or the Long Sleeper. */
-  setPiece: 'patchworkKing' | 'echo' | 'longSleeper';
+  /** Who holds threat 10, made a wall (KING_MULT): the Patchwork King and the Echo are built specially; any other enemy name uses its enemies.json entry. */
+  setPiece: string;
 }
 /** Board rules that hold in every fight of a chapter. */
 export interface ChapterRules {
@@ -29,6 +29,8 @@ export interface ChapterRules {
   alarm?: boolean;
   /** Hosts still have a dreamer inside, who may flinch once a fight and move you a tile. */
   flinch?: boolean;
+  /** Wind pushes everyone a tile at the start of every round, and changes direction every few rounds. */
+  wind?: boolean;
 }
 export interface Chapter { id: string; name: string; place: string; map: string; ready: boolean; cast: Cast; tileset: Tileset; rules?: ChapterRules }
 

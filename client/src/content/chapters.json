@@ -1,5 +1,5 @@
 {
-  "about": "Chapters: self-contained awakenings in different parts of the world, played in this order. Each has its own map (content/map-<map>.json), cast (who you fight: regular enemies in rotation, elites on threat 5/15/25, bosses on 20/30 in turn, the set piece on 10 and the first-life fight on 3) and tileset (how the board looks, which hazards and cover appear). A chapter is only offered once ready is true. Hazard and obstacle 'art' names must be ones the board knows how to draw (lib/rendering/board.ts).",
+  "about": "Chapters: self-contained awakenings in different parts of the world, played in this order. Each has its own map (content/map-<map>.json), cast (who you fight: regular enemies in rotation, elites on threat 5/15/25, bosses on 20/30 in turn, the set piece on 10, named by its enemy, and the first-life fight on 3) and tileset (how the board looks, which hazards and cover appear). A chapter is only offered once ready is true. Hazard and obstacle 'art' names must be ones the board knows how to draw (lib/rendering/board.ts).",
   "chapters": [
     {
       "id": "indian-ocean",
@@ -12,7 +12,7 @@
         "elites": ["Cartel Enforcer", "CBN Extraction Surgeon", "Unregistered Operator"],
         "bosses": ["The Fitter", "The Listener"],
         "firstFight": "Cartel Enforcer",
-        "setPiece": "patchworkKing"
+        "setPiece": "Patchwork King"
       },
       "tileset": {
         "floor": { "light": "#5c7380", "dark": "#536975", "seam": "#2c3d47" },
@@ -42,7 +42,7 @@
         "elites": ["Silt Matriarch", "Checkpoint Commander", "Unregistered Operator"],
         "bosses": ["The Living Vessel", "The Registrar"],
         "firstFight": "Hull-Bound Deckhand",
-        "setPiece": "echo"
+        "setPiece": "The Echo"
       },
       "tileset": {
         "floor": { "light": "#5e5a50", "dark": "#565248", "seam": "#2b2924" },
@@ -73,7 +73,7 @@
         "elites": ["Ward Sister", "Academy Prefect", "Unregistered Operator"],
         "bosses": ["The Count", "The First Sleeper"],
         "firstFight": "Continuation Officer",
-        "setPiece": "longSleeper"
+        "setPiece": "The Long Sleeper"
       },
       "tileset": {
         "floor": { "light": "#8b969a", "dark": "#838e92", "seam": "#4b5458" },
@@ -89,6 +89,37 @@
           { "art": "canister", "name": "Gas canister" },
           { "art": "cot", "name": "Cot stack" },
           { "art": "terminal", "name": "Ward terminal" }
+        ]
+      }
+    },
+    {
+      "id": "rain-machine",
+      "name": "The Rain Machine",
+      "place": "A mountain that makes its own weather",
+      "map": "rain-machine",
+      "ready": true,
+      "rules": { "wind": true },
+      "cast": {
+        "rotation": ["Terrace Worker", "Seeding Drone", "Valley Raider", "Air-Lift Rigger", "Dam Keeper", "Chamber Technician", "Tianxia Compliance Unit", "Ghost-MIL Infiltrator"],
+        "elites": ["Shift Foreman", "Ghost-MIL Captain", "Drone Shepherd"],
+        "bosses": ["The Storm Tower", "The Weather"],
+        "firstFight": "Dam Keeper",
+        "setPiece": "The Overseer"
+      },
+      "tileset": {
+        "floor": { "light": "#7c8a84", "dark": "#74827c", "seam": "#414c47" },
+        "sea": { "top": "#a9bcc6", "bottom": "#5d7280", "foam": "#e8f0f4" },
+        "hazards": [
+          { "art": "steam", "name": "Air-lift vent", "damage": 7 },
+          { "art": "cable", "name": "Live cable", "damage": 6 },
+          { "art": "chem", "name": "Seeding slurry", "damage": 5 },
+          { "art": "grate", "name": "Broken grating", "damage": 4 }
+        ],
+        "obstacles": [
+          { "art": "planter", "name": "Terrace planter" },
+          { "art": "drum", "name": "Slurry drum" },
+          { "art": "nets", "name": "Drone netting" },
+          { "art": "mast", "name": "Antenna mast" }
         ]
       }
     }

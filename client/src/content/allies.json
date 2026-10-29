@@ -70,6 +70,16 @@
         { "type": "attack", "effect": "attack", "name": "Restraint Strap", "description": "A strap torn off a pod, swung hard", "damage": 13, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "melee_long" },
         { "type": "defend", "effect": "mark", "name": "I've Dreamt This", "description": "Your hits on the target do 30% more until your next turn. Any range", "amount": 0.3, "cooldown": 2 }
       ]
+    },
+    {
+      "id": "dust", "name": "Dust", "maker": "Tianxia", "role": "Scout", "unlockLevel": 9, "color": "#fbbf24",
+      "blurb": "A farmer from the dry valley who knows when the drones will fly, and hasn't seen rain fall on their own land in years.",
+      "hp": 1.0, "attack": 9, "defense": 5, "move": 3,
+      "affinity": ["TIANXIA", "PARSU"], "link": "Reads the wind: it never pushes you.",
+      "moves": [
+        { "type": "attack", "effect": "attack", "name": "Sling", "description": "A stone from the valley, thrown hard", "damage": 12, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "ranged" },
+        { "type": "defend", "effect": "guard", "name": "Windbreak", "description": "You guard +12 against the next hit, from anywhere", "defenseBoost": 12, "cooldown": 2 }
+      ]
     }
   ]
 }

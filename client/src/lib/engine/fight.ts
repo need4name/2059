@@ -143,6 +143,8 @@ export interface FightState {
   tide?: { high: boolean; turnsLeft: number } | null;
   /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
   alarm?: { on: boolean; turnsLeft: number } | null;
+  /** Wind, in chapters that have it: which way it blows and rounds until it turns. */
+  wind?: { dir: WindDir; turnsLeft: number } | null;
   /** The dreamer inside the host has flinched this fight (once at most). */
   flinchUsed?: boolean;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -192,7 +194,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false,
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -275,6 +277,91 @@ export function alarmTick(s: FightState): Step {
     foes: s.foes.map(f => (isAlive(f) ? { ...f, heat: clampHeat(f.heat + shift(f.pos)) } : f)),
   };
   return { state, events: [say(cooled ? 'The ward is an oven. The pod beside you is cold' : `The ward is an oven: +${ALARM.heat} heat`)] };
+}
+
+// ── Wind ─────────────────────────────────────────────────────────────────────
+// In chapters with wind, it blows one way and pushes everyone one tile that way
+// as each of your turns ends, downwind units first so a line moves together.
+// A body stops against cover, the edge or another body (no damage). Pushed over
+// a drop it goes in, like a knockback into the sea; onto a hazard, it stands in
+// it. Every WIND.every rounds the wind turns to a new direction (seeded).
+
+export type WindDir = 'north' | 'south' | 'east' | 'west';
+export const WIND = { every: 3 };
+const WIND_STEP: Record<WindDir, TilePosition> = { north: { row: -1, col: 0 }, south: { row: 1, col: 0 }, east: { row: 0, col: 1 }, west: { row: 0, col: -1 } };
+const WIND_DIRS: WindDir[] = ['north', 'east', 'south', 'west'];
+
+export const startWind = (has: boolean): FightState['wind'] =>
+  (has ? { dir: WIND_DIRS[Math.floor(random() * WIND_DIRS.length)], turnsLeft: WIND.every } : null);
+
+/** Your turn ends: the wind pushes everyone a tile, then counts down and maybe turns. */
+export function windTick(s: FightState): Step {
+  if (!s.wind) return { state: s, events: [] };
+  const step = WIND_STEP[s.wind.dir];
+  let state = s;
+  const events: FightEvent[] = [];
+  const bodies: Body[] = [{ kind: 'player' }, ...s.foes.map((f, i) => ({ kind: 'foe' as const, i })).filter(b => isAlive(s.foes[b.i])), ...s.allies.map((a, k) => ({ kind: 'ally' as const, k })).filter(b => allyAlive(s.allies[b.k]))];
+  const swimmingNow = (b: Body) => (b.kind === 'player' ? !!state.playerSwimming : b.kind === 'foe' ? !!state.foes[b.i].swimming : !!state.allies[b.k].swimming);
+  // Furthest downwind first, so a body ahead clears the tile for the one behind
+  const ahead = (b: Body) => { const p = posOf(s, b); return p.row * step.row + p.col * step.col; };
+  for (const b of bodies.sort((x, y) => ahead(y) - ahead(x))) {
+    if (swimmingNow(b) || (b.kind === 'player' && s.perks.windproof)) continue;
+    const at = posOf(state, b);
+    const to = { row: at.row + step.row, col: at.col + step.col };
+    if (!inBounds(to, state.grid) || bodyAt(state, to)) continue;
+    const t = tileAt(to, state.grid);
+    if (t?.type === 'obstacle') continue;
+    if (t?.type === 'void') {
+      events.push(say(`${b.kind === 'player' ? 'The wind takes you over the edge' : `The wind takes ${nameOf(state, b)} over the edge`}`, 'critical'));
+      if (b.kind === 'player') state = { ...state, grid: { ...state.grid, playerPosition: to }, playerSwimming: true };
+      else if (b.kind === 'foe') state = setFoe(state, b.i, { pos: to, swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
+      else state = { ...state, allies: state.allies.map((x, n) => (n === b.k ? { ...x, pos: to, swimming: true, taunting: false } : x)) };
+      continue;
+    }
+    if (b.kind === 'player') state = { ...state, grid: { ...state.grid, playerPosition: to } };
+    else if (b.kind === 'foe') state = setFoe(state, b.i, { pos: to });
+    else state = { ...state, allies: state.allies.map((x, n) => (n === b.k ? { ...x, pos: to } : x)) };
+  }
+  const left = s.wind.turnsLeft - 1;
+  if (left > 0) return { state: { ...state, wind: { dir: s.wind.dir, turnsLeft: left } }, events };
+  const others = WIND_DIRS.filter(d => d !== s.wind!.dir);
+  const dir = others[Math.floor(random() * others.length)];
+  events.push(say(`The wind turns ${dir}`));
+  return { state: { ...state, wind: { dir, turnsLeft: WIND.every } }, events };
+}
+
+/**
+ * The honest red zone: every tile where ending your turn now gets you hit by an
+ * enemy's next attack (or, with onlyShoves, hit by a shove or drag). Without wind
+ * it's the union of foeThreatTiles. With wind, the push comes as your turn ends:
+ * enemies are judged from where the wind leaves them, and a tile is red if the
+ * wind would carry you from it into their reach (over an edge is not red: in the
+ * water you can't be hit).
+ */
+export function dangerTiles(s: FightState, onlyShoves = false): Set<string> {
+  const living = livingFoes(s);
+  if (!s.wind) {
+    const out = new Set<string>();
+    for (const { i } of living) foeThreatTiles(s, i, onlyShoves).forEach(k => out.add(k));
+    return out;
+  }
+  // The board after the push (a long countdown so a preview never rolls the wind's dice)
+  const after = windTick({ ...s, wind: { ...s.wind, turnsLeft: 99 } }).state;
+  const threat = new Set<string>();
+  for (const { i } of living) foeThreatTiles(after, i, onlyShoves).forEach(k => threat.add(k));
+  const step = WIND_STEP[s.wind.dir];
+  const others = [...after.foes.filter(isAlive).map(f => f.pos), ...after.allies.filter(allyAlive).map(a => a.pos)];
+  const out = new Set<string>();
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    const p = { row, col };
+    if (tileAt(p, s.grid)?.type === 'void') continue;
+    const to = { row: row + step.row, col: col + step.col };
+    const blocked = s.perks.windproof || !inBounds(to, s.grid) || tileAt(to, s.grid)?.type === 'obstacle' || others.some(o => same(o, to));
+    if (!blocked && tileAt(to, s.grid)?.type === 'void') continue;
+    const land = blocked ? p : to;
+    if (threat.has(`${land.row},${land.col}`)) out.add(`${row},${col}`);
+  }
+  return out;
 }
 
 // ── Dreamers ─────────────────────────────────────────────────────────────────

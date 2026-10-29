@@ -42,6 +42,7 @@ function CombatHud() {
   if (s.alarm) chips.push(s.alarm.on
     ? { key: 'alarm', tone: 'hostile', text: Fight.besideColdPod(s, s.grid.playerPosition) ? 'Alarm · the pod beside you keeps you cool' : `Alarm · +${Fight.ALARM.heat} heat a round · stand by a cold pod` }
     : { key: 'alarm', tone: s.alarm.turnsLeft === 1 ? 'cred' : 'sys', pulse: s.alarm.turnsLeft === 1, text: s.alarm.turnsLeft === 1 ? 'The alarm trips next round' : `Quiet · the alarm trips in ${s.alarm.turnsLeft} rounds` });
+  if (s.wind) chips.push({ key: 'wind', tone: s.wind.turnsLeft === 1 ? 'cred' : 'sys', text: `Wind ${({ north: '↑', south: '↓', east: '→', west: '←' } as const)[s.wind.dir]} pushes everyone a tile as your turn ends${s.wind.turnsLeft === 1 ? ' · turns next round' : ` · turns in ${s.wind.turnsLeft}`}` });
   if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed · you act later' });
   if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted · you act sooner' });
   const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];

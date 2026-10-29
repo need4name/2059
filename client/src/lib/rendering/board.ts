@@ -271,6 +271,21 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 // ── Cover ────────────────────────────────────────────────────────────────────
 
 const COVER: Record<string, Paint> = {
+  planter: px => {
+    // A terrace planter: a concrete trough with rice standing in muddy water
+    rect(px, 1, 9, 14, 6, '#7d7f78');
+    for (let x = 1; x < 15; x++) { px(x, 9, '#a3a59d'); px(x, 14, '#4f514b'); }
+    rect(px, 2, 10, 12, 2, '#4a5a3a');
+    for (let x = 2; x < 14; x += 2) for (let y = 3 + (x % 3); y < 10; y++) px(x, y, y < 6 ? '#b5d86a' : '#7fa83f');
+  },
+  mast: px => {
+    // An antenna mast on a weighted base, a red light at the top
+    rect(px, 7, 2, 2, 12, '#8a939a');
+    for (let y = 2; y < 14; y++) px(7, y, '#b5bec4');
+    for (const y of [5, 9]) for (let x = 4; x < 12; x++) px(x, y, '#6b747a');
+    px(7, 1, '#ef4444'); px(8, 1, '#f87171');
+    rect(px, 4, 14, 8, 1, '#3e4448'); rect(px, 5, 13, 6, 1, '#555c61');
+  },
   locker: px => {
     // A dented staff locker, door ajar
     rect(px, 4, 1, 8, 14, '#6d7c86');

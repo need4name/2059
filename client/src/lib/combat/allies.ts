@@ -65,6 +65,7 @@ export const ALLY_LINKS: Record<string, (p: Perks) => void> = {
   breaker: (p) => { p.collisionMult *= 1.5; },
   tally: (p) => { p.sidestep = true; },
   ninety: (p) => { p.noFlinch = true; },
+  dust: (p) => { p.windproof = true; },
 };
 
 /** Perks with the party's link bonuses added. */

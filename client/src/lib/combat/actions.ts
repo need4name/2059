@@ -411,8 +411,6 @@ physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttac
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
-/** Chapter three's set piece: a sleeper whose dream is made of your memories. */
-export const LONG_SLEEPER = 'The Long Sleeper';
 /** A set piece from an enemies.json entry: a level-10 frame made a wall with the King's multipliers. */
 export function createSetPiece(name: string, level = 10): Character {
 const base = createBoss(level, false, name);
@@ -460,8 +458,7 @@ export function getBossPreview(level: number, firstRun = false, roomEnemy?: stri
 const S = BOSS_SCALING;
 const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
 if (level === 10) {
-const piece = cast().setPiece;
-const name = piece === 'echo' ? ECHO_NAME : piece === 'longSleeper' ? LONG_SLEEPER : 'Patchwork King';
+const name = cast().setPiece;
 return { name, color: ENEMY_DATA.enemies[name]?.color ?? '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
 }
 // A room's named enemy, for regular fights (matches planFoes)

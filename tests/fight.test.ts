@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Fight from '../client/src/lib/engine/fight';
 import type { FightState } from '../client/src/lib/engine/fight';
-import { seedRandom } from '../client/src/lib/engine/rng';
+import { seedRandom, random } from '../client/src/lib/engine/rng';
 import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/combat/actions';
 import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
 import { getReachableTiles } from '../client/src/lib/combat/grid';
@@ -663,4 +663,55 @@ test('a dreamer flinches at most once a fight, onto open ground beside you', () 
     }
   }
   assert.ok(moved > 3 && moved < 25, `about one in five (${moved}/60)`);
+});
+
+// ── Wind ──
+test('wind pushes everyone a tile, downwind first; cover and the edge stop it', () => {
+  const grid = arena([5, 3], [5, 4]);
+  grid.tiles[5][6] = { type: 'obstacle', art: 'crate', name: 'Crate' };
+  // Player at col 3 and foe at col 4 in a row, blowing east: the foe moves to 5, then the player to 4
+  const s = fight({ grid, wind: { dir: 'east', turnsLeft: 3 } });
+  const a = Fight.windTick(s).state;
+  assert.deepEqual(a.foes[0].pos, { row: 5, col: 5 });
+  assert.deepEqual(a.grid.playerPosition, { row: 5, col: 4 });
+  assert.equal(a.wind!.turnsLeft, 2);
+  // Next round the foe is against the crate and stays; the player is stopped by the foe
+  const b = Fight.windTick(a).state;
+  assert.deepEqual(b.foes[0].pos, { row: 5, col: 5 });
+  assert.deepEqual(b.grid.playerPosition, { row: 5, col: 4 });
+  assert.equal(Fight.startWind(false), null);
+});
+
+test('wind over a drop puts you in the water; it turns every few rounds to a new direction', () => {
+  const grid = arena([5, 3], [1, 3]);
+  grid.tiles[6][3] = { type: 'void' };
+  seedRandom(4);
+  const s = fight({ grid, wind: { dir: 'south', turnsLeft: 1 } });
+  const step = Fight.windTick(s);
+  assert.equal(step.state.playerSwimming, true);
+  assert.deepEqual(step.state.grid.playerPosition, { row: 6, col: 3 });
+  assert.notEqual(step.state.wind!.dir, 'south');
+  assert.equal(step.state.wind!.turnsLeft, Fight.WIND.every);
+});
+
+test('with wind, the red zone shows where the push would carry you into a hit', () => {
+  // A foe at (2,3) with a melee reach; wind blowing south pushes it to (3,3) and you a tile south too
+  const grid = arena([7, 3], [2, 3]);
+  const calm = fight({ grid });
+  const windy = fight({ grid, wind: { dir: 'south', turnsLeft: 3 } });
+  const before = Fight.dangerTiles(calm), after = Fight.dangerTiles(windy);
+  assert.ok(before.size > 0 && after.size > 0);
+  // Somewhere that's red in calm air is safe once the wind carries you off it, and vice versa
+  assert.notDeepEqual(Array.from(after).sort(), Array.from(before).sort());
+  // A tile is red only if the push lands you in the pushed foe's reach
+  for (const k of Array.from(after)) {
+    const [r, c] = k.split(',').map(Number);
+    const land = r + 1 < grid.rows ? `${r + 1},${c}` : k;
+    const moved = Fight.windTick({ ...windy, wind: { dir: 'south', turnsLeft: 99 } }).state;
+    assert.ok(Fight.foeThreatTiles(moved, 0).has(land) || Fight.foeThreatTiles(moved, 0).has(k), k);
+  }
+  // Previews never roll the game's seeded dice (the wind turning would)
+  seedRandom(9); const expected = random();
+  seedRandom(9); Fight.dangerTiles({ ...windy, wind: { dir: 'south', turnsLeft: 1 } });
+  assert.equal(random(), expected);
 });

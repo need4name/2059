@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, LONG_SLEEPER,
+createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -211,7 +211,7 @@ function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: s
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
 if (!farm && level === 10) {
 const piece = activeChapter().cast.setPiece;
-return [piece === 'echo' ? createEcho(usePlayi.getState().lastBody) : piece === 'longSleeper' ? createSetPiece(LONG_SLEEPER) : createPatchworkKing()];
+return [piece === ECHO_NAME ? createEcho(usePlayi.getState().lastBody) : piece === 'Patchwork King' ? createPatchworkKing() : createSetPiece(piece)];
 }
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
@@ -265,7 +265,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind,
 };
 };
 
@@ -339,7 +339,7 @@ classesUnlocked: classesUnlocked || unlockNow,
 const handleBossDefeated = () => {
 const { farmLevel, bossLevel } = get();
 const level = farmLevel ?? bossLevel;
-const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'patchworkKing';
+const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'Patchwork King';
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
 const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
 const direct = loot.items;
@@ -394,6 +394,8 @@ set({ inputLocked: false, hasMoved: false, selectedMovement: null, selectedActio
 }, 300);
 return;
 }
+// The wind pushes everyone as your turn ends (the red zone already showed where it leaves you)
+if (apply(Fight.windTick(fightState()))) return;
 set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleActionReady: false });
 later(nextActor, ENEMY_TURN_DELAY);
 };
@@ -497,7 +499,7 @@ const { playerClass, runSeed, fightsStarted } = get();
 seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange, perks } = buildPlayer(playerClass);
-const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'patchworkKing';
+const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
 const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy);
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
@@ -523,7 +525,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
 set({ round: 0, turnQueue: [], roundOrder: [] });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

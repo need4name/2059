@@ -103,7 +103,7 @@ function playerTurn(skill: number) {
   for (const { f } of living) if (f.pendingTiles && botRandom() < skill) for (const t of f.pendingTiles) danger.add(`${t.row},${t.col}`);
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   // The red tiles are honest (enemies hit before they move): a sensible player prefers a safe tile it can still attack from
-  const red = new Set<string>(); for (const { i } of living) F.foeThreatTiles(s as any, i).forEach(k => red.add(k));
+  const red = F.dangerTiles(s as any);
   const opts = [g.playerPosition, ...Array.from(G.getReachableTiles(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   // Only dodge the red when there's a safe tile to fight from; otherwise walk in
   const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
@@ -181,6 +181,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
       }
     }
     const won = C.getState().phase === 'victory';
+    if (process.env.DEBUGLOSS && !won && Number(process.env.DEBUGLOSS) === lvl && !debugShown) { debugShown = true; console.log('LOSS', lvl, 'turns', turns, C.getState().foes.map(f => [f.unit.name, f.unit.currentHp, f.unit.maxHp])); console.log(C.getState().combatLog.slice(-8).map(l => l.message).join(' | ')); }
     out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut });
     if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {

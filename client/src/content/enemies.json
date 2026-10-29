@@ -2359,6 +2359,873 @@
         "Still nothing. You still dream of nothing."
       ],
       "firstSight": "It is so old it has forgotten it was ever awake. It is the only thing here that frightens me."
+    },
+    "Terrace Worker": {
+      "color": "#a3e635",
+      "baseAttack": 9,
+      "baseDefense": 6,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "Works the terraces on a schedule it can't hear. Stops dead when the drones pass, then swings.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Hoe Swing",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc"
+        },
+        {
+          "type": "attack",
+          "name": "Shoulder Push",
+          "description": "",
+          "damage": 10,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "attack",
+          "name": "All Together",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "cone",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Stand Still",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Not yet. Not until the drones have gone.",
+        "We stop when they stop. Why didn't you stop?"
+      ],
+      "lateLines": [
+        "You never stop when the drones pass. Everyone else does."
+      ],
+      "firstSight": "It stopped mid-step, with all the others, for a sound I didn't hear. Then it started again."
+    },
+    "Seeding Drone": {
+      "color": "#e2e8f0",
+      "baseAttack": 10,
+      "baseDefense": 2,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.3,
+        "sAtkR": 0.7,
+        "pDefR": 0.4,
+        "sDefR": 0.6
+      },
+      "dossier": "A drone that seeds the clouds and anything under them. Fragile, fast and never alone for long.",
+      "traits": [
+        "sighted"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Seed Burst",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Dive",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Silver Rain",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "aoe",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Climb",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "It turned to look at me the same moment as all the others. They share one neck."
+    },
+    "Dam Keeper": {
+      "color": "#64748b",
+      "baseAttack": 9,
+      "baseDefense": 9,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "Big, slow, built into the dam's machinery. Shoves you toward the edge and lets the wind do the rest.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Sluice Shove",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "attack",
+          "name": "Gate Arm",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Open the Spillway",
+          "description": "",
+          "damage": 22,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 13,
+          "attackPattern": "beam",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Hold the Gate",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Over you go. The water's a long way down.",
+        "The dam holds. I hold. You don't."
+      ],
+      "lateLines": [
+        "You climbed back up again. Nobody climbs back up."
+      ],
+      "firstSight": "Half of it is the dam. When the sluices open, it shudders."
+    },
+    "Air-Lift Rigger": {
+      "color": "#38bdf8",
+      "baseAttack": 10,
+      "baseDefense": 4,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Clips itself to the air-lift lines and swings. Hooks you in, then lets go.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Line Hook",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Carabiner",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Cut the Line",
+          "description": "",
+          "damage": 19,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "defend",
+          "name": "Clip In",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Hold on to something.",
+        "Up here the wind decides. Not me. Not you."
+      ],
+      "lateLines": [
+        "The wind keeps bringing you back. It likes you."
+      ],
+      "firstSight": "It leans into the wind like a person leans on a friend."
+    },
+    "Chamber Technician": {
+      "color": "#a5f3fc",
+      "baseAttack": 8,
+      "baseDefense": 5,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Tends the cloud chambers. Vents cold air at you until you can't feel your hands.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Cold Vent",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": -14,
+          "heatGenerated": 8,
+          "attackPattern": "cone",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Gauge Strike",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Flash Freeze",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": -20,
+          "heatGenerated": 10,
+          "attackPattern": "ring",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Pressure Seal",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Mind the readings. You're throwing them off.",
+        "There's a cloud in every chamber. There's something in you."
+      ],
+      "lateLines": [
+        "The readings go wrong whenever you're near."
+      ],
+      "firstSight": "Behind it, in a glass room, a cloud is being grown. It's the most careful thing I've seen anyone do."
+    },
+    "Valley Raider": {
+      "color": "#d97706",
+      "baseAttack": 11,
+      "baseDefense": 3,
+      "startingHeat": 45,
+      "statSplit": {
+        "pAtkR": 0.75,
+        "sAtkR": 0.25,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Came up from the dry valley with a blade and a grudge. Fights like there's nothing left to lose.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Dust Knife",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge",
+          "effects": {
+            "bleed": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Thrown Stone",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "attack",
+          "name": "For the Valley",
+          "description": "",
+          "damage": 21,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "heatTransfer": 6,
+          "heatGenerated": 12,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Duck the Wind",
+          "description": "",
+          "defenseBoost": 7,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "You work for it. You all work for it.",
+        "It hasn't rained on us in nine years."
+      ],
+      "lateLines": [
+        "You again. Climbing up. Never down to us."
+      ],
+      "firstSight": "Its lips are cracked. It looks up at the clouds the way you'd look at a thief."
+    },
+    "Shift Foreman": {
+      "color": "#84cc16",
+      "baseAttack": 20,
+      "baseDefense": 7,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.65,
+        "sAtkR": 0.35,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Keeps the terrace crews in step with a whistle you can't hear. Makes you feel the rhythm too.",
+      "signature": "sig_foreman_whistle",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "On the Beat",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Line Up",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Double Time",
+          "description": "",
+          "damage": 25,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Hold the Line",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Step. Step. Step. You're out of step.",
+        "Everyone keeps time up here. Everyone."
+      ],
+      "lateLines": [
+        "Out of step again. You're always out of step."
+      ],
+      "firstSight": "Its mouth moves in a count. Every worker on the terrace moves on the count."
+    },
+    "Ghost-MIL Captain": {
+      "color": "#c084fc",
+      "baseAttack": 17,
+      "baseDefense": 8,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.5,
+        "sAtkR": 0.5,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Rides a stolen seeding drone and wants the control rig in your skull. Strikes from above, then from everywhere.",
+      "signature": "sig_captain_rig",
+      "traits": [
+        "sighted"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Drone Strafe",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "Signal Jam",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ring",
+          "effects": {
+            "stun": 0.25
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Dive Bomb",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "aoe",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Ghosting",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "That rig in your head. I want it.",
+        "We took the drones. We'll take the weather next."
+      ],
+      "lateLines": [
+        "Still carrying that rig? Still mine."
+      ],
+      "firstSight": "It flies a drone like it's riding a horse it stole. Its own skull has the same ports mine does."
+    },
+    "Drone Shepherd": {
+      "color": "#f1f5f9",
+      "baseAttack": 15,
+      "baseDefense": 8,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Walks the summit with a flock of drones turning around it. When it points, they all come.",
+      "signature": "sig_shepherd_crook",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Flock",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "cone",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Crook",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Every Drone at Once",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Circle",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "They follow me. Who follows you?",
+        "Lie down. Let them pass."
+      ],
+      "lateLines": [
+        "They know you now. They turn when you turn."
+      ],
+      "firstSight": "The drones circle it the way birds circle a field. They've never once circled me."
+    },
+    "The Overseer": {
+      "color": "#facc15",
+      "baseAttack": 12,
+      "baseDefense": 7,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Keeps every worker on the mountain in step. Its own body moves to a beat it's never once missed.",
+      "signature": "sig_overseer_metronome",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Tempo",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Downbeat",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "attack",
+          "name": "The Whole Shift",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 10,
+          "heatGenerated": 12,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Rest",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "You're late. You've been late your whole life.",
+        "There's a beat. You've been dancing to it since you woke."
+      ],
+      "lateLines": [
+        "Late again. Still dancing."
+      ],
+      "firstSight": "It taps a foot I can't hear. I realise I've been walking in time with it all the way up."
+    },
+    "The Storm Tower": {
+      "color": "#94a3b8",
+      "baseAttack": 13,
+      "baseDefense": 7,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "An air-lift tower that breathes cloud, and the crew fused into its crane arm. It moves the wind.",
+      "signature": "sig_tower_arm",
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "fast"
+        ],
+        "line": "The Storm Tower opens every vent and leans into its own wind. It moves faster now."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Crane Arm",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "sweep_arc",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Updraft",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "attack",
+          "name": "Gale",
+          "description": "",
+          "damage": 24,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.55,
+          "heatTransfer": 10,
+          "heatGenerated": 14,
+          "attackPattern": "beam",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Close the Vents",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "Breathe in. Breathe out. That's the weather.",
+        "I am the weather's lungs."
+      ],
+      "lateLines": [
+        "The wind brought you back. It always brings you back to me."
+      ],
+      "firstSight": "It inhales and the clouds come in. It exhales and the wind goes out. I'm standing in its breath."
+    },
+    "The Weather": {
+      "color": "#e0f2fe",
+      "baseAttack": 15,
+      "baseDefense": 7,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.35,
+        "sAtkR": 0.65,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "The machine that runs the mountain, fought as a room of drones moving in perfect rhythm. It speaks to you like family.",
+      "signature": "sig_weather_eye",
+      "traits": [
+        "sighted",
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "fast"
+        ],
+        "line": "The Weather loses the beat. For a moment every drone is out of step, and it is furious."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Forecast",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.35,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Front",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Downpour",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.4,
+          "heatTransfer": 12,
+          "heatGenerated": 12,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "High Pressure",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "You're home. You're late, but you're home.",
+        "Every choice you made was a nudge. Ours."
+      ],
+      "lateLines": [
+        "Back again. We knew you would be. We always know."
+      ],
+      "firstSight": "Every drone turns to me at once, and something in my own head turns with them."
     }
   },
   "patchworkKing": {

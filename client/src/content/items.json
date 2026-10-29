@@ -1772,5 +1772,109 @@
     "structuralDefenseBonus": 6,
     "icon": "🔋",
     "signature": true
+  },
+  {
+    "id": "sig_foreman_whistle",
+    "name": "[TIANXIA] Foreman's Whistle",
+    "description": "A whistle tuned above hearing. Wearing it, you keep catching yourself walking in step.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "brain",
+    "attackBonus": 8,
+    "defenseBonus": 6,
+    "hpBonus": 15,
+    "icon": "🎶",
+    "signature": true
+  },
+  {
+    "id": "sig_captain_rig",
+    "name": "[KIZUNA] Captain's Control Rig",
+    "description": "A drone rig ripped from a skull and wired into another. It still reaches for things that fly.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 12,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 4,
+    "icon": "🛸",
+    "signature": true,
+    "heads": [
+      "bolt",
+      "scope",
+      "mortar",
+      "lance"
+    ]
+  },
+  {
+    "id": "sig_shepherd_crook",
+    "name": "[TIANXIA] Shepherd's Crook (L)",
+    "description": "An arm that drones follow. Raise it and something overhead turns to look.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "left_arm",
+    "attackBonus": 16,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🪝",
+    "signature": true,
+    "heads": [
+      "grapple",
+      "hook",
+      "reach",
+      "crowdpress"
+    ]
+  },
+  {
+    "id": "sig_overseer_metronome",
+    "name": "[TIANXIA] Overseer's Metronome",
+    "description": "A spine that keeps time. Your steps fall into it whether you want them to or not.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "misc",
+    "attackBonus": 8,
+    "defenseBonus": 12,
+    "hpBonus": 30,
+    "icon": "⏱️",
+    "signature": true
+  },
+  {
+    "id": "sig_tower_arm",
+    "name": "[TIANXIA] Storm Tower Arm (R)",
+    "description": "A crane arm off an air-lift tower. It swings like it's moving weather.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 19,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🌪️",
+    "signature": true,
+    "heads": [
+      "hook",
+      "spread",
+      "crowdpress",
+      "reach"
+    ]
+  },
+  {
+    "id": "sig_weather_eye",
+    "name": "[KIZUNA] Eye of the Weather",
+    "description": "It sees every drone at once. Through it, you can almost hear what they're saying about you.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 17,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 6,
+    "icon": "🌦️",
+    "signature": true,
+    "heads": [
+      "lance",
+      "scope",
+      "longshot",
+      "mortar"
+    ]
   }
 ]

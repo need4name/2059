@@ -80,6 +80,7 @@ export interface Perks {
   partingTakenMult: number;   // damage you take from parting blows (Ward's link)
   collisionMult: number;      // collision damage enemies take from your knockbacks (Breaker's link)
   noFlinch: boolean;          // the sleeper inside your host never flinches (Ninety's link)
+  windproof: boolean;         // the wind never pushes you (Dust's link)
 }
 
 export const NO_PERKS: Perks = {
@@ -89,7 +90,7 @@ export const NO_PERKS: Perks = {
   healthCostMult: 1, structureMult: 1, startImplant: false, startPoints: 0, pickOfTwo: false, braceRepair: 0.4,
   maxHpBonus: 0, startBioStims: 0, priceMult: 1, holdfast: false, damageTakenMult: 1,
   allyHpMult: 1, allyXpMult: 1, coordinated: false, allySlots: 1,
-  braceHeal: 0, partingTakenMult: 1, collisionMult: 1, noFlinch: false,
+  braceHeal: 0, partingTakenMult: 1, collisionMult: 1, noFlinch: false, windproof: false,
 };
 
 /** Turns owned node ids (fallback fragments may repeat) into modifiers. */

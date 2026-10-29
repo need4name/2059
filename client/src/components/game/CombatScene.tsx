@@ -81,6 +81,9 @@ function easeOutCubic(t: number): number {
 return 1 - Math.pow(1 - t, 3);
 }
 
+/** Which way each wind direction points on screen. */
+const WIND_VEC: Record<string, { dx: number; dy: number }> = { north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 }, east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 } };
+
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
 const { player, boss, phase, grid, playerClass, combatLog, selectedAction, aim, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned } = useCombat();
@@ -427,17 +430,12 @@ if (fs.aim) aimedTiles = new Set(Fight.aimTiles(fs, selectedAction, playerClass,
 // Every tile an enemy can hit on its next turn. Enemies attack before they
 // move, so standing outside these at the end of your turn is safe.
 const enemyReachableTiles = phase === 'player_turn' ? (() => {
-const st = useCombat.getState();
-const union = new Set<string>();
-for (const { i } of living) Fight.foeThreatTiles(st, i).forEach(k => union.add(k));
+const union = Fight.dangerTiles(useCombat.getState());
 return union.size ? union : null;
 })() : null;
 // Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
 const enemyShoveTiles = phase === 'player_turn' ? (() => {
-const st = useCombat.getState();
-const union = new Set<string>();
-for (const { i } of living) Fight.foeThreatTiles(st, i, true).forEach(k => union.add(k));
-return union;
+return Fight.dangerTiles(useCombat.getState(), true);
 })() : null;
 
 // Tiles the player (or the ally being moved) can still move to this turn
@@ -500,6 +498,7 @@ const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 const tideNow = useCombat.getState().tide;
 const floodNext = !!tideNow && !tideNow.high && tideNow.turnsLeft === 1;
 const alarmOn = !!useCombat.getState().alarm?.on;
+const windNow = useCombat.getState().wind;
 const dimPulse = 0.5 + 0.5 * Math.sin(now / 600);
 const besideCold = (row: number, col: number) => {
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (grid.tiles?.[row + dr]?.[col + dc]?.cold) return true;
@@ -554,6 +553,18 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fill();
   }
   if (tint) { ctx.fillStyle = tint; ctx.fill(); }
+  // Wind: two faint streaks drifting across every tile the way it blows
+  if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
+    const { dx, dy } = WIND_VEC[windNow.dir];
+    const t = ((now / 900 + (row * 7 + col * 3) * 0.13) % 1);
+    ctx.strokeStyle = 'rgba(235,245,250,0.32)';
+    ctx.lineWidth = Math.max(1.5, tileW * 0.035);
+    for (const k of [0, 0.5]) {
+      const u = ((t + k) % 1) - 0.5, off = (k ? 0.18 : -0.18);
+      const cx = pos.x + (dx ? u * tileW * 0.8 : off * tileW), cy = pos.y + (dy ? u * tileH * 0.8 : off * tileH);
+      ctx.beginPath(); ctx.moveTo(cx - dx * tileW * 0.12, cy - dy * tileH * 0.12); ctx.lineTo(cx + dx * tileW * 0.12, cy + dy * tileH * 0.12); ctx.stroke();
+    }
+  }
 
   // Tile border - vivid glow on attack range tiles
   if (isAimed) {

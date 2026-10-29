@@ -110,6 +110,11 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'Someone else is in here',
     body: "The bodies here aren't empty. Once in a while the sleeper inside flinches, and you take a step you didn't choose. It never walks you into fire or water.",
   },
+  wind: {
+    icon: '🌬️',
+    title: 'The wind',
+    body: "Up here the wind never stops. When your turn ends it pushes everyone one tile the way it blows: you, them, your allies. Cover and other bodies stop you; an edge doesn't. The red tiles already allow for the push, so trust them. The chip at the top shows which way it blows and when it turns.",
+  },
   tide: {
     icon: '🌊',
     title: 'The tide',
@@ -218,6 +223,7 @@ export function useTutorialTriggers() {
       ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
       ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
       ['tide', myTurn && !!c.tide],
+      ['wind', myTurn && !!c.wind],
       ['alarm', myTurn && !!c.alarm],
       ['flinch', myTurn && !!c.flinchUsed],
       ['speed', myTurn && (c.roundOrder[0] !== 'player' || Fight.doubleTurns(c, c.turnQueue).length > 0)],

@@ -1,0 +1,873 @@
+{
+  "about": "Chapter four's hidden map, the Rain Machine: the dry valley, the terraces and dam, the towers and summit. Every way out climbs. Same rules as the other maps; '~' here is a drop, and the wind can push you over it.",
+  "chapter": "rain-machine",
+  "title": "Chapter four: the Rain Machine",
+  "entry": "riverbed",
+  "end": "summit",
+  "ending": "The Weather goes still and every drone drops a little in the air. For a moment nothing on the mountain is being steered. Including you.",
+  "goals": [
+    "well",
+    "schedule",
+    "bell"
+  ],
+  "rooms": [
+    {
+      "id": "riverbed",
+      "name": "The dry riverbed",
+      "text": "A riverbed of cracked mud and the bones of boats. Above, on the mountain, a cloud is being made.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "up",
+          "hint": "a path climbing the slope",
+          "to": "path"
+        },
+        {
+          "dir": "east",
+          "hint": "a well with a queue",
+          "to": "well"
+        }
+      ]
+    },
+    {
+      "id": "path",
+      "name": "The goat path",
+      "text": "A path worn up the slope by people carrying water down. Nobody is carrying any now.",
+      "threat": 1,
+      "enemy": "Valley Raider",
+      "arena": [
+        "...E...",
+        ".......",
+        "~..#..~",
+        "~.....~",
+        "~~...~~",
+        "~.....~",
+        "~..d..~",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the dry riverbed",
+          "to": "riverbed"
+        },
+        {
+          "dir": "up",
+          "hint": "a village, shutters closed",
+          "to": "village"
+        }
+      ]
+    },
+    {
+      "id": "well",
+      "name": "The empty well",
+      "text": "A well with a rope that goes down further than any water. People sit round it anyway, out of habit.",
+      "threat": 2,
+      "look": {
+        "text": "Scratched into the stone: the dates of the last rains, one under another. The gaps get longer, then stop.",
+        "goal": "well"
+      },
+      "enemy": "Valley Raider",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".#...#.",
+        "...h...",
+        ".......",
+        ".#...#.",
+        ".......",
+        "..d.d..",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the dry riverbed",
+          "to": "riverbed"
+        },
+        {
+          "dir": "up",
+          "hint": "the valley wall",
+          "to": "wall"
+        }
+      ]
+    },
+    {
+      "id": "village",
+      "name": "The shuttered village",
+      "text": "A village with every shutter closed against the dust. A loudspeaker on a pole reads out a schedule nobody asked for.",
+      "threat": 3,
+      "look": {
+        "text": "The loudspeaker's schedule: seeding times, rain times, all for the mountain. Nothing for the valley."
+      },
+      "enemy": "Seeding Drone",
+      "arena": [
+        "E..E..E",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        "..n.n..",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the goat path",
+          "to": "path"
+        },
+        {
+          "dir": "up",
+          "hint": "the first terraces",
+          "to": "terraces1"
+        },
+        {
+          "dir": "east",
+          "hint": "the valley wall",
+          "to": "wall"
+        }
+      ]
+    },
+    {
+      "id": "wall",
+      "name": "The valley wall",
+      "text": "A wall built across the valley mouth to keep the water up and the people down. There's a gate in it, and it's open.",
+      "threat": 3,
+      "enemy": "Terrace Worker",
+      "arena": [
+        "...E...",
+        ".......",
+        "###.###",
+        ".......",
+        "...c...",
+        ".......",
+        "##...##",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the empty well",
+          "to": "well"
+        },
+        {
+          "dir": "west",
+          "hint": "the shuttered village",
+          "to": "village"
+        },
+        {
+          "dir": "up",
+          "hint": "the first terraces",
+          "to": "terraces1"
+        }
+      ]
+    },
+    {
+      "id": "terraces1",
+      "name": "The low terraces",
+      "text": "Rice terraces stepped up the mountain, flooded and green. The workers in them all stop at once, then start again.",
+      "threat": 4,
+      "enemy": "Terrace Worker",
+      "arena": [
+        "~.....~",
+        "~..E..~",
+        "~.#.#.~",
+        "~.....~",
+        "~..b..~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the valley wall",
+          "to": "wall"
+        },
+        {
+          "dir": "up",
+          "hint": "a foreman's hut",
+          "to": "foreman"
+        },
+        {
+          "dir": "east",
+          "hint": "drums of something silver",
+          "to": "depot"
+        }
+      ]
+    },
+    {
+      "id": "foreman",
+      "name": "The foreman's hut",
+      "text": "A hut on stilts over the terraces with a whistle hanging by the door. The whistle is the only thing in it that's been cleaned.",
+      "threat": 5,
+      "arena": [
+        "...E...",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...p...",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the low terraces",
+          "to": "terraces1"
+        },
+        {
+          "dir": "up",
+          "hint": "the middle terraces",
+          "to": "terraces2"
+        }
+      ]
+    },
+    {
+      "id": "depot",
+      "name": "The seed depot",
+      "text": "Drums of seeding slurry stacked under tarps, silver and cold to touch. Drones come and go from the roof.",
+      "threat": 6,
+      "cache": true,
+      "enemy": "Seeding Drone",
+      "arena": [
+        "E.....E",
+        ".d...d.",
+        "..b.b..",
+        ".......",
+        "..d.d..",
+        ".......",
+        ".b...b.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the low terraces",
+          "to": "terraces1"
+        },
+        {
+          "dir": "up",
+          "hint": "the middle terraces",
+          "to": "terraces2"
+        }
+      ]
+    },
+    {
+      "id": "terraces2",
+      "name": "The middle terraces",
+      "text": "More terraces, steeper, the water running down from step to step. The wind starts here and doesn't stop.",
+      "threat": 7,
+      "enemy": "Air-Lift Rigger",
+      "arena": [
+        "~..E..~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~~...~~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the foreman's hut",
+          "to": "foreman"
+        },
+        {
+          "dir": "east",
+          "hint": "the seed depot",
+          "to": "depot"
+        },
+        {
+          "dir": "up",
+          "hint": "a farmer's shelter",
+          "to": "shelter"
+        }
+      ]
+    },
+    {
+      "id": "shelter",
+      "name": "The farmer's shelter",
+      "text": "A shelter of corrugated iron wedged into the rock, out of the wind. Someone from the valley lives here, watching the drones.",
+      "threat": 9,
+      "look": {
+        "text": "Marks on the wall in charcoal: every drone flight for a year, by the hour. The pattern repeats every nine days.",
+        "goal": "schedule"
+      },
+      "ally": "dust",
+      "enemy": "Valley Raider",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..#.#..",
+        "~.....~",
+        "~..n..~",
+        "~.....~",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the middle terraces",
+          "to": "terraces2"
+        },
+        {
+          "dir": "up",
+          "hint": "the overseer's platform",
+          "to": "platform"
+        }
+      ]
+    },
+    {
+      "id": "platform",
+      "name": "The overseer's platform",
+      "text": "A platform where the whole mountain can be seen and every worker on it heard. Someone stands at the rail tapping out a beat.",
+      "threat": 10,
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        ".......",
+        "..p.p..",
+        ".......",
+        "..p.p..",
+        ".......",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the farmer's shelter",
+          "to": "shelter"
+        },
+        {
+          "dir": "up",
+          "hint": "the dam road",
+          "to": "damroad"
+        }
+      ]
+    },
+    {
+      "id": "damroad",
+      "name": "The dam road",
+      "text": "A road along the top of the dam, the reservoir on one side and a long drop on the other. The wind wants you on one side or the other.",
+      "threat": 11,
+      "enemy": "Dam Keeper",
+      "arena": [
+        "~..E..~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the overseer's platform",
+          "to": "platform"
+        },
+        {
+          "dir": "up",
+          "hint": "the sluice gates",
+          "to": "sluices"
+        },
+        {
+          "dir": "east",
+          "hint": "a canteen in a container",
+          "to": "canteen"
+        }
+      ]
+    },
+    {
+      "id": "canteen",
+      "name": "The canteen",
+      "text": "A shipping container with a counter, a kettle and someone selling parts out of a cool box. The kettle never boils; the air's too thin.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the dam road",
+          "to": "damroad"
+        }
+      ]
+    },
+    {
+      "id": "sluices",
+      "name": "The sluice gates",
+      "text": "Gates as tall as houses holding back the reservoir, a mist hanging over them. The keepers are built into the machinery.",
+      "threat": 12,
+      "enemy": "Dam Keeper",
+      "arena": [
+        "E.....E",
+        ".p...p.",
+        ".......",
+        "~..h..~",
+        "~.....~",
+        "~..h..~",
+        ".......",
+        ".p...p.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the dam road",
+          "to": "damroad"
+        },
+        {
+          "dir": "up",
+          "hint": "the cloud chambers",
+          "to": "chambers"
+        }
+      ]
+    },
+    {
+      "id": "chambers",
+      "name": "The cloud chambers",
+      "text": "Glass rooms where clouds are grown, each one labelled with the day it will rain and where. None of the labels say the valley.",
+      "threat": 13,
+      "look": {
+        "text": "One chamber is empty, its label scratched off. Underneath, faintly: the valley's name."
+      },
+      "enemy": "Chamber Technician",
+      "arena": [
+        "...E...",
+        ".#.#.#.",
+        ".......",
+        ".#...#.",
+        ".......",
+        ".#.b.#.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the sluice gates",
+          "to": "sluices"
+        },
+        {
+          "dir": "up",
+          "hint": "the air-lift yard",
+          "to": "airlift"
+        },
+        {
+          "dir": "east",
+          "hint": "a control room",
+          "to": "controlroom"
+        }
+      ]
+    },
+    {
+      "id": "controlroom",
+      "name": "The control room",
+      "text": "Screens of weather, a chair for each screen, and nobody in any chair. The screens change on their own.",
+      "threat": 14,
+      "look": {
+        "text": "On one screen, a small moving dot labelled with your host's number. It has been on the screen since the valley."
+      },
+      "cache": true,
+      "enemy": "Tianxia Compliance Unit",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".#.c.#.",
+        ".......",
+        ".#...#.",
+        ".......",
+        ".#.c.#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the cloud chambers",
+          "to": "chambers"
+        },
+        {
+          "dir": "up",
+          "hint": "the air-lift yard",
+          "to": "airlift"
+        }
+      ]
+    },
+    {
+      "id": "airlift",
+      "name": "The air-lift yard",
+      "text": "Ducts the width of rooms blowing warm wet air up into the sky. A drone carrier rests on the pad, stolen paint over its markings.",
+      "threat": 15,
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        "~.f.f.~",
+        "~.....~",
+        "~..p..~",
+        "~.....~",
+        "~.f.f.~",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the cloud chambers",
+          "to": "chambers"
+        },
+        {
+          "dir": "up",
+          "hint": "the reservoir edge",
+          "to": "reservoir"
+        }
+      ]
+    },
+    {
+      "id": "reservoir",
+      "name": "The reservoir edge",
+      "text": "Water held at the top of the world, still as a held breath. The wind skates across it and comes for you.",
+      "threat": 16,
+      "enemy": "Air-Lift Rigger",
+      "arena": [
+        "~~~E~~~",
+        "~.....~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the air-lift yard",
+          "to": "airlift"
+        },
+        {
+          "dir": "up",
+          "hint": "the tower stairs",
+          "to": "towerstairs"
+        }
+      ]
+    },
+    {
+      "id": "towerstairs",
+      "name": "The tower stairs",
+      "text": "A spiral of iron stairs up the outside of a tower, open to the wind. Every landing has a bolt to clip onto, and some have someone clipped to them.",
+      "threat": 17,
+      "enemy": "Air-Lift Rigger",
+      "arena": [
+        "~..E..~",
+        "~~...~~",
+        "~.....~",
+        "~~...~~",
+        "~.....~",
+        "~~...~~",
+        "~.....~",
+        "~~...~~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the reservoir edge",
+          "to": "reservoir"
+        },
+        {
+          "dir": "up",
+          "hint": "the crane deck",
+          "to": "cranedeck"
+        }
+      ]
+    },
+    {
+      "id": "cranedeck",
+      "name": "The crane deck",
+      "text": "A deck where the cranes swing seeding loads into the clouds. The cranes swing on their own when the wind gusts.",
+      "threat": 18,
+      "look": {
+        "text": "A bell on a post, its clapper tied with wire. Someone wanted it never to ring again.",
+        "goal": "bell"
+      },
+      "enemy": "Terrace Worker",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..p.p..",
+        ".......",
+        "~.....~",
+        ".......",
+        "..p.p..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the tower stairs",
+          "to": "towerstairs"
+        },
+        {
+          "dir": "up",
+          "hint": "the storm tower",
+          "to": "stormtower"
+        }
+      ]
+    },
+    {
+      "id": "stormtower",
+      "name": "The storm tower",
+      "text": "A tower breathing cloud in and wind out, the crew fused into its crane arm. You are standing in its breath.",
+      "threat": 20,
+      "arena": [
+        "...E...",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the crane deck",
+          "to": "cranedeck"
+        },
+        {
+          "dir": "up",
+          "hint": "the summit path",
+          "to": "summitpath"
+        }
+      ]
+    },
+    {
+      "id": "summitpath",
+      "name": "The summit path",
+      "text": "A path above the clouds, the sky too blue to look at. Below, the whole valley is the colour of dust.",
+      "threat": 21,
+      "enemy": "Terrace Worker",
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        "~..#..~",
+        "~~...~~",
+        "~.....~",
+        "~~...~~",
+        "~..#..~",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the storm tower",
+          "to": "stormtower"
+        },
+        {
+          "dir": "up",
+          "hint": "the antenna field",
+          "to": "antennafield"
+        }
+      ]
+    },
+    {
+      "id": "antennafield",
+      "name": "The antenna field",
+      "text": "Masts in rows, each with a red light, all humming the same note. The note gets into your teeth and stays there.",
+      "threat": 22,
+      "enemy": "Seeding Drone",
+      "arena": [
+        "...E...",
+        ".p.p.p.",
+        ".......",
+        ".p.c.p.",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the summit path",
+          "to": "summitpath"
+        },
+        {
+          "dir": "up",
+          "hint": "the drone roost",
+          "to": "roost"
+        }
+      ]
+    },
+    {
+      "id": "roost",
+      "name": "The drone roost",
+      "text": "Racks where the drones rest between flights, folded like bats. They all open their eyes when you come in.",
+      "threat": 23,
+      "enemy": "Air-Lift Rigger",
+      "arena": [
+        "E..E..E",
+        ".......",
+        "n..n..n",
+        ".......",
+        ".......",
+        ".......",
+        "n..n..n",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the antenna field",
+          "to": "antennafield"
+        },
+        {
+          "dir": "up",
+          "hint": "the shepherd's ridge",
+          "to": "shepherd"
+        }
+      ]
+    },
+    {
+      "id": "shepherd",
+      "name": "The shepherd's ridge",
+      "text": "A ridge where a figure walks with a flock of drones circling it. When it stops, they stop.",
+      "threat": 25,
+      "arena": [
+        "...E...",
+        ".......",
+        ".......",
+        "...p...",
+        ".......",
+        "...p...",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the drone roost",
+          "to": "roost"
+        },
+        {
+          "dir": "up",
+          "hint": "the last terrace",
+          "to": "lastterrace"
+        }
+      ]
+    },
+    {
+      "id": "lastterrace",
+      "name": "The last terrace",
+      "text": "A terrace at the top of the world with one plant in it, watered every hour. The tag on it says it is the first rice the mountain ever grew.",
+      "threat": 24,
+      "cache": true,
+      "enemy": "Tianxia Compliance Unit",
+      "arena": [
+        "~.....~",
+        "~..E..~",
+        "~.#.#.~",
+        "~.....~",
+        "~..b..~",
+        "~.....~",
+        "~.#.#.~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the shepherd's ridge",
+          "to": "shepherd"
+        },
+        {
+          "dir": "up",
+          "hint": "the uplink",
+          "to": "uplink"
+        }
+      ]
+    },
+    {
+      "id": "uplink",
+      "name": "The uplink",
+      "text": "A dish pointed straight up, the sky above it a little darker than the rest. Every cable on the mountain ends here.",
+      "threat": 26,
+      "enemy": "Seeding Drone",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".p.c.p.",
+        ".......",
+        "..c.c..",
+        ".......",
+        ".p.c.p.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the last terrace",
+          "to": "lastterrace"
+        },
+        {
+          "dir": "up",
+          "hint": "the summit",
+          "to": "summit",
+          "label": "Up, to the top",
+          "requires": "goals"
+        }
+      ]
+    },
+    {
+      "id": "summit",
+      "name": "The summit",
+      "text": "The top of the mountain, where the weather is decided. Every drone on the mountain turns to face you at once.",
+      "threat": 30,
+      "quiet": "The summit is quiet. The drones hang where they stopped, and far below, for the first time in nine years, it is raining on the valley.",
+      "arena": [
+        "~~.E.~~",
+        "~.....~",
+        ".......",
+        "..p.p..",
+        ".......",
+        "..p.p..",
+        ".......",
+        "~.....~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "down",
+          "hint": "the uplink",
+          "to": "uplink"
+        }
+      ]
+    }
+  ]
+}
