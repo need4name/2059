@@ -260,16 +260,15 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
 // Fight rooms carry their own board, drawn as text in the map file, so a place
 // is the same place every run. Only loose crates ('?') vary.
 
-const COVER_ART: Record<string, string> = { '#': 'crate', d: 'drum', n: 'nets', p: 'pump' };
-const HAZARD_ART: Record<string, string> = { f: 'fire', c: 'cable', b: 'chem', h: 'hole' };
+// Arena characters pick a slot in the chapter's tileset (content/chapters.json), so each chapter draws its own
+const COVER_SLOT: Record<string, number> = { '#': 0, d: 1, n: 2, p: 3 };
+const HAZARD_SLOT: Record<string, number> = { f: 0, c: 1, b: 2, h: 3 };
 export const ARENA_CHARS = '.~#dnp?fcbhmPE';
 
 /** Build a board from a drawn layout (see the map file's notes for the characters). */
 export function buildArena(layout: string[]): CombatGrid {
   const rows = layout.length, cols = layout[0].length;
   const cover = OBSTACLE_TYPES(), hazards = HAZARD_TYPES();
-  const coverOf = (art: string) => cover.find(o => o.art === art) ?? cover[0];
-  const hazardOf = (art: string) => hazards.find(h => h.art === art) ?? hazards[0];
   let playerPosition = { row: rows - 1, col: Math.floor(cols / 2) };
   const spawns: TilePosition[] = [];
   const tiles: TileData[][] = layout.map((line, r) => Array.from(line).map((ch, c): TileData => {
@@ -283,8 +282,8 @@ export function buildArena(layout: string[]): CombatGrid {
       const o = randomOf(cover);
       return { type: 'obstacle', art: o.art, name: o.name };
     }
-    if (COVER_ART[ch]) { const o = coverOf(COVER_ART[ch]); return { type: 'obstacle', art: o.art, name: o.name }; }
-    if (HAZARD_ART[ch]) { const h = hazardOf(HAZARD_ART[ch]); return { type: 'hazard', art: h.art, name: h.name, hazardDamage: h.damage }; }
+    if (ch in COVER_SLOT) { const o = cover[COVER_SLOT[ch]] ?? cover[0]; return { type: 'obstacle', art: o.art, name: o.name }; }
+    if (ch in HAZARD_SLOT) { const h = hazards[HAZARD_SLOT[ch]] ?? hazards[0]; return { type: 'hazard', art: h.art, name: h.name, hazardDamage: h.damage }; }
     return { type: 'empty' };
   }));
   return { rows, cols, tiles, arenaShape: 'drawn', playerPosition, bossPosition: spawns[0] ?? { row: 0, col: Math.floor(cols / 2) }, spawns };

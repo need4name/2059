@@ -620,3 +620,14 @@ test('the Echo wears the last body\'s best implants and fights with their moves'
   const f = Fight.newFoe(echo, { row: 1, col: 3 }, 30);
   assert.deepEqual(Fight.foeRoster(f).filter(a => !a.name.startsWith('Optic')), moves);
 });
+
+test('enemies keep off mud the tide is about to take', () => {
+  // Mud between the foe (row 1) and the player (row 7): with the tide about to come in, it stops short
+  const base = tidal();
+  const grid = { ...base.grid, playerPosition: { row: 7, col: 3 } };
+  const s: FightState = { ...base, grid, foes: [{ ...base.foes[0], pos: { row: 1, col: 3 } }], tide: { high: false, turnsLeft: 1 } };
+  const walked = Fight.moveFoeToward(s, 0, 'melee').state.foes[0].pos;
+  assert.notEqual(s.grid.tiles[walked.row][walked.col].tidal, true, 'not on the mud');
+  const calm = Fight.moveFoeToward({ ...s, tide: { high: false, turnsLeft: 3 } }, 0, 'melee').state.foes[0].pos;
+  assert.ok(calm.row > walked.row, 'with time to spare it crosses');
+});

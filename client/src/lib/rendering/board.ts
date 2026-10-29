@@ -195,6 +195,31 @@ function holeSprite(f: number) {
   });
 }
 
+function oilSprite(f: number) {
+  return sprite(`oil:${f}`, px => {
+    // A black slick with a rainbow sheen, low flames licking across it
+    for (let y = 4; y < 15; y++) for (let x = 1; x < 15; x++) {
+      const d = Math.abs(x - 8) / 7 + Math.abs(y - 10) / 5.5;
+      if (d < 1) px(x, y, (x * 3 + y + f) % 11 === 0 ? '#5b3f7a' : (x + y * 2 + f) % 13 === 0 ? '#2f6a5e' : '#0e0c0a');
+    }
+    for (let x = 3; x < 14; x += 2) {
+      const hgt = 2 + Math.floor(hash(x, f, 9) * 4);
+      for (let k = 0; k < hgt; k++) px(x, 10 - k, k === hgt - 1 ? FIRE[4] : k > hgt / 2 ? FIRE[3] : FIRE[2]);
+    }
+  });
+}
+function sumpSprite(f: number) {
+  return sprite(`sump:${f}`, px => {
+    // A pit of grey-brown silt that sucks at your feet; slow bubbles
+    for (let y = 2; y < 15; y++) for (let x = 1; x < 15; x++) {
+      const d = Math.abs(x - 8) / 7 + Math.abs(y - 8.5) / 6.5;
+      if (d < 1) px(x, y, d > 0.8 ? '#6b6250' : d > 0.45 ? '#4a4334' : '#2e2a20');
+    }
+    const b: [number, number][] = [[6, 9 - f], [10, 7 + f % 2], [8, 11 - f * 2]];
+    for (const [x, y] of b) if (y > 3) { px(x, y, '#8a8266'); px(x + 1, y, '#8a8266'); px(x, y - 1, '#a49b7c'); }
+  });
+}
+
 /** A hazard, drawn as what it is. Returns false if the art name isn't known. */
 export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: number, s: number, now: number): boolean {
   const size = s * 0.86, x = cx - size / 2, y = cy - size / 2;
@@ -203,6 +228,8 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
     case 'fire': blit(ctx, fireSprite(f), x, y, size, size); return true;
     case 'cable': blit(ctx, cableSprite(f), x, y, size, size); return true;
     case 'chem': blit(ctx, chemSprite(f), x, y, size, size); return true;
+    case 'oil': blit(ctx, oilSprite(f), x, y, size, size); return true;
+    case 'sump': blit(ctx, sumpSprite(Math.floor(now / 300) % 3), x, y, size, size); return true;
     case 'hole': case 'rot': blit(ctx, holeSprite(Math.floor(now / 400) % 4), x, y, size, size); return true;
     default: return false;
   }
@@ -211,6 +238,27 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 // ── Cover ────────────────────────────────────────────────────────────────────
 
 const COVER: Record<string, Paint> = {
+  cases: px => {
+    // Sealed record cases stacked three high, steel clasps, a stencilled number
+    const box = (y0: number, w: number, x0: number, c: string, hi: string, lo: string) => {
+      rect(px, x0, y0, w, 4, c);
+      for (let i = x0; i < x0 + w; i++) { px(i, y0, hi); px(i, y0 + 3, lo); }
+      px(x0 + 2, y0 + 1, '#c9ced2'); px(x0 + w - 3, y0 + 1, '#c9ced2');
+    };
+    box(11, 12, 2, '#54606b', '#7b8894', '#2b333a');
+    box(7, 11, 3, '#5d6975', '#8592a0', '#2f373f');
+    box(3, 9, 4, '#4f5a64', '#76838f', '#283038');
+    px(7, 12, '#d6dade'); px(8, 12, '#d6dade'); px(8, 8, '#d6dade');
+  },
+  bollard: px => {
+    // An iron mooring bollard with a rope wound round it
+    rect(px, 5, 4, 6, 11, '#3d3b38');
+    for (let y = 4; y < 15; y++) { px(5, y, '#5a5753'); px(10, y, '#24221f'); }
+    rect(px, 4, 3, 8, 2, '#4a4844');
+    for (let x = 4; x < 12; x++) px(x, 3, '#6e6a64');
+    for (const y of [7, 9, 11]) for (let x = 4; x < 12; x++) px(x, y + ((x % 2) ? 0 : 1) - 1, (x + y) % 3 ? '#b49a6a' : '#8a7448');
+    rect(px, 3, 14, 10, 1, '#1d1b19');
+  },
   crate: px => {
     // A stack of two plastic crates with handle slots
     rect(px, 2, 3, 12, 12, '#2f6c94');

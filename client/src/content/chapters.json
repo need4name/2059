@@ -48,16 +48,16 @@
         "floor": { "light": "#5e5a50", "dark": "#565248", "seam": "#2b2924" },
         "sea": { "top": "#3a3826", "bottom": "#14130c", "foam": "#8a8463" },
         "hazards": [
-          { "art": "fire", "name": "Burning oil", "damage": 8 },
+          { "art": "oil", "name": "Burning oil", "damage": 8 },
           { "art": "cable", "name": "Live cable", "damage": 6 },
-          { "art": "chem", "name": "Silt sump", "damage": 5 },
+          { "art": "sump", "name": "Silt sump", "damage": 5 },
           { "art": "hole", "name": "Rotten plating", "damage": 4 }
         ],
         "obstacles": [
-          { "art": "crate", "name": "Record crate" },
+          { "art": "cases", "name": "Record cases" },
           { "art": "drum", "name": "Fuel drum" },
           { "art": "nets", "name": "Net heap" },
-          { "art": "pump", "name": "Bilge pump" }
+          { "art": "bollard", "name": "Mooring bollard" }
         ]
       }
     }

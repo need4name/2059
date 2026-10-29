@@ -891,14 +891,18 @@ export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType |
 export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternType | undefined): Step & { moved: boolean } {
   const foe = s.foes[i];
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)], moved: false };
-  let pos = foe.pos, moved = false;
   const view = foeView(s, i);
+  const path = [foe.pos];
   for (let k = 0; k < BOSS_MOVE + (hasTrait(foe, 'fast') ? 1 : 0); k++) {
-    const step = stepTowardAttackPosition({ ...view, bossPosition: pos }, pattern ?? 'melee_long');
+    const step = stepTowardAttackPosition({ ...view, bossPosition: path[path.length - 1] }, pattern ?? 'melee_long');
     if (!step) break;
-    pos = step; moved = true;
+    path.push(step);
   }
-  return { state: setFoe(s, i, { pos }), events: [], moved };
+  // Don't stop on mud the tide takes at the start of next round: stop short instead
+  const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
+  while (flooding && path.length > 1 && tileAt(path[path.length - 1], s.grid)?.tidal) path.pop();
+  const pos = path[path.length - 1];
+  return { state: setFoe(s, i, { pos }), events: [], moved: path.length > 1 };
 }
 
 /** A heavy attack: wind up where it stands; it fires next turn at the tiles it locks now. */
@@ -1105,11 +1109,14 @@ export function foeWalk(s: FightState, i: number): Step {
   const covers = (from: TilePosition, t: TilePosition) =>
     patterns.some(p => canHitTarget(from, t, p, { ...view, bossPosition: from, playerPosition: t, occupied: (view.occupied ?? []).filter(o => !same(o, t)) }));
   let best = foe.pos, bestScore = -Infinity, onPrey = false;
+  // Mud that floods at the start of next round is a bad place to stop
+  const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
   for (const p of spots) {
     const hitsPrey = covers(p, prey);
     const hits = escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0);
     const hazard = s.grid.tiles?.[p.row]?.[p.col]?.type === 'hazard' && !hasTrait(foe, 'filtered') ? 2 : 0;
-    const score = hits - hazard - chebyshev(p, prey) * 0.05 - (same(p, foe.pos) ? 0 : 0.01);
+    const mud = flooding && s.grid.tiles?.[p.row]?.[p.col]?.tidal ? 12 : 0;
+    const score = hits - hazard - mud - chebyshev(p, prey) * 0.05 - (same(p, foe.pos) ? 0 : 0.01);
     if (score > bestScore) { bestScore = score; best = p; onPrey = hitsPrey; }
   }
   // Nowhere it can reach covers the victim yet: close the distance the usual way
@@ -1221,13 +1228,16 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
 
 // ── Hazards ──────────────────────────────────────────────────────────────────
 
+/** Hazard art that sets whoever ends a turn on it alight (fuel fire, burning oil). */
+export const BURNING_ART = ['fire', 'oil'];
+
 /** Damage to the player from the tile they end their turn on. */
 export function applyPlayerHazard(s: FightState): Step {
   const pos = s.grid.playerPosition;
   const dmg = Math.round(hazardDamageAt(pos, s.grid) * s.perks.hazardMult);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(pos, s.grid)?.name ?? 'Hazard';
-  const fire = tileAt(pos, s.grid)?.art === 'fire';
+  const fire = BURNING_ART.includes(tileAt(pos, s.grid)?.art ?? '');
   const events: FightEvent[] = [say(`${name}: -${dmg} HP${fire ? ', you catch fire' : ''}`, 'damage')];
   const held = holdOn(s, Math.max(0, s.player.currentHp - dmg), events);
   if (held.hp <= 0) events.push({ kind: 'playerDown' });
@@ -1241,7 +1251,7 @@ export function applyFoeHazard(s: FightState, i: number): Step {
   const dmg = hasTrait(foe, 'filtered') ? 0 : hazardDamageAt(foe.pos, s.grid);
   if (dmg <= 0) return { state: s, events: [] };
   const name = tileAt(foe.pos, s.grid)?.name ?? 'Hazard';
-  const fire = tileAt(foe.pos, s.grid)?.art === 'fire';
+  const fire = BURNING_ART.includes(tileAt(foe.pos, s.grid)?.art ?? '');
   const hp = Math.max(0, foe.unit.currentHp - dmg);
   const events: FightEvent[] = [say(`${foe.unit.name} on ${name}: -${dmg}${fire ? ', catches fire' : ''}`, 'damage')];
   let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp }, ...(fire ? { burning: BURN.turns } : {}) });
