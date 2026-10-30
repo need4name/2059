@@ -6,9 +6,9 @@ import { useMarket, marketPrice } from '@/lib/stores/useMarket';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { TIER1_WEAPONS, getUpgrade } from '@/lib/combat/weapons2059';
 import { buyPrice, sellPrice } from '@/lib/combat/economy';
-import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES, augmentKind, type Item, type ItemRarity, type Weapon } from '@/lib/combat/types';
-import { Screen, Label, Btn, Chip, Card, Segmented, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, cx } from '../hud';
-import { rangeText, implantStats, stimInfo, passiveText } from '../itemText';
+import { AUGMENTATION_SLOT_NAMES, augmentKind, type Item, type ItemRarity, type Weapon } from '@/lib/combat/types';
+import { Screen, Label, Btn, Chip, Card, Segmented, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, SlotIcon, cx } from '../hud';
+import { rangeText, implantStats, stimInfo, passiveText, nameOf } from '../itemText';
 
 type Mode = 'buy' | 'sell';
 type Kind = 'all' | 'active' | 'passive' | 'stim' | 'weapon';
@@ -48,10 +48,10 @@ function ItemRow({ item, price, action }: { item: Item; price: number; action: R
   return (
     <div className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 px-3 py-3 ring-1 ring-white/[0.05]', RARITY_GLOW[item.rarity])}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">
-        {isStim ? stim!.icon : item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}
+        <SlotIcon slot={isStim ? 'stim' : item.slot} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : item.name}</div>
+        <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
         <div className="text-xs text-hud-dim">
           {isStim ? stim!.effect : `${item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · ${implantStats(item)}`}
         </div>
@@ -95,16 +95,14 @@ export function ShopScreen() {
   };
 
   return (
-    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Back to the hideout</Btn>}>
+    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Leave</Btn>}>
       <div className="pointer-events-none absolute right-0 top-0 h-64 w-48 rounded-full bg-cred/10 blur-3xl" />
       <div className="relative space-y-4 px-4 pb-6 pt-7">
         <header className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-cred">Offshore Sector 7 · market deck</div>
             <h1 className="font-display text-3xl font-bold text-white">Grey Lane</h1>
-            <p className="text-sm text-hud-dim">Salvage, grafts and firmware moved through IOA grey lanes. New stock after every fight.</p>
           </div>
-          <span className="shrink-0 whitespace-nowrap rounded-full bg-cred/10 px-3 py-1 font-display text-lg font-semibold text-cred">¤ {gold}</span>
+          <span className="glass shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
         </header>
 
         <Segmented value={mode} onChange={setMode} options={[{ id: 'buy', label: 'Buy' }, { id: 'sell', label: 'Sell', badge: items.length || undefined }]} />
@@ -130,7 +128,7 @@ export function ShopScreen() {
 
         {assigning && (
           <Card className="rise-in space-y-3 p-4 ring-2 ring-sys/50">
-            <div className="text-sm text-hud-text">Which slot should <span className="font-semibold text-sys">{assigning.name}</span> go in?</div>
+            <div className="text-sm text-hud-text">Which slot should <span className="font-semibold text-sys">{nameOf(assigning)}</span> go in?</div>
             <div className="grid grid-cols-4 gap-2">
               {slots.map((s, i) => (
                 <button key={i} onClick={() => putInSlot(assigning, i)} className="flex h-16 flex-col items-center justify-center rounded-2xl bg-white/[0.05] px-1 transition hover:bg-sys/15">
@@ -188,7 +186,7 @@ export function ShopScreen() {
                     )}
                     <Btn size="sm" variant="ghost" onClick={() => sellWeapon(w.id)}>Sell · ¤{w.sellPrice}</Btn>
                   </div>
-                  {!isEquipped && upgrade && <p className="text-xs text-hud-faint">Carry this weapon to upgrade it.</p>}
+                  {!isEquipped && upgrade && <p className="text-xs text-hud-faint">Carry it first.</p>}
                 </div>
               );
             })}

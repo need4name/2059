@@ -724,7 +724,7 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
   const heal = Math.min(player.maxHp - player.currentHp, Math.round(player.maxHp * s.perks.braceHeal));
   const events: FightEvent[] = [];
   if (wasMalfunctioning && structure > 0) events.push(say('STRUCTURAL INTEGRITY RESTORED -- system nominal'));
-  events.push(say(`${action.name.toUpperCase()} -- guard up${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
+  events.push(say(`${action.name} -- guard up${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
   return {
     state: {
       ...s,
@@ -1109,7 +1109,7 @@ export function telegraphHeavy(s: FightState, i: number, action: CombatAction): 
   const at = victim >= 0 ? ` at ${s.allies[victim].unit.name}` : '';
   return {
     state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim, pendingTiles: tiles }),
-    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name.toUpperCase()}${at}!`, 'critical'), { kind: 'telegraph' }],
+    events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name}${at}!`, 'critical'), { kind: 'telegraph' }],
   };
 }
 
@@ -1150,7 +1150,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (action.type === 'defend') {
     return {
       state: setFoe(s, i, { defenseBoost: action.defenseBoost || 0, heat: clampHeat(foe.heat + (action.heatGenerated ?? 0)) }),
-      events: [say(`${foe.unit.name}: ${action.name.toUpperCase()} -- guard up`)],
+      events: [say(`${foe.unit.name}: ${action.name} -- guard up`)],
     };
   }
   if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level);
@@ -1403,7 +1403,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
     state = afterFoeChanges(state, events);
   } else if (move.effect === 'taunt') {
     state = setAlly(state, k, { taunting: true, defenseBoost: move.defenseBoost ?? 0 });
-    events.push(say(`${a.unit.name} -- ${move.name.toUpperCase()}: every enemy turns on ${a.unit.name}`));
+    events.push(say(`${a.unit.name} -- ${move.name}: every enemy turns on ${a.unit.name}`));
   } else if (move.effect === 'heal') {
     const heal = Math.round(s.player.maxHp * (move.amount ?? 0));
     state = { ...state, player: { ...state.player, currentHp: Math.min(state.player.maxHp, state.player.currentHp + heal) } };

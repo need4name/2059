@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
-import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
-import { Screen, Card, Label, Btn, Chip, Footprint, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
+import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
+import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { actionForItem, partsText } from '@/lib/combat/augments';
 import { scrapValue } from '@/lib/combat/economy';
-import { implantStats, stimInfo, passiveText } from '../itemText';
+import { implantStats, stimInfo, passiveText, nameOf } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
 import { useAllies } from '@/lib/stores/useAllies';
 import { useMap } from '@/lib/stores/useMap';
@@ -12,11 +12,11 @@ import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, bossLevel, strip, takePart } = useCombat();
+  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart } = useCombat();
   const items = currentLoot?.items ?? [];
   const picksLeft = strip ? strip.picks - strip.taken.length : 0;
   const scrap = strip ? scrapValue(strip.bodies.flatMap(b => b.items).filter(i => !strip.taken.includes(i.id))) : 0;
-  const { party, progress, met } = useAllies();
+  const { progress, met } = useAllies();
   const map = useMap();
   const ended = !!lastVictory?.chapterDone;
   const goToNextChapter = useCombat(s => s.goToNextChapter);
@@ -32,8 +32,8 @@ export function VictoryScreen() {
     <Screen footer={
       picksLeft > 0 ? (
         <div className="space-y-2">
-          <Btn variant="primary" size="lg" className="w-full" disabled>Tap an implant above to keep it</Btn>
-          <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me (keeps the rarest)</button>
+          <Btn variant="primary" size="lg" className="w-full" disabled>Take one</Btn>
+          <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me</button>
         </div>
       ) : ended && onward ? (
         <div className="space-y-2">
@@ -42,20 +42,19 @@ export function VictoryScreen() {
         </div>
       ) : (
         <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
-          Back to the hideout
+          Go back
         </Btn>
       )
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-ok/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
         <header className="rise-in space-y-2 text-center">
-          <div className="text-sm font-semibold text-ok">{ended ? 'Chapter complete' : 'Target down'}</div>
-          <h1 className="font-display text-5xl font-bold text-white">{ended ? (chapterMap().endTitle ?? 'It is quiet') : 'Victory'}</h1>
-          <p className="text-balance text-[15px] text-hud-dim">{ended ? chapterMap().ending : `${boss.name} is finished. The way on is open.`}</p>
+          <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(74,210,149,0.3)]">{ended ? (chapterMap().endTitle ?? 'It is quiet') : 'Felled'}</h1>
+          <p className="text-balance text-[15px] text-hud-dim">{ended ? chapterMap().ending : <span style={{ color: boss.spriteColor }}>{boss.name}</span>}</p>
         </header>
 
         {ended && (
-          <div className="rise-in space-y-3 rounded-3xl bg-gradient-to-b from-sys/15 to-hud-panel/80 p-5 ring-1 ring-sys/20">
+          <div className="rise-in glass space-y-3 rounded-[28px] bg-gradient-to-b from-sys/[0.12] to-transparent p-5">
             <div className="font-display text-lg font-semibold text-white">{chapterMap().title}</div>
             <div className="grid grid-cols-2 gap-2 text-center">
               {[
@@ -70,10 +69,7 @@ export function VictoryScreen() {
                 </div>
               ))}
             </div>
-            <p className="text-sm leading-relaxed text-hud-text/85">
-              The signal keeps what it always keeps: the allies you linked, everything it learned in the play-i tree, and every place it has walked. This host can go on: the last room stays quiet, and every other room still holds a fight for the next host.
-            </p>
-            {!onward && !endings && <p className="text-sm text-hud-dim">The next chapter is still being written.</p>}
+            {!onward && !endings && <p className="text-sm text-hud-dim">Nothing further, yet.</p>}
             {!onward && endings && (
               <div className="space-y-2 pt-1">
                 {chosen === null ? (
@@ -92,15 +88,15 @@ export function VictoryScreen() {
         )}
 
         {strip && (
-          <div className={cx('rise-in space-y-3 rounded-3xl p-4 ring-1 transition', picksLeft ? 'bg-gradient-to-b from-cred/[0.14] to-hud-panel/60 ring-cred/40' : 'bg-hud-panel/60 ring-white/[0.06]')}>
+          <div className={cx('rise-in glass space-y-3 rounded-[28px] p-4 transition', picksLeft > 0 && 'bg-gradient-to-b from-cred/[0.12] to-transparent')}>
             <div className="flex items-center gap-3">
-              <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg', picksLeft ? 'bg-cred/15' : 'bg-ok/15')}>{picksLeft ? '🧰' : '✓'}</span>
+              <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', picksLeft ? 'bg-cred/15 text-cred' : 'bg-ok/15 text-ok')}><Glyph name="implant" size={20} /></span>
               <div className="min-w-0 flex-1">
-                <div className="font-display text-[16px] font-semibold text-white">{picksLeft ? `Strip the bodies: keep ${picksLeft === 1 ? 'one implant' : `${picksLeft} implants`}` : 'Stripped'}</div>
+                <div className="font-display text-[16px] font-semibold text-white">{picksLeft ? (picksLeft === 1 ? 'Take one' : `Take ${picksLeft}`) : 'Taken'}</div>
                 <p className="text-[13px] leading-snug text-hud-dim">
                   {picksLeft
-                    ? <>These are the implants they were wearing. <span className="text-hud-text">Tap one to keep it.</span> The rest are scrapped for ¤{scrap}.</>
-                    : <>Kept {strip.taken.map(id => strip.bodies.flatMap(b => b.items).find(i => i.id === id)?.name).join(' and ')}. Install it from Implants at the hideout. The rest scrap for ¤{scrap}.</>}
+                    ? <>The rest is scrap: ¤{scrap}</>
+                    : <>{strip.taken.map(id => strip.bodies.flatMap(b => b.items).find(i => i.id === id)).map(i => i ? nameOf(i) : '').join(' and ')}. The rest is scrap: ¤{scrap}</>}
                 </p>
               </div>
             </div>
@@ -115,9 +111,9 @@ export function VictoryScreen() {
                     return (
                       <button key={item.id} disabled={taken || gone} onClick={() => takePart(item.id)} aria-pressed={taken}
                         className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">{item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}</span>
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
-                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}{item.signature ? ' ★' : ''}</span>
+                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
                           <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
                           {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
                         </span>
@@ -148,11 +144,6 @@ export function VictoryScreen() {
             </div>
           </Card>
         )}
-        {lastVictory && lastVictory.pointsGained > 0 && (
-          <div className="rise-in rounded-2xl bg-sys/10 px-4 py-3 text-center text-sm font-semibold text-sys">
-            Spend your points in Upgrades.
-          </div>
-        )}
 
         {lastVictory?.allyLevelUps?.map(id => {
           const def = allyDef(id);
@@ -166,7 +157,7 @@ export function VictoryScreen() {
         {(items.length > 0 || !strip) && <div className="space-y-2.5">
           <Label>Salvage</Label>
           {items.length === 0 ? (
-            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">{strip ? 'Nothing else this time.' : 'Nothing usable this time. Credits only.'}</Card>
+            <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">Nothing worth keeping.</Card>
           ) : (
             <div className="space-y-2">
               {items.map((item, i) => {
@@ -176,10 +167,10 @@ export function VictoryScreen() {
                 return (
                   <div key={item.id} className={cx('rise-in flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 px-3 py-3 ring-1 ring-white/[0.05]', RARITY_GLOW[item.rarity])} style={{ animationDelay: `${i * 90}ms` }}>
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black/25 text-2xl">
-                      {isStim ? stim!.icon : item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}
+                      <SlotIcon slot={isStim ? 'stim' : item.slot} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : item.name}</div>
+                      <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
                       <div className="text-xs text-hud-dim">
                         {isStim ? stim!.effect : `${item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · ${implantStats(item)}`}
                       </div>
@@ -190,9 +181,6 @@ export function VictoryScreen() {
                 );
               })}
             </div>
-          )}
-          {items.some(i => i.type === 'augmentation') && (
-            <p className="text-xs text-hud-faint">New implants wait in the Implants tab at base until you install them.</p>
           )}
         </div>}
       </div>

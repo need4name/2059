@@ -1,7 +1,7 @@
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 import type { ItemRarity } from '@/lib/combat/types';
 import { ATTACK_PATTERNS } from '@/lib/combat/patterns';
-import type { AttackPatternType, CombatGrid } from '@/lib/combat/types';
+import type { AttackPatternType, AugmentationSlot, CombatGrid } from '@/lib/combat/types';
 
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   common: 'text-slate-300',
@@ -41,6 +41,7 @@ export function Screen({ children, className, footer }: { children: ReactNode; c
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-hud-bg">
       <div className="pointer-events-none absolute inset-0 ambient" />
+      <div className="pointer-events-none absolute inset-0 scanlines" />
       <div className={cx('relative flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none no-scrollbar', className)}>{children}</div>
       {footer && (
         <div className="relative bg-gradient-to-t from-hud-bg via-hud-bg/95 to-transparent px-4 pt-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
@@ -53,13 +54,18 @@ export function Screen({ children, className, footer }: { children: ReactNode; c
 
 /** Small muted label above a section. */
 export function Label({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('text-[13px] font-semibold text-hud-dim', className)}>{children}</div>;
+  return (
+    <div className={cx('flex items-center gap-2 text-[12px] font-semibold tracking-[0.02em] text-hud-dim', className)}>
+      <span aria-hidden className="h-1 w-1 rounded-full bg-sys/70 shadow-[0_0_6px_rgba(56,214,240,0.8)]" />
+      {children}
+    </div>
+  );
 }
 
 /** Rounded surface. Use `raised` for something sitting on another card. */
 export function Card({ children, className, raised, onClick }: { children: ReactNode; className?: string; raised?: boolean; onClick?: () => void }) {
   return (
-    <div onClick={onClick} className={cx('rounded-2xl', raised ? 'bg-white/[0.05]' : 'bg-hud-panel/80 shadow-[0_8px_30px_rgba(0,0,0,0.25)] ring-1 ring-white/[0.05]', className)}>
+    <div onClick={onClick} className={cx('rounded-2xl', raised ? 'bg-white/[0.05]' : 'glass', className)}>
       {children}
     </div>
   );
@@ -120,16 +126,16 @@ export function Chip({ tone = 'dim', pulse, children, className }: { tone?: Tone
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'gold'; size?: 'md' | 'lg' | 'sm' };
 
 const BTN_VARIANT = {
-  primary: 'bg-gradient-to-r from-cyan-400 to-sys text-[#03121a] shadow-[0_6px_24px_rgba(56,214,240,0.25)] hover:brightness-110 disabled:from-hud-raised disabled:to-hud-raised disabled:text-hud-faint disabled:shadow-none',
-  gold: 'bg-gradient-to-r from-amber-400 to-cred text-[#1a1003] shadow-[0_6px_24px_rgba(242,179,61,0.22)] hover:brightness-110 disabled:from-hud-raised disabled:to-hud-raised disabled:text-hud-faint disabled:shadow-none',
-  secondary: 'bg-white/[0.07] text-hud-text hover:bg-white/[0.11] disabled:text-hud-faint disabled:hover:bg-white/[0.07]',
+  primary: 'btn-lit text-cyan-50 hover:brightness-125',
+  gold: 'btn-lit btn-lit-gold text-amber-50 hover:brightness-125',
+  secondary: 'bg-white/[0.06] text-hud-text shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/[0.06] hover:bg-white/[0.1] disabled:text-hud-faint disabled:hover:bg-white/[0.06]',
   danger: 'bg-hostile/10 text-rose-300 hover:bg-hostile/20',
   ghost: 'bg-transparent text-hud-dim hover:text-hud-text hover:bg-white/[0.05]',
 };
 const BTN_SIZE = {
   sm: 'h-9 px-3.5 text-[13px] rounded-xl',
   md: 'h-11 px-4 text-sm rounded-xl',
-  lg: 'h-14 px-6 text-base rounded-2xl',
+  lg: 'h-14 px-6 text-[15px] rounded-[20px]',
 };
 
 export function Btn({ variant = 'secondary', size = 'md', className, ...rest }: BtnProps) {
@@ -182,7 +188,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCa
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center" onClick={onCancel}>
-      <div role="dialog" aria-modal="true" className="rise-in w-full max-w-sm rounded-3xl bg-hud-panel p-6 shadow-2xl ring-1 ring-white/[0.06]" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="rise-in glass-solid w-full max-w-sm rounded-[28px] p-6" onClick={e => e.stopPropagation()}>
         <h2 className="font-display text-xl font-semibold text-hud-text">{title}</h2>
         <div className="mt-2 text-sm leading-relaxed text-hud-dim">{body}</div>
         <div className="mt-6 grid grid-cols-2 gap-2">
@@ -199,7 +205,7 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="rise-in w-full max-w-[520px] rounded-t-3xl bg-hud-panel shadow-2xl ring-1 ring-white/[0.06]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+      <div className="rise-in glass-solid w-full max-w-[520px] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/15" />
         <div className="flex items-center justify-between px-5 pb-2 pt-3">
           <span className="font-display text-lg font-semibold text-hud-text">{title}</span>
@@ -217,6 +223,7 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
   return (
     <div className="fixed inset-0 z-40 flex justify-center bg-hud-bg">
       <div className="pointer-events-none absolute inset-0 ambient" />
+      <div className="pointer-events-none absolute inset-0 scanlines" />
       <div className="rise-in relative flex w-full max-w-[520px] flex-col">
         <header className="flex items-center gap-2 px-3 pb-2" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
           <button onClick={onClose} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-hud-dim transition hover:bg-white/[0.06] hover:text-hud-text">
@@ -224,7 +231,7 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
           </button>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-10 no-scrollbar">
-          <h1 className="mb-4 font-display text-[26px] font-semibold leading-tight text-white">{title}</h1>
+          <h1 className="mb-5 font-display text-[28px] font-semibold leading-tight tracking-tight text-white">{title}</h1>
           {children}
         </div>
       </div>
@@ -266,4 +273,50 @@ export function Footprint({ pattern, className }: { pattern?: AttackPatternType;
       })}
     </svg>
   );
+}
+
+
+/**
+ * Small pixel-art icons, drawn from 9x9 bitmaps so they sit with the board art
+ * instead of looking like phone emoji. `#` is lit.
+ */
+const GLYPHS = {
+  bar: ['.........', '.###.###.', '.###.###.', '.###.###.', '.........', '.###.###.', '.###.###.', '.###.###.', '.........'],
+  implant: ['..#.#.#..', '.#######.', '##.....##', '.#.###.#.', '##.###.##', '.#.###.#.', '##.....##', '.#######.', '..#.#.#..'],
+  upgrade: ['....#....', '...###...', '..##.##..', '.##...##.', '....#....', '...###...', '..##.##..', '.##...##.', '.........'],
+  status: ['.........', '.........', '.....#...', '....##...', '#..#.#..#', '.##..#.#.', '......#..', '.........', '.........'],
+  allies: ['.........', '.##...##.', '.##...##.', '.........', '###...###', '####.####', '####.####', '.........', '.........'],
+  market: ['.........', '..#####..', '.##...##.', '.#..#..#.', '.#.###.#.', '.#..#..#.', '.##...##.', '..#####..', '.........'],
+  sound: ['.........', '....#....', '...##..#.', '####.#..#', '#...#.#.#', '####.#..#', '...##..#.', '....#....', '.........'],
+  mute: ['.........', '....#....', '...##....', '####.#.#.', '#...#..#.', '####.#.#.', '...##....', '....#....', '.........'],
+  eye: ['.........', '.........', '..#####..', '.#.....#.', '#..###..#', '.#.....#.', '..#####..', '.........', '.........'],
+  signal: ['.........', '.#.....#.', '#..#.#..#', '#.#...#.#', '#.#.#.#.#', '#.#...#.#', '#..#.#..#', '.#.....#.', '.........'],
+  brain: ['.........', '..##.##..', '.#..#..#.', '#..#..#.#', '#.#..#..#', '#..#..#.#', '.#..#.#..', '..##.##..', '....#....'],
+  ear: ['..####...', '.#....#..', '#..##..#.', '#.#..#.#.', '#....#.#.', '.#..#..#.', '..#...#..', '..#..#...', '...##....'],
+  nose: ['....#....', '....#....', '...#.....', '...#.....', '..#......', '..#......', '.#...#...', '.#####...', '.........'],
+  lungs: ['....#....', '....#....', '.##.#.##.', '#..###..#', '#...#...#', '#.......#', '#...#...#', '.###.###.', '.........'],
+  spine: ['...###...', '....#....', '..#####..', '....#....', '..#####..', '....#....', '..#####..', '....#....', '...###...'],
+  arm: ['.##......', '.###.....', '..###....', '...###...', '....####.', '.....####', '......##.', '.......#.', '.........'],
+  leg: ['..###....', '..###....', '..###....', '...##....', '...##....', '...##....', '...##....', '...####..', '...#####.'],
+  stim: ['.......#.', '......#.#', '.....###.', '....###..', '...###...', '..###....', '.#.#.....', '#........', '.........'],
+};
+export type GlyphName = keyof typeof GLYPHS;
+
+export function Glyph({ name, className, size = 18, flip }: { name: GlyphName; className?: string; size?: number; flip?: boolean }) {
+  const rows = GLYPHS[name];
+  return (
+    <svg viewBox="0 0 9 9" width={size} height={size} className={className} aria-hidden shapeRendering="crispEdges" fill="currentColor" style={flip ? { transform: 'scaleX(-1)' } : undefined}>
+      {rows.flatMap((row, y) => row.split('').map((ch, x) => ch === '#' ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} /> : null))}
+    </svg>
+  );
+}
+
+const SLOT_GLYPH: Record<AugmentationSlot | 'stim', GlyphName> = {
+  brain: 'brain', eyes: 'eye', ears: 'ear', nose: 'nose', lungs: 'lungs', misc: 'spine',
+  left_arm: 'arm', right_arm: 'arm', left_leg: 'leg', right_leg: 'leg', stim: 'stim',
+};
+
+/** The pixel icon for a body slot (or a stim). Left limbs are mirrored. */
+export function SlotIcon({ slot, size = 22, className }: { slot?: AugmentationSlot | 'stim'; size?: number; className?: string }) {
+  return <Glyph name={slot ? SLOT_GLYPH[slot] : 'implant'} size={size} className={className} flip={slot === 'left_arm' || slot === 'left_leg'} />;
 }

@@ -3,12 +3,12 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
-import { estimateDamage, ENEMY_GRADES, ENEMY_TRAITS } from '@/lib/combat/actions';
+import { estimateDamage, ENEMY_TRAITS } from '@/lib/combat/actions';
 import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
-import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, cx } from '../hud';
+import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx } from '../hud';
 import { stimInfo } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
@@ -18,7 +18,7 @@ const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
 
 function CombatHud() {
   const s = useCombat();
-  const { player, bossLevel, grid, combatLog, foes, target: targetIdx, setTarget } = s;
+  const { player, bossLevel, combatLog, foes, target: targetIdx, setTarget } = s;
   const target = foes[targetIdx] ?? foes[0];
   const boss = target?.unit ?? s.boss;
   const bossHeat = target?.heat ?? 0;
@@ -29,38 +29,38 @@ function CombatHud() {
   const chips: { key: string; tone: Parameters<typeof Chip>[0]['tone']; text: string; pulse?: boolean }[] = [];
   // One warning however many enemies are winding up, so the arena keeps its space
   if (charging.length) chips.push({ key: 'heavy', tone: 'hostile', pulse: true,
-    text: charging.length > 1 ? `⚠ ${charging.length} heavy attacks next turn · leave the orange tiles` : `⚠ ${charging[0].pendingAction!.name} next turn · leave the orange tiles` });
-  if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction · Brace', pulse: true });
-  if (s.playerHeat >= 100) chips.push({ key: 'oh', tone: 'hostile', text: 'Overheated · can\'t move' });
-  if (s.playerBurning > 0) chips.push({ key: 'burn', tone: 'hostile', text: `Burning · ${s.playerBurning} turn${s.playerBurning === 1 ? '' : 's'}`, pulse: true });
-  if (s.playerStunned) chips.push({ key: 'stun', tone: 'cred', text: 'Stunned · you lose your next turn' });
-  if (s.playerBleeding) chips.push({ key: 'bleed', tone: 'hostile', text: `Bleeding · ${s.playerBleeding} turn${s.playerBleeding === 1 ? '' : 's'}` });
-  if (s.playerSwimming) chips.push({ key: 'swim', tone: 'cred', text: 'In the sea · climbing out next turn' });
+    text: charging.length > 1 ? `⚠ ${charging.length} winding up` : `⚠ ${charging[0].pendingAction!.name}` });
+  if (s.playerMalfunctioning) chips.push({ key: 'mlf', tone: 'structure', text: 'Malfunction', pulse: true });
+  if (s.playerHeat >= 100) chips.push({ key: 'oh', tone: 'hostile', text: 'Overheated' });
+  if (s.playerBurning > 0) chips.push({ key: 'burn', tone: 'hostile', text: 'Burning', pulse: true });
+  if (s.playerStunned) chips.push({ key: 'stun', tone: 'cred', text: 'Stunned' });
+  if (s.playerBleeding) chips.push({ key: 'bleed', tone: 'hostile', text: 'Bleeding' });
+  if (s.playerSwimming) chips.push({ key: 'swim', tone: 'cred', text: 'In the sea' });
   if (s.tide) chips.push(s.tide.turnsLeft === 1
-    ? { key: 'tide', tone: 'cred', pulse: true, text: s.tide.high ? 'Tide goes out next round' : 'Tide comes in next round · get off the mud' }
-    : { key: 'tide', tone: 'sys', text: `${s.tide.high ? 'High' : 'Low'} tide · turns in ${s.tide.turnsLeft} rounds` });
+    ? { key: 'tide', tone: 'cred', pulse: true, text: 'The tide turns' }
+    : { key: 'tide', tone: 'sys', text: s.tide.high ? 'High tide' : 'Low tide' });
   if (s.alarm) chips.push(s.alarm.on
-    ? { key: 'alarm', tone: 'hostile', text: Fight.besideColdPod(s, s.grid.playerPosition) ? 'Alarm · the pod beside you keeps you cool' : `Alarm · +${Fight.ALARM.heat} heat a round · stand by a cold pod` }
-    : { key: 'alarm', tone: s.alarm.turnsLeft === 1 ? 'cred' : 'sys', pulse: s.alarm.turnsLeft === 1, text: s.alarm.turnsLeft === 1 ? 'The alarm trips next round' : `Quiet · the alarm trips in ${s.alarm.turnsLeft} rounds` });
-  if (s.wind) chips.push({ key: 'wind', tone: s.wind.turnsLeft === 1 ? 'cred' : 'sys', text: `Wind ${({ north: '↑', south: '↓', east: '→', west: '←' } as const)[s.wind.dir]} pushes everyone a tile as your turn ends${s.wind.turnsLeft === 1 ? ' · turns next round' : ` · turns in ${s.wind.turnsLeft}`}` });
-  if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed · you act later' });
-  if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted · you act sooner' });
+    ? { key: 'alarm', tone: 'hostile', text: Fight.besideColdPod(s, s.grid.playerPosition) ? 'Alarm · cold here' : 'Alarm' }
+    : { key: 'alarm', tone: s.alarm.turnsLeft === 1 ? 'cred' : 'sys', pulse: s.alarm.turnsLeft === 1, text: s.alarm.turnsLeft === 1 ? 'Something is about to trip' : 'Quiet' });
+  if (s.wind) chips.push({ key: 'wind', tone: s.wind.turnsLeft === 1 ? 'cred' : 'sys', text: `Wind ${({ north: '↑', south: '↓', east: '→', west: '←' } as const)[s.wind.dir]}${s.wind.turnsLeft === 1 ? ' · turning' : ''}` });
+  if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed' });
+  if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted' });
   const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];
-  if (twice.length) chips.push({ key: 'twice', tone: 'hostile', pulse: true, text: twice.length > 1 ? `⚠ ${twice.length} enemies act twice before your next turn` : `⚠ ${foes[twice[0]].unit.name} acts twice before your next turn` });
+  if (twice.length) chips.push({ key: 'twice', tone: 'hostile', pulse: true, text: twice.length > 1 ? `⚠ ${twice.length} act twice` : `⚠ ${foes[twice[0]].unit.name} acts twice` });
   if (target?.burning) chips.push({ key: 'tburn', tone: 'ok', text: 'Target burning' });
   if (target?.stunned) chips.push({ key: 'tstun', tone: 'ok', text: 'Target stunned' });
   if (target?.bleeding) chips.push({ key: 'tbleed', tone: 'ok', text: 'Target bleeding' });
   if (target?.swimming) chips.push({ key: 'tswim', tone: 'ok', text: 'Target in the sea' });
   if (target?.slowed) chips.push({ key: 'tslow', tone: 'ok', text: 'Target slowed' });
   if (target?.hasted) chips.push({ key: 'thaste', tone: 'hostile', text: 'Target hasted' });
-  if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Cold: attack twice' });
+  if (s.doubleActionReady && s.phase === 'player_turn') chips.push({ key: 'dbl', tone: 'sys', text: 'Act twice' });
   if (s.overclockActive) chips.push({ key: 'oc', tone: 'cred', text: 'Overclock ready', pulse: true });
-  if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Kizuna fired' });
+  if (s.kizunaJustFired) chips.push({ key: 'kz', tone: 'sys', text: 'Reflex' });
   if (target?.malfunctioning) chips.push({ key: 'bmlf', tone: 'ok', text: 'Target malfunctioning' });
-  if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated · can\'t move' });
+  if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated' });
 
   return (
-    <div className="relative z-10 rounded-b-3xl bg-hud-panel/95 px-4 pb-2.5 pt-3 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+    <div className="glass-solid relative z-10 rounded-b-[28px] px-4 pb-2.5 pt-3" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
       <div className="flex items-start gap-3">
         {/* Player */}
         <div className="min-w-0 flex-1 space-y-1">
@@ -69,26 +69,14 @@ function CombatHud() {
             <span className="text-[13px] font-semibold text-hud-text">{player.currentHp}<span className="text-hud-faint">/{player.maxHp}</span></span>
           </div>
           <Meter value={player.currentHp} max={player.maxHp} tone="sys" className="h-2" />
-          <div className="flex items-center gap-1.5">
-            {player.maxStructuralHp > 0 ? (
-              <>
-                <Meter value={player.currentStructuralHp} max={player.maxStructuralHp} tone="structure" className="flex-1" />
-                <span className="text-[10px] text-hud-dim">Structure {player.currentStructuralHp}</span>
-              </>
-            ) : (
-              <span className="text-[10px] text-hud-faint">No implants: nothing to absorb structural hits</span>
-            )}
-          </div>
+          {player.maxStructuralHp > 0 && <Meter value={player.currentStructuralHp} max={player.maxStructuralHp} tone="structure" className="h-1" />}
         </div>
 
         {/* Centre */}
         <div className="flex shrink-0 flex-col items-center pt-0.5">
           <span className="rounded-full bg-white/[0.07] px-2.5 py-0.5 font-display text-xs font-semibold text-hud-text">Threat {bossLevel}</span>
-          {grid.arenaShape && grid.arenaShape !== 'open' && (
-            <span className="mt-0.5 text-[10px] capitalize text-hud-faint">{grid.arenaShape.replace('_', '-')}</span>
-          )}
-          <button onClick={toggleMute} className="mt-1 text-sm text-hud-faint hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
-            {isMuted ? '🔇' : '🔊'}
+          <button onClick={toggleMute} className="mt-1.5 text-hud-faint hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
+            <Glyph name={isMuted ? 'mute' : 'sound'} size={16} />
           </button>
         </div>
 
@@ -101,18 +89,11 @@ function CombatHud() {
           <Meter value={boss.currentHp} max={boss.maxHp} tone="hostile" className="h-2" align="right" />
           {boss.grade !== undefined && (
             <div className="truncate text-right text-[10px]" title={[...(boss.implants ?? []), ...(boss.traits ?? []).map(t => ENEMY_TRAITS[t]?.text ?? t)].join('\n')}>
-              <span className="font-semibold" style={{ color: ENEMY_GRADES[boss.grade].color }}>{ENEMY_GRADES[boss.grade].name}</span>
-              {boss.traits?.length ? <span className="text-hud-dim"> · {boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(', ')}</span> : null}
+              {boss.traits?.length ? <span className="text-hud-dim">{boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(' · ')}</span> : null}
             </div>
           )}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-hud-dim">Structure {boss.currentStructuralHp}</span>
-            <Meter value={boss.currentStructuralHp} max={boss.maxStructuralHp} tone="structure" className="flex-1" align="right" />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-hud-dim">Heat {bossHeat}</span>
-            <Meter value={bossHeat} max={100} tone={bossHeat >= 70 ? 'hostile' : 'cred'} className="h-1 flex-1" align="right" />
-          </div>
+          <Meter value={boss.currentStructuralHp} max={boss.maxStructuralHp} tone="structure" className="h-1" align="right" />
+          <Meter value={bossHeat} max={100} tone={bossHeat >= 70 ? 'hostile' : 'cred'} className="h-[3px] opacity-80" align="right" />
         </div>
       </div>
 
@@ -140,7 +121,7 @@ function CombatHud() {
       )}
 
       <div className="mt-2 h-6 overflow-hidden rounded-xl bg-black/20 px-3 py-1 text-[11px] leading-[16px] text-hud-dim" aria-live="polite">
-        {recent.length === 0 && <div className="text-hud-faint">› Engagement started. Close in or hold position.</div>}
+        {recent.length === 0 && <div className="text-hud-faint">›</div>}
         {recent.map((l, i) => (
           <div key={l.id} className={`truncate ${i === recent.length - 1 ? 'text-hud-text' : ''} ${l.type === 'critical' ? 'text-cred' : l.type === 'malfunction' ? 'text-orange-300' : ''}`}>
             › {l.message}
@@ -261,7 +242,6 @@ function OverloadBar() {
       <button onClick={s.surge} disabled={!myTurn}
         className="mb-2 w-full animate-pulse rounded-2xl bg-gradient-to-r from-violet-500/80 to-sys/80 px-4 py-2.5 text-left shadow-[0_0_24px_rgba(167,139,250,0.35)] transition disabled:animate-none disabled:opacity-50">
         <span className="block font-display text-[15px] font-semibold text-white">Signal Surge</span>
-        <span className="block text-[11px] text-white/80">Hits every enemy within 2 tiles hard and vents your heat. Uses your turn.</span>
       </button>
     );
   }
@@ -271,7 +251,7 @@ function OverloadBar() {
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
         <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sys transition-all" style={{ width: `${s.overload}%` }} />
       </div>
-      <span className="w-[86px] text-right text-[10px] text-hud-faint">{full ? 'Get within 2 tiles' : `${s.overload}%`}</span>
+      <span className="w-[86px] text-right text-[10px] text-hud-faint">{full ? 'Too far' : ''}</span>
     </div>
   );
 }
@@ -306,7 +286,7 @@ function OrdersBar() {
       <Btn size="sm" variant="secondary" disabled={!canRewrite} onClick={() => setOpen(true)}>{orders.rewritten ? 'Rewritten' : 'Rewrite'}</Btn>
       <Sheet open={open} title="Rewrite the order" onClose={() => setOpen(false)}>
         <div className="space-y-2 px-5 pb-2">
-          <p className="text-[13px] text-hud-dim">Once a fight, you can change what the room demands. It binds them as much as you, and holds for {Fight.ORDERS.every} rounds.</p>
+          <p className="text-[13px] text-hud-dim">Once.</p>
           {Fight.ORDER_IDS.map(id => (
             <button key={id} onClick={() => { rewriteOrder(id); setOpen(false); }} className={cx('w-full rounded-2xl p-3 text-left', id === orders.now ? 'bg-aug/15 ring-1 ring-aug/40' : 'bg-white/[0.04] hover:bg-white/[0.08]')}>
               <div className="text-[13px] font-semibold text-white">“{Fight.ORDER_TEXT[id].say}.”</div>
@@ -348,7 +328,7 @@ function TurnStrip() {
 }
 
 function ActionBar() {
-  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player, allies } = useCombat();
+  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player } = useCombat();
   const { items } = useInventory();
   const { slots } = useLoadout();
   const [bag, setBag] = useState(false);
@@ -357,7 +337,7 @@ function ActionBar() {
   const myTurn = phase === 'player_turn' && !inputLocked;
 
   return (
-    <div className="relative z-10 rounded-t-3xl bg-hud-panel/95 px-3 pt-2.5 shadow-[0_-10px_30px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.05]" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
+    <div className="glass-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
       <OverloadBar />
       <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
@@ -382,7 +362,7 @@ function ActionBar() {
         </Btn>
       </div>
       <div className="mt-1 flex items-center justify-between px-1 text-[11px] text-hud-faint">
-        <span className="truncate">{myTurn && !selectedAction ? (allies.length ? 'Ally first, then your move and action.' : 'Move, pick an action, then execute.') : myTurn && (selectedAction?.type === 'attack' || selectedAction?.type === 'special') ? 'Tap a lit square to aim. Everyone in the bright squares is hit.' : ''}</span>
+        <span />
         <button className="shrink-0 py-1.5 pl-3 text-hud-dim hover:text-hud-text" onClick={() => setConfirmExit(true)}>Retreat</button>
       </div>
 
@@ -400,20 +380,19 @@ function ActionBar() {
                 onClick={() => { useConsumableItem(item.id); setBag(false); }}
                 className="flex flex-col items-center gap-1 rounded-2xl bg-white/[0.05] p-3.5 transition hover:bg-sys/10 disabled:opacity-40"
               >
-                <span className="text-2xl">{info.icon}</span>
+                <SlotIcon slot="stim" size={24} className="text-ok" />
                 <span className="text-[13px] font-semibold text-hud-text">{info.label}</span>
                 <span className="text-[11px] text-ok">{info.effect}</span>
               </button>
             );
           })}
         </div>
-        <p className="mt-3 text-[11px] text-hud-faint">Using a stim ends your turn, except Overclock.</p>
       </Sheet>
 
       <ConfirmDialog
         open={confirmExit}
-        title="Retreat to base?"
-        body="You keep everything you have, but this target stays alive and you'll fight it again."
+        title="Retreat?"
+        body="It will still be here."
         confirmLabel="Retreat"
         onCancel={() => setConfirmExit(false)}
         onConfirm={() => { setConfirmExit(false); resetCombat(); }}

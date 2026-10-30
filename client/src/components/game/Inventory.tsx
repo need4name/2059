@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
-import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AUGMENTATION_SLOT_ICONS, AugmentationSlot, Item } from '@/lib/combat/types';
-import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, cx } from './hud';
-import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText } from './itemText';
+import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } from '@/lib/combat/types';
+import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
+import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, nameOf } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
 import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText } from '@/lib/combat/augments';
 import { DRIVE } from '@/lib/engine/fight';
@@ -98,7 +98,7 @@ function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot 
               on ? 'bg-sys/15 ring-2 ring-sys/70' : eq ? 'bg-hud-panel/90 ring-1 ring-white/[0.08] hover:bg-white/[0.08]' : 'bg-hud-panel/60 ring-1 ring-white/[0.04] hover:bg-white/[0.06]')}
             style={{ width: `${(CARD_W / VB.w) * 100}%`, top: `${(sp.cardY / VB.h) * 100}%`, ...(sp.side === 'left' ? { left: 0 } : { right: 0 }) }}>
             <span className="flex items-center gap-1 text-[11px] font-semibold text-hud-dim">
-              <span className="text-[13px]">{AUGMENTATION_SLOT_ICONS[sp.slot]}</span>
+              <SlotIcon slot={sp.slot} size={13} />
               <span className="truncate">{SHORT_NAME[sp.slot]}</span>
               <span className={cx('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', kind === 'active' ? 'bg-ok' : 'bg-white/25')} title={kind === 'active' ? 'Active: gives a combat move' : 'Passive: always-on stats'} />
             </span>
@@ -127,10 +127,10 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
       <div className="flex items-center gap-3 px-3 py-3">
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setOpen(o => !o)} aria-expanded={open}>
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl">
-            {item.slot ? AUGMENTATION_SLOT_ICONS[item.slot] : '⚙️'}
+            <SlotIcon slot={item.slot} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{item.name}</span>
+            <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
             <span className="flex items-center gap-1.5 text-xs text-hud-dim">
               <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
               {DRIVE[makerOf(item)] !== 0 && <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', DRIVE[makerOf(item)] > 0 ? 'bg-amber-300/10 text-amber-200' : 'bg-white/[0.06] text-hud-dim')}>{DRIVE[makerOf(item)] > 0 ? '+' : ''}{DRIVE[makerOf(item)]} speed</span>}
@@ -197,10 +197,9 @@ export function Inventory() {
       </div>
 
       <BodyMap selected={filter} onSelect={setFilter} spareFor={slot => augmentations.some(i => i.slot === slot)} />
-      {!filter && <p className="-mt-2 text-center text-xs text-hud-faint">Tap a part of the body to see what's installed and what you could swap in. <span className="text-ok">●</span> active parts give a combat move.</p>}
 
       {filter && !equippedAugmentations[filter] && (
-        <p className="text-sm text-hud-dim">{AUGMENTATION_SLOT_NAMES[filter]}: nothing installed. {augmentKind(filter) === 'active' ? 'Active implants here give you a combat move.' : 'Passive implants here add always-on stats.'}</p>
+        <p className="text-sm text-hud-dim">{AUGMENTATION_SLOT_NAMES[filter]}: empty.</p>
       )}
       {filter && equippedAugmentations[filter] && (
         <div className="space-y-2">
@@ -216,7 +215,7 @@ export function Inventory() {
         </div>
         {shown.length === 0 ? (
           <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">
-            {filter ? 'Nothing spare for this slot yet.' : 'No spare implants. Defeat targets to salvage more.'}
+            None.
           </Card>
         ) : (
           <div className="space-y-2">
@@ -235,7 +234,7 @@ export function Inventory() {
         <div className="space-y-2">
           <Label>Stims ({consumables.length})</Label>
           {consumables.length === 0 ? (
-            <p className="text-sm text-hud-faint">No stims carried. They start dropping from threat level 2.</p>
+            <p className="text-sm text-hud-faint">None.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {consumables.map(item => {

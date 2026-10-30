@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
-import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
+import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { useAudio } from '@/lib/stores/useAudio';
 import { AUGMENT_TREES } from '@/lib/combat/augmentTrees';
-import { CLASS_DEFINITIONS, createPlayer, getBossPreview, BOSS_DOSSIERS, ENEMY_GRADES, enemyGradeAt, enemyImplantCount } from '@/lib/combat/actions';
-import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
+import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
+import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
-import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, RARITY_TEXT, cx } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, RARITY_TEXT, cx, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText, effectsText } from '../itemText';
@@ -22,7 +22,6 @@ import { RoomPanel } from './RoomPanel';
 import { nextChapter } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
-import { allyDef } from '@/lib/combat/allies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { PLAYER_BASE_MOVE, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
 
@@ -52,8 +51,8 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
 
 const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: string }[] = [
   { source: 'base', label: 'Core', empty: '' },
-  { source: 'augment', label: 'From your implants', empty: 'Install an arm, leg or eye implant to get its move.' },
-  { source: 'weapon', label: 'Weapon', empty: 'Buy a weapon at the Grey Lane market.' },
+  { source: 'augment', label: 'From your implants', empty: '' },
+  { source: 'weapon', label: 'Weapon', empty: '' },
   { source: 'class', label: 'Firmware', empty: '' },
 ];
 
@@ -74,7 +73,6 @@ function LoadoutTab() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm leading-relaxed text-hud-dim">These are the buttons you get in a fight. Tap a move below to put it on the bar, tap it again to take it off.</p>
       <div className="grid grid-cols-2 gap-2">
         {slots.map((a, i) => a ? (
           <button key={i} onClick={() => setSlot(i, null)} aria-label={`Take ${a.name} off the bar`}
@@ -86,7 +84,7 @@ function LoadoutTab() {
             </span>
           </button>
         ) : (
-          <div key={i} className="flex min-h-[72px] items-center justify-center rounded-2xl bg-white/[0.02] text-xs text-hud-faint ring-1 ring-inset ring-white/[0.06]">Free slot</div>
+          <div key={i} className="flex min-h-[72px] items-center justify-center rounded-2xl bg-white/[0.02] text-xs text-hud-faint ring-1 ring-inset ring-white/[0.06]">Empty</div>
         ))}
       </div>
 
@@ -175,7 +173,7 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
     <div className="space-y-4">
       <div className="relative rounded-3xl bg-hud-panel/80 px-4 pb-5 pt-4 ring-1 ring-white/[0.06]">
         <div className="mx-auto flex w-fit items-center gap-2 rounded-2xl bg-white/[0.06] px-3.5 py-2">
-          <span className="text-xl">{AUGMENTATION_SLOT_ICONS[slot]}</span>
+          <SlotIcon slot={slot} size={20} className="text-sys/80" />
           <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{shortName(item.name)}</span>
         </div>
         <div className="mt-1 grid grid-cols-2 gap-3">
@@ -218,12 +216,12 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
         {st === 'open' && !path && <Btn className="w-full" variant="primary" onClick={() => { choosePath(slot, f.p); setFocus({ p: f.p, t: 2 }); }}>Take this path · free</Btn>}
         {st === 'open' && path && (
           <Btn className="w-full" variant={availablePoints > 0 ? 'gold' : 'secondary'} disabled={availablePoints < 1} onClick={() => { upgradeTier(slot); if (f.t < 3) setFocus({ p: f.p, t: (f.t + 1) as 2 | 3 }); }}>
-            {availablePoints > 0 ? 'Upgrade · 1 point' : 'Needs 1 point: win deeper fights or level up'}
+            {availablePoints > 0 ? 'Upgrade · 1 point' : 'Needs 1 point'}
           </Btn>
         )}
         {st === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
         {st === 'locked' && <p className="text-sm text-hud-faint">{path ? 'Upgrade the tier above first.' : 'Take this path first.'}</p>}
-        {!path && <p className="text-xs text-hud-faint">You can only take one of the two paths. Upgrades stay with the implant if you take it out.</p>}
+        {!path && <p className="text-xs text-hud-faint">One path only.</p>}
       </div>
     </div>
   );
@@ -238,7 +236,7 @@ function UpgradesTab() {
   const slot = picked && equipped.includes(picked) ? picked : (firstWaiting ?? equipped[0]);
 
   if (!slot) {
-    return <Card raised className="px-4 py-10 text-center text-sm text-hud-dim">Install an implant to open its upgrade tree.</Card>;
+    return <Card raised className="px-4 py-10 text-center text-sm text-hud-dim">Nothing to grow yet.</Card>;
   }
 
   return (
@@ -255,7 +253,7 @@ function UpgradesTab() {
           return (
             <button key={s} onClick={() => setPicked(s)} aria-pressed={s === slot}
               className={cx('relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5 transition', s === slot ? 'bg-sys/[0.12] ring-1 ring-sys/50' : 'bg-white/[0.04] hover:bg-white/[0.07]')}>
-              <span className="text-xl">{AUGMENTATION_SLOT_ICONS[s]}</span>
+              <SlotIcon slot={s} size={20} className="text-sys/80" />
               <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}</span>
               <span className="flex gap-1">{[1, 2, 3].map(t => <span key={t} className={cx('h-1.5 w-3 rounded-full', t <= (p?.tier ?? 0) ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
@@ -290,7 +288,7 @@ function SavePanel() {
   return (
     <Panel label="Your save">
       <div className="space-y-3">
-        <p className="text-sm leading-relaxed text-hud-dim">Your progress is saved on this device. Copy it somewhere safe to back it up or move it to another phone.</p>
+        <p className="text-sm leading-relaxed text-hud-dim">Kept on this device. Copy it to move to another phone.</p>
         <div className="grid grid-cols-2 gap-2">
           <Btn onClick={copy}>{copied === 'copied' ? 'Copied' : 'Copy save'}</Btn>
           <Btn onClick={() => { setRestoring(r => !r); setError(''); }}>{restoring ? 'Cancel' : 'Restore a save'}</Btn>
@@ -319,7 +317,7 @@ function StatusTab() {
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
   const { getTreeStatBonuses } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();
-  const restartTutorial = useTutorial(s => s.restart);
+  const hints = useTutorial();
   const [confirmReset, setConfirmReset] = useState(false);
   const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const tree = getTreeStatBonuses(equipped);
@@ -330,7 +328,7 @@ function StatusTab() {
 
   return (
     <div className="space-y-3">
-      <Panel label="Your systems">
+      <Panel label="This body">
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
@@ -344,13 +342,12 @@ function StatusTab() {
         </div>
         {equipped.length > 0 && (() => {
           const cost = equipped.reduce((n, sl) => n + healthCostOf(equippedAugmentations[sl]!), 0);
-          return cost > 0 ? <p className="mt-4 text-xs text-hostile">Your implants cost you {cost} max health (rejection, infection and strain).</p> : null;
+          return cost > 0 ? <p className="mt-4 text-xs text-hostile">−{cost} health to your implants</p> : null;
         })()}
-        <p className="mt-4 text-xs leading-relaxed text-hud-faint">Structure is your implants' own health: each part adds to it, heavier makers more. Attack and Armour deal with health. Disrupt and Shielding deal with structure; at zero structure you malfunction and your attacks get shaky until you Brace or patch up. Speed decides who acts first each round: Volkov parts are fastest, then IOA and Kizuna; PARSU and Helix are slow. Running very hot slows you down.</p>
       </Panel>
 
       {notes.length > 0 && (
-        <Panel label="What the signal has noticed">
+        <Panel label="Noticed">
           <ul className="space-y-2.5">
             {notes.slice().reverse().map(n => (
               <li key={n.id} className="text-sm italic leading-snug text-hud-text/90">{n.text}<span className="ml-1.5 not-italic text-[11px] text-hud-faint">host {n.host}</span></li>
@@ -359,17 +356,14 @@ function StatusTab() {
         </Panel>
       )}
 
-      <Panel label="Combat profile">
-        <div className="space-y-1">
-          <div className="font-display text-lg font-semibold text-hud-text">{cls.name}</div>
-          <p className="text-sm text-hud-dim">{cls.description}</p>
-          {playerClass !== 'none' ? (
-            <p className="text-sm text-aug">Special: {cls.specialAbility.name}. {cls.specialAbility.description}</p>
-          ) : (
-            <p className="text-sm text-hud-faint">Fall at threat level 11 or higher to unlock the Enforcer and Operative profiles.</p>
-          )}
-        </div>
-      </Panel>
+{playerClass !== 'none' && (
+        <Panel label="Firmware">
+          <div className="space-y-1">
+            <div className="font-display text-lg font-semibold text-hud-text">{cls.name}</div>
+            <p className="text-sm text-aug">{cls.specialAbility.name}. {cls.specialAbility.description}</p>
+          </div>
+        </Panel>
+      )}
 
       <Panel label="This run">
         <div className="grid grid-cols-3 gap-4">
@@ -383,7 +377,7 @@ function StatusTab() {
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <Btn onClick={toggleMute}>{isMuted ? 'Sound off' : 'Sound on'}</Btn>
-        <Btn onClick={restartTutorial}>Replay tutorial</Btn>
+        <Btn onClick={hints.enabled ? hints.skipAll : hints.restart}>{hints.enabled ? 'Hints on' : 'Hints off'}</Btn>
         <Btn className="col-span-2" variant="danger" onClick={() => setConfirmReset(true)}>Wipe save</Btn>
       </div>
 
@@ -400,135 +394,68 @@ function StatusTab() {
   );
 }
 
-/** The host's stats as the Status page shows them. */
-function useHostStats() {
-  const playerClass = useCombat(s => s.playerClass);
-  const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
-  const { getTreeStatBonuses } = useAugmentTrees();
-  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
-  const tree = getTreeStatBonuses(equipped);
-  return createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeHp: tree.hp }, playerClass);
-}
+const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies' };
 
-type Next = { icon: string; title: string; body: string; action?: { label: string; go: () => void } };
-
-/** The one thing a player should do next, in order of what matters. */
-function useNextStep(open: (p: Tab) => void): Next {
-  const { equippedAugmentations, items } = useInventory();
-  const { progress, availablePoints } = useAugmentTrees();
-  const { slots } = useLoadout();
-  const pool = useActionPool();
-  const map = useMap();
-  const room = roomById(map.room);
-  const fight = hasFight(map, room);
-  const deathCount = useCombat(s => s.progression.deathCount);
-  const foe = room.threat !== undefined ? getBossPreview(room.threat, deathCount === 0, room.enemy) : null;
-
-  const goOn = useCombat(s => s.goToNextChapter);
-  const onward = map.done ? nextChapter(map.chapter) : null;
-
-  const fits = items.find(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null);
-  if (fits?.slot) return { icon: AUGMENTATION_SLOT_ICONS[fits.slot], title: `Install your new ${AUGMENTATION_SLOT_NAMES[fits.slot].toLowerCase()} implant`, body: `${shortName(fits.name)} is sitting in your stash. Installed, it adds to your stats${augmentKind(fits.slot) === 'active' ? ' and gives you a new move' : ''}.`, action: { label: 'Open implants', go: () => open('implants') } };
-
-  const waiting = AUGMENTATION_SLOTS.find(s => equippedAugmentations[s] && upgradeWaiting(s, equippedAugmentations[s]!, progress, availablePoints));
-  if (waiting) {
-    const item = equippedAugmentations[waiting]!;
-    const pathless = !progress[item.id]?.chosenPath;
-    return pathless
-      ? { icon: '🌿', title: 'Pick an upgrade path', body: `Your ${shortName(item.name)} can grow one of two ways. Picking a path is free.`, action: { label: 'Open upgrades', go: () => open('upgrades') } }
-      : { icon: '⬆️', title: `Spend your upgrade point${availablePoints > 1 ? 's' : ''}`, body: `You have ${availablePoints} to spend on your installed implants.`, action: { label: 'Open upgrades', go: () => open('upgrades') } };
-  }
-
-  const unused = pool.find(a => !slots.some(s => s?.key === a.key));
-  if (unused && slots.some(s => s === null)) return { icon: '🎛️', title: `Add ${unused.name} to your fight bar`, body: 'You have a free slot. Moves only show up in a fight if they are on your bar.', action: { label: 'Open fight bar', go: () => open('loadout') } };
-
-  if (onward) return { icon: '🌊', title: 'Something is pulling you on', body: "This place has nothing left for you. Go on and you wake somewhere else, in a new body. Your allies and what you've learned come too; your implants stay here.", action: { label: 'Go on', go: goOn } };
-
-  if (fight && foe) return { icon: '⚔️', title: `The ${foe.name} holds this place`, body: "Fight when you're ready, or back out the way you came. Every other way is blocked until you win." };
-
-  if (room.look && !map.looked.includes(room.id)) return { icon: '🔍', title: 'Something here is worth a closer look', body: 'Tap Look closer on the room card. Some things matter more than they seem.' };
-
-  return { icon: '🧭', title: 'Pick a way on', body: "Ways you haven't tried are at the bottom of the room card. Deeper places hold harder fights and better salvage." };
-}
-
-const PAGE_TITLE: Record<Tab, string> = { loadout: 'Fight bar', implants: 'Implants', upgrades: 'Upgrades', status: 'Status', allies: 'Allies' };
-
-function Tile({ icon, title, line, badge, onClick }: { icon: string; title: string; line: string; badge?: number | string; onClick: () => void }) {
+function Dock({ icon, title, alert, onClick }: { icon: GlyphName; title: string; alert?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="relative flex min-h-[104px] flex-col justify-between rounded-3xl bg-hud-panel/80 p-4 text-left ring-1 ring-white/[0.06] transition hover:bg-hud-panel hover:ring-white/[0.12]">
-      <span className="text-2xl">{icon}</span>
-      <span>
-        <span className="block font-display text-[15px] font-semibold text-white">{title}</span>
-        <span className="block truncate text-xs text-hud-dim">{line}</span>
-      </span>
-      {badge ? <span className="absolute right-3 top-3 flex h-6 min-w-6 items-center justify-center rounded-full bg-cred px-1.5 text-xs font-bold text-hud-bg">{badge}</span> : null}
+    <button onClick={onClick} className="glass relative flex flex-1 flex-col items-center gap-1.5 rounded-[20px] px-1 pb-2.5 pt-3 text-hud-dim transition hover:text-hud-text">
+      <Glyph name={icon} size={22} className={alert ? 'text-cred' : 'text-sys/80'} />
+      <span className="text-[11px] font-semibold">{title}</span>
+      {alert && <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.9)]" />}
     </button>
   );
 }
 
 export function BaseScreen() {
-  const { progression, startRoomFight } = useCombat();
+  const { progression, startRoomFight, goToNextChapter } = useCombat();
   const map = useMap();
   const roomNow = roomById(map.room);
   const fightHere = hasFight(map, roomNow);
   const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, progression.deathCount === 0, roomNow.enemy) : null;
+  const onward = map.done ? nextChapter(map.chapter) : null;
   const { gold, items, equippedAugmentations } = useInventory();
   const { progress, availablePoints } = useAugmentTrees();
   const { slots } = useLoadout();
   const { isMuted, toggleMute } = useAudio();
   const [page, setPage] = useState<Tab | null>(null);
-  const next = useNextStep(setPage);
-  const stats = useHostStats();
   const pool = useActionPool();
-  const { met, party } = useAllies();
+  const met = useAllies(s => s.met);
 
-  const spare = items.filter(i => i.type === 'augmentation').length;
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
-  const fitsNow = items.filter(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null).length;
-  const upgradeBadge = installed.filter(s => upgradeWaiting(s, equippedAugmentations[s]!, progress, availablePoints)).length;
-  const onBar = slots.filter(Boolean);
-  const pathless = installed.filter(s => AUGMENT_TREES[s] && !progress[equippedAugmentations[s]!.id]?.chosenPath).length;
+  const fitsNow = items.some(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null);
+  const upgradeWaits = installed.some(s => upgradeWaiting(s, equippedAugmentations[s]!, progress, availablePoints));
   const barGap = slots.some(s => s === null) && pool.some(a => !slots.some(s => s?.key === a.key));
 
+  const footer = fightHere && foe
+    ? <Btn variant="primary" size="lg" className="w-full" onClick={startRoomFight}>Fight</Btn>
+    : onward ? <Btn variant="primary" size="lg" className="w-full" onClick={goToNextChapter}>Go on</Btn> : undefined;
+
   return (
-    <Screen footer={fightHere && foe ? <Btn variant="primary" size="lg" className="w-full" onClick={startRoomFight}>Fight the {foe.name}</Btn> : undefined}>
+    <Screen footer={footer}>
       <div className="space-y-4 px-4 pb-6" style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
-        {/* One slim row: who you are, what you carry */}
         <header className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-xs text-hud-dim">
-              <span>Host {progression.deathCount + 1}</span>
-              <span className="rounded-full bg-sys/10 px-2 py-0.5 font-bold text-sys">Lv {progression.level}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-[15px] font-semibold text-white">Host {progression.deathCount + 1}</span>
+              <span className="text-xs font-semibold text-sys/90">Lv {progression.level}</span>
             </div>
-            <Meter value={progression.currentXp} max={progression.xpToNextLevel} tone="sys" className="mt-1.5 w-full max-w-[180px]" />
+            <Meter value={progression.currentXp} max={progression.xpToNextLevel} tone="sys" className="mt-1.5 h-1 w-full max-w-[150px]" />
           </div>
-          <span className="rounded-full bg-cred/10 px-3 py-1.5 font-display text-base font-semibold text-cred">¤ {gold}</span>
-          <button onClick={toggleMute} aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-base hover:bg-white/[0.1]">{isMuted ? '🔇' : '🔊'}</button>
+          <span className="glass rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
+          <button onClick={toggleMute} aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'} className="glass flex h-9 w-9 items-center justify-center rounded-full text-hud-dim hover:text-hud-text">
+            <Glyph name={isMuted ? 'mute' : 'sound'} size={16} />
+          </button>
         </header>
 
-        {/* What to do now */}
-        <div className="rise-in flex gap-3 rounded-3xl bg-gradient-to-br from-sys/[0.14] to-sys/[0.03] p-4 ring-1 ring-sys/25">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sys/15 text-xl">{next.icon}</span>
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="text-[11px] font-semibold text-sys">Next step</div>
-            <div className="font-display text-[16px] font-semibold leading-snug text-white">{next.title}</div>
-            <p className="text-[13px] leading-snug text-hud-dim">{next.body}</p>
-            {next.action && <Btn size="sm" variant="primary" className="mt-2" onClick={next.action.go}>{next.action.label}</Btn>}
-          </div>
-        </div>
+        <nav className="flex gap-2" aria-label="Get ready">
+          <Dock icon="bar" title="Moves" alert={barGap} onClick={() => setPage('loadout')} />
+          <Dock icon="implant" title="Implants" alert={fitsNow} onClick={() => setPage('implants')} />
+          <Dock icon="upgrade" title="Upgrades" alert={upgradeWaits} onClick={() => setPage('upgrades')} />
+          {met.length > 0 && <Dock icon="allies" title="Allies" onClick={() => setPage('allies')} />}
+          <Dock icon="status" title="Self" onClick={() => setPage('status')} />
+        </nav>
 
         <RoomPanel />
-
-        <section className="space-y-2 pt-1">
-          <Label>Get ready</Label>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Tile icon="🎛️" title="Fight bar" line={onBar.map(a => a!.name).join(' · ') || 'Empty'} badge={barGap ? '+' : undefined} onClick={() => setPage('loadout')} />
-            <Tile icon="🦾" title="Implants" line={`${installed.length} installed${spare ? ` · ${spare} spare` : ''}`} badge={fitsNow || undefined} onClick={() => setPage('implants')} />
-            <Tile icon="⬆️" title="Upgrades" line={pathless ? `${pathless} free path${pathless > 1 ? 's' : ''} to pick` : availablePoints ? `${availablePoints} point${availablePoints > 1 ? 's' : ''} to spend` : installed.length ? 'No points yet' : 'Install an implant first'} badge={upgradeBadge || undefined} onClick={() => setPage('upgrades')} />
-            <Tile icon="📡" title="Status" line={`${stats.maxHp} health · ${stats.physicalAttack} attack`} onClick={() => setPage('status')} />
-            {met.length > 0 && <Tile icon="🤝" title="Allies" line={party.length ? `${party.map(id => allyDef(id)?.name).join(' · ')} with you` : `${met.length} met`} onClick={() => setPage('allies')} />}
-          </div>
-        </section>
       </div>
 
       <Page open={page !== null} title={page ? PAGE_TITLE[page] : ''} back={roomNow.name} onClose={() => setPage(null)}>

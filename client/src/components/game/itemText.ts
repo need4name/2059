@@ -26,16 +26,16 @@ export function implantStats(item: Item): string {
 }
 
 export function passiveText(item: Item): string | null {
-  if (item.passiveEffect === 'kizuna_coldstart') return 'Kizuna: first strike while cool always lands clean';
-  if (item.passiveEffect === 'bypass_sdef') return 'CBN: attacks ignore enemy structural defence';
+  if (item.passiveEffect === 'kizuna_coldstart') return 'First strike while cool lands clean';
+  if (item.passiveEffect === 'bypass_sdef') return 'Cuts through shielding';
   return null;
 }
 
 export function conditionText(item: Item): string | null {
   switch (item.condition) {
-    case 'worn': return 'Worn · 80% effect';
-    case 'degraded': return 'Degraded · 60% effect, small infection risk';
-    case 'corroded': return 'Corroded · 45% effect, infected';
+    case 'worn': return 'Worn';
+    case 'degraded': return 'Degraded';
+    case 'corroded': return 'Corroded';
     default: return null;
   }
 }
@@ -88,3 +88,6 @@ export function effectsText(action: CombatAction): string | null {
   ].filter(Boolean);
   return out.length ? out.join(' · ') : null;
 }
+
+/** An item's name as shown: without the bracketed maker stamp. */
+export const nameOf = (item: { name: string }) => item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '');

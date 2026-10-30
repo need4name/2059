@@ -560,7 +560,7 @@ set({ fightIntro: line || note ? { speaker: lead.name, color: lead.spriteColor, 
 }
 // First round: if something is faster than you, it moves first (after a beat to see the board)
 if (Fight.roundOrder(fightState())[0] === 'player') beginRound();
-else { set({ phase: 'enemy_turn', inputLocked: true }); log('They are faster than you: they move first', 'critical'); later(beginRound, ENEMY_TURN_DELAY * 2); }
+else { set({ phase: 'enemy_turn', inputLocked: true }); log('They move first', 'critical'); later(beginRound, ENEMY_TURN_DELAY * 2); }
 };
 
 return {
