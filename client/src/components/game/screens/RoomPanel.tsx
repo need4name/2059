@@ -9,6 +9,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { allyDef } from '@/lib/combat/allies';
 import { getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
 import { Glyph, Label, cx } from '../hud';
+import { RoomScene } from './RoomScene';
 
 /** The room the signal is standing in: what's here, and the ways on. The map itself is never shown. */
 export function RoomPanel() {
@@ -33,8 +34,10 @@ export function RoomPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="slab relative overflow-hidden rounded-[28px] px-5 pb-5 pt-6"
-        style={fight && enemy ? { backgroundImage: `radial-gradient(120% 80% at 100% 0%, ${enemy.color}2e, transparent 60%)` } : undefined}>
+      <section className="slab relative overflow-hidden rounded-[28px] px-5 pb-5 pt-0">
+        <div className="-mx-5 mb-5 border-b border-black/60">
+          <RoomScene roomId={room.id} enemy={fight && enemy ? enemy.name : null} />
+        </div>
         <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-white">{room.name}</h1>
         {wakingHere && progression.deathCount > 0 && <p className="mt-2 text-sm text-sys">Another body. Another pair of eyes.</p>}
         <p className="mt-2.5 text-[15px] leading-relaxed text-hud-text/80">{roomText(map, room)}</p>

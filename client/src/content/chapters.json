@@ -15,7 +15,7 @@
         "setPiece": "Patchwork King"
       },
       "tileset": {
-        "floor": { "light": "#5c7380", "dark": "#536975", "seam": "#2c3d47" },
+        "floor": { "light": "#5c7380", "dark": "#536975", "seam": "#2c3d47", "pattern": "plastic" },
         "sea": { "top": "#16353f", "bottom": "#071a22", "foam": "#5f8f99" },
         "hazards": [
           { "art": "fire", "name": "Fuel fire", "damage": 8 },
@@ -45,7 +45,7 @@
         "setPiece": "The Echo"
       },
       "tileset": {
-        "floor": { "light": "#5e5a50", "dark": "#565248", "seam": "#2b2924" },
+        "floor": { "light": "#5e5a50", "dark": "#565248", "seam": "#2b2924", "pattern": "boards" },
         "sea": { "top": "#3a3826", "bottom": "#14130c", "foam": "#8a8463" },
         "hazards": [
           { "art": "oil", "name": "Burning oil", "damage": 8 },
@@ -76,7 +76,7 @@
         "setPiece": "The Long Sleeper"
       },
       "tileset": {
-        "floor": { "light": "#8b969a", "dark": "#838e92", "seam": "#4b5458" },
+        "floor": { "light": "#8b969a", "dark": "#838e92", "seam": "#4b5458", "pattern": "ward" },
         "sea": { "top": "#1b2126", "bottom": "#0a0d10", "foam": "#3b454c" },
         "hazards": [
           { "art": "steam", "name": "Steam vent", "damage": 7 },
@@ -107,7 +107,7 @@
         "setPiece": "The Overseer"
       },
       "tileset": {
-        "floor": { "light": "#7c8a84", "dark": "#74827c", "seam": "#414c47" },
+        "floor": { "light": "#7c8a84", "dark": "#74827c", "seam": "#414c47", "pattern": "steel" },
         "sea": { "top": "#a9bcc6", "bottom": "#5d7280", "foam": "#e8f0f4" },
         "hazards": [
           { "art": "steam", "name": "Air-lift vent", "damage": 7 },
@@ -138,7 +138,7 @@
         "setPiece": "The Lead Operator"
       },
       "tileset": {
-        "floor": { "light": "#3a3f4a", "dark": "#353a44", "seam": "#1c1f26" },
+        "floor": { "light": "#3a3f4a", "dark": "#353a44", "seam": "#1c1f26", "pattern": "panel" },
         "sea": { "top": "#0b0d12", "bottom": "#020305", "foam": "#2a2f3a" },
         "hazards": [
           { "art": "light", "name": "Focused light", "damage": 8 },

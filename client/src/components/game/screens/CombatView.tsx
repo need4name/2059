@@ -74,7 +74,7 @@ function CombatHud() {
 
         {/* Centre */}
         <div className="flex shrink-0 flex-col items-center pt-0.5">
-          <span className="rounded-full bg-white/[0.07] px-2.5 py-0.5 font-display text-xs font-semibold text-hud-text">Threat {bossLevel}</span>
+          <span className="slab rounded-full px-2.5 py-0.5 font-display text-xs font-semibold text-hud-text">Threat {bossLevel}</span>
           <button onClick={toggleMute} className="mt-1.5 text-hud-faint hover:text-hud-text" aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}>
             <Glyph name={isMuted ? 'mute' : 'sound'} size={16} />
           </button>
@@ -120,7 +120,7 @@ function CombatHud() {
         </div>
       )}
 
-      <div className="mt-2 h-6 overflow-hidden rounded-xl bg-black/20 px-3 py-1 text-[11px] leading-[16px] text-hud-dim" aria-live="polite">
+      <div className="well mt-2.5 h-6 overflow-hidden rounded-xl px-3 py-1 text-[11px] leading-[16px] text-hud-dim" aria-live="polite">
         {recent.length === 0 && <div className="text-hud-faint">›</div>}
         {recent.map((l, i) => (
           <div key={l.id} className={`truncate ${i === recent.length - 1 ? 'text-hud-text' : ''} ${l.type === 'critical' ? 'text-cred' : l.type === 'malfunction' ? 'text-orange-300' : ''}`}>
@@ -240,7 +240,7 @@ function OverloadBar() {
   if (ready) {
     return (
       <button onClick={s.surge} disabled={!myTurn}
-        className="mb-2 w-full animate-pulse rounded-2xl bg-gradient-to-r from-violet-500/80 to-sys/80 px-4 py-2.5 text-left shadow-[0_0_24px_rgba(167,139,250,0.35)] transition disabled:animate-none disabled:opacity-50">
+        className="key mb-3 w-full rounded-2xl px-4 py-2.5 text-left key-surge">
         <span className="block font-display text-[15px] font-semibold text-white">Signal Surge</span>
       </button>
     );
@@ -248,8 +248,8 @@ function OverloadBar() {
   return (
     <div className="mb-2 flex items-center gap-2 px-1">
       <span className="text-[11px] font-semibold text-hud-dim">Overload</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sys transition-all" style={{ width: `${s.overload}%` }} />
+      <div className="well h-2 flex-1 overflow-hidden rounded-full">
+        <div className="h-full rounded-full bg-violet-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all" style={{ width: `${s.overload}%` }} />
       </div>
       <span className="w-[86px] text-right text-[10px] text-hud-faint">{full ? 'Too far' : ''}</span>
     </div>
@@ -342,7 +342,7 @@ function ActionBar() {
       <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
-          <div key={`empty-${i}`} className="flex min-h-[64px] items-center justify-center rounded-2xl bg-black/30 text-[11px] text-hud-faint shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]">Empty</div>
+          <div key={`empty-${i}`} className="well flex min-h-[64px] items-center justify-center rounded-2xl text-[11px] text-hud-faint">Empty</div>
         ))}
       </div>
 

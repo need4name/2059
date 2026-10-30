@@ -87,20 +87,20 @@ export function Panel({ label, right, children, className }: { label?: ReactNode
 
 type Tone = 'sys' | 'hostile' | 'cred' | 'aug' | 'ok' | 'dim' | 'structure';
 const METER_FILL: Record<Tone, string> = {
-  sys: 'bg-gradient-to-r from-cyan-500 to-sys',
-  hostile: 'bg-gradient-to-r from-rose-600 to-hostile',
-  cred: 'bg-gradient-to-r from-amber-500 to-cred',
+  sys: 'bg-sys',
+  hostile: 'bg-hostile',
+  cred: 'bg-cred',
   aug: 'bg-aug',
   ok: 'bg-ok',
   dim: 'bg-hud-dim',
-  structure: 'bg-gradient-to-r from-slate-500 to-slate-300',
+  structure: 'bg-slate-300',
 };
 
 export function Meter({ value, max, tone = 'sys', className, align = 'left' }: { value: number; max: number; tone?: Tone; className?: string; align?: 'left' | 'right' }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
-    <div className={cx('h-1.5 overflow-hidden rounded-full bg-white/[0.07]', className)}>
-      <div className={cx('h-full rounded-full transition-[width] duration-300', METER_FILL[tone], align === 'right' && 'ml-auto')} style={{ width: `${pct}%` }} />
+    <div className={cx('well h-1.5 overflow-hidden rounded-full', className)}>
+      <div className={cx('h-full rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-[width] duration-300', METER_FILL[tone], align === 'right' && 'ml-auto')} style={{ width: `${pct}%` }} />
     </div>
   );
 }

@@ -73,6 +73,12 @@
     0 24px 60px rgba(0, 0, 0, 0.6);
 }
 
+/* Wells: sunken troughs for bars, logs and empty slots */
+.well {
+  background-color: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 /* Keys: solid buttons with a lip under them that sinks when pressed */
 .key {
   --face: #1b2436; --lip: #090d16; --rim: #2a3550;
@@ -95,6 +101,7 @@
 .key-primary { --face: #38d6f0; --lip: #137285; --rim: #5fe3f7; }
 .key-gold { --face: #f2b33d; --lip: #8c5c0f; --rim: #f7c869; }
 .key-selected { --face: #0e3442; --lip: #0b5f71; --rim: #38d6f0; }
+.key-surge { --face: #6d4fe0; --lip: #33237a; --rim: #9a80ff; }
 .key-danger { --face: #3b161b; --lip: #16080a; --rim: #5a222a; }
 .key:disabled {
   --face: #121926; --lip: #0a0e16; --rim: #1a2232;

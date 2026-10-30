@@ -5,7 +5,8 @@
 import data from '../../content/chapters.json';
 
 export interface Tileset {
-  floor: { light: string; dark: string; seam: string };
+  /** pattern: the moulding pressed into each plate (board.ts draws it), kept faint so the floor stays plain. */
+  floor: { light: string; dark: string; seam: string; pattern?: 'plastic' | 'boards' | 'ward' | 'steel' | 'panel' };
   sea: { top: string; bottom: string; foam: string };
   hazards: { art: string; name: string; damage: number }[];
   obstacles: { art: string; name: string }[];

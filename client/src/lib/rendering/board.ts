@@ -92,7 +92,7 @@ export function drawSea(ctx: Ctx, w: number, h: number, t: Tileset, now: number)
 export interface Open { up: boolean; down: boolean; left: boolean; right: boolean }
 
 function deckSprite(t: Tileset, shade: 0 | 1): HTMLCanvasElement {
-  return sprite(`deck:${shade}:${t.floor.light}`, px => {
+  return sprite(`deck:${shade}:${t.floor.light}:${t.floor.pattern ?? ''}`, px => {
     const body = shade ? t.floor.dark : t.floor.light;
     rect(px, 0, 0, N, N, body);
     // A few worn pixels so the plate reads as a surface, not a flat fill
@@ -101,8 +101,42 @@ function deckSprite(t: Tileset, shade: 0 | 1): HTMLCanvasElement {
       if (h > 0.97) px(x, y, 'rgba(255,255,255,0.05)');
       else if (h < 0.025) px(x, y, 'rgba(0,0,0,0.06)');
     }
-    // A soft lit edge at the top; the seams between plates are drawn as hairlines over the board
+    pressPattern(px, t.floor.pattern, shade);
+    // The seams between plates are drawn as hairlines over the board
   });
+}
+
+const HI = 'rgba(255,255,255,0.07)', LO = 'rgba(0,0,0,0.13)';
+/** The moulding pressed into a plate: faint light-and-shadow pairs, never a new colour. */
+function pressPattern(px: (x: number, y: number, c: string) => void, pattern: Tileset['floor']['pattern'], shade: 0 | 1) {
+  switch (pattern) {
+    case 'plastic':
+      // A crate lid: a raised rim, and a lashing hole in each corner
+      for (let i = 2; i < N - 2; i++) { px(i, 2, HI); px(2, i, HI); px(i, N - 3, LO); px(N - 3, i, LO); }
+      for (const [x, y] of [[1, 1], [N - 2, 1], [1, N - 2], [N - 2, N - 2]]) px(x, y, 'rgba(0,0,0,0.22)');
+      break;
+    case 'boards':
+      // Three planks, staggered nails
+      for (const y of [5, 10]) for (let x = 0; x < N; x++) { px(x, y, LO); px(x, y + 1, HI); }
+      for (const [x, y] of [[2 + shade * 9, 2], [12 - shade * 9, 7], [2 + shade * 9, 13]]) px(x, y, 'rgba(0,0,0,0.25)');
+      break;
+    case 'ward':
+      // Four small clinical tiles with grout between
+      for (let i = 0; i < N; i++) { px(i, 8, LO); px(8, i, LO); px(i, 9, HI); px(9, i, HI); }
+      break;
+    case 'steel':
+      // Tread plate: little raised bars, alternating direction
+      for (let y = 2; y < N - 1; y += 4) for (let x = 2; x < N - 1; x += 4) {
+        const flip = ((x + y) / 4) % 2;
+        px(x, y, HI); px(x + (flip ? -1 : 1), y + 1, LO);
+      }
+      break;
+    case 'panel':
+      // An inset service panel held down by four screws
+      for (let i = 3; i < N - 3; i++) { px(i, 3, LO); px(3, i, LO); px(i, N - 4, HI); px(N - 4, i, HI); }
+      for (const [x, y] of [[1, 1], [N - 2, 1], [1, N - 2], [N - 2, N - 2]]) { px(x, y, 'rgba(255,255,255,0.12)'); px(x, y + 1, LO); }
+      break;
+  }
 }
 
 /** A path round one tile, rounding only the corners on the outside of the slab. */

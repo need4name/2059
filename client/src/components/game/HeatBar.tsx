@@ -33,7 +33,7 @@ return (
 {/* Bar container */}
 
   <div
-    className={`relative w-4 rounded-full overflow-hidden bg-black/40 ring-1 ring-white/10 ${isCritical ? 'animate-pulse' : ''}`}
+    className={`well relative w-4 rounded-full overflow-hidden ${isCritical ? 'animate-pulse' : ''}`}
     style={{ height: '140px' }}
   >
     {/* Phase zone markers - subtle dividers at 40% and 70% */}
@@ -42,7 +42,7 @@ return (
 
 {/* Fill - grows from bottom */}
 <div
-  className={`absolute bottom-0 left-0 right-0 rounded-full transition-all duration-300 ${c.bar} ${isHot ? `shadow-lg ${c.glow}` : ''}`}
+  className={`absolute bottom-0 left-0 right-0 rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-300 ${c.bar} ${isHot ? `shadow-lg ${c.glow}` : ''}`}
   style={{ height: fill }}
 />
 

@@ -70,7 +70,7 @@ const chapterFile = z.object({
     }).strict(),
     rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional(), orders: z.boolean().optional(), machines: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
-      floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
+      floor: z.object({ light: hex, dark: hex, seam: hex, pattern: z.enum(['plastic', 'boards', 'ward', 'steel', 'panel']).optional() }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
       hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump', 'steam', 'coolant', 'grate', 'light']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
       obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal', 'planter', 'mast', 'rack']), name: text }).strict()).min(1),
