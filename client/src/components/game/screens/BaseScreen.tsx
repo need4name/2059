@@ -398,7 +398,7 @@ const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants'
 
 function Dock({ icon, title, alert, onClick }: { icon: GlyphName; title: string; alert?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="glass relative flex flex-1 flex-col items-center gap-1.5 rounded-[20px] px-1 pb-2.5 pt-3 text-hud-dim transition hover:text-hud-text">
+    <button onClick={onClick} className="key relative flex flex-1 flex-col items-center gap-1.5 rounded-[18px] px-1 pb-2.5 pt-3 text-hud-dim hover:text-hud-text">
       <Glyph name={icon} size={22} className={alert ? 'text-cred' : 'text-sys/80'} />
       <span className="text-[11px] font-semibold">{title}</span>
       {alert && <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.9)]" />}
@@ -441,8 +441,8 @@ export function BaseScreen() {
             </div>
             <Meter value={progression.currentXp} max={progression.xpToNextLevel} tone="sys" className="mt-1.5 h-1 w-full max-w-[150px]" />
           </div>
-          <span className="glass rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
-          <button onClick={toggleMute} aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'} className="glass flex h-9 w-9 items-center justify-center rounded-full text-hud-dim hover:text-hud-text">
+          <span className="slab rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
+          <button onClick={toggleMute} aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'} className="key flex h-9 w-9 items-center justify-center rounded-full text-hud-dim hover:text-hud-text">
             <Glyph name={isMuted ? 'mute' : 'sound'} size={16} />
           </button>
         </header>

@@ -102,7 +102,7 @@ export function ShopScreen() {
           <div className="space-y-1">
             <h1 className="font-display text-3xl font-bold text-white">Grey Lane</h1>
           </div>
-          <span className="glass shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
+          <span className="slab shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
         </header>
 
         <Segmented value={mode} onChange={setMode} options={[{ id: 'buy', label: 'Buy' }, { id: 'sell', label: 'Sell', badge: items.length || undefined }]} />

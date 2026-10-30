@@ -82,52 +82,129 @@ export function drawSea(ctx: Ctx, w: number, h: number, t: Tileset, now: number)
 }
 
 // ── Deck ─────────────────────────────────────────────────────────────────────
-// One plain plastic plate everywhere, so the floor never competes with what
-// matters (units, cover, hazards, reach). The only variation is a faint
-// checker to help count tiles.
+// The board is one slab: plates butt up against each other with a thin seam,
+// the outside corners are rounded, and the open edges show the slab's side and
+// throw a shadow on whatever is below. The floor stays plain, so it never
+// competes with what matters (units, cover, hazards, reach); the only
+// variation is a faint checker to help count tiles.
+
+/** Which sides of a tile have no tile next to them. */
+export interface Open { up: boolean; down: boolean; left: boolean; right: boolean }
 
 function deckSprite(t: Tileset, shade: 0 | 1): HTMLCanvasElement {
   return sprite(`deck:${shade}:${t.floor.light}`, px => {
     const body = shade ? t.floor.dark : t.floor.light;
     rect(px, 0, 0, N, N, body);
-    // A lit top edge and a dark bottom edge read as moulded plastic
-    for (let i = 0; i < N; i++) { px(i, 0, 'rgba(255,255,255,0.14)'); px(i, N - 1, t.floor.seam); px(N - 1, i, t.floor.seam); }
+    // A few worn pixels so the plate reads as a surface, not a flat fill
+    for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) {
+      const h = hash(x, y, 3 + shade);
+      if (h > 0.97) px(x, y, 'rgba(255,255,255,0.05)');
+      else if (h < 0.025) px(x, y, 'rgba(0,0,0,0.06)');
+    }
+    // A soft lit edge at the top; the seams between plates are drawn as hairlines over the board
   });
 }
 
-/** One deck tile: the chapter's plain plastic plate. */
-export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, t: Tileset) {
+/** A path round one tile, rounding only the corners on the outside of the slab. */
+export function tilePath(ctx: Ctx, x: number, y: number, w: number, h: number, open: Open, r: number) {
+  const tl = open.up && open.left ? r : 0, tr = open.up && open.right ? r : 0;
+  const br = open.down && open.right ? r : 0, bl = open.down && open.left ? r : 0;
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y); if (tr) ctx.arcTo(x + w, y, x + w, y + tr, tr);
+  ctx.lineTo(x + w, y + h - br); if (br) ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+  ctx.lineTo(x + bl, y + h); if (bl) ctx.arcTo(x, y + h, x, y + h - bl, bl);
+  ctx.lineTo(x, y + tl); if (tl) ctx.arcTo(x, y, x + tl, y, tl);
+  ctx.closePath();
+}
+
+const mix = (hex: string, k: number) => {
+  // Darken (k < 1) or lighten (k > 1) a #rrggbb colour
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(k > 1 ? v + (255 - v) * (k - 1) : v * k))));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+};
+
+/** How deep the slab's side is, for a given tile size. */
+export const slabDepth = (s: number) => Math.round(s * 0.2);
+
+/**
+ * Under the tiles: the slab's shadow on the ground below, then its side wherever
+ * a tile has nothing in front of it. Call before drawing any tile.
+ */
+export function drawSlab(ctx: Ctx, cells: { x: number; y: number; w: number; h: number; open: Open }[], t: Tileset, r: number) {
+  if (!cells.length) return;
+  const s = cells[0].w, d = slabDepth(s);
+  // One shadow for the whole slab, cast down and to the right
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  for (const c of cells) tilePath(ctx, c.x + d * 0.5, c.y + d * 1.6, c.w, c.h, c.open, r);
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.filter = `blur(${Math.max(2, d * 0.5)}px)`;
+  ctx.fill();
+  ctx.restore();
+  // The side: a darker face of the same material with a lit lip and a few lashings
+  const face = mix(t.floor.dark, 0.55), lip = mix(t.floor.light, 0.8), foot = mix(t.floor.dark, 0.32);
+  const P = Math.max(2, Math.round(s / 16));
+  for (const c of cells) {
+    if (!c.open.down) continue;
+    ctx.save();
+    ctx.beginPath();
+    const bl = c.open.left ? r : 0, br = c.open.right ? r : 0;
+    const y0 = c.y + c.h - r, y1 = c.y + c.h + d;
+    ctx.moveTo(c.x, y0);
+    ctx.lineTo(c.x + c.w, y0);
+    ctx.lineTo(c.x + c.w, y1 - br); if (br) ctx.arcTo(c.x + c.w, y1, c.x + c.w - br, y1, br);
+    ctx.lineTo(c.x + bl, y1); if (bl) ctx.arcTo(c.x, y1, c.x, y1 - bl, bl);
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = face; ctx.fillRect(c.x, y0, c.w, y1 - y0);
+    ctx.fillStyle = lip; ctx.fillRect(c.x, c.y + c.h, c.w, P);
+    ctx.fillStyle = foot; ctx.fillRect(c.x, y1 - P, c.w, P);
+    // Vertical lashings where plates meet, and a pixel of wear between
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(c.x + c.w - P, c.y + c.h, P, d);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.fillRect(c.x + Math.round(c.w * (0.25 + hash(c.x, c.y, 8) * 0.4) / P) * P, c.y + c.h + 2 * P, P * 2, P);
+    ctx.restore();
+  }
+}
+
+/** One deck tile: the chapter's plain plate. */
+export function drawDeckTile(ctx: Ctx, x: number, y: number, w: number, h: number, open: Open, r: number, row: number, col: number, t: Tileset) {
+  ctx.save();
+  ctx.beginPath();
+  tilePath(ctx, x, y, w, h, open, r);
   ctx.clip();
   blit(ctx, deckSprite(t, ((row + col) % 2) as 0 | 1), x, y, w, h);
   ctx.restore();
 }
 
-/** Tidal mud: wet grey-brown silt with standing puddles and a tide line of scum. */
-function mudSprite(shade: 0 | 1): HTMLCanvasElement {
-  return sprite(`mud:${shade}`, px => {
-    rect(px, 0, 0, N, N, shade ? '#4a4336' : '#524a3b');
+/** Tidal mud: wet grey-brown silt with a puddle or two. Four versions, so no two neighbours match. */
+function mudSprite(v: number): HTMLCanvasElement {
+  return sprite(`mud:${v}`, px => {
+    rect(px, 0, 0, N, N, v % 2 ? '#4d4638' : '#514a3b');
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const h = hash(x, y, 11 + shade);
-      if (h > 0.86) px(x, y, '#5f5644');
-      else if (h < 0.08) px(x, y, '#3a3429');
+      const h = hash(x, y, 11 + v);
+      if (h > 0.9) px(x, y, '#5c5443');
+      else if (h < 0.06) px(x, y, '#3d372b');
     }
-    // Puddles that catch the light
-    const pools: [number, number, number][] = shade ? [[4, 5, 2], [11, 11, 2]] : [[10, 4, 2], [5, 11, 2]];
-    for (const [cx, cy, r] of pools) { disc(px, cx, cy, r, '#2f4a50'); px(cx - 1, cy - 1, '#6f9aa0'); }
-    for (let i = 0; i < N; i++) px(i, N - 1, '#2d281f');
+    // Puddles that catch the light, placed differently in each version
+    const n = 1 + (v % 2);
+    for (let k = 0; k < n; k++) {
+      const cx = 3 + Math.floor(hash(v, k, 21) * 10), cy = 3 + Math.floor(hash(v, k, 22) * 10), r = 1 + Math.floor(hash(v, k, 23) * 2);
+      disc(px, cx, cy, r, '#33494c');
+      px(cx - 1, cy - 1, '#6f9aa0');
+    }
   });
 }
 
 /** A mud-flat tile; `flooding` adds a pulsing waterline round it (the tide comes in next round). */
-export function drawMudTile(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, row: number, col: number, flooding: boolean, now: number) {
+export function drawMudTile(ctx: Ctx, x: number, y: number, w: number, h: number, open: Open, r: number, row: number, col: number, flooding: boolean, now: number) {
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  tilePath(ctx, x, y, w, h, open, r);
   ctx.clip();
-  blit(ctx, mudSprite(((row + col) % 2) as 0 | 1), x, y, w, h);
+  blit(ctx, mudSprite(Math.floor(hash(row, col, 5) * 4)), x, y, w, h);
   if (flooding) {
     const a = 0.35 + 0.25 * Math.sin(now / 220);
     ctx.fillStyle = `rgba(70,150,190,${a * 0.9})`;
@@ -399,18 +476,69 @@ const COVER: Record<string, Paint> = {
   },
 };
 
-/** A piece of cover, drawn as what it is. Returns false if the art name isn't known. */
+/** The sprite's shape in flat black, for its shadow. */
+function silhouette(art: string, img: HTMLCanvasElement): HTMLCanvasElement {
+  const key = `shadow:${art}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = N; c.height = N;
+  const g = c.getContext('2d')!;
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, N, N);
+  cache.set(key, c);
+  return c;
+}
+
+/** Cover art is known for this name. */
+export const hasCover = (art: string | undefined) => !!art && !!COVER[art];
+
+/**
+ * A piece of cover standing on its tile: a dark footprint where it meets the
+ * floor, its shadow falling down and to the right, then the thing itself with
+ * its feet on the tile and its top rising a little into the tile behind.
+ * Draw it in depth order with the units so whatever stands in front covers it.
+ */
 export function drawObstacle(ctx: Ctx, art: string | undefined, cx: number, cy: number, s: number): boolean {
   const paint = art ? COVER[art] : undefined;
-  if (!paint) return false;
-  // Soft shadow on the deck, then the sprite
+  if (!paint || !art) return false;
+  const img = sprite(`cover:${art}`, paint, '#071014');
+  const size = s * 1.04;
+  const base = cy + s * 0.44;           // where the sprite's feet touch the floor
+  const top = base - size;
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fillRect(cx - s * 0.36, cy + s * 0.26, s * 0.72, s * 0.1);
+  // Contact shadow: soft and dark right under it
+  const ao = ctx.createRadialGradient(cx, base - s * 0.04, 0, cx, base - s * 0.04, s * 0.5);
+  ao.addColorStop(0, 'rgba(0,0,0,0.45)');
+  ao.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ao;
+  ctx.beginPath();
+  ctx.ellipse(cx, base - s * 0.04, s * 0.5, s * 0.17, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Cast shadow: its own shape, squashed flat and leaning away from the light
+  ctx.globalAlpha = 0.2;
+  ctx.translate(cx, base);
+  ctx.transform(1, 0, -0.55, 0.26, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(silhouette(art, img), -size / 2, -size, size, size);
   ctx.restore();
-  const size = s * 0.9;
-  blit(ctx, sprite(`cover:${art}`, paint, '#071014'), cx - size / 2, cy - size / 2, size, size);
+  blit(ctx, img, cx - size / 2, top, size, size);
   return true;
+}
+
+/** A soft dark ellipse on the floor under a unit's feet. */
+export function drawFootShadow(ctx: Ctx, cx: number, cy: number, s: number) {
+  ctx.save();
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.42);
+  g.addColorStop(0, 'rgba(0,0,0,0.42)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, s * 0.42, s * 0.14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 // ── Status marks over units ──────────────────────────────────────────────────
@@ -451,6 +579,28 @@ export function drawSwimming(ctx: Ctx, cx: number, top: number, size: number, se
   for (let k = -3; k <= 3; k++) {
     if ((k + bob) % 2 === 0) continue;
     ctx.fillRect(Math.round(cx + k * p * 2.5), waterY - p + (k % 2 === 0 ? 0 : p), p * 2, p);
+  }
+  ctx.restore();
+}
+
+/** Hairline seams where plates meet: a dark line with a faint lit line under it. */
+export function drawSeams(ctx: Ctx, cells: { x: number; y: number; w: number; h: number; open: Open }[], seam: string) {
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (const c of cells) {
+    const x = Math.round(c.x) + 0.5, y = Math.round(c.y) + 0.5;
+    if (!c.open.up) {
+      ctx.strokeStyle = seam; ctx.globalAlpha = 0.55;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + c.w, y); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.globalAlpha = 0.06;
+      ctx.beginPath(); ctx.moveTo(x, y + 1); ctx.lineTo(x + c.w, y + 1); ctx.stroke();
+    }
+    if (!c.open.left) {
+      ctx.strokeStyle = seam; ctx.globalAlpha = 0.55;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + c.h); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.globalAlpha = 0.05;
+      ctx.beginPath(); ctx.moveTo(x + 1, y); ctx.lineTo(x + 1, y + c.h); ctx.stroke();
+    }
   }
   ctx.restore();
 }

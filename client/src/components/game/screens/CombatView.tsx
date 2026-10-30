@@ -60,7 +60,7 @@ function CombatHud() {
   if (bossHeat >= 100) chips.push({ key: 'block', tone: 'ok', text: 'Target overheated' });
 
   return (
-    <div className="glass-solid relative z-10 rounded-b-[28px] px-4 pb-2.5 pt-3" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+    <div className="slab-solid relative z-10 rounded-b-[28px] px-4 pb-2.5 pt-3" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
       <div className="flex items-start gap-3">
         {/* Player */}
         <div className="min-w-0 flex-1 space-y-1">
@@ -161,8 +161,8 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       onClick={() => setSelectedAction(selected ? null : action)}
       disabled={phase !== 'player_turn' || inputLocked}
       aria-pressed={selected}
-      className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center transition disabled:opacity-50',
-        selected ? 'bg-sys/15 ring-2 ring-sys/80 shadow-[0_0_20px_rgba(56,214,240,0.25)]' : 'bg-white/[0.06] hover:bg-white/[0.1]')}
+      className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
+        selected ? 'key key-selected' : 'key')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
       {isAttack ? (
@@ -337,12 +337,12 @@ function ActionBar() {
   const myTurn = phase === 'player_turn' && !inputLocked;
 
   return (
-    <div className="glass-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
+    <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
       <OverloadBar />
       <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
-          <div key={`empty-${i}`} className="flex min-h-[64px] items-center justify-center rounded-2xl border border-dashed border-white/10 text-[11px] text-hud-faint">Empty</div>
+          <div key={`empty-${i}`} className="flex min-h-[64px] items-center justify-center rounded-2xl bg-black/30 text-[11px] text-hud-faint shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)]">Empty</div>
         ))}
       </div>
 

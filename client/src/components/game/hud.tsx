@@ -65,7 +65,7 @@ export function Label({ children, className }: { children: ReactNode; className?
 /** Rounded surface. Use `raised` for something sitting on another card. */
 export function Card({ children, className, raised, onClick }: { children: ReactNode; className?: string; raised?: boolean; onClick?: () => void }) {
   return (
-    <div onClick={onClick} className={cx('rounded-2xl', raised ? 'bg-white/[0.05]' : 'glass', className)}>
+    <div onClick={onClick} className={cx('rounded-2xl', raised ? 'bg-white/[0.05]' : 'slab', className)}>
       {children}
     </div>
   );
@@ -126,11 +126,11 @@ export function Chip({ tone = 'dim', pulse, children, className }: { tone?: Tone
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'gold'; size?: 'md' | 'lg' | 'sm' };
 
 const BTN_VARIANT = {
-  primary: 'btn-lit text-cyan-50 hover:brightness-125',
-  gold: 'btn-lit btn-lit-gold text-amber-50 hover:brightness-125',
-  secondary: 'bg-white/[0.06] text-hud-text shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/[0.06] hover:bg-white/[0.1] disabled:text-hud-faint disabled:hover:bg-white/[0.06]',
-  danger: 'bg-hostile/10 text-rose-300 hover:bg-hostile/20',
-  ghost: 'bg-transparent text-hud-dim hover:text-hud-text hover:bg-white/[0.05]',
+  primary: 'key key-primary text-[#04131a]',
+  gold: 'key key-gold text-[#1a1003]',
+  secondary: 'key text-hud-text',
+  danger: 'key key-danger text-rose-300',
+  ghost: 'bg-transparent text-hud-dim hover:text-hud-text hover:bg-white/[0.05] disabled:text-hud-faint',
 };
 const BTN_SIZE = {
   sm: 'h-9 px-3.5 text-[13px] rounded-xl',
@@ -143,7 +143,7 @@ export function Btn({ variant = 'secondary', size = 'md', className, ...rest }: 
     <button
       {...rest}
       className={cx(
-        'inline-flex select-none items-center justify-center gap-2 font-display font-semibold transition disabled:cursor-not-allowed',
+        'inline-flex select-none items-center justify-center gap-2 font-display font-semibold disabled:cursor-not-allowed',
         BTN_VARIANT[variant], BTN_SIZE[size], className,
       )}
     />
@@ -188,7 +188,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCa
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center" onClick={onCancel}>
-      <div role="dialog" aria-modal="true" className="rise-in glass-solid w-full max-w-sm rounded-[28px] p-6" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="rise-in slab-solid w-full max-w-sm rounded-[28px] p-6" onClick={e => e.stopPropagation()}>
         <h2 className="font-display text-xl font-semibold text-hud-text">{title}</h2>
         <div className="mt-2 text-sm leading-relaxed text-hud-dim">{body}</div>
         <div className="mt-6 grid grid-cols-2 gap-2">
@@ -205,7 +205,7 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="rise-in glass-solid w-full max-w-[520px] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+      <div className="rise-in slab-solid w-full max-w-[520px] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/15" />
         <div className="flex items-center justify-between px-5 pb-2 pt-3">
           <span className="font-display text-lg font-semibold text-hud-text">{title}</span>

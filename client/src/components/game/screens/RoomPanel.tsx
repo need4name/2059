@@ -29,11 +29,11 @@ export function RoomPanel() {
     if (found) setNews(allGoals(useMap.getState()) ? 'Far off, something heavy shifts and opens.' : 'Something about this stays with you.');
   };
 
-  const pill = 'inline-flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-[13px] font-semibold text-hud-text shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/[0.06] transition hover:bg-white/[0.12]';
+  const pill = 'key inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-hud-text';
 
   return (
     <div className="space-y-4">
-      <section className="glass relative overflow-hidden rounded-[28px] px-5 pb-5 pt-6"
+      <section className="slab relative overflow-hidden rounded-[28px] px-5 pb-5 pt-6"
         style={fight && enemy ? { backgroundImage: `radial-gradient(120% 80% at 100% 0%, ${enemy.color}2e, transparent 60%)` } : undefined}>
         <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-white">{room.name}</h1>
         {wakingHere && progression.deathCount > 0 && <p className="mt-2 text-sm text-sys">Another body. Another pair of eyes.</p>}
@@ -64,7 +64,7 @@ export function RoomPanel() {
         const room4 = allies.party.length < slots;
         const join = () => { allies.meet(def.id); if (room4 && !along) allies.setParty([...allies.party, def.id], slots); };
         return (
-          <section className="glass space-y-2 rounded-[24px] p-4" style={{ backgroundImage: `linear-gradient(135deg, ${def.color}1c, transparent 70%)` }}>
+          <section className="slab space-y-2 rounded-[24px] p-4" style={{ backgroundImage: `linear-gradient(135deg, ${def.color}1c, transparent 70%)` }}>
             <div className="font-display text-[15px] font-semibold" style={{ color: def.color }}>{met ? `${def.name} waits here` : def.name}</div>
             <p className="text-sm leading-relaxed text-hud-dim">{def.blurb}</p>
             {along ? <p className="text-sm text-hud-text">With you.</p>
@@ -76,7 +76,7 @@ export function RoomPanel() {
       })()}
 
       {room.market && (
-        <button onClick={openMarket} className="glass flex w-full items-center gap-3.5 rounded-[24px] p-4 text-left transition hover:brightness-125"
+        <button onClick={openMarket} className="key flex w-full items-center gap-3.5 rounded-[20px] p-4 text-left"
           style={{ backgroundImage: 'linear-gradient(135deg, rgba(242,179,61,0.12), transparent 70%)' }}>
           <Glyph name="market" size={22} className="shrink-0 text-cred" />
           <span className="min-w-0 flex-1 font-display text-[15px] font-semibold text-hud-text">Grey Lane</span>
@@ -92,8 +92,8 @@ export function RoomPanel() {
             const familiar = map.visited.includes(e.to);
             return (
               <button key={`${e.dir}-${e.to}`} disabled={st !== 'open'} onClick={() => { setNews(null); map.go(i); useAudio.getState().play('door'); }}
-                className={cx('flex w-full items-center gap-3 rounded-[20px] px-4 py-3 text-left transition',
-                  st === 'open' ? 'glass hover:brightness-125' : 'bg-white/[0.02] opacity-50')}>
+                className={cx('flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left',
+                  st === 'open' ? 'key' : 'bg-white/[0.02] opacity-50')}>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="font-display text-[15px] font-semibold text-hud-text">{e.label ?? DIR_LABEL[e.dir] ?? e.dir}</span>

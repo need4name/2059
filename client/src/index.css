@@ -46,9 +46,8 @@
 /* Soft ambient glow used behind menus: cold light from above, a dark edge all round */
 .ambient {
   background:
-    radial-gradient(110% 55% at 50% -12%, rgba(56, 214, 240, 0.11), transparent 62%),
-    radial-gradient(90% 45% at 100% 112%, rgba(208, 112, 240, 0.07), transparent 60%),
-    radial-gradient(140% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+    radial-gradient(100% 40% at 50% -8%, rgba(56, 214, 240, 0.09), transparent 70%),
+    radial-gradient(140% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
 }
 
 /* Faint scanlines: the screen is something the signal looks through */
@@ -57,40 +56,48 @@
   mix-blend-mode: screen;
 }
 
-/* Frosted panel: a soft fill, a lit top edge, a faint rim */
-.glass {
-  background: linear-gradient(180deg, rgba(26, 34, 52, 0.72), rgba(14, 19, 31, 0.72));
+/* Panels are solid slabs: an opaque fill, a lit top edge, a hairline rim and a
+   dark lip under them, so they sit on the page like physical plates. */
+.slab {
+  background-color: #101725;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.045),
-    0 12px 32px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+    0 0 0 1px #1d273a,
+    0 4px 0 #04070c;
 }
-.glass-solid {
-  background: linear-gradient(180deg, #151d2d, #0d1320);
+.slab-solid {
+  background-color: #111a29;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 24px 60px rgba(0, 0, 0, 0.55);
+    0 0 0 1px #1f2a3e,
+    0 24px 60px rgba(0, 0, 0, 0.6);
 }
 
-/* Lit buttons: glass with a glow inside, rather than a flat slab of colour */
-.btn-lit {
-  --lit: 56, 214, 240;
-  background:
-    radial-gradient(120% 140% at 50% 120%, rgba(var(--lit), 0.38), transparent 70%),
-    linear-gradient(180deg, rgba(var(--lit), 0.22), rgba(var(--lit), 0.1));
+/* Keys: solid buttons with a lip under them that sinks when pressed */
+.key {
+  --face: #1b2436; --lip: #090d16; --rim: #2a3550;
+  background-color: var(--face);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 0 0 1px rgba(var(--lit), 0.55),
-    0 0 28px rgba(var(--lit), 0.2);
-  text-shadow: 0 0 12px rgba(var(--lit), 0.7);
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 0 1px var(--rim),
+    0 4px 0 var(--lip);
+  transform: translateY(0);
+  transition: transform 80ms ease, box-shadow 80ms ease, filter 120ms ease;
 }
-.btn-lit-gold { --lit: 242, 179, 61; }
-.btn-lit:disabled {
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+.key:hover:not(:disabled) { filter: brightness(1.12); }
+.key:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 0 1px var(--rim),
+    0 1px 0 var(--lip);
+}
+.key-primary { --face: #38d6f0; --lip: #137285; --rim: #5fe3f7; }
+.key-gold { --face: #f2b33d; --lip: #8c5c0f; --rim: #f7c869; }
+.key-selected { --face: #0e3442; --lip: #0b5f71; --rim: #38d6f0; }
+.key-danger { --face: #3b161b; --lip: #16080a; --rim: #5a222a; }
+.key:disabled {
+  --face: #121926; --lip: #0a0e16; --rim: #1a2232;
   color: #4b566b;
   text-shadow: none;
 }

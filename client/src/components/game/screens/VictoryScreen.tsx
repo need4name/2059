@@ -54,7 +54,7 @@ export function VictoryScreen() {
         </header>
 
         {ended && (
-          <div className="rise-in glass space-y-3 rounded-[28px] bg-gradient-to-b from-sys/[0.12] to-transparent p-5">
+          <div className="rise-in slab space-y-3 rounded-[28px] bg-gradient-to-b from-sys/[0.12] to-transparent p-5">
             <div className="font-display text-lg font-semibold text-white">{chapterMap().title}</div>
             <div className="grid grid-cols-2 gap-2 text-center">
               {[
@@ -88,7 +88,7 @@ export function VictoryScreen() {
         )}
 
         {strip && (
-          <div className={cx('rise-in glass space-y-3 rounded-[28px] p-4 transition', picksLeft > 0 && 'bg-gradient-to-b from-cred/[0.12] to-transparent')}>
+          <div className={cx('rise-in slab space-y-3 rounded-[28px] p-4 transition', picksLeft > 0 && 'bg-gradient-to-b from-cred/[0.12] to-transparent')}>
             <div className="flex items-center gap-3">
               <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', picksLeft ? 'bg-cred/15 text-cred' : 'bg-ok/15 text-ok')}><Glyph name="implant" size={20} /></span>
               <div className="min-w-0 flex-1">

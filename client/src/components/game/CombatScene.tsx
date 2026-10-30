@@ -6,7 +6,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
-import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -505,6 +505,21 @@ const besideCold = (row: number, col: number) => {
   return false;
 };
 
+// The board is one slab: which sides of each tile are open, its side and shadow first
+const isFloor = (r: number, c: number) => r >= 0 && c >= 0 && r < grid.rows && c < grid.cols && grid.tiles?.[r]?.[c]?.type !== 'void';
+const openOf = (r: number, c: number): Open => ({ up: !isFloor(r - 1, c), down: !isFloor(r + 1, c), left: !isFloor(r, c - 1), right: !isFloor(r, c + 1) });
+const cornerR = tileW * 0.14;
+const cells: { x: number; y: number; w: number; h: number; open: Open }[] = [];
+for (let row = 0; row < grid.rows; row++) for (let col = 0; col < grid.cols; col++) {
+  if (!isFloor(row, col)) continue;
+  const p = gridToScreen(row, col, width, height);
+  cells.push({ x: p.x - tileW / 2, y: p.y - tileH / 2, w: tileW, h: tileH, open: openOf(row, col) });
+}
+drawSlab(ctx, cells, tileset, cornerR);
+// Things that stand up (cover, units) are drawn after the floor, back to front
+const depth: { y: number; draw: () => void }[] = [];
+const overlay: (() => void)[] = [];
+
 // Draw tiles (rectangular grid) with industrial worn tones
 for (let row = 0; row < grid.rows; row++) {
 for (let col = 0; col < grid.cols; col++) {
@@ -538,10 +553,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   const attackColors = getAttackColor();
 
   // The deck itself, then a tint for what the tile means right now
-  const gap = Math.max(2, tileW * 0.04);
-  const radius = tileW * 0.16;
-  if (grid.tiles?.[row]?.[col]?.art === 'mud') drawMudTile(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius, row, col, floodNext, now);
-  else drawDeckTile(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius, row, col, tileset);
+  // Markers sit just inside the tile, painted on the floor
+  const gap = Math.max(2, tileW * 0.05);
+  const radius = tileW * 0.14;
+  const open = openOf(row, col);
+  if (grid.tiles?.[row]?.[col]?.art === 'mud') drawMudTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, floodNext, now);
+  else drawDeckTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, tileset);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
     : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
@@ -549,8 +566,13 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   // Lights out: once the alarm trips the floor goes dark (never red: red means danger); tiles beside a cold pod stay cool blue
   if (alarmOn) {
+    ctx.save();
+    ctx.beginPath();
+    tilePath(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR);
     ctx.fillStyle = besideCold(row, col) ? 'rgba(60,150,200,0.30)' : `rgba(4,6,10,${0.42 + 0.06 * dimPulse})`;
     ctx.fill();
+    ctx.restore();
+    roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   }
   if (tint) { ctx.fillStyle = tint; ctx.fill(); }
   // Wind: two faint streaks drifting across every tile the way it blows
@@ -582,10 +604,10 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.strokeStyle = 'rgba(240,82,79,0.7)'; // red border for enemy reach
     ctx.lineWidth = 1.5;
   } else {
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0)';
+    ctx.lineWidth = 0;
   }
-  ctx.stroke();
+  if (ctx.lineWidth) ctx.stroke();
   ctx.globalAlpha = 1;
   if (enemyShoveTiles?.has(`${row},${col}`) && !isAimed) {
     ctx.strokeStyle = '#b07cff';
@@ -623,8 +645,10 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Draw obstacles and hazards with simple markers
   const tile = grid.tiles?.[row]?.[col];
-  if (tile?.type === 'obstacle' && drawObstacle(ctx, tile.art, pos.x, pos.y, tileW)) {
-    // Drawn as what it is
+  if (tile?.type === 'obstacle' && hasCover(tile.art)) {
+    // Drawn as what it is, standing up, in depth order with the units
+    const art = tile.art, x = pos.x, y = pos.y;
+    depth.push({ y, draw: () => { drawObstacle(ctx, art, x, y, tileW); } });
   } else if (tile?.type === 'hazard' && drawHazard(ctx, tile.art, pos.x, pos.y, tileW, now)) {
     ctx.fillStyle = '#ffd2a0';
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
@@ -673,6 +697,22 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
 }
 
+// One light over the whole floor: a touch brighter at the back, darker at the front
+if (cells.length) {
+  drawSeams(ctx, cells, tileset.floor.seam);
+  const top = cells[0].y, bottom = cells[cells.length - 1].y + tileH;
+  ctx.save();
+  ctx.beginPath();
+  for (const c of cells) tilePath(ctx, c.x, c.y, c.w, c.h, c.open, cornerR);
+  ctx.clip();
+  const light = ctx.createLinearGradient(0, top, 0, bottom);
+  light.addColorStop(0, 'rgba(255,250,235,0.07)');
+  light.addColorStop(1, 'rgba(0,0,0,0.16)');
+  ctx.fillStyle = light;
+  ctx.fillRect(0, top, width, bottom - top);
+  ctx.restore();
+}
+
 // Update sprite animations
 playerAnimator.current.update();
 allyAnimator.current.update();
@@ -705,6 +745,8 @@ const playerPos = gridToScreen(playerVisualRow, playerVisualCol, width, height);
 const spriteSize = Math.max(tileW * 1.2, 30);
 const playerFacingLeft = grid.playerPosition.col > grid.bossPosition.col;
 
+depth.push({ y: playerPos.y, draw: () => {
+drawFootShadow(ctx, playerPos.x, playerPos.y + tileH * 0.36, tileW);
 drawFigure(
 ctx,
 'host',
@@ -718,7 +760,9 @@ playerFacingLeft
 
 drawStatus(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, playerBurning > 0, playerStunned, now);
 if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, tileset.sea, now);
+} });
 
+overlay.push(() => {
 // Player HP bar below character
 const playerHpPercent = player.currentHp / player.maxHp;
 const barWidth = tileW * 0.9;
@@ -737,12 +781,15 @@ ctx.fillRect(playerPos.x - barWidth / 2, barY, barWidth * playerHpPercent, barHe
 ctx.strokeStyle = '#1f2937';
 ctx.lineWidth = 1;
 ctx.strokeRect(playerPos.x - barWidth / 2, barY, barWidth, barHeight);
+});
 
 // Allies: a host body in the ally's colour ring, with a bar in its colour
 allies.forEach((a, k) => {
 if (a.unit.currentHp <= 0) return;
 const ap = gridToScreen(a.pos.row, a.pos.col, width, height);
 const color = a.unit.spriteColor || '#38d6f0';
+depth.push({ y: ap.y, draw: () => {
+drawFootShadow(ctx, ap.x, ap.y + tileH * 0.36, tileW);
 ctx.save();
 ctx.strokeStyle = color;
 ctx.lineWidth = allyMoveMode === k ? 3 : 2;
@@ -758,6 +805,9 @@ drawFigure(ctx, a.id, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.c
 drawStatus(ctx, ap.x, ap.y - size / 2 - 6, size, a.burning > 0, a.stunned, now);
 if (a.swimming) drawSwimming(ctx, ap.x, ap.y - size / 2 - 6, size, tileset.sea, now);
 ctx.restore();
+} });
+overlay.push(() => {
+const size = Math.max(tileW * 1.05, 28);
 const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
 ctx.fillRect(ap.x - bw / 2, by, bw, bh);
@@ -771,6 +821,7 @@ ctx.strokeStyle = '#000';
 ctx.strokeText(a.unit.name, ap.x, ap.y - size / 2 - 4);
 ctx.fillStyle = color;
 ctx.fillText(a.unit.name, ap.x, ap.y - size / 2 - 4);
+});
 });
 
 // Draw every living enemy, with a ring under the one you're aiming at
@@ -788,6 +839,8 @@ const fp = gridToScreen(visRow, visCol, width, height);
 const isTarget = i === target;
 const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 30);
 
+depth.push({ y: fp.y, draw: () => {
+drawFootShadow(ctx, fp.x, fp.y + tileH * 0.36, tileW);
 if (isTarget && foes.length > 1 && !reachableTiles) {
 ctx.save();
 ctx.strokeStyle = 'rgba(248,113,113,0.9)';
@@ -822,7 +875,8 @@ ctx.fill();
 });
 ctx.restore();
 }
-
+} });
+overlay.push(() => {
 const barW = tileW * 0.9, barH = 6, barY = fp.y + tileH / 2 + 5;
 ctx.fillStyle = '#374151';
 ctx.fillRect(fp.x - barW / 2, barY, barW, barH);
@@ -844,7 +898,12 @@ ctx.lineWidth = 3;
 ctx.strokeText(label, fp.x, fp.y - tileH * 0.8);
 ctx.fillText(label, fp.x, fp.y - tileH * 0.8);
 }
+});
 }
+
+// Back to front: whatever stands nearer the bottom covers what's behind it
+depth.sort((a, b) => a.y - b.y).forEach(d => d.draw());
+overlay.forEach(o => o());
 
 // Draw damage numbers
 // (now: the frame time set at the top of the frame)
