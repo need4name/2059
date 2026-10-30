@@ -122,6 +122,37 @@
           { "art": "mast", "name": "Antenna mast" }
         ]
       }
+    },
+    {
+      "id": "corridor",
+      "name": "The Corridor",
+      "place": "Where the light is decided",
+      "map": "corridor",
+      "ready": true,
+      "rules": { "orders": true, "machines": true },
+      "cast": {
+        "rotation": ["Maintenance Quadruped", "Drone Swarm", "Gantry Unit", "Unlogged Technician", "Corridor Operator", "Academy Graduate", "Kizuna Auditor", "Ghost-MIL Infiltrator"],
+        "elites": ["Mediation Clerk", "Unregistered Operator", "Rack Warden"],
+        "bosses": ["The Signatory", "The Pass"],
+        "firstFight": "Rack Warden",
+        "setPiece": "The Lead Operator"
+      },
+      "tileset": {
+        "floor": { "light": "#3a3f4a", "dark": "#353a44", "seam": "#1c1f26" },
+        "sea": { "top": "#0b0d12", "bottom": "#020305", "foam": "#2a2f3a" },
+        "hazards": [
+          { "art": "light", "name": "Focused light", "damage": 8 },
+          { "art": "cable", "name": "Live cable", "damage": 6 },
+          { "art": "coolant", "name": "Coolant leak", "damage": 5 },
+          { "art": "grate", "name": "Open floor panel", "damage": 4 }
+        ],
+        "obstacles": [
+          { "art": "rack", "name": "Server rack" },
+          { "art": "canister", "name": "Gas canister" },
+          { "art": "terminal", "name": "Terminal" },
+          { "art": "cases", "name": "Frame crates" }
+        ]
+      }
     }
   ]
 }

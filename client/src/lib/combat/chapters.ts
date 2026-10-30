@@ -29,8 +29,12 @@ export interface ChapterRules {
   alarm?: boolean;
   /** Hosts still have a dreamer inside, who may flinch once a fight and move you a tile. */
   flinch?: boolean;
-  /** Wind pushes everyone a tile at the start of every round, and changes direction every few rounds. */
+  /** Wind pushes everyone a tile as each of your turns ends, and changes direction every few turns. */
   wind?: boolean;
+  /** The room issues an order every two rounds that binds everyone; you can rewrite one a fight. */
+  orders?: boolean;
+  /** New hosts wake as a machine: a frame with its own built-in parts. */
+  machines?: boolean;
 }
 export interface Chapter { id: string; name: string; place: string; map: string; ready: boolean; cast: Cast; tileset: Tileset; rules?: ChapterRules }
 

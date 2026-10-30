@@ -211,3 +211,17 @@ test('giving an implant to an ally moves it out of the stash; taking it back ret
   useAllies.getState().reset();
   useInventory.getState().clearInventory();
 });
+
+test('in a chapter of machines, a new host wakes in a machine frame', async () => {
+  const { useCombat } = await import('../client/src/lib/stores/useCombat');
+  const { useMap } = await import('../client/src/lib/stores/useMap');
+  useCombat.getState().resetAll();
+  useMap.getState().travel('corridor');
+  useCombat.getState().rebirth();
+  const worn = Object.values(useInventory.getState().equippedAugmentations).filter(Boolean).map(i => i!.templateId ?? i!.id);
+  assert.ok(worn.length >= 3, `frame parts fitted (${worn.join(', ')})`);
+  assert.ok(worn.every(id => id.startsWith('frame_')));
+  const kinds = new Set(worn.map(id => id.split('_')[1]));
+  assert.equal(kinds.size, 1, 'one frame, not a mix');
+  useCombat.getState().resetAll();
+});

@@ -131,6 +131,8 @@ function CombatHud() {
         </div>
       )}
 
+      <OrdersBar />
+
       {chips.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {chips.map(c => <Chip key={c.key} tone={c.tone} pulse={c.pulse}>{c.text}</Chip>)}
@@ -286,6 +288,35 @@ function Portrait({ id, size = 26 }: { id: string; size?: number }) {
   }, [id]);
   // Canvases fill their parent (index.css), so the box sets the size
   return <div className="overflow-hidden rounded-full bg-hud-panel" style={{ width: size, height: size }}><canvas ref={ref} width={size * 2} height={size * 2} style={{ imageRendering: 'pixelated' }} /></div>;
+}
+
+/** The room's order in force (chapters with orders), and your one rewrite a fight. */
+function OrdersBar() {
+  const { orders, phase, inputLocked, rewriteOrder } = useCombat();
+  const [open, setOpen] = useState(false);
+  if (!orders) return null;
+  const t = Fight.ORDER_TEXT[orders.now];
+  const canRewrite = !orders.rewritten && phase === 'player_turn' && !inputLocked;
+  return (
+    <div className="mt-2 flex items-center gap-2 rounded-2xl bg-aug/10 px-3 py-2 ring-1 ring-aug/25">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-semibold text-white">“{t.say}.”</div>
+        <div className="truncate text-[11px] text-hud-dim">{t.does} · {orders.turnsLeft === 1 ? 'a new order next round' : `${orders.turnsLeft} rounds left`}</div>
+      </div>
+      <Btn size="sm" variant="secondary" disabled={!canRewrite} onClick={() => setOpen(true)}>{orders.rewritten ? 'Rewritten' : 'Rewrite'}</Btn>
+      <Sheet open={open} title="Rewrite the order" onClose={() => setOpen(false)}>
+        <div className="space-y-2 px-5 pb-2">
+          <p className="text-[13px] text-hud-dim">Once a fight, you can change what the room demands. It binds them as much as you, and holds for {Fight.ORDERS.every} rounds.</p>
+          {Fight.ORDER_IDS.map(id => (
+            <button key={id} onClick={() => { rewriteOrder(id); setOpen(false); }} className={cx('w-full rounded-2xl p-3 text-left', id === orders.now ? 'bg-aug/15 ring-1 ring-aug/40' : 'bg-white/[0.04] hover:bg-white/[0.08]')}>
+              <div className="text-[13px] font-semibold text-white">“{Fight.ORDER_TEXT[id].say}.”</div>
+              <div className="text-[11px] text-hud-dim">{Fight.ORDER_TEXT[id].does}</div>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    </div>
+  );
 }
 
 /** Who acts this round, fastest first, then who leads next round. Enemies that get two turns before yours are marked ×2. */

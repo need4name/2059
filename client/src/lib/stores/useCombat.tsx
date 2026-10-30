@@ -107,6 +107,8 @@ setPlayerClass: (playerClass: PlayerClass) => void;
 startCombat: () => void;
 /** Signal Surge: spend a full overload meter (see the engine). */
 surge: () => void;
+/** Rewrite the room's order in force (once a fight, in chapters with orders). */
+rewriteOrder: (id: Fight.OrderId) => void;
 /** The deepest threat this host has beaten (points come from beating deeper ones). */
 hostBestThreat: number;
 /** The enemy taking its turn right now (for the turn-order strip), or null. */
@@ -265,7 +267,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders,
 };
 };
 
@@ -405,6 +407,7 @@ const beginRound = () => {
 // The tide turns at the start of a round (boards with mud flats only)
 if (apply(Fight.tideTick(fightState()))) return;
 if (apply(Fight.alarmTick(fightState()))) return;
+if (apply(Fight.ordersTick(fightState()))) return;
 const order = Fight.roundOrder(fightState());
 save(Fight.tickSpeed(fightState()));
 set({ roundOrder: order, turnQueue: order, round: get().round + 1 });
@@ -491,7 +494,24 @@ const bio = ITEMS_2059.find(i => i.id === 'stim_bio');
 for (let k = 0; k < perks.startBioStims && bio; k++) gifts.push(instancedItem(bio));
 if (gifts.length) useInventory.getState().addItems(gifts);
 if (perks.startPoints) useAugmentTrees.getState().addPoints(perks.startPoints);
+// In chapters of machines, the new host is a machine: one of the frames, its parts already fitted
+if (activeChapter().rules?.machines) {
+const frame = MACHINE_FRAMES[Math.floor(random() * MACHINE_FRAMES.length)];
+for (const id of frame.parts) {
+const t = ITEMS_2059.find(i => i.id === id);
+if (!t?.slot) continue;
+useInventory.getState().equipAugmentation(instancedItem(t));
+useAugmentTrees.getState().unlockSlot(t.slot);
+}
+}
 };
+
+/** The machines a host can wake as in a chapter of machines: each frame's built-in parts (items.json). */
+const MACHINE_FRAMES = [
+{ name: 'loader', parts: ['frame_loader_legs_l', 'frame_loader_legs_r', 'frame_loader_spine'] },
+{ name: 'gantry', parts: ['frame_gantry_arm_r', 'frame_gantry_arm_l', 'frame_gantry_spine'] },
+{ name: 'swarm', parts: ['frame_swarm_eyes', 'frame_swarm_core', 'frame_swarm_ears'] },
+];
 
 const startFight = (level: number, farm: boolean, roomEnemy?: string) => {
 const { playerClass, runSeed, fightsStarted } = get();
@@ -525,7 +545,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
 set({ round: 0, turnQueue: [], roundOrder: [] });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
@@ -633,6 +653,7 @@ if (!get().reflexMoveOpen && position.row === originalPosition.row && position.c
 get().undoMove();
 return;
 }
+if (get().orders?.now === 'hold') { log('Hold position: nobody moves this round'); return; }
 if (playerHeat >= 100 && !get().perks.runaway) {
 log('OVERHEATED -- movement locked');
 return;
@@ -717,6 +738,12 @@ return;
 finishPlayerAction(true);
 },
 
+rewriteOrder: (id) => {
+const { phase, inputLocked } = get();
+if (phase !== 'player_turn' || inputLocked) return;
+apply(Fight.rewriteOrder(fightState(), id));
+reAim();
+},
 enemyTurn: () => nextActor(),
 
 surge: () => {

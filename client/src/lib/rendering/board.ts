@@ -241,6 +241,16 @@ function coolantSprite(f: number) {
     px(6 + f, 8, '#bff3fb'); px(10 - f, 11, '#bff3fb');
   });
 }
+function lightSprite(f: number) {
+  return sprite(`light:${f}`, px => {
+    // A strip of focused sunlight burning on the floor, shimmering
+    for (let y = 2; y < 15; y++) for (let x = 2; x < 14; x++) {
+      const edge = Math.min(x - 2, 13 - x, y - 2, 14 - y);
+      px(x, y, edge === 0 ? '#fde68a' : (x + y + f) % 4 === 0 ? '#ffffff' : '#fef3c7');
+    }
+    for (let x = 3; x < 13; x += 3) px(x, 6 + f, '#fffbeb');
+  });
+}
 function grateSprite() {
   return sprite('grate', px => {
     // An open floor grate over a dark drop
@@ -263,6 +273,7 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
     case 'steam': blit(ctx, steamSprite(f), x, y, size, size); return true;
     case 'coolant': blit(ctx, coolantSprite(Math.floor(now / 400) % 3), x, y, size, size); return true;
     case 'grate': blit(ctx, grateSprite(), x, y, size, size); return true;
+    case 'light': blit(ctx, lightSprite(f), x, y, size, size); return true;
     case 'hole': case 'rot': blit(ctx, holeSprite(Math.floor(now / 400) % 4), x, y, size, size); return true;
     default: return false;
   }
@@ -271,6 +282,12 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 // ── Cover ────────────────────────────────────────────────────────────────────
 
 const COVER: Record<string, Paint> = {
+  rack: px => {
+    // A server rack: a dark cabinet of slots, status lights blinking down its face
+    rect(px, 3, 1, 10, 14, '#1d2129');
+    for (let y = 1; y < 15; y++) { px(3, y, '#3a404c'); px(12, y, '#0d0f13'); }
+    for (let y = 3; y < 14; y += 2) { for (let x = 5; x < 11; x++) px(x, y, '#2b313b'); px(10, y, (y * 7) % 3 ? '#4ade80' : '#a78bfa'); }
+  },
   planter: px => {
     // A terrace planter: a concrete trough with rice standing in muddy water
     rect(px, 1, 9, 14, 6, '#7d7f78');

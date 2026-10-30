@@ -6,6 +6,7 @@ import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { useMap } from '@/lib/stores/useMap';
 import { useAllies } from '@/lib/stores/useAllies';
 import { chapterMap, roomById, hasFight, cacheReady, exitState } from '@/lib/engine/map';
+import { activeChapter } from '@/lib/combat/chapters';
 import * as Fight from '@/lib/engine/fight';
 import { Btn } from './hud';
 
@@ -115,6 +116,16 @@ const HINTS: Record<HintId, { title: string; body: string; icon: string }> = {
     title: 'The wind',
     body: "Up here the wind never stops. When your turn ends it pushes everyone one tile the way it blows: you, them, your allies. Cover and other bodies stop you; an edge doesn't. The red tiles already allow for the push, so trust them. The chip at the top shows which way it blows and when it turns.",
   },
+  orders: {
+    icon: '📜',
+    title: 'The room gives orders',
+    body: "Every two rounds the room issues an order, and it binds everyone: them as much as you. The bar at the top says what it is and how long it holds. Once a fight you can rewrite it to any order you like. Pick the one that hurts them more than you.",
+  },
+  machine: {
+    icon: '🤖',
+    title: 'Nothing here was built for a body',
+    body: "You woke in a machine. Its frame comes with its own parts already fitted, and they come back with every new machine you wake in. Strip what the guards carry to build on it.",
+  },
   tide: {
     icon: '🌊',
     title: 'The tide',
@@ -223,6 +234,8 @@ export function useTutorialTriggers() {
       ['burning', myTurn && (c.playerBurning > 0 || c.foes.some(f => f.burning > 0))],
       ['stunned', (c.phase === 'player_turn' || c.phase === 'enemy_turn') && (c.playerStunned || c.foes.some(f => f.stunned && f.unit.currentHp > 0))],
       ['tide', myTurn && !!c.tide],
+      ['orders', myTurn && !!c.orders],
+      ['machine', inMenu && !!activeChapter().rules?.machines && c.progression.deathCount > 0],
       ['wind', myTurn && !!c.wind],
       ['alarm', myTurn && !!c.alarm],
       ['flinch', myTurn && !!c.flinchUsed],

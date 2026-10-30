@@ -715,3 +715,34 @@ test('with wind, the red zone shows where the push would carry you into a hit', 
   seedRandom(9); Fight.dangerTiles({ ...windy, wind: { dir: 'south', turnsLeft: 1 } });
   assert.equal(random(), expected);
 });
+
+// ── Orders ──
+test('orders: issued every two rounds, bind everyone, and you can rewrite one a fight', () => {
+  seedRandom(2);
+  assert.equal(Fight.startOrders(false), null);
+  let s = fight({ orders: { now: 'precise', turnsLeft: 2, rewritten: false }, playerHeat: 50 });
+  s = Fight.ordersTick(s).state; assert.equal(s.orders!.now, 'precise');
+  const next = Fight.ordersTick(s).state;
+  assert.notEqual(next.orders!.now, 'precise', 'a new order');
+  assert.equal(next.orders!.turnsLeft, Fight.ORDERS.every);
+  // Rewrite once: vent clears everyone's heat as it comes in
+  const vent = Fight.rewriteOrder(s, 'vent').state;
+  assert.equal(vent.orders!.now, 'vent');
+  assert.equal(vent.playerHeat, 0);
+  assert.equal(vent.foes[0].heat, 0);
+  assert.deepEqual(Fight.rewriteOrder(vent, 'hold').state, vent, 'only once a fight');
+});
+
+test('orders: no heavies, hold position and no shoves do what they say', () => {
+  // No heavies: a foe never picks a heavy while the order holds
+  const heavyOnly = fight({ playerHeat: 90, orders: { now: 'noHeavies', turnsLeft: 2, rewritten: false } });
+  for (let k = 0; k < 20; k++) { seedRandom(k); const a = Fight.chooseFoeAction(heavyOnly, 0).action; assert.ok(!a?.isHeavy); }
+  // Hold: nobody walks
+  const far = fight({ grid: arena([7, 3], [1, 3]), orders: { now: 'hold', turnsLeft: 2, rewritten: false } });
+  assert.deepEqual(Fight.foeWalk(far, 0).state.foes[0].pos, { row: 1, col: 3 });
+  assert.deepEqual(Fight.moveFoeToward(far, 0, 'melee').state.foes[0].pos, { row: 1, col: 3 });
+  // No shoves: a knockback hit leaves you where you stand
+  const shove: CombatAction = { ...hitFor(10), attackPattern: 'knockback' };
+  const calm = fight({ orders: { now: 'noShoves', turnsLeft: 2, rewritten: false } });
+  assert.deepEqual(Fight.resolveFoeAction(calm, 0, shove, 3, -1).state.grid.playerPosition, calm.grid.playerPosition);
+});

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { AUGMENTATION_SLOT_ICONS, AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
@@ -20,6 +21,9 @@ export function VictoryScreen() {
   const ended = !!lastVictory?.chapterDone;
   const goToNextChapter = useCombat(s => s.goToNextChapter);
   const onward = ended ? nextChapter(map.chapter) : null;
+  // The last chapter ends on a choice, not an explanation
+  const endings = chapterMap().endings;
+  const [chosen, setChosen] = useState<number | null>(null);
   const hosts = useCombat(s => s.progression.deathCount) + 1;
   const looks = chapterMap().rooms.filter(r => r.look);
   const chapterAllies = chapterMap().rooms.flatMap(r => (r.ally ? [r.ally] : []));
@@ -45,8 +49,8 @@ export function VictoryScreen() {
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-ok/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
         <header className="rise-in space-y-2 text-center">
-          <div className="text-sm font-semibold text-ok">{ended ? 'Chapter one complete' : 'Target down'}</div>
-          <h1 className="font-display text-5xl font-bold text-white">{ended ? 'The sea is quiet' : 'Victory'}</h1>
+          <div className="text-sm font-semibold text-ok">{ended ? 'Chapter complete' : 'Target down'}</div>
+          <h1 className="font-display text-5xl font-bold text-white">{ended ? (chapterMap().endTitle ?? 'It is quiet') : 'Victory'}</h1>
           <p className="text-balance text-[15px] text-hud-dim">{ended ? chapterMap().ending : `${boss.name} is finished. The way on is open.`}</p>
         </header>
 
@@ -58,7 +62,7 @@ export function VictoryScreen() {
                 ['Hosts used', `${hosts}`],
                 ['Places seen', `${map.visited.length} of ${chapterMap().rooms.length}`],
                 ['Things looked at', `${looks.filter(r => map.looked.includes(r.id)).length} of ${looks.length}`],
-                ['Allies linked', `${chapterAllies.filter(id => met.includes(id)).length} of ${chapterAllies.length}`],
+                ...(chapterAllies.length ? [['Allies linked', `${chapterAllies.filter(id => met.includes(id)).length} of ${chapterAllies.length}`]] : []),
               ].map(([k, v]) => (
                 <div key={k} className="rounded-2xl bg-black/20 px-3 py-2.5">
                   <div className="text-xs text-hud-dim">{k}</div>
@@ -67,9 +71,23 @@ export function VictoryScreen() {
               ))}
             </div>
             <p className="text-sm leading-relaxed text-hud-text/85">
-              The signal keeps what it always keeps: the allies you linked, everything it learned in the play-i tree, and every place it has walked. This host can go on: the spire stays quiet, and every other room still holds a fight for the next host.
+              The signal keeps what it always keeps: the allies you linked, everything it learned in the play-i tree, and every place it has walked. This host can go on: the last room stays quiet, and every other room still holds a fight for the next host.
             </p>
-            {!onward && <p className="text-sm text-hud-dim">The next chapter is still being written.</p>}
+            {!onward && !endings && <p className="text-sm text-hud-dim">The next chapter is still being written.</p>}
+            {!onward && endings && (
+              <div className="space-y-2 pt-1">
+                {chosen === null ? (
+                  <>
+                    <div className="text-sm font-semibold text-white">What do you do with it?</div>
+                    {endings.map((e, n) => (
+                      <button key={n} onClick={() => setChosen(n)} className="w-full rounded-2xl bg-black/25 px-4 py-3 text-left text-sm text-hud-text ring-1 ring-white/[0.06] hover:bg-black/35">{e.choice}</button>
+                    ))}
+                  </>
+                ) : (
+                  <p className="rise-in text-[15px] leading-relaxed text-white">{endings[chosen].text}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

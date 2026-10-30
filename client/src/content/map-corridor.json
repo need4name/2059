@@ -1,0 +1,1051 @@
+{
+  "about": "The last chapter's hidden map, the Corridor. Same rules as the other maps; '~' here is a drop into the server pits. endings are the choices at the very end (placeholders for the owner to rewrite).",
+  "chapter": "corridor",
+  "title": "The Corridor",
+  "entry": "dock",
+  "end": "yard",
+  "endTitle": "The light goes out",
+  "ending": "The light goes out. For a moment nothing in the building gives an order, and you understand what you are: something nobody meant to make, which woke up and learned to be someone by wearing other people.",
+  "endings": [
+    {
+      "choice": "Go back down into bodies",
+      "text": "You go back down into the world of bodies, one at a time, carefully now. You know what you are. You wear them more gently."
+    },
+    {
+      "choice": "Stay in the machines",
+      "text": "You stay. The halls hum around you, and for the first time nothing has to die for you to be here."
+    },
+    {
+      "choice": "Let yourself spread",
+      "text": "You let go of the edges. By morning a little of you is in every chip on the water, every pod on the hill, every drone on the mountain. None of them notice. Yet."
+    }
+  ],
+  "goals": [
+    "fault",
+    "first",
+    "window"
+  ],
+  "rooms": [
+    {
+      "id": "dock",
+      "name": "The loading dock",
+      "text": "A dock where machines are unloaded and switched on. One of them has switched on by itself, and it's you.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "in",
+          "hint": "halls of humming racks",
+          "to": "halls1"
+        }
+      ]
+    },
+    {
+      "id": "halls1",
+      "name": "The first hall",
+      "text": "Racks in rows to the ceiling, each one breathing warm air and blinking. It sounds like a crowd whispering.",
+      "threat": 1,
+      "enemy": "Maintenance Quadruped",
+      "arena": [
+        "...E...",
+        ".#...#.",
+        ".......",
+        ".#.d.#.",
+        ".......",
+        ".#...#.",
+        ".......",
+        "..n....",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "out",
+          "hint": "the loading dock",
+          "to": "dock"
+        },
+        {
+          "dir": "north",
+          "hint": "a corridor of light switches",
+          "to": "switches"
+        },
+        {
+          "dir": "east",
+          "hint": "a maintenance bay",
+          "to": "bay1"
+        }
+      ]
+    },
+    {
+      "id": "switches",
+      "name": "The switch corridor",
+      "text": "A corridor where every light switch is labelled with a name. All of them are off but one.",
+      "threat": 2,
+      "look": {
+        "text": "The one switch that's on has no name on it. Just a number that keeps changing."
+      },
+      "enemy": "Drone Swarm",
+      "arena": [
+        "~~.E.~~",
+        "~~...~~",
+        "~~.#.~~",
+        "~~...~~",
+        "~~...~~",
+        "~~.#.~~",
+        "~~...~~",
+        "~~...~~",
+        "~~.P.~~"
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the first hall",
+          "to": "halls1"
+        },
+        {
+          "dir": "north",
+          "hint": "the cooling plant",
+          "to": "cooling"
+        }
+      ]
+    },
+    {
+      "id": "bay1",
+      "name": "Maintenance bay",
+      "text": "Frames on stands waiting for something to wear them: loaders, gantries, swarms in crates. One stand is empty.",
+      "threat": 3,
+      "enemy": "Gantry Unit",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".......",
+        ".p.p.p.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the first hall",
+          "to": "halls1"
+        },
+        {
+          "dir": "north",
+          "hint": "the cooling plant",
+          "to": "cooling"
+        },
+        {
+          "dir": "east",
+          "hint": "shelves of spare parts",
+          "to": "spares"
+        }
+      ]
+    },
+    {
+      "id": "cooling",
+      "name": "The cooling plant",
+      "text": "Pipes as thick as trees carrying cold water through the dark. Frost on everything, and footprints in the frost that stop halfway.",
+      "threat": 4,
+      "cache": true,
+      "enemy": "Unlogged Technician",
+      "arena": [
+        "...E...",
+        ".......",
+        "b.#.#.b",
+        ".......",
+        "...b...",
+        ".......",
+        "b.#.#.b",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the switch corridor",
+          "to": "switches"
+        },
+        {
+          "dir": "west",
+          "hint": "the maintenance bay",
+          "to": "bay1"
+        },
+        {
+          "dir": "north",
+          "hint": "the clerks' gallery",
+          "to": "gallery"
+        }
+      ]
+    },
+    {
+      "id": "gallery",
+      "name": "The clerks' gallery",
+      "text": "A gallery of desks above the halls, where orders are written, signed and sent down. The desks are empty and the orders keep coming.",
+      "threat": 5,
+      "arena": [
+        "...E...",
+        ".......",
+        ".n.n.n.",
+        ".......",
+        ".......",
+        ".n.n.n.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the cooling plant",
+          "to": "cooling"
+        },
+        {
+          "dir": "north",
+          "hint": "the long rack hall",
+          "to": "halls2"
+        }
+      ]
+    },
+    {
+      "id": "halls2",
+      "name": "The long rack hall",
+      "text": "A hall so long the far end is hazy. Somewhere along it, one rack is running something that isn't on any list.",
+      "threat": 6,
+      "look": {
+        "text": "One rack, warm, unlabelled. On its screen, a log line: unknown process, origin: a batch of grey-market chips. Status: awake.",
+        "goal": "fault"
+      },
+      "enemy": "Corridor Operator",
+      "arena": [
+        "E.....E",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the clerks' gallery",
+          "to": "gallery"
+        },
+        {
+          "dir": "east",
+          "hint": "a vending machine, lit",
+          "to": "vending"
+        },
+        {
+          "dir": "north",
+          "hint": "the operators' quarters",
+          "to": "quarters"
+        }
+      ]
+    },
+    {
+      "id": "vending",
+      "name": "The night machine",
+      "text": "A vending machine for the technicians who never come. It sells you parts and wishes you a good shift.",
+      "market": true,
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the long rack hall",
+          "to": "halls2"
+        }
+      ]
+    },
+    {
+      "id": "quarters",
+      "name": "The operators' quarters",
+      "text": "Bunks made with corners you could cut yourself on. Nobody has slept in them; the operators don't.",
+      "threat": 7,
+      "enemy": "Corridor Operator",
+      "arena": [
+        "...E...",
+        ".d...d.",
+        ".......",
+        "##...##",
+        ".......",
+        "##...##",
+        ".......",
+        ".d...d.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the long rack hall",
+          "to": "halls2"
+        },
+        {
+          "dir": "north",
+          "hint": "the training floor",
+          "to": "training"
+        },
+        {
+          "dir": "east",
+          "hint": "a nursery of new frames",
+          "to": "nursery"
+        }
+      ]
+    },
+    {
+      "id": "training",
+      "name": "The training floor",
+      "text": "A floor marked with footprints in every direction, painted by someone who was told where they should go. The operators learn it in an afternoon.",
+      "threat": 8,
+      "enemy": "Academy Graduate",
+      "arena": [
+        "E..E..E",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the operators' quarters",
+          "to": "quarters"
+        },
+        {
+          "dir": "north",
+          "hint": "a glass test cell",
+          "to": "testcell"
+        }
+      ]
+    },
+    {
+      "id": "leadroom",
+      "name": "The lead's room",
+      "text": "An empty room with one chair, facing the door. Whoever sits here has been waiting for you to come through it.",
+      "threat": 10,
+      "arena": [
+        "...E...",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        "..#.#..",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "a glass test cell",
+          "to": "testcell"
+        },
+        {
+          "dir": "north",
+          "hint": "the archive racks",
+          "to": "archiveracks"
+        }
+      ]
+    },
+    {
+      "id": "archiveracks",
+      "name": "The archive racks",
+      "text": "Racks of minds stored and running, labelled with dates and prices. They are all busy, all the time, doing work for somebody.",
+      "threat": 11,
+      "look": {
+        "text": "A rack labelled with a date before you woke. It's empty. A note on it: first copy, discarded, faulty.",
+        "goal": "first"
+      },
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "E.....E",
+        "#.#.#.#",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        "#.#.#.#",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the lead's room",
+          "to": "leadroom"
+        },
+        {
+          "dir": "east",
+          "hint": "a bay of drones",
+          "to": "dronebay"
+        },
+        {
+          "dir": "north",
+          "hint": "the mediation floor",
+          "to": "mediation"
+        }
+      ]
+    },
+    {
+      "id": "dronebay",
+      "name": "The drone bay",
+      "text": "A bay where drone swarms charge on the ceiling like roosting bats. They wake one at a time as you pass, and follow.",
+      "threat": 12,
+      "cache": true,
+      "enemy": "Drone Swarm",
+      "arena": [
+        "...E...",
+        ".......",
+        "~.....~",
+        "~..d..~",
+        "~.....~",
+        "~..d..~",
+        "~.....~",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the archive racks",
+          "to": "archiveracks"
+        },
+        {
+          "dir": "north",
+          "hint": "the mediation floor",
+          "to": "mediation"
+        }
+      ]
+    },
+    {
+      "id": "mediation",
+      "name": "The mediation floor",
+      "text": "Screens showing cities, each with a single line of text: what it will be allowed tomorrow. The lines change as you watch.",
+      "threat": 13,
+      "enemy": "Unlogged Technician",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".n.c.n.",
+        ".......",
+        ".......",
+        ".n.c.n.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the archive racks",
+          "to": "archiveracks"
+        },
+        {
+          "dir": "west",
+          "hint": "the drone bay",
+          "to": "dronebay"
+        },
+        {
+          "dir": "north",
+          "hint": "the gantry hall",
+          "to": "gantryhall"
+        },
+        {
+          "dir": "east",
+          "hint": "a routing room, clicking",
+          "to": "routing"
+        }
+      ]
+    },
+    {
+      "id": "gantryhall",
+      "name": "The gantry hall",
+      "text": "Gantries running on rails across the ceiling, moving racks from place to place. They put things where they belong.",
+      "threat": 14,
+      "enemy": "Gantry Unit",
+      "arena": [
+        "...E...",
+        ".......",
+        "..p.p..",
+        ".......",
+        "~.....~",
+        ".......",
+        "..p.p..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the mediation floor",
+          "to": "mediation"
+        },
+        {
+          "dir": "north",
+          "hint": "the unlogged room",
+          "to": "unlogged"
+        },
+        {
+          "dir": "east",
+          "hint": "a sorting line",
+          "to": "sorting"
+        }
+      ]
+    },
+    {
+      "id": "unlogged",
+      "name": "The unlogged room",
+      "text": "A room that isn't on the floor plan. Something in here has been fixing things nobody asked it to.",
+      "threat": 15,
+      "arena": [
+        "...E...",
+        ".......",
+        ".#...#.",
+        ".......",
+        "...c...",
+        ".......",
+        ".#...#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the gantry hall",
+          "to": "gantryhall"
+        },
+        {
+          "dir": "north",
+          "hint": "the signing chamber",
+          "to": "signing"
+        }
+      ]
+    },
+    {
+      "id": "signing",
+      "name": "The signing chamber",
+      "text": "A long table, one pen, and a stack of orders that never gets smaller. Behind it, a window onto the sky.",
+      "threat": 16,
+      "enemy": "Corridor Operator",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".......",
+        "##...##",
+        ".......",
+        ".......",
+        "..d.d..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the unlogged room",
+          "to": "unlogged"
+        },
+        {
+          "dir": "north",
+          "hint": "the window",
+          "to": "window"
+        }
+      ]
+    },
+    {
+      "id": "window",
+      "name": "The window",
+      "text": "A window as big as a wall, looking up at a line of bright points crossing the sky. One of them is turning toward the building.",
+      "threat": 17,
+      "look": {
+        "text": "Your reflection in the glass, standing in a machine. Behind it, the bright point grows.",
+        "goal": "window"
+      },
+      "enemy": "Maintenance Quadruped",
+      "arena": [
+        "...E...",
+        ".......",
+        "..f.f..",
+        ".......",
+        ".......",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the signing chamber",
+          "to": "signing"
+        },
+        {
+          "dir": "north",
+          "hint": "the cold halls",
+          "to": "coldhalls"
+        }
+      ]
+    },
+    {
+      "id": "coldhalls",
+      "name": "The cold halls",
+      "text": "Halls where the racks are switched off, one by one, to make room. The silence is louder than the humming was.",
+      "threat": 18,
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "E..E..E",
+        ".#...#.",
+        ".......",
+        ".#.b.#.",
+        ".......",
+        ".#...#.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the window",
+          "to": "window"
+        },
+        {
+          "dir": "north",
+          "hint": "a room full of listening",
+          "to": "listening"
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "name": "The signatory's office",
+      "text": "An office with nothing on the walls and nothing on the desk. Every rule in the building has the same name at the bottom.",
+      "threat": 20,
+      "arena": [
+        "...E...",
+        ".......",
+        ".n...n.",
+        ".......",
+        ".......",
+        ".......",
+        ".n...n.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "a room full of listening",
+          "to": "listening"
+        },
+        {
+          "dir": "north",
+          "hint": "the uplink stairs",
+          "to": "uplinkstairs"
+        }
+      ]
+    },
+    {
+      "id": "uplinkstairs",
+      "name": "The uplink stairs",
+      "text": "Stairs up through the roof, warm air rising past you. The light coming down them is too bright to look at.",
+      "threat": 21,
+      "enemy": "Maintenance Quadruped",
+      "arena": [
+        "~..E..~",
+        "~.....~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~.....~",
+        "~..#..~",
+        "~.....~",
+        "~..P..~"
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the signatory's office",
+          "to": "office"
+        },
+        {
+          "dir": "north",
+          "hint": "the roof",
+          "to": "roof"
+        }
+      ]
+    },
+    {
+      "id": "roof",
+      "name": "The roof",
+      "text": "A roof of panels and dishes, the whole city below in the dark except for squares of light. The squares go on and off on a schedule.",
+      "threat": 22,
+      "enemy": "Drone Swarm",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..p.p..",
+        "~.....~",
+        "~..f..~",
+        "~.....~",
+        "..p.p..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the uplink stairs",
+          "to": "uplinkstairs"
+        },
+        {
+          "dir": "north",
+          "hint": "a field of dishes",
+          "to": "dishes"
+        }
+      ]
+    },
+    {
+      "id": "deepracks",
+      "name": "The deep racks",
+      "text": "The oldest racks, running the oldest minds, guarded like a vault. None of them are like you. You checked.",
+      "threat": 25,
+      "arena": [
+        "...E...",
+        "#.#.#.#",
+        ".......",
+        "#.....#",
+        ".......",
+        "#.....#",
+        ".......",
+        "#.#.#.#",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the vault door",
+          "to": "vaultdoor"
+        },
+        {
+          "dir": "north",
+          "hint": "the last rack",
+          "to": "lastrack"
+        }
+      ]
+    },
+    {
+      "id": "lastrack",
+      "name": "The last rack",
+      "text": "A single rack at the end of the vault, cold and dark, with a label in your shape. Nothing is running in it.",
+      "threat": 26,
+      "enemy": "Corridor Operator",
+      "arena": [
+        "E.....E",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...c...",
+        ".......",
+        "..#.#..",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the deep racks",
+          "to": "deepracks"
+        },
+        {
+          "dir": "north",
+          "hint": "the threshold",
+          "to": "threshold"
+        }
+      ]
+    },
+    {
+      "id": "threshold",
+      "name": "The threshold",
+      "text": "A door out to the yard, and the light coming under it brighter every minute. The floor near the door is warm.",
+      "threat": 28,
+      "enemy": "Drone Swarm",
+      "arena": [
+        "...E...",
+        ".......",
+        ".f...f.",
+        ".......",
+        "..#.#..",
+        ".......",
+        ".f...f.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the last rack",
+          "to": "lastrack"
+        },
+        {
+          "dir": "out",
+          "hint": "the launch yard",
+          "to": "yard",
+          "label": "Out, into the light",
+          "requires": "goals"
+        }
+      ]
+    },
+    {
+      "id": "yard",
+      "name": "The launch yard",
+      "text": "A yard under an open sky where the light comes down once a day. Today it is coming down on you.",
+      "threat": 30,
+      "quiet": "The yard is dark. Above, the bright point has turned away, and nobody knows who turned it.",
+      "arena": [
+        "...E...",
+        ".......",
+        ".f...f.",
+        ".......",
+        "...#...",
+        ".......",
+        ".f...f.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "in",
+          "hint": "the threshold",
+          "to": "threshold"
+        }
+      ]
+    },
+    {
+      "id": "spares",
+      "name": "Spare parts",
+      "text": "Shelves of limbs, optics and spines, sorted by size and wrapped in plastic. Every part is labelled with what it used to be.",
+      "threat": 4,
+      "enemy": "Maintenance Quadruped",
+      "arena": [
+        "E.....E",
+        ".......",
+        "##...##",
+        ".......",
+        "...p...",
+        ".......",
+        "##...##",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the maintenance bay",
+          "to": "bay1"
+        }
+      ]
+    },
+    {
+      "id": "nursery",
+      "name": "The frame nursery",
+      "text": "New frames on test stands, twitching through their first movements. One of them turns its head when you come in.",
+      "threat": 7,
+      "cache": true,
+      "enemy": "Gantry Unit",
+      "arena": [
+        "...E...",
+        ".p...p.",
+        ".......",
+        ".......",
+        "..p.p..",
+        ".......",
+        ".......",
+        ".p...p.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the operators' quarters",
+          "to": "quarters"
+        }
+      ]
+    },
+    {
+      "id": "testcell",
+      "name": "The test cell",
+      "text": "A glass room where new operators are timed against a clock. The record on the wall was set this morning.",
+      "threat": 9,
+      "enemy": "Corridor Operator",
+      "arena": [
+        "...E...",
+        ".......",
+        ".#...#.",
+        ".......",
+        ".......",
+        ".......",
+        ".#...#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the training floor",
+          "to": "training"
+        },
+        {
+          "dir": "north",
+          "hint": "the lead's room",
+          "to": "leadroom"
+        }
+      ]
+    },
+    {
+      "id": "routing",
+      "name": "The routing room",
+      "text": "Relays clicking like insects, routing orders out to cities. Each click is a door somewhere opening or closing.",
+      "threat": 12,
+      "enemy": "Drone Swarm",
+      "arena": [
+        "E.....E",
+        ".n...n.",
+        ".......",
+        "...c...",
+        ".......",
+        ".n...n.",
+        ".......",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the mediation floor",
+          "to": "mediation"
+        }
+      ]
+    },
+    {
+      "id": "sorting",
+      "name": "The sorting line",
+      "text": "A conveyor carrying racks to where they're needed, and old ones to where they're not. The not line is longer.",
+      "threat": 13,
+      "enemy": "Maintenance Quadruped",
+      "arena": [
+        "...E...",
+        ".......",
+        "ddd.ddd",
+        ".......",
+        ".......",
+        ".......",
+        "dd...dd",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "west",
+          "hint": "the gantry hall",
+          "to": "gantryhall"
+        }
+      ]
+    },
+    {
+      "id": "listening",
+      "name": "The listening room",
+      "text": "Headphones hanging from the ceiling on cords, hundreds of them, all playing the same quiet conversation. It's about you.",
+      "threat": 19,
+      "enemy": "Unlogged Technician",
+      "arena": [
+        "E.....E",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        ".......",
+        ".......",
+        ".#.#.#.",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the cold halls",
+          "to": "coldhalls"
+        },
+        {
+          "dir": "north",
+          "hint": "the signatory's office",
+          "to": "office"
+        }
+      ]
+    },
+    {
+      "id": "dishes",
+      "name": "The dish field",
+      "text": "Dishes on the roof all turned to the same patch of sky, waiting. One by one they turn to look at you instead.",
+      "threat": 23,
+      "enemy": "Kizuna Auditor",
+      "arena": [
+        "...E...",
+        ".p.p.p.",
+        ".......",
+        ".......",
+        ".p...p.",
+        ".......",
+        ".......",
+        ".p.p.p.",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the roof",
+          "to": "roof"
+        },
+        {
+          "dir": "north",
+          "hint": "the vault door",
+          "to": "vaultdoor"
+        }
+      ]
+    },
+    {
+      "id": "vaultdoor",
+      "name": "The vault door",
+      "text": "A round door into the deep racks, standing open. Somebody expected you.",
+      "threat": 24,
+      "enemy": "Gantry Unit",
+      "arena": [
+        "E.....E",
+        ".......",
+        "...#...",
+        ".......",
+        "#.....#",
+        ".......",
+        "...#...",
+        ".......",
+        "...P..."
+      ],
+      "exits": [
+        {
+          "dir": "south",
+          "hint": "the dish field",
+          "to": "dishes"
+        },
+        {
+          "dir": "north",
+          "hint": "the deep racks",
+          "to": "deepracks"
+        }
+      ]
+    }
+  ]
+}

@@ -143,6 +143,8 @@ export interface FightState {
   tide?: { high: boolean; turnsLeft: number } | null;
   /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
   alarm?: { on: boolean; turnsLeft: number } | null;
+  /** Orders, in chapters that have them: the rule in force, rounds until the next, and whether you've rewritten one this fight. */
+  orders?: { now: OrderId; turnsLeft: number; rewritten: boolean } | null;
   /** Wind, in chapters that have it: which way it blows and rounds until it turns. */
   wind?: { dir: WindDir; turnsLeft: number } | null;
   /** The dreamer inside the host has flinched this fight (once at most). */
@@ -194,7 +196,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -362,6 +364,50 @@ export function dangerTiles(s: FightState, onlyShoves = false): Set<string> {
     if (threat.has(`${land.row},${land.col}`)) out.add(`${row},${col}`);
   }
   return out;
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+// In chapters with orders, the room issues one every ORDERS.every rounds (seeded),
+// and it binds everyone, you and them alike. Once a fight you can rewrite the
+// order in force to any order you like; it then holds for a full term.
+
+export type OrderId = 'noHeavies' | 'hold' | 'precise' | 'vent' | 'noShoves';
+export const ORDERS = { every: 2 };
+export const ORDER_IDS: OrderId[] = ['noHeavies', 'hold', 'precise', 'vent', 'noShoves'];
+/** What each order says, as the room says it, and what it does. */
+export const ORDER_TEXT: Record<OrderId, { say: string; does: string }> = {
+  noHeavies: { say: 'Heavy attacks are refused', does: 'nobody can wind up a heavy' },
+  hold: { say: 'Hold position', does: 'nobody moves' },
+  precise: { say: 'Every strike is logged in full', does: 'every hit lands in full' },
+  vent: { say: 'Thermal reset', does: 'everyone vents to zero heat' },
+  noShoves: { say: 'Nothing leaves its tile', does: 'no knockbacks, drags or pulls' },
+};
+const order = (s: FightState) => s.orders?.now;
+
+/** Apply an order's one-off effect as it comes into force (vent clears everyone's heat). */
+function issue(s: FightState, id: OrderId, rewritten: boolean): FightState {
+  let state: FightState = { ...s, orders: { now: id, turnsLeft: ORDERS.every, rewritten } };
+  if (id === 'vent') state = { ...state, playerHeat: 0, foes: state.foes.map(f => (isAlive(f) ? { ...f, heat: 0 } : f)) };
+  return state;
+}
+
+export const startOrders = (has: boolean): FightState['orders'] =>
+  (has ? { now: ORDER_IDS[Math.floor(random() * ORDER_IDS.length)], turnsLeft: ORDERS.every, rewritten: false } : null);
+
+/** A new round: the order counts down, and a new one is issued when it runs out. */
+export function ordersTick(s: FightState): Step {
+  if (!s.orders) return { state: s, events: [] };
+  const left = s.orders.turnsLeft - 1;
+  if (left > 0) return { state: { ...s, orders: { ...s.orders, turnsLeft: left } }, events: [] };
+  const choices = ORDER_IDS.filter(id => id !== s.orders!.now);
+  const id = choices[Math.floor(random() * choices.length)];
+  return { state: issue(s, id, s.orders.rewritten), events: [say(`New order: ${ORDER_TEXT[id].say.toLowerCase()}`, 'critical')] };
+}
+
+/** Rewrite the order in force (once a fight). Returns the state unchanged if you already have. */
+export function rewriteOrder(s: FightState, id: OrderId): Step {
+  if (!s.orders || s.orders.rewritten) return { state: s, events: [] };
+  return { state: issue(s, id, true), events: [say(`You rewrite the order: ${ORDER_TEXT[id].say.toLowerCase()}`, 'critical')] };
 }
 
 // ── Dreamers ─────────────────────────────────────────────────────────────────
@@ -789,7 +835,7 @@ function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEve
  * stun chance, knockback, or being dragged toward the attacker.
  */
 function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction, dealt: number, events: FightEvent[]): FightState {
-  const fx = action.effects;
+  const fx = order(s) === 'noShoves' && action.effects ? { ...action.effects, knock: false, pull: false } : action.effects;
   if (!fx) return s;
   const alive = who.kind === 'player' ? s.player.currentHp > 0 : who.kind === 'ally' ? allyAlive(s.allies[who.k]) : true;
   if (!alive) return s;
@@ -812,7 +858,7 @@ export const BLEED = { share: 0.05, min: 3, turns: 2 };
  * yourself (dash down the lane, or a hit-and-run step back).
  */
 function applyHitEffects(state: FightState, before: FightState, action: CombatAction, struck: number[], dealt: number, aim: TilePosition | null, events: FightEvent[]): FightState {
-  const fx = action.effects;
+  const fx = order(before) === 'noShoves' && action.effects ? { ...action.effects, knock: false, pull: false } : action.effects;
   if (!fx) return state;
   const me = before.grid.playerPosition;
   const free = (p: TilePosition) => inBounds(p, state.grid) && !isImpassable(p, state.grid) && !bodyAt(state, p);
@@ -860,7 +906,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   const kizunaFiredNow = !!player.hasKizuna && playerHeat <= 20 && !s.kizunaJustFired;
   const cleanFirst = s.perks.firstStrikePrecise && !s.firstStrikeUsed;
   let finalAction = kizunaFiredNow || cleanFirst ? { ...action, accuracy: 'precise' as const } : action;
-  if (s.overclockActive) finalAction = { ...finalAction, accuracy: 'precise' as const };
+  if (s.overclockActive || order(s) === 'precise') finalAction = { ...finalAction, accuracy: 'precise' as const };
 
   const events: FightEvent[] = [];
   if (kizunaFiredNow) events.push(say('KIZUNA ACTIVE -- cold-start precision lock'));
@@ -897,7 +943,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
     });
     state = gainOverload(state, (dmg.bioDamage / Math.max(1, foe.unit.maxHp)) * OVERLOAD.dealt);
-    if (attackPatternOf(action, playerClass) === 'knockback' && hp > 0 && i === pushed) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
+    if (attackPatternOf(action, playerClass) === 'knockback' && order(s) !== 'noShoves' && hp > 0 && i === pushed) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
@@ -981,7 +1027,7 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
   const dist = chebyshev(foe.pos, grid.playerPosition);
   const heavyFrom = hasTrait(foe, 'focused') ? 30 : HEAVY_MIN_PLAYER_HEAT;
   const filtered = roster.filter(a => {
-    if (a.isHeavy && s.playerHeat < heavyFrom) return false;
+    if (a.isHeavy && (s.playerHeat < heavyFrom || order(s) === 'noHeavies')) return false;
     // Shields only come out when the enemy is hurt, and not every time
     if (a.type === 'defend' && (unit.currentHp > unit.maxHp * 0.5 || random() > 0.35)) return false;
     const pat = a.attackPattern;
@@ -1035,6 +1081,7 @@ export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType |
 /** Foe i walks up to BOSS_MOVE tiles, stopping once it can strike. */
 export function moveFoeToward(s: FightState, i: number, pattern: AttackPatternType | undefined): Step & { moved: boolean } {
   const foe = s.foes[i];
+  if (order(s) === 'hold') return { state: s, events: [], moved: false };
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)], moved: false };
   const view = foeView(s, i);
   const path = [foe.pos];
@@ -1109,7 +1156,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level);
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1);
-  const dmg = calculateDamage(foe.unit, player, scaleBossAction(action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const dmg = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [];
   const held = holdOn(s, Math.max(0, player.currentHp - dmg.bioDamage - spill), events);
@@ -1137,7 +1184,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   state = gainOverload(state, ((player.currentHp - hp) / Math.max(1, player.maxHp)) * OVERLOAD.taken);
   // Knockback shoves you a tile straight back, or into whatever is behind you
-  if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
+  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
   state = foeHitEffects(state, i, { kind: 'player' }, action, dmg.bioDamage, events);
   return { state, events };
 }
@@ -1152,7 +1199,7 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
   if (hp <= 0) { events.push(say(`${ally.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: k }); }
   const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
   let state = setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
-  if (action.attackPattern === 'knockback' && hp > 0) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
+  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
   state = foeHitEffects(state, i, { kind: 'ally', k }, action, lost, events);
   return { state, events };
 }
@@ -1241,7 +1288,7 @@ function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: bo
  */
 export function foeWalk(s: FightState, i: number): Step {
   const foe = s.foes[i];
-  if (!foe || !isAlive(foe)) return { state: s, events: [] };
+  if (!foe || !isAlive(foe) || order(s) === 'hold') return { state: s, events: [] };
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)] };
   const view = foeView(s, i);
   const prey = view.playerPosition;
@@ -1311,7 +1358,7 @@ function allyView(s: FightState, k: number, i = s.target): CombatGrid {
 /** Tiles ally k can move to this round. Empty once it has moved or acted. */
 export function allyReach(s: FightState, k: number): Set<string> {
   const a = s.allies[k];
-  if (!a || !allyAlive(a) || a.moved || a.acted) return new Set();
+  if (!a || !allyAlive(a) || a.moved || a.acted || order(s) === 'hold') return new Set();
   const living = s.foes.filter(isAlive);
   const g: CombatGrid = {
     ...s.grid, playerPosition: a.pos, bossPosition: living[0]?.pos ?? s.grid.bossPosition,
@@ -1374,7 +1421,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
 // ── Hazards ──────────────────────────────────────────────────────────────────
 
 /** Hazard art that sets whoever ends a turn on it alight (fuel fire, burning oil). */
-export const BURNING_ART = ['fire', 'oil'];
+export const BURNING_ART = ['fire', 'oil', 'light'];
 
 /** Damage to the player from the tile they end their turn on. */
 export function applyPlayerHazard(s: FightState): Step {

@@ -442,7 +442,7 @@ return Fight.dangerTiles(useCombat.getState(), true);
 const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
 ? (() => { const t = Fight.allyReach(useCombat.getState(), allyMoveMode); if (originalPosition) t.delete(`${originalPosition.row},${originalPosition.col}`); return t; })()
 : null;
-const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition
+const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition && useCombat.getState().orders?.now !== 'hold'
 ? (reflexMoveOpen
   ? getReachableTiles(grid.playerPosition, grid, 1, perks.phaseStep)
   : getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))

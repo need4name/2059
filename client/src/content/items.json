@@ -1876,5 +1876,239 @@
       "longshot",
       "mortar"
     ]
+  },
+  {
+    "id": "frame_loader_legs_l",
+    "name": "[KIZUNA] Loader Frame Leg (L)",
+    "description": "A loader's leg, built to carry a ton up a ramp. It wants to run at something.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "left_leg",
+    "attackBonus": 10,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🦿",
+    "signature": true,
+    "heads": [
+      "charge",
+      "kick",
+      "sprint"
+    ]
+  },
+  {
+    "id": "frame_loader_legs_r",
+    "name": "[KIZUNA] Loader Frame Leg (R)",
+    "description": "Its pair. Together they never get tired, which is its own kind of tired.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "right_leg",
+    "attackBonus": 8,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🦿",
+    "signature": true,
+    "heads": [
+      "stomp",
+      "kick",
+      "lunge"
+    ]
+  },
+  {
+    "id": "frame_loader_spine",
+    "name": "[KIZUNA] Loader Chassis",
+    "description": "A load-bearing spine with a serial number where a name would go.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "misc",
+    "attackBonus": 4,
+    "defenseBonus": 10,
+    "hpBonus": 30,
+    "icon": "🦾",
+    "signature": true
+  },
+  {
+    "id": "frame_gantry_arm_r",
+    "name": "[KIZUNA] Gantry Arm (R)",
+    "description": "A crane arm off a maintenance gantry. It reaches further than you meant it to.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 12,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "icon": "🏗️",
+    "signature": true,
+    "heads": [
+      "reach",
+      "hook",
+      "spread"
+    ]
+  },
+  {
+    "id": "frame_gantry_arm_l",
+    "name": "[KIZUNA] Gantry Claw (L)",
+    "description": "A grab for lifting racks. It holds on a moment longer than it needs to.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "left_arm",
+    "attackBonus": 10,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "icon": "🦀",
+    "signature": true,
+    "heads": [
+      "grapple",
+      "jab",
+      "hook"
+    ]
+  },
+  {
+    "id": "frame_gantry_spine",
+    "name": "[KIZUNA] Gantry Rail",
+    "description": "The rail a gantry rides on, bent into a back. Everything moves along it smoothly.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "misc",
+    "attackBonus": 4,
+    "defenseBonus": 8,
+    "hpBonus": 25,
+    "icon": "🛤️",
+    "signature": true
+  },
+  {
+    "id": "frame_swarm_eyes",
+    "name": "[KIZUNA] Swarm Optics",
+    "description": "Forty small cameras that agree on what they see. You are, briefly, forty small things.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 12,
+    "defenseBonus": 0,
+    "hpBonus": 0,
+    "structuralAttackBonus": 4,
+    "icon": "🛸",
+    "signature": true,
+    "heads": [
+      "mortar",
+      "bolt",
+      "scope"
+    ]
+  },
+  {
+    "id": "frame_swarm_core",
+    "name": "[KIZUNA] Swarm Core",
+    "description": "The part of the swarm that decides. It decides very quickly.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "brain",
+    "attackBonus": 6,
+    "defenseBonus": 4,
+    "hpBonus": 15,
+    "icon": "🧠",
+    "signature": true
+  },
+  {
+    "id": "frame_swarm_ears",
+    "name": "[KIZUNA] Swarm Pickups",
+    "description": "Microphones spread across forty bodies. Everything sounds like it's coming from inside.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "ears",
+    "attackBonus": 2,
+    "defenseBonus": 6,
+    "hpBonus": 10,
+    "icon": "📡",
+    "signature": true
+  },
+  {
+    "id": "sig_clerk_seal",
+    "name": "[KIZUNA] Clerk's Seal",
+    "description": "A seal that makes an order binding. Pressed to your own skull, it leaves no mark at all.",
+    "rarity": "rare",
+    "type": "augmentation",
+    "slot": "brain",
+    "attackBonus": 8,
+    "defenseBonus": 6,
+    "hpBonus": 15,
+    "icon": "🔏",
+    "signature": true
+  },
+  {
+    "id": "sig_warden_key",
+    "name": "[KIZUNA] Warden's Lockout (R)",
+    "description": "An arm that ends sessions. It feels like it's waiting for permission you don't need.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "right_arm",
+    "attackBonus": 17,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🔐",
+    "signature": true,
+    "heads": [
+      "reach",
+      "jab",
+      "monowire",
+      "hook"
+    ]
+  },
+  {
+    "id": "sig_lead_stack",
+    "name": "[KIZUNA] Lead Operator's Stack",
+    "description": "The stack that takes the hesitation out. Wearing it, you notice you used to hesitate.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "left_leg",
+    "attackBonus": 12,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "evasionBonus": 2,
+    "icon": "⚡",
+    "signature": true,
+    "heads": [
+      "lunge",
+      "stepcut",
+      "sprint",
+      "charge"
+    ]
+  },
+  {
+    "id": "sig_signatory_pen",
+    "name": "[KIZUNA] Signatory's Hand (L)",
+    "description": "A hand that signs. Everything it touches becomes allowed.",
+    "rarity": "epic",
+    "type": "augmentation",
+    "slot": "left_arm",
+    "attackBonus": 16,
+    "defenseBonus": 4,
+    "hpBonus": 0,
+    "icon": "🖋️",
+    "signature": true,
+    "heads": [
+      "lash",
+      "grapple",
+      "override",
+      "jab"
+    ]
+  },
+  {
+    "id": "sig_pass_lens",
+    "name": "[KIZUNA] Lens of the Pass",
+    "description": "A piece of the light. Look through it and everything is noon.",
+    "rarity": "legendary",
+    "type": "augmentation",
+    "slot": "eyes",
+    "attackBonus": 20,
+    "defenseBonus": 2,
+    "hpBonus": 0,
+    "structuralAttackBonus": 8,
+    "icon": "🔆",
+    "signature": true,
+    "heads": [
+      "lance",
+      "longshot",
+      "scope",
+      "mortar"
+    ]
   }
 ]

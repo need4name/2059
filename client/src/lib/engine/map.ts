@@ -6,15 +6,18 @@ import oceanMap from '../../content/map-indian-ocean.json';
 import deltasMap from '../../content/map-deltas.json';
 import hillsMap from '../../content/map-helix-hills.json';
 import rainMap from '../../content/map-rain-machine.json';
+import corridorMap from '../../content/map-corridor.json';
 import { activeChapter, chapterById } from '../combat/chapters';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
 export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
-export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; goals: string[]; rooms: Room[] }
+/** A choice at the end of the last chapter, and what it leads to. */
+export interface Ending { choice: string; text: string }
+export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; endTitle?: string; endings?: Ending[]; goals: string[]; rooms: Room[] }
 
 /** Every chapter's map, by the map name in chapters.json. */
-export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as ChapterMap, deltas: deltasMap as ChapterMap, 'helix-hills': hillsMap as ChapterMap, 'rain-machine': rainMap as ChapterMap };
+export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as ChapterMap, deltas: deltasMap as ChapterMap, 'helix-hills': hillsMap as ChapterMap, 'rain-machine': rainMap as ChapterMap, corridor: corridorMap as ChapterMap };
 const index = new Map(Object.entries(MAPS).map(([k, m]) => [k, new Map(m.rooms.map(r => [r.id, r]))]));
 /** The active chapter's map. */
 export const chapterMap = (): ChapterMap => MAPS[activeChapter().map];

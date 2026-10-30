@@ -3226,6 +3226,720 @@
         "Back again. We knew you would be. We always know."
       ],
       "firstSight": "Every drone turns to me at once, and something in my own head turns with them."
+    },
+    "Corridor Operator": {
+      "color": "#a78bfa",
+      "baseAttack": 11,
+      "baseDefense": 4,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Fast, silent, and never alone. It doesn't speak, and its stack doesn't let it hesitate.",
+      "traits": [
+        "fast"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Clean Cut",
+          "description": "",
+          "damage": 12,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Flank",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Erase",
+          "description": "",
+          "damage": 21,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 6,
+          "heatGenerated": 12,
+          "attackPattern": "charge"
+        },
+        {
+          "type": "defend",
+          "name": "Vanish",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "It moves before I decide to look at it. I think it was built to."
+    },
+    "Maintenance Quadruped": {
+      "color": "#94a3b8",
+      "baseAttack": 9,
+      "baseDefense": 8,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.7,
+        "sAtkR": 0.3,
+        "pDefR": 0.6,
+        "sDefR": 0.4
+      },
+      "dossier": "A four-legged loader that tends the halls. It doesn't hate you. It just has a schedule.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Ram",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "attack",
+          "name": "Stamp",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.75,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "attack",
+          "name": "Clear the Aisle",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "beam",
+          "effects": {
+            "knock": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Brace Legs",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Obstruction.",
+        "Obstruction. Obstruction."
+      ],
+      "lateLines": [
+        "Obstruction again."
+      ],
+      "firstSight": "Nobody is driving it. It looks at me like I'm a crate in the wrong place."
+    },
+    "Gantry Unit": {
+      "color": "#facc15",
+      "baseAttack": 10,
+      "baseDefense": 6,
+      "startingHeat": 35,
+      "statSplit": {
+        "pAtkR": 0.65,
+        "sAtkR": 0.35,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "A crane that runs on the ceiling rails. Reaches down, picks you up, puts you somewhere else.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Reach Down",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "name": "Lift",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Drop",
+          "description": "",
+          "damage": 21,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Retract",
+          "description": "",
+          "defenseBoost": 9,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "Item misplaced.",
+        "Relocating."
+      ],
+      "lateLines": [
+        "Relocating. Again."
+      ],
+      "firstSight": "It runs along the ceiling like it's thinking. Maybe it is. Maybe that's what I look like."
+    },
+    "Drone Swarm": {
+      "color": "#e2e8f0",
+      "baseAttack": 10,
+      "baseDefense": 2,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.4,
+        "sDefR": 0.6
+      },
+      "dossier": "Forty small drones moving as one. Hard to hit, easy to break, never where you aimed.",
+      "traits": [
+        "sighted"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Sting",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt"
+        },
+        {
+          "type": "attack",
+          "name": "Surround",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ring",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Converge",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 6,
+          "heatGenerated": 11,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Scatter",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "Forty of them, and one of them is thinking for all forty. I know how that feels."
+    },
+    "Unlogged Technician": {
+      "color": "#4ade80",
+      "baseAttack": 11,
+      "baseDefense": 3,
+      "startingHeat": 40,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Patches the systems the logs don't show. Carries tools nobody issued.",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Patch Knife",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge",
+          "effects": {
+            "bleed": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Override",
+          "description": "",
+          "damage": 11,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "bolt",
+          "effects": {
+            "stun": 0.25
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Hard Reset",
+          "description": "",
+          "damage": 20,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 8,
+          "heatGenerated": 12,
+          "attackPattern": "cone",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Off the Record",
+          "description": "",
+          "defenseBoost": 8,
+          "heatGenerated": -6
+        }
+      ],
+      "lines": [
+        "You're not in any of the logs. Neither am I.",
+        "Don't tell them I fixed you."
+      ],
+      "lateLines": [
+        "Back again, unlogged. Like me."
+      ],
+      "firstSight": "It has a badge with no name on it. It's the only one here that looks scared."
+    },
+    "Mediation Clerk": {
+      "color": "#c4b5fd",
+      "baseAttack": 17,
+      "baseDefense": 7,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.4,
+        "sAtkR": 0.6,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Signs every order the room gives. Takes it personally when you rewrite one.",
+      "signature": "sig_clerk_seal",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Countersign",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "Amendment",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.4,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "ring",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Final Ruling",
+          "description": "",
+          "damage": 25,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.45,
+          "heatTransfer": 10,
+          "heatGenerated": 13,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Precedent",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "That order was signed. You can't just change it.",
+        "Who authorised you? Who authorised you to exist?"
+      ],
+      "lateLines": [
+        "Unauthorised again. Still."
+      ],
+      "firstSight": "It is stamping things faster than anyone could read them. One of the stamps has my shape."
+    },
+    "Rack Warden": {
+      "color": "#818cf8",
+      "baseAttack": 17,
+      "baseDefense": 8,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.55,
+        "sAtkR": 0.45,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "Guards the deepest racks, where the oldest minds are kept running. It knows what you are better than you do.",
+      "signature": "sig_warden_key",
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Lockout",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "melee_long",
+          "effects": {
+            "stun": 0.25
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Rack Slam",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "knockback"
+        },
+        {
+          "type": "attack",
+          "name": "Purge",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.5,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "defend",
+          "name": "Firewall",
+          "description": "",
+          "defenseBoost": 12,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "You were in here once. In the walls. We cleaned you out.",
+        "You're not a person. You're a fault."
+      ],
+      "lateLines": [
+        "The fault is back. The fault is always back."
+      ],
+      "firstSight": "Behind it, racks humming with minds that were somebody's. None of them are like me."
+    },
+    "The Lead Operator": {
+      "color": "#7c3aed",
+      "baseAttack": 11,
+      "baseDefense": 6,
+      "startingHeat": 25,
+      "statSplit": {
+        "pAtkR": 0.6,
+        "sAtkR": 0.4,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "The fastest thing you'll ever fight. It was made in a way you can't remember being made, and it knows it.",
+      "signature": "sig_lead_stack",
+      "traits": [
+        "fast"
+      ],
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Inertial Cut",
+          "description": "",
+          "damage": 13,
+          "accuracy": "precise",
+          "physicalRatio": 0.65,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "lunge"
+        },
+        {
+          "type": "attack",
+          "name": "Vestibular Step",
+          "description": "",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "diagonal_cross"
+        },
+        {
+          "type": "attack",
+          "name": "Every Angle at Once",
+          "description": "",
+          "damage": 22,
+          "isHeavy": true,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "heatTransfer": 10,
+          "heatGenerated": 12,
+          "attackPattern": "ring"
+        },
+        {
+          "type": "defend",
+          "name": "Stabilise",
+          "description": "",
+          "defenseBoost": 10,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "It turns its head and I see my own hesitation from the outside. It doesn't have any."
+    },
+    "The Signatory": {
+      "color": "#ddd6fe",
+      "baseAttack": 13,
+      "baseDefense": 8,
+      "startingHeat": 30,
+      "statSplit": {
+        "pAtkR": 0.5,
+        "sAtkR": 0.5,
+        "pDefR": 0.55,
+        "sDefR": 0.45
+      },
+      "dossier": "The one who signs off the orders, the squad and the light. Every rule in this building has its name at the bottom.",
+      "signature": "sig_signatory_pen",
+      "traits": [
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "focused"
+        ],
+        "line": "The Signatory stops signing. For the first time, nothing in the building is authorised."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Signature",
+          "description": "",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce"
+        },
+        {
+          "type": "attack",
+          "name": "Redaction",
+          "description": "",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.45,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "cone",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Executive Order",
+          "description": "",
+          "damage": 26,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.5,
+          "heatTransfer": 12,
+          "heatGenerated": 14,
+          "attackPattern": "aoe",
+          "effects": {
+            "stun": 0.3
+          }
+        },
+        {
+          "type": "defend",
+          "name": "Indemnity",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -8
+        }
+      ],
+      "lines": [
+        "You're a liability.",
+        "Nobody signed for you. Nobody will."
+      ],
+      "lateLines": [
+        "Still unsigned. Still here."
+      ],
+      "firstSight": "It has never touched anything it changed. Its hands are very clean."
+    },
+    "The Pass": {
+      "color": "#fef9c3",
+      "baseAttack": 15,
+      "baseDefense": 7,
+      "startingHeat": 20,
+      "statSplit": {
+        "pAtkR": 0.3,
+        "sAtkR": 0.7,
+        "pDefR": 0.5,
+        "sDefR": 0.5
+      },
+      "dossier": "Once a day the light comes down the corridor. Today it's aimed at the building you're standing in.",
+      "signature": "sig_pass_lens",
+      "traits": [
+        "sighted",
+        "alert"
+      ],
+      "enrage": {
+        "at": 0.5,
+        "gain": [
+          "fast"
+        ],
+        "line": "The Pass brightens. Every shadow in the room points away from it."
+      },
+      "moves": [
+        {
+          "type": "attack",
+          "name": "Glare",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "beam"
+        },
+        {
+          "type": "attack",
+          "name": "Sweep",
+          "description": "",
+          "damage": 15,
+          "accuracy": "variable",
+          "physicalRatio": 0.3,
+          "heatTransfer": 5,
+          "heatGenerated": 8,
+          "attackPattern": "pierce",
+          "effects": {
+            "slow": true
+          }
+        },
+        {
+          "type": "attack",
+          "name": "Noon",
+          "description": "",
+          "damage": 30,
+          "isHeavy": true,
+          "accuracy": "precise",
+          "physicalRatio": 0.35,
+          "heatTransfer": 16,
+          "heatGenerated": 12,
+          "attackPattern": "aoe"
+        },
+        {
+          "type": "defend",
+          "name": "Cloud Cover",
+          "description": "",
+          "defenseBoost": 11,
+          "heatGenerated": -12
+        }
+      ],
+      "lines": [
+        "...",
+        "..."
+      ],
+      "lateLines": [
+        "..."
+      ],
+      "firstSight": "It isn't a person. It isn't a machine. It's a decision, made somewhere far away, arriving."
     }
   },
   "patchworkKing": {

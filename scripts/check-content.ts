@@ -68,12 +68,12 @@ const chapterFile = z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
       firstFight: text, setPiece: text,
     }).strict(),
-    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional() }).strict().optional(),
+    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional(), orders: z.boolean().optional(), machines: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),
-      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump', 'steam', 'coolant', 'grate']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
-      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal', 'planter', 'mast']), name: text }).strict()).min(1),
+      hazards: z.array(z.object({ art: z.enum(['fire', 'cable', 'chem', 'hole', 'oil', 'sump', 'steam', 'coolant', 'grate', 'light']), name: text, damage: z.number().int().min(1).max(30) }).strict()).min(1),
+      obstacles: z.array(z.object({ art: z.enum(['crate', 'drum', 'nets', 'pump', 'cases', 'bollard', 'locker', 'canister', 'cot', 'terminal', 'planter', 'mast', 'rack']), name: text }).strict()).min(1),
     }).strict(),
   }).strict()).min(1),
 }).strict();
@@ -106,6 +106,8 @@ function arenaProblems(id: string, rows?: string[]): string[] {
 }
 const mapFile = z.object({
   about: text, chapter: text, title: text, entry: text, end: text, ending: z.string().trim().min(1).max(300), goals: z.array(text).min(1),
+  endTitle: text.optional(),
+  endings: z.array(z.object({ choice: text, text: z.string().trim().min(1).max(400) }).strict()).min(2).max(4).optional(),
   rooms: z.array(z.object({
     id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
