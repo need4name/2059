@@ -12,7 +12,7 @@ import { useTutorial } from '@/lib/stores/useTutorial';
 import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, RARITY_TEXT, cx, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
-import { rangeText, effectsText } from '../itemText';
+import { rangeText, effectsText, nameOf } from '../itemText';
 import { pathSummary, statText, moveText } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
@@ -131,7 +131,6 @@ function LoadoutTab() {
   );
 }
 
-const shortName = (name: string) => name.replace(/^\[[A-Z]+\]\s*/, '');
 
 /** Does this installed implant want the player's attention? (a free path to pick, or a point to spend) */
 function upgradeWaiting(slot: AugmentationSlot, item: Item, progress: Record<string, { chosenPath: 'A' | 'B' | null; tier: number }>, points: number) {
@@ -174,7 +173,7 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
       <div className="relative rounded-3xl bg-hud-panel/80 px-4 pb-5 pt-4 ring-1 ring-white/[0.06]">
         <div className="mx-auto flex w-fit items-center gap-2 rounded-2xl bg-white/[0.06] px-3.5 py-2">
           <SlotIcon slot={slot} size={20} className="text-sys/80" />
-          <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{shortName(item.name)}</span>
+          <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
         </div>
         <div className="mt-1 grid grid-cols-2 gap-3">
           {(['A', 'B'] as const).map(p => {

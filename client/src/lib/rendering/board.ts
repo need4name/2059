@@ -638,3 +638,21 @@ export function drawSeams(ctx: Ctx, cells: { x: number; y: number; w: number; h:
   }
   ctx.restore();
 }
+
+/** A unit's health bar on the board: a rounded dark trough with a lit fill. */
+export function drawUnitBar(ctx: Ctx, cx: number, y: number, w: number, frac: number, color: string) {
+  const h = 5, r = h / 2, x = cx - w / 2;
+  const pill = (px: number, pw: number) => {
+    ctx.beginPath();
+    ctx.moveTo(px + r, y); ctx.lineTo(px + pw - r, y); ctx.arc(px + pw - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(px + r, y + h); ctx.arc(px + r, y + r, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath();
+  };
+  ctx.save();
+  pill(x - 1.5, w + 3); ctx.fillStyle = 'rgba(4,7,12,0.85)'; ctx.fill();
+  const fw = Math.max(0, Math.min(1, frac)) * w;
+  if (fw > 0.5) {
+    pill(x, Math.max(fw, h)); ctx.fillStyle = color; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + r, y + 1, Math.max(0, fw - h), 1);
+  }
+  ctx.restore();
+}

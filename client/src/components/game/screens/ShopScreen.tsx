@@ -107,22 +107,17 @@ export function ShopScreen() {
 
         <Segmented value={mode} onChange={setMode} options={[{ id: 'buy', label: 'Buy' }, { id: 'sell', label: 'Sell', badge: items.length || undefined }]} />
 
-        {/* Filters */}
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5">
-            {([['all', 'Everything'], ['active', 'Active implants'], ['passive', 'Passive implants'], ['stim', 'Stims'], ['weapon', 'Weapons']] as [Kind, string][]).map(([k, label]) => (
-              <button key={k} onClick={() => setKind(k)} className={cx('rounded-full px-3 py-1.5 text-xs font-semibold transition', kind === k ? 'bg-white text-hud-bg' : 'bg-white/[0.06] text-hud-dim hover:text-hud-text')}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
+        {/* Filters: what kind, then rarity as a row of coloured dots */}
+        <div className="space-y-2.5">
+          <Segmented value={kind} onChange={setKind} options={([['all', 'All'], ['active', 'Active'], ['passive', 'Passive'], ['stim', 'Stims'], ['weapon', 'Arms']] as [Kind, string][]).map(([id, label]) => ({ id, label }))} />
+          <div className="flex items-center gap-2 px-1">
             {RARITIES.map(r => (
-              <button key={r} onClick={() => toggleRarity(r)} aria-pressed={rarities.includes(r)} className={cx('flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition', rarities.includes(r) ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-white/[0.04] text-hud-dim')}>
-                <span className={cx('h-1.5 w-1.5 rounded-full', RARITY_DOT[r])} />{r}
+              <button key={r} onClick={() => toggleRarity(r)} aria-pressed={rarities.includes(r)} aria-label={`Only ${r}`} title={r}
+                className={cx('flex h-8 w-8 items-center justify-center rounded-full', rarities.includes(r) ? 'key key-selected' : 'well')}>
+                <span className={cx('h-2.5 w-2.5 rounded-full', RARITY_DOT[r])} />
               </button>
             ))}
-            {rarities.length > 0 && <button onClick={() => setRarities([])} className="px-2 text-[11px] font-semibold text-sys">Clear</button>}
+            {rarities.length > 0 && <button onClick={() => setRarities([])} className="ml-auto px-2 text-[12px] font-semibold text-sys">Clear</button>}
           </div>
         </div>
 

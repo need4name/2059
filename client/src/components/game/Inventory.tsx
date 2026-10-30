@@ -35,44 +35,53 @@ const SHORT_NAME: Record<AugmentationSlot, string> = {
   left_arm: 'L arm', right_arm: 'R arm', left_leg: 'L leg', right_leg: 'R leg',
 };
 
-function BodyFigure() {
-  return (
-    <g fill="url(#bodyFill)" stroke="rgba(56,214,240,0.55)" strokeWidth="1.5" strokeLinejoin="round">
-      {/* head and neck */}
-      <ellipse cx="187" cy="54" rx="24" ry="29" transform="translate(-7 0)" />
-      <path d="M170 80 Q180 88 190 80 L192 96 L168 96 Z" />
-      {/* torso */}
-      <path d="M140 102 Q180 90 220 102 Q230 106 232 120 L226 170 Q222 196 214 218 L146 218 Q138 196 134 170 L128 120 Q130 106 140 102 Z" />
-      {/* arms */}
-      <path d="M134 108 Q120 112 118 130 L110 196 Q108 214 112 232 Q118 238 124 232 L130 200 L138 140 Z" />
-      <path d="M226 108 Q240 112 242 130 L250 196 Q252 214 248 232 Q242 238 236 232 L230 200 L222 140 Z" />
-      {/* legs */}
-      <path d="M146 216 L178 216 L176 300 L172 380 Q170 400 164 410 L150 410 Q148 396 150 380 L148 300 Z" />
-      <path d="M182 216 L214 216 L212 300 L210 380 Q212 396 210 410 L196 410 Q190 400 188 380 L184 300 Z" />
-      {/* a few seams so it reads as a frame, not a mannequin */}
-      <path d="M180 104 L180 214" fill="none" stroke="rgba(56,214,240,0.18)" />
-      <path d="M150 150 Q180 160 210 150" fill="none" stroke="rgba(56,214,240,0.18)" />
-    </g>
-  );
+// The body outline, in the 360 x 430 box. It's never drawn as vectors: PixelBody
+// rasterises it onto a coarse grid so the figure is pixel art like the board.
+const BODY_PATHS = [
+  'M180 25 a24 29 0 1 0 0.1 0 Z', // head
+  'M170 80 Q180 88 190 80 L192 96 L168 96 Z',
+  'M140 102 Q180 90 220 102 Q230 106 232 120 L226 170 Q222 196 214 218 L146 218 Q138 196 134 170 L128 120 Q130 106 140 102 Z',
+  'M134 108 Q120 112 118 130 L110 196 Q108 214 112 232 Q118 238 124 232 L130 200 L138 140 Z',
+  'M226 108 Q240 112 242 130 L250 196 Q252 214 248 232 Q242 238 236 232 L230 200 L222 140 Z',
+  'M146 216 L178 216 L176 300 L172 380 Q170 400 164 410 L150 410 Q148 396 150 380 L148 300 Z',
+  'M182 216 L214 216 L212 300 L210 380 Q212 396 210 410 L196 410 Q190 400 188 380 L184 300 Z',
+];
+
+/** The host's body as pixel art: a dark frame, a lit rim, faint seams across it. */
+function PixelBody() {
+  const draw = (canvas: HTMLCanvasElement | null) => {
+    if (!canvas || canvas.dataset.drawn) return;
+    canvas.dataset.drawn = '1';
+    const P = 5, w = Math.ceil(VB.w / P), h = Math.ceil(VB.h / P);
+    canvas.width = w; canvas.height = h;
+    const g = canvas.getContext('2d')!;
+    g.scale(1 / P, 1 / P);
+    g.fillStyle = '#fff';
+    BODY_PATHS.forEach(d => g.fill(new Path2D(d)));
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const src = g.getImageData(0, 0, w, h);
+    const on = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src.data[(y * w + x) * 4 + 3] > 110;
+    const outImg = g.createImageData(w, h);
+    const put = (x: number, y: number, [r, gg, b, a]: number[]) => { const i = (y * w + x) * 4; outImg.data.set([r, gg, b, a], i); };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!on(x, y)) continue;
+      const edge = !on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1);
+      const litSide = !on(x - 1, y) || !on(x, y - 1);
+      if (edge) put(x, y, litSide ? [110, 232, 250, 255] : [40, 150, 175, 255]);
+      else if (y % 9 === 0 || x === Math.round(180 / P)) put(x, y, [24, 70, 84, 255]);   // seams
+      else put(x, y, (x + y) % 2 ? [16, 48, 60, 255] : [18, 53, 66, 255]);
+    }
+    g.putImageData(outImg, 0, 0);
+  };
+  return <canvas ref={draw} className="absolute inset-0 h-full w-full" style={{ imageRendering: 'pixelated' }} aria-hidden />;
 }
 
 function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot | null; onSelect: (s: AugmentationSlot | null) => void; spareFor: (s: AugmentationSlot) => boolean }) {
   const { equippedAugmentations } = useInventory();
   return (
     <div className="relative w-full" style={{ aspectRatio: `${VB.w} / ${VB.h}` }}>
+      <PixelBody />
       <svg viewBox={`0 0 ${VB.w} ${VB.h}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
-        <defs>
-          <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(56,214,240,0.16)" />
-            <stop offset="1" stopColor="rgba(56,214,240,0.03)" />
-          </linearGradient>
-          <radialGradient id="bodyGlow" cx="0.5" cy="0.45" r="0.5">
-            <stop offset="0" stopColor="rgba(56,214,240,0.14)" />
-            <stop offset="1" stopColor="rgba(56,214,240,0)" />
-          </radialGradient>
-        </defs>
-        <ellipse cx="180" cy="210" rx="120" ry="200" fill="url(#bodyGlow)" />
-        <BodyFigure />
         {SPOTS.map(sp => {
           const eq = equippedAugmentations[sp.slot];
           const color = eq ? getRarityColor(eq.rarity) : 'rgba(255,255,255,0.28)';
@@ -94,8 +103,8 @@ function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot 
         const kind = augmentKind(sp.slot);
         return (
           <button key={sp.slot} onClick={() => onSelect(on ? null : sp.slot)} aria-pressed={on}
-            className={cx('absolute flex -translate-y-1/2 flex-col rounded-2xl px-2.5 py-2 text-left transition',
-              on ? 'bg-sys/15 ring-2 ring-sys/70' : eq ? 'bg-hud-panel/90 ring-1 ring-white/[0.08] hover:bg-white/[0.08]' : 'bg-hud-panel/60 ring-1 ring-white/[0.04] hover:bg-white/[0.06]')}
+            className={cx('absolute flex -translate-y-1/2 flex-col rounded-2xl px-2.5 py-2 text-left',
+              on ? 'key key-selected' : 'key')}
             style={{ width: `${(CARD_W / VB.w) * 100}%`, top: `${(sp.cardY / VB.h) * 100}%`, ...(sp.side === 'left' ? { left: 0 } : { right: 0 }) }}>
             <span className="flex items-center gap-1 text-[11px] font-semibold text-hud-dim">
               <SlotIcon slot={sp.slot} size={13} />
@@ -103,7 +112,7 @@ function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot 
               <span className={cx('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', kind === 'active' ? 'bg-ok' : 'bg-white/25')} title={kind === 'active' ? 'Active: gives a combat move' : 'Passive: always-on stats'} />
             </span>
             <span className={cx('mt-0.5 block truncate text-[11px] font-semibold leading-tight', eq ? RARITY_TEXT[eq.rarity] : 'text-hud-faint')}>
-              {eq ? eq.name.replace(/^\[[A-Z]+\]\s*/, '') : 'Empty'}
+              {eq ? nameOf(eq) : 'Empty'}
             </span>
             {spareFor(sp.slot) && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.8)]" title="Spare implant for this slot" />}
           </button>

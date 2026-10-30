@@ -6,7 +6,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getReachableTiles } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
-import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, hasCover, tilePath, type Open } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -766,21 +766,9 @@ overlay.push(() => {
 // Player HP bar below character
 const playerHpPercent = player.currentHp / player.maxHp;
 const barWidth = tileW * 0.9;
-const barHeight = 6;
 const barY = playerPos.y + tileH / 2 + 5;
 
-// HP bar background
-ctx.fillStyle = '#374151';
-ctx.fillRect(playerPos.x - barWidth / 2, barY, barWidth, barHeight);
-
-// HP bar fill
-ctx.fillStyle = '#4ade80';
-ctx.fillRect(playerPos.x - barWidth / 2, barY, barWidth * playerHpPercent, barHeight);
-
-// HP bar border
-ctx.strokeStyle = '#1f2937';
-ctx.lineWidth = 1;
-ctx.strokeRect(playerPos.x - barWidth / 2, barY, barWidth, barHeight);
+drawUnitBar(ctx, playerPos.x, barY, barWidth, playerHpPercent, '#4ade80');
 });
 
 // Allies: a host body in the ally's colour ring, with a bar in its colour
@@ -808,11 +796,8 @@ ctx.restore();
 } });
 overlay.push(() => {
 const size = Math.max(tileW * 1.05, 28);
-const bw = tileW * 0.9, bh = 6, by = ap.y + tileH / 2 + 5;
-ctx.fillStyle = '#374151';
-ctx.fillRect(ap.x - bw / 2, by, bw, bh);
-ctx.fillStyle = color;
-ctx.fillRect(ap.x - bw / 2, by, bw * (a.unit.currentHp / a.unit.maxHp), bh);
+const bw = tileW * 0.9, by = ap.y + tileH / 2 + 5;
+drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color);
 ctx.font = `700 ${Math.max(10, Math.floor(tileW * 0.2))}px Manrope, sans-serif`;
 ctx.textAlign = 'center';
 ctx.textBaseline = 'bottom';
@@ -877,15 +862,8 @@ ctx.restore();
 }
 } });
 overlay.push(() => {
-const barW = tileW * 0.9, barH = 6, barY = fp.y + tileH / 2 + 5;
-ctx.fillStyle = '#374151';
-ctx.fillRect(fp.x - barW / 2, barY, barW, barH);
-// With several enemies, each bar takes the enemy's colour so it matches its chip in the HUD
-ctx.fillStyle = living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444';
-ctx.fillRect(fp.x - barW / 2, barY, barW * (f.unit.currentHp / f.unit.maxHp), barH);
-ctx.strokeStyle = '#1f2937';
-ctx.lineWidth = 1;
-ctx.strokeRect(fp.x - barW / 2, barY, barW, barH);
+const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
+drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444');
 
 // "Hit" over every enemy the current aim lands on
 if (aimedTiles?.has(`${f.pos.row},${f.pos.col}`) && phase === 'player_turn') {
