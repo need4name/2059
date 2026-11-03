@@ -9,9 +9,9 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { allyDef } from '@/lib/combat/allies';
 import { getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
 import { Glyph, Label, cx } from '../hud';
-import { RoomScene } from './RoomScene';
+import { SignalMap } from './SignalMap';
 
-/** The room the signal is standing in: what's here, and the ways on (SignalMap draws where it is). */
+/** The room the signal is standing in: what's here, and the ways on (SignalMap, at the top, draws where it is). */
 export function RoomPanel() {
   const map = useMap();
   const { progression, openMarket, openRoomCache } = useCombat();
@@ -36,7 +36,7 @@ export function RoomPanel() {
     <div className="space-y-4">
       <section className="slab relative overflow-hidden rounded-[28px] px-5 pb-5 pt-0">
         <div className="-mx-5 mb-5 border-b border-black/60">
-          <RoomScene roomId={room.id} enemy={fight && enemy ? enemy.name : null} />
+          <SignalMap />
         </div>
         <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-white">{room.name}</h1>
         {wakingHere && progression.deathCount > 0 && <p className="mt-2 text-sm text-sys">Another body. Another pair of eyes.</p>}

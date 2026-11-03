@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMap } from '@/lib/stores/useMap';
 import { mapView, type MapRoom } from '@/lib/engine/map';
 
-// The map the signal draws as it goes: every room any host has walked into, the
+// The map the signal draws as it goes, at the top of the room card: every room any host has walked into, the
 // doors it has seen but not gone through, and where hosts were lost. It is kept
 // across hosts, so each life fills in a little more. Drawn as pixel art on a
 // small canvas and scaled up without smoothing.
@@ -192,8 +192,7 @@ export function SignalMap() {
   const up = () => { if (drag.current && !drag.current.moved) setTall(t => !t); drag.current = null; };
 
   return (
-    <div className="slab shrink-0 overflow-hidden rounded-[24px] p-1.5">
-      <div className="overflow-hidden rounded-[19px] transition-[height] duration-300" style={{ height: tall ? 420 : 210 }}>
+    <div className="relative shrink-0 overflow-hidden transition-[height] duration-300" style={{ height: tall ? 420 : 220 }}>
         <canvas
           ref={ref}
           role="img"
@@ -202,7 +201,6 @@ export function SignalMap() {
           className="pixel-canvas block"
           style={{ transform: `scale(${U})` }}
         />
-      </div>
     </div>
   );
 }

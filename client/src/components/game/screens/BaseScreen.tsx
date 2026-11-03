@@ -19,7 +19,6 @@ import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
-import { SignalMap } from './SignalMap';
 import { nextChapter } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
@@ -454,8 +453,6 @@ export function BaseScreen() {
           {met.length > 0 && <Dock icon="allies" title="Allies" onClick={() => setPage('allies')} />}
           <Dock icon="status" title="Self" onClick={() => setPage('status')} />
         </nav>
-
-        <SignalMap />
 
         <RoomPanel />
       </div>
