@@ -430,10 +430,12 @@ export function dreamerFlinch(s: FightState): Step {
   return { state: { ...s, grid: { ...s.grid, playerPosition: to }, flinchUsed: true }, events: [say("The sleeper inside flinches. You take a step you didn't choose", 'critical')] };
 }
 
-// ── Speed and turn order ─────────────────────────────────────────────────────
-// Every round, everyone is sorted by speed (the player winning ties, allies
-// acting in the player's slot), so the order can change mid-fight. A fast
-// enemy that acts last one round and first the next gets two turns in a row.
+// ── Speed and the turn clock ─────────────────────────────────────────────────
+// Turns come off a clock, not in rounds. Everyone waits a gap between turns that
+// shrinks as their speed grows (ROUND × base ÷ speed), so a fast body acts more
+// often than a slow one: speed 13 gets about four turns to a speed-10 body's three.
+// Ties go to the player, then foes in their order. Round-based rules (tides,
+// alarms, orders, Slowed and Hasted) still tick once every ROUND of time.
 
 /** Speed is base + the average drive of the body's implants; very hot bodies and Slowed are slower, Hasted faster. */
 export const SPEED = { base: 10, hot: 85, hotPenalty: 2, status: 4, statusRounds: 2, fast: 1 };
@@ -463,26 +465,63 @@ export function speedOf(s: FightState, a: Actor): number {
   return Math.round(v * 10) / 10;
 }
 
-/** This round's order: fastest first; the player wins ties, then foes in their order. */
-export function roundOrder(s: FightState): Actor[] {
-  const actors: Actor[] = ['player', ...s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]))];
-  return actors.map((a, n) => ({ a, n, v: speedOf(s, a) })).sort((x, y) => y.v - x.v || x.n - y.n).map(x => x.a);
-}
-
 /** A new round starts: Slowed and Hasted count down a round. */
 export function tickSpeed(s: FightState): FightState {
   const dec = (n?: number) => Math.max(0, (n ?? 0) - 1);
   return { ...s, playerSlowed: dec(s.playerSlowed), playerHasted: dec(s.playerHasted), foes: s.foes.map(f => (f.slowed || f.hasted ? { ...f, slowed: dec(f.slowed), hasted: dec(f.hasted) } : f)) };
 }
 
-/**
- * Foes that will act twice before the player's next turn: given who is still to
- * act this round (`rest`, player excluded), and next round's order as things stand.
- */
-export function doubleTurns(s: FightState, rest: Actor[]): number[] {
-  const next = roundOrder(tickSpeed(s));
-  const before = [...rest.filter(a => a !== 'player'), ...next.slice(0, next.indexOf('player'))] as number[];
-  return Array.from(new Set(before.filter((i, n) => before.indexOf(i) !== n))).filter(i => isAlive(s.foes[i]));
+/** One round of clock time: a body at base speed acts once in it. */
+export const ROUND = 100;
+/** When each body next acts (player under 'player', foes under their index), and the time now. */
+export interface Clock { now: number; at: Record<string, number> }
+
+const liveActors = (s: FightState): Actor[] => ['player', ...s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]))];
+/** How long a body waits between turns at its speed right now. */
+export const turnGap = (s: FightState, a: Actor): number => (ROUND * SPEED.base) / Math.max(2, speedOf(s, a));
+/** Which round a moment on the clock falls in (the first is 1). */
+export const roundOf = (t: number): number => Math.floor(t / ROUND) + 1;
+
+/** A fight's clock: everyone's first turn comes half a gap in, so faster bodies open. */
+export function startClock(s: FightState): Clock {
+  const at: Record<string, number> = {};
+  for (const a of liveActors(s)) at[String(a)] = turnGap(s, a) / 2;
+  return { now: 0, at };
+}
+
+/** Who acts next and when. A foe that joined mid-fight first acts half a gap from now. */
+export function nextUp(s: FightState, c: Clock): { who: Actor; at: number } {
+  let best: { who: Actor; at: number } | null = null;
+  for (const a of liveActors(s)) {
+    const t = c.at[String(a)] ?? c.now + turnGap(s, a) / 2;
+    if (!best || t < best.at - 1e-9) best = { who: a, at: t };
+  }
+  return best!;
+}
+
+/** A body has taken its turn: its next one comes a gap later, at its speed as the turn ends. */
+export function spendTurn(s: FightState, c: Clock, a: Actor): Clock {
+  const from = Math.max(c.at[String(a)] ?? c.now, c.now);
+  return { ...c, at: { ...c.at, [String(a)]: from + turnGap(s, a) } };
+}
+
+/** The next n turns as things stand (speeds held as they are now). `acting` is mid-turn and goes again a gap later. */
+export function forecast(s: FightState, c: Clock, n: number, acting: Actor | null = null): Actor[] {
+  let clock = acting === null ? c : spendTurn(s, c, acting);
+  const out: Actor[] = [];
+  while (out.length < n) {
+    const { who, at } = nextUp(s, clock);
+    out.push(who);
+    clock = spendTurn(s, { ...clock, now: at }, who);
+  }
+  return out;
+}
+
+/** Foes that will act twice or more before the player's next turn (`acting` is whoever is mid-turn). */
+export function doubleTurns(s: FightState, c: Clock, acting: Actor | null): number[] {
+  const ahead = forecast(s, c, 12, acting);
+  const before = ahead.slice(0, Math.max(0, ahead.indexOf('player'))) as number[];
+  return Array.from(new Set(before.filter((i, n) => before.indexOf(i) !== n)));
 }
 
 /** The grid with foe i as the enemy position and every other unit (foes, allies) in the way. */

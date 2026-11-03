@@ -516,15 +516,33 @@ test('speed: base plus the average drive of the implants; hot, slowed and hasted
   assert.equal(Fight.speedOf({ ...s, playerHasted: 2 }, 'player'), 15);
 });
 
-test('rounds go fastest first, the player winning ties; the order can change mid-fight', () => {
+test('the turn clock: faster bodies act more often, the player winning ties', () => {
   const base = fight();
   const two = { ...base, foes: [base.foes[0], Fight.newFoe(createBoss(3), { row: 1, col: 1 }, 40)] };
   const s = carrying(carrying(two, 0, ['HELIX']), 1, ['VOLKOV']);
-  assert.deepEqual(Fight.roundOrder(s), [1, 'player', 0]);
-  assert.deepEqual(Fight.roundOrder(carrying(s, 1, ['PATCHWORK'])), ['player', 1, 0], 'tie: player first, then foes in order');
-  assert.deepEqual(Fight.roundOrder({ ...s, playerHasted: 2 }), ['player', 1, 0]);
+  // Speeds: player 10, foe 0 at 8, foe 1 at 13. The fast one opens.
+  const c = Fight.startClock(s);
+  assert.equal(Fight.nextUp(s, c).who, 1);
+  const ahead = Fight.forecast(s, c, 40);
+  const count = (a: Fight.Actor) => ahead.filter(x => x === a).length;
+  assert.ok(count(1) > count('player') && count('player') > count(0), `fast > player > slow (${count(1)}, ${count('player')}, ${count(0)})`);
+  // Over a long stretch the share of turns follows speed
+  assert.ok(Math.abs(count(1) / count('player') - 1.3) < 0.15);
+  // Equal speeds: the player goes first, then foes in order
+  const even = carrying(carrying(two, 0, ['PATCHWORK']), 1, ['PATCHWORK']);
+  assert.deepEqual(Fight.forecast(even, Fight.startClock(even), 6), ['player', 0, 1, 'player', 0, 1]);
+  // The dead don't act
   const dead = { ...s, foes: s.foes.map((f, n) => (n === 1 ? { ...f, unit: { ...f.unit, currentHp: 0 } } : f)) };
-  assert.deepEqual(Fight.roundOrder(dead), ['player', 0]);
+  assert.ok(!Fight.forecast(dead, Fight.startClock(dead), 8).includes(1));
+});
+
+test('a turn is spent at the speed the body has as it ends: hasted acts sooner, slowed later', () => {
+  const s = fight();
+  const c = { now: 50, at: { player: 50, 0: 50 } };
+  assert.equal(Fight.spendTurn(s, c, 'player').at.player, 150);
+  assert.ok(Fight.spendTurn({ ...s, playerHasted: 2 }, c, 'player').at.player < 125);
+  assert.ok(Fight.spendTurn({ ...s, playerSlowed: 2 }, c, 'player').at.player > 200);
+  assert.equal(Fight.roundOf(0), 1); assert.equal(Fight.roundOf(99.9), 1); assert.equal(Fight.roundOf(100), 2);
 });
 
 test('slowed and hasted last two rounds', () => {
@@ -534,12 +552,12 @@ test('slowed and hasted last two rounds', () => {
   assert.equal(Fight.tickSpeed(s).playerSlowed, 0);
 });
 
-test('a fast enemy that acts last this round and first next round is flagged as acting twice', () => {
-  const s = carrying(fight(), 0, ['VOLKOV']);
-  // This round the player was slowed (so the foe still has to act after you); next round it leads again
-  assert.deepEqual(Fight.doubleTurns(s, [0]), [0]);
-  assert.deepEqual(Fight.doubleTurns(s, []), [], 'it already acted this round');
-  assert.deepEqual(Fight.doubleTurns(carrying(fight(), 0, ['HELIX']), [0]), [], 'slow enemy: next round you go first');
+test('a foe fast enough to act twice before your next turn is flagged', () => {
+  const fast = { ...carrying(fight(), 0, ['VOLKOV']), playerSlowed: 2 };
+  // Slowed (speed 6) against 13: it gets two turns in yours
+  assert.deepEqual(Fight.doubleTurns(fast, { now: 0, at: { player: 0, 0: 10 } }, 'player'), [0]);
+  const even = carrying(fight(), 0, ['PATCHWORK']);
+  assert.deepEqual(Fight.doubleTurns(even, { now: 0, at: { player: 0, 0: 10 } }, 'player'), []);
 });
 
 test('slow and haste effects: enemy hits slow you; your hits slow them and can haste you', () => {

@@ -45,7 +45,7 @@ function CombatHud() {
   if (s.wind) chips.push({ key: 'wind', tone: s.wind.turnsLeft === 1 ? 'cred' : 'sys', text: `Wind ${({ north: '↑', south: '↓', east: '→', west: '←' } as const)[s.wind.dir]}${s.wind.turnsLeft === 1 ? ' · turning' : ''}` });
   if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed' });
   if (s.playerHasted) chips.push({ key: 'haste', tone: 'sys', text: 'Hasted' });
-  const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.turnQueue) : [];
+  const twice = s.phase === 'player_turn' ? Fight.doubleTurns(s, s.clock, 'player') : [];
   if (twice.length) chips.push({ key: 'twice', tone: 'hostile', pulse: true, text: twice.length > 1 ? `⚠ ${twice.length} act twice` : `⚠ ${foes[twice[0]].unit.name} acts twice` });
   if (target?.burning) chips.push({ key: 'tburn', tone: 'ok', text: 'Target burning' });
   if (target?.stunned) chips.push({ key: 'tstun', tone: 'ok', text: 'Target stunned' });
@@ -299,30 +299,23 @@ function OrdersBar() {
   );
 }
 
-/** Who acts this round, fastest first, then who leads next round. Enemies that get two turns before yours are marked ×2. */
+/** Who is acting now, then the next turns off the clock. Faster bodies show up more often, so a fast enemy can appear twice before you. */
 function TurnStrip() {
   const s = useCombat();
-  const { foes, allies, phase, actingFoe, roundOrder, turnQueue } = s;
-  if (!roundOrder.length) return null;
-  const now: Fight.Actor | null = phase === 'player_turn' ? 'player' : actingFoe;
-  const live = (a: Fight.Actor) => a === 'player' || foes[a]?.unit.currentHp > 0;
-  const next = Fight.roundOrder(Fight.tickSpeed(s)).filter(live);
-  const twice = new Set(Fight.doubleTurns(s, turnQueue));
-  const face = (a: Fight.Actor, key: string, dim: boolean, small = false) => {
-    const acting = a === now && !small;
-    return (
-      <div key={key} className={cx('relative flex items-center gap-0.5 rounded-full p-0.5', acting && (a === 'player' ? 'bg-sys/40 ring-1 ring-sys' : 'bg-hostile/50 ring-1 ring-hostile'), dim && 'opacity-40')}>
-        <Portrait id={a === 'player' ? 'host' : foes[a].unit.name} size={small ? 18 : undefined} />
-        {a === 'player' && !small && allies.filter(x => x.unit.currentHp > 0).map(x => <Portrait key={x.id} id={x.id} size={18} />)}
-        {a !== 'player' && twice.has(a) && !small && <span className="absolute -bottom-1 -right-1 rounded-full bg-hostile px-1 text-[9px] font-bold leading-[14px] text-white">×2</span>}
-      </div>
-    );
-  };
+  const { foes, allies, acting, clock } = s;
+  if (acting === null || !foes.length) return null;
+  const ahead = Fight.forecast(s, clock, 5, acting);
+  const face = (a: Fight.Actor, key: string, now: boolean) => (
+    <div key={key} className={cx('relative flex items-center gap-0.5 rounded-full p-0.5', now && (a === 'player' ? 'bg-sys/40 ring-1 ring-sys' : 'bg-hostile/50 ring-1 ring-hostile'), !now && 'opacity-80')}>
+      <Portrait id={a === 'player' ? 'host' : foes[a].unit.name} size={now ? undefined : 18} />
+      {a === 'player' && now && allies.filter(x => x.unit.currentHp > 0).map(x => <Portrait key={x.id} id={x.id} size={18} />)}
+    </div>
+  );
   return (
     <div className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-1 ring-1 ring-white/10" aria-label="Turn order">
-      {roundOrder.filter(live).map((a, n) => face(a, `r${n}`, a !== now && !turnQueue.includes(a)))}
-      <span className="px-0.5 text-[10px] font-semibold text-hud-dim">next</span>
-      {next.slice(0, 3).map((a, n) => face(a, `n${n}`, false, true))}
+      {face(acting, 'now', true)}
+      <span className="px-0.5 text-[10px] font-semibold text-hud-dim">then</span>
+      {ahead.map((a, n) => face(a, `n${n}`, false))}
     </div>
   );
 }
