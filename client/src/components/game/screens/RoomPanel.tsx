@@ -11,7 +11,7 @@ import { getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
 import { Glyph, Label, cx } from '../hud';
 import { RoomScene } from './RoomScene';
 
-/** The room the signal is standing in: what's here, and the ways on. The map itself is never shown. */
+/** The room the signal is standing in: what's here, and the ways on (SignalMap draws where it is). */
 export function RoomPanel() {
   const map = useMap();
   const { progression, openMarket, openRoomCache } = useCombat();

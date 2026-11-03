@@ -14,6 +14,7 @@
   "rooms": [
     {
       "id": "riverbed",
+      "at": [0, 20],
       "name": "The dry riverbed",
       "text": "A riverbed of cracked mud and the bones of boats. Above, on the mountain, a cloud is being made.",
       "market": true,
@@ -32,6 +33,7 @@
     },
     {
       "id": "path",
+      "at": [0, 19],
       "name": "The goat path",
       "text": "A path worn up the slope by people carrying water down. Nobody is carrying any now.",
       "threat": 1,
@@ -62,6 +64,7 @@
     },
     {
       "id": "well",
+      "at": [1, 20],
       "name": "The empty well",
       "text": "A well with a rope that goes down further than any water. People sit round it anyway, out of habit.",
       "threat": 2,
@@ -96,6 +99,7 @@
     },
     {
       "id": "village",
+      "at": [0, 18],
       "name": "The shuttered village",
       "text": "A village with every shutter closed against the dust. A loudspeaker on a pole reads out a schedule nobody asked for.",
       "threat": 3,
@@ -134,6 +138,7 @@
     },
     {
       "id": "wall",
+      "at": [1, 19],
       "name": "The valley wall",
       "text": "A wall built across the valley mouth to keep the water up and the people down. There's a gate in it, and it's open.",
       "threat": 3,
@@ -169,6 +174,7 @@
     },
     {
       "id": "terraces1",
+      "at": [1, 18],
       "name": "The low terraces",
       "text": "Rice terraces stepped up the mountain, flooded and green. The workers in them all stop at once, then start again.",
       "threat": 4,
@@ -204,6 +210,7 @@
     },
     {
       "id": "foreman",
+      "at": [1, 17],
       "name": "The foreman's hut",
       "text": "A hut on stilts over the terraces with a whistle hanging by the door. The whistle is the only thing in it that's been cleaned.",
       "threat": 5,
@@ -233,6 +240,7 @@
     },
     {
       "id": "depot",
+      "at": [2, 18],
       "name": "The seed depot",
       "text": "Drums of seeding slurry stacked under tarps, silver and cold to touch. Drones come and go from the roof.",
       "threat": 6,
@@ -264,6 +272,7 @@
     },
     {
       "id": "terraces2",
+      "at": [2, 17],
       "name": "The middle terraces",
       "text": "More terraces, steeper, the water running down from step to step. The wind starts here and doesn't stop.",
       "threat": 7,
@@ -299,6 +308,7 @@
     },
     {
       "id": "shelter",
+      "at": [2, 16],
       "name": "The farmer's shelter",
       "text": "A shelter of corrugated iron wedged into the rock, out of the wind. Someone from the valley lives here, watching the drones.",
       "threat": 9,
@@ -334,6 +344,7 @@
     },
     {
       "id": "platform",
+      "at": [2, 15],
       "name": "The overseer's platform",
       "text": "A platform where the whole mountain can be seen and every worker on it heard. Someone stands at the rail tapping out a beat.",
       "threat": 10,
@@ -363,6 +374,7 @@
     },
     {
       "id": "damroad",
+      "at": [2, 14],
       "name": "The dam road",
       "text": "A road along the top of the dam, the reservoir on one side and a long drop on the other. The wind wants you on one side or the other.",
       "threat": 11,
@@ -398,6 +410,7 @@
     },
     {
       "id": "canteen",
+      "at": [3, 14],
       "name": "The canteen",
       "text": "A shipping container with a counter, a kettle and someone selling parts out of a cool box. The kettle never boils; the air's too thin.",
       "market": true,
@@ -411,6 +424,7 @@
     },
     {
       "id": "sluices",
+      "at": [2, 13],
       "name": "The sluice gates",
       "text": "Gates as tall as houses holding back the reservoir, a mist hanging over them. The keepers are built into the machinery.",
       "threat": 12,
@@ -441,6 +455,7 @@
     },
     {
       "id": "chambers",
+      "at": [2, 12],
       "name": "The cloud chambers",
       "text": "Glass rooms where clouds are grown, each one labelled with the day it will rain and where. None of the labels say the valley.",
       "threat": 13,
@@ -479,6 +494,7 @@
     },
     {
       "id": "controlroom",
+      "at": [3, 12],
       "name": "The control room",
       "text": "Screens of weather, a chair for each screen, and nobody in any chair. The screens change on their own.",
       "threat": 14,
@@ -513,6 +529,7 @@
     },
     {
       "id": "airlift",
+      "at": [2, 11],
       "name": "The air-lift yard",
       "text": "Ducts the width of rooms blowing warm wet air up into the sky. A drone carrier rests on the pad, stolen paint over its markings.",
       "threat": 15,
@@ -542,6 +559,7 @@
     },
     {
       "id": "reservoir",
+      "at": [2, 10],
       "name": "The reservoir edge",
       "text": "Water held at the top of the world, still as a held breath. The wind skates across it and comes for you.",
       "threat": 16,
@@ -572,6 +590,7 @@
     },
     {
       "id": "towerstairs",
+      "at": [2, 9],
       "name": "The tower stairs",
       "text": "A spiral of iron stairs up the outside of a tower, open to the wind. Every landing has a bolt to clip onto, and some have someone clipped to them.",
       "threat": 17,
@@ -602,6 +621,7 @@
     },
     {
       "id": "cranedeck",
+      "at": [2, 8],
       "name": "The crane deck",
       "text": "A deck where the cranes swing seeding loads into the clouds. The cranes swing on their own when the wind gusts.",
       "threat": 18,
@@ -636,6 +656,7 @@
     },
     {
       "id": "stormtower",
+      "at": [2, 7],
       "name": "The storm tower",
       "text": "A tower breathing cloud in and wind out, the crew fused into its crane arm. You are standing in its breath.",
       "threat": 20,
@@ -665,6 +686,7 @@
     },
     {
       "id": "summitpath",
+      "at": [2, 6],
       "name": "The summit path",
       "text": "A path above the clouds, the sky too blue to look at. Below, the whole valley is the colour of dust.",
       "threat": 21,
@@ -695,6 +717,7 @@
     },
     {
       "id": "antennafield",
+      "at": [2, 5],
       "name": "The antenna field",
       "text": "Masts in rows, each with a red light, all humming the same note. The note gets into your teeth and stays there.",
       "threat": 22,
@@ -725,6 +748,7 @@
     },
     {
       "id": "roost",
+      "at": [2, 4],
       "name": "The drone roost",
       "text": "Racks where the drones rest between flights, folded like bats. They all open their eyes when you come in.",
       "threat": 23,
@@ -755,6 +779,7 @@
     },
     {
       "id": "shepherd",
+      "at": [2, 3],
       "name": "The shepherd's ridge",
       "text": "A ridge where a figure walks with a flock of drones circling it. When it stops, they stop.",
       "threat": 25,
@@ -784,6 +809,7 @@
     },
     {
       "id": "lastterrace",
+      "at": [2, 2],
       "name": "The last terrace",
       "text": "A terrace at the top of the world with one plant in it, watered every hour. The tag on it says it is the first rice the mountain ever grew.",
       "threat": 24,
@@ -815,6 +841,7 @@
     },
     {
       "id": "uplink",
+      "at": [2, 1],
       "name": "The uplink",
       "text": "A dish pointed straight up, the sky above it a little darker than the rest. Every cable on the mountain ends here.",
       "threat": 26,
@@ -847,6 +874,7 @@
     },
     {
       "id": "summit",
+      "at": [2, 0],
       "name": "The summit",
       "text": "The top of the mountain, where the weather is decided. Every drone on the mountain turns to face you at once.",
       "threat": 30,

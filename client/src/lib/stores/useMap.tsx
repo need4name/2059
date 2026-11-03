@@ -22,7 +22,7 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [] });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),

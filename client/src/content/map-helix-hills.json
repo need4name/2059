@@ -14,6 +14,7 @@
   "rooms": [
     {
       "id": "pod",
+      "at": [1, 17],
       "name": "Pod 4471",
       "text": "A pod with its lid up and the gel still warm. The body in it is yours now, and the body is dreaming.",
       "look": {
@@ -29,6 +30,7 @@
     },
     {
       "id": "rowsa",
+      "at": [1, 16],
       "name": "Ward rows",
       "text": "Pods in rows to the end of sight, each one lit from inside. Fans turn overhead and the air tastes of other people's breath.",
       "threat": 1,
@@ -64,6 +66,7 @@
     },
     {
       "id": "station",
+      "at": [1, 15],
       "name": "Nurses' station",
       "text": "A desk with a kettle, a rota and a screen of numbers counting down. The chair is still turning.",
       "threat": 2,
@@ -102,6 +105,7 @@
     },
     {
       "id": "vending",
+      "at": [2, 15],
       "name": "The vending alcove",
       "text": "A machine that sells sweets to people who never wake up to eat them. It takes your coins and gives you what you need.",
       "market": true,
@@ -115,6 +119,7 @@
     },
     {
       "id": "terminals",
+      "at": [2, 16],
       "name": "Terminal corridor",
       "text": "Terminals along both walls, one number on each, all ticking down at the same rate. Nobody reads them.",
       "threat": 3,
@@ -148,6 +153,7 @@
     },
     {
       "id": "laundry",
+      "at": [1, 14],
       "name": "The laundry",
       "text": "Sheets boiling in vats, steam rolling along the ceiling. Every sheet has a number stencilled in the corner.",
       "threat": 3,
@@ -183,6 +189,7 @@
     },
     {
       "id": "countroom",
+      "at": [2, 14],
       "name": "The count room",
       "text": "A tally board as big as a wall, filled in by hand. The last line has been rubbed out and rewritten so many times the board shows through.",
       "threat": 4,
@@ -222,6 +229,7 @@
     },
     {
       "id": "sisterward",
+      "at": [2, 13],
       "name": "The first ward",
       "text": "The oldest ward, its pods yellowed and its fans slow. Someone walks the rows at night with a ring of keys.",
       "threat": 5,
@@ -251,6 +259,7 @@
     },
     {
       "id": "wardb",
+      "at": [1, 13],
       "name": "The long dark ward",
       "text": "A ward where half the pod lights have failed. In the dark ones you can hear breathing, slow and even.",
       "threat": 6,
@@ -290,6 +299,7 @@
     },
     {
       "id": "fanhall",
+      "at": [1, 12],
       "name": "The fan hall",
       "text": "Fans the size of rooms push warm air down a shaft toward the town. The warmth comes from the wards, from everyone in them.",
       "threat": 7,
@@ -320,6 +330,7 @@
     },
     {
       "id": "ward7",
+      "at": [2, 12],
       "name": "Ward seven",
       "text": "A ward where one pod is open and the sleeper in it is sitting up, wide awake, watching the door. They say they've been waiting for the thing in the walls.",
       "threat": 8,
@@ -351,6 +362,7 @@
     },
     {
       "id": "nightway",
+      "at": [2, 11],
       "name": "The night corridor",
       "text": "A corridor where the lights come on as you walk and go off behind you. The orderlies use it to move sleepers between wards.",
       "threat": 9,
@@ -381,6 +393,7 @@
     },
     {
       "id": "dreamward",
+      "at": [2, 10],
       "name": "The deep ward",
       "text": "One pod alone in a round room, cables running into it from every wall. Inside it, someone is dreaming of the sea.",
       "threat": 10,
@@ -416,6 +429,7 @@
     },
     {
       "id": "gate",
+      "at": [2, 9],
       "name": "The staff gate",
       "text": "A turnstile between the wards and the town, with a camera that looks at you for a long time. It lets you through.",
       "threat": 11,
@@ -451,6 +465,7 @@
     },
     {
       "id": "commissary",
+      "at": [3, 9],
       "name": "The commissary",
       "text": "A canteen where the staff eat under a mural of happy sleepers. Someone at the till sells parts from under the counter.",
       "market": true,
@@ -464,6 +479,7 @@
     },
     {
       "id": "streets",
+      "at": [2, 8],
       "name": "Staff streets",
       "text": "Neat houses with the blinds down and hot water steaming from the drains. The water is warm because of the wards.",
       "threat": 12,
@@ -499,6 +515,7 @@
     },
     {
       "id": "academy",
+      "at": [1, 8],
       "name": "The Academy",
       "text": "A white building where training takes twenty minutes and the students come out certain. The corridors are full of them, all walking in step.",
       "threat": 13,
@@ -532,6 +549,7 @@
     },
     {
       "id": "clinic",
+      "at": [2, 7],
       "name": "The staff clinic",
       "text": "A clinic for the staff, clean and bright and empty. The chairs face a screen that plays the same calm video over and over.",
       "threat": 14,
@@ -563,6 +581,7 @@
     },
     {
       "id": "lecture",
+      "at": [0, 8],
       "name": "The lecture hall",
       "text": "Rows of seats facing a stage where nobody stands. A voice from the ceiling explains a body, part by part.",
       "threat": 14,
@@ -593,6 +612,7 @@
     },
     {
       "id": "prefects",
+      "at": [3, 8],
       "name": "The prefects' hall",
       "text": "Portraits of the best students down both walls, each one painted the morning they graduated. The newest frame is empty.",
       "threat": 15,
@@ -622,6 +642,7 @@
     },
     {
       "id": "archive",
+      "at": [3, 7],
       "name": "The archive",
       "text": "Files on every sleeper, back to the first. The drawers are labelled by number, not name.",
       "threat": 16,
@@ -661,6 +682,7 @@
     },
     {
       "id": "pumphouse",
+      "at": [3, 6],
       "name": "The pumping house",
       "text": "Pipes carrying warm water from the wards to the town, lagged in grey. The pipes knock, as if something inside wants out.",
       "threat": 17,
@@ -691,6 +713,7 @@
     },
     {
       "id": "square",
+      "at": [4, 6],
       "name": "Town square",
       "text": "A square with a fountain, a bench and a statue of a man holding a light to the sky. The fountain's water is warm.",
       "threat": 18,
@@ -729,6 +752,7 @@
     },
     {
       "id": "chapel",
+      "at": [5, 6],
       "name": "The chapel",
       "text": "A chapel where the pews face a window onto the wards. People come here to watch the sleepers breathe.",
       "look": {
@@ -746,6 +770,7 @@
     },
     {
       "id": "office",
+      "at": [4, 5],
       "name": "The count's office",
       "text": "An office whose walls are covered in counts, every one of them crossed out and done again. The clicking never stops.",
       "threat": 20,
@@ -775,6 +800,7 @@
     },
     {
       "id": "steps",
+      "at": [4, 4],
       "name": "The hill steps",
       "text": "Stone steps up to the Ridge, where it is cooler before any machine has run. Each step is a little cleaner than the one below.",
       "threat": 21,
@@ -805,6 +831,7 @@
     },
     {
       "id": "ridgegate",
+      "at": [4, 3],
       "name": "The Ridge gate",
       "text": "A gate of glass and brushed steel, opened by a smile you don't have. It opens anyway.",
       "threat": 22,
@@ -835,6 +862,7 @@
     },
     {
       "id": "gardens",
+      "at": [4, 2],
       "name": "The Ridge gardens",
       "text": "Lawns watered in a place where water is bought by the glass. The sprinklers tick round, and nothing here sweats.",
       "threat": 23,
@@ -865,6 +893,7 @@
     },
     {
       "id": "glasshouse",
+      "at": [5, 2],
       "name": "The glass house",
       "text": "A house with walls of glass looking down over the wards. The air inside is cool, and it smells of the people below.",
       "threat": 24,
@@ -898,6 +927,7 @@
     },
     {
       "id": "guardhouse",
+      "at": [5, 1],
       "name": "The guard house",
       "text": "The Ridge's own guard, sharper than anything below. They don't say sorry when they swing.",
       "threat": 25,
@@ -927,6 +957,7 @@
     },
     {
       "id": "gallery",
+      "at": [5, 0],
       "name": "The lattice gallery",
       "text": "Battery lattices in glass cases, lit like jewels, each one labelled with how long it ran. The longest ran for forty years.",
       "threat": 26,
@@ -957,6 +988,7 @@
     },
     {
       "id": "shaft",
+      "at": [4, 0],
       "name": "The cold shaft",
       "text": "A shaft dropping from the Ridge back down under the wards, cold air pouring up it. At the bottom, something is breathing very slowly.",
       "threat": 28,
@@ -989,6 +1021,7 @@
     },
     {
       "id": "oldest",
+      "at": [4, 1],
       "name": "The oldest pod",
       "text": "A pod older than the town, grown into the rock, every cable in the ward running into it. The sleeper inside has been dreaming for longer than anyone has been awake.",
       "threat": 30,

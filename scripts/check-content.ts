@@ -109,7 +109,7 @@ const mapFile = z.object({
   endTitle: text.optional(),
   endings: z.array(z.object({ choice: text, text: z.string().trim().min(1).max(400) }).strict()).min(2).max(4).optional(),
   rooms: z.array(z.object({
-    id: z.string().regex(/^[a-z0-9]+$/), name: text, text: z.string().trim().min(1).max(260),
+    id: z.string().regex(/^[a-z0-9]+$/), at: z.tuple([z.number().int().min(0).max(40), z.number().int().min(0).max(40)]), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     tileset: z.string().regex(/^[a-z-]+$/).optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
@@ -250,6 +250,8 @@ export function checkContent(): string[] {
     const ids = new Set(m.rooms.map(r => r.id));
     if (ids.size !== m.rooms.length) problems.push('map: duplicate room ids');
     if (!ids.has(m.entry)) problems.push(`map: entry "${m.entry}" is not a room`);
+    const spots = new Map<string, string>();
+    for (const r of m.rooms) { const k = r.at.join(','); if (spots.has(k)) problems.push(`map ${r.id}: drawn on the same spot as ${spots.get(k)} (at ${k})`); spots.set(k, r.id); }
     const endRoom = m.rooms.find(r => r.id === m.end);
     if (!endRoom || endRoom.threat === undefined) problems.push(`map: end "${m.end}" must be a room with a fight`);
     else if (!endRoom.quiet) problems.push(`map ${m.end}: the end room needs quiet text for after the chapter`);

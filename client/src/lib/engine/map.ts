@@ -11,13 +11,13 @@ import { activeChapter, chapterById } from '../combat/chapters';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
-export interface Room { id: string; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
+export interface Room { id: string; /** Where the room is drawn on the map (grid cell). */ at: [number, number]; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
 /** A choice at the end of the last chapter, and what it leads to. */
 export interface Ending { choice: string; text: string }
 export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; endTitle?: string; endings?: Ending[]; goals: string[]; rooms: Room[] }
 
 /** Every chapter's map, by the map name in chapters.json. */
-export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as ChapterMap, deltas: deltasMap as ChapterMap, 'helix-hills': hillsMap as ChapterMap, 'rain-machine': rainMap as ChapterMap, corridor: corridorMap as ChapterMap };
+export const MAPS: Record<string, ChapterMap> = { 'indian-ocean': oceanMap as unknown as ChapterMap, deltas: deltasMap as unknown as ChapterMap, 'helix-hills': hillsMap as unknown as ChapterMap, 'rain-machine': rainMap as unknown as ChapterMap, corridor: corridorMap as unknown as ChapterMap };
 const index = new Map(Object.entries(MAPS).map(([k, m]) => [k, new Map(m.rooms.map(r => [r.id, r]))]));
 /** The active chapter's map. */
 export const chapterMap = (): ChapterMap => MAPS[activeChapter().map];
@@ -43,6 +43,8 @@ export interface MapState {
   taken: string[];
   /** The chapter's last fight is won (kept across hosts; the end room stays quiet). */
   done?: boolean;
+  /** Rooms where hosts were lost, oldest first (kept across hosts). */
+  fell?: string[];
 }
 
 export const newMapState = (chapter = activeChapter().id): MapState => {
@@ -92,7 +94,32 @@ export const cacheReady = (s: MapState, room = roomById(s.room)) => !!room.cache
 export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, taken: [...(s.taken ?? []), s.room] } : s);
 
 /** A new host wakes at the entry: fights refill, caches restock, memory and goals stay. */
-export const newHost = (s: MapState): MapState => ({ ...s, room: mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [] });
+export const newHost = (s: MapState): MapState => ({
+  ...s, room: mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [],
+  fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
+});
+
+/** One room as the map draws it: been in, or only glimpsed through a door. */
+export interface MapRoom { id: string; at: [number, number]; seen: boolean; market: boolean; fell: boolean }
+/** What the signal remembers of a chapter's map: rooms any host has been in, the rooms
+ *  their doors lead to (unnamed and unexplored), and the ways between them. */
+export function mapView(s: MapState): { rooms: MapRoom[]; links: [string, string][] } {
+  const m = mapOf(s.chapter);
+  const byId = new Map(m.rooms.map(r => [r.id, r]));
+  const seen = new Set(s.visited);
+  const fell = new Set(s.fell ?? []);
+  const shown = new Set(seen);
+  const links: [string, string][] = [];
+  for (const id of Array.from(seen)) for (const e of byId.get(id)?.exits ?? []) {
+    shown.add(e.to);
+    if (!seen.has(e.to) || id < e.to) links.push([id, e.to]);
+  }
+  const rooms = Array.from(shown).map(id => {
+    const r = byId.get(id)!;
+    return { id, at: r.at, seen: seen.has(id), market: seen.has(id) && !!r.market, fell: fell.has(id) };
+  });
+  return { rooms, links };
+}
 
 /** Exits you can see from here, as the screen shows them. */
 export const DIR_LABEL: Record<string, string> = { north: 'North', south: 'South', east: 'East', west: 'West', up: 'Up', down: 'Down', in: 'In', out: 'Out' };

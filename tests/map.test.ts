@@ -56,6 +56,30 @@ test('a new host wakes at the dock with fights refilled, remembering rooms and g
   assert.deepEqual(host.goals, ['slab']);
 });
 
+test('the map remembers rooms across hosts, glimpses the doors beyond, and marks where hosts fell', () => {
+  const s = walk(M.newMapState(), 'deck', 'walkway');
+  const host = M.newHost(s);
+  assert.deepEqual(host.fell, ['walkway']);
+  const view = M.mapView(host);
+  const seen = view.rooms.filter(r => r.seen).map(r => r.id).sort();
+  assert.deepEqual(seen, ['deck', 'dock', 'walkway']);
+  for (const r of view.rooms.filter(r => !r.seen)) assert.ok([s.room, 'deck', 'dock'].some(id => M.roomById(id).exits.some(e => e.to === r.id)), `${r.id} is behind a door the signal has seen`);
+  assert.ok(view.rooms.find(r => r.id === 'walkway')!.fell);
+  assert.ok(view.rooms.find(r => r.id === 'dock')!.market);
+  // Each way is drawn once
+  const keys = view.links.map(l => [...l].sort().join('>'));
+  assert.equal(new Set(keys).size, keys.length);
+  // Dying in the same room twice marks it once, as the latest
+  assert.deepEqual(M.newHost({ ...M.newHost({ ...host, room: 'deck' }), room: 'walkway' }).fell, ['deck', 'walkway']);
+});
+
+test('every room has its own spot on the drawn map', () => {
+  for (const m of Object.values(M.MAPS)) {
+    const spots = new Set(m.rooms.map(r => r.at.join(',')));
+    assert.equal(spots.size, m.rooms.length, m.chapter);
+  }
+});
+
 test('threat rises with depth: elites and bosses sit on the 5s and 10s', () => {
   for (const r of M.chapterMap().rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne', 'checkpoint', 'foundry', 'theatre', 'spire'].includes(r.id), r.id);
   assert.equal(M.roomById('throne').threat, 10);

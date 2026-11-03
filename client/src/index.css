@@ -131,6 +131,13 @@ canvas {
   height: 100% !important;
   touch-action: none;
 }
+/* A canvas drawn at its own small size and scaled up by a whole number (the map) */
+canvas.pixel-canvas {
+  width: auto !important;
+  height: auto !important;
+  transform-origin: 0 0;
+  image-rendering: pixelated;
+}
 
 /* Accessibility: Focus visible styles */
 button:focus-visible,
