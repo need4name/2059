@@ -391,7 +391,9 @@ normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.75, atk:
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
-const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, level - 1) });
+/** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
+export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.04 };
+const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
