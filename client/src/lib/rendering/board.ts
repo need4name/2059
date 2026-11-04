@@ -392,121 +392,220 @@ export function drawHazard(ctx: Ctx, art: string | undefined, cx: number, cy: nu
 
 // ── Cover ────────────────────────────────────────────────────────────────────
 
+// Cover is seen from a little above and in front, lit from the top left (its
+// shadow falls down and right): a bright top, a plain front, a dark right side
+// and a darker foot where it meets the floor. Each material has five shades.
+
+type Px = (x: number, y: number, c: string) => void;
+/** One material's shades, lightest first: shine, lit, face, shade, deep. */
+type Ramp = readonly [string, string, string, string, string];
+
+const BLUE: Ramp = ['#a9d8f5', '#62a6d6', '#3c7fb3', '#295e8a', '#173c5c'];
+const GREY: Ramp = ['#c7d0d6', '#97a4ad', '#707e88', '#505c65', '#333c43'];
+const IRON: Ramp = ['#8a857d', '#66625b', '#4b4842', '#35322e', '#211f1c'];
+const SLATE: Ramp = ['#a7b4c0', '#7d8b98', '#5d6a77', '#444f5a', '#2b333b'];
+const OLIVE: Ramp = ['#d6e2ba', '#a9b98c', '#809168', '#5e6c4b', '#3e4731'];
+const NET: Ramp = ['#93c9a3', '#5f9c75', '#417858', '#2d5841', '#1c3829'];
+const STONE: Ramp = ['#b9bab2', '#97988f', '#7a7b73', '#5c5d56', '#3f403b'];
+const CLOTH: Ramp = ['#e3ebee', '#bccad0', '#95a6ae', '#6f8089', '#4a5860'];
+const STEEL: Ramp = ['#9aa6b4', '#6c7787', '#4b5463', '#343b47', '#1f242c'];
+const RED: Ramp = ['#ff8a6e', '#e2513a', '#b0321f', '#7a1f13', '#4a120b'];
+
+/** Shade for a spot across a round thing lit from the left (-1 left edge, 1 right edge). */
+const roundShade = (t: number, r: Ramp) => t < -0.75 ? r[2] : t < -0.45 ? r[0] : t < -0.05 ? r[1] : t < 0.4 ? r[2] : t < 0.75 ? r[3] : r[4];
+
+/** A box: lit top `top` rows deep, bright front lip, plain front, dark right edge, darker foot. */
+function box(px: Px, x0: number, y0: number, w: number, h: number, top: number, r: Ramp) {
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    const right = x === x0 + w - 1, left = x === x0;
+    let c: string;
+    if (y < y0 + top) c = y === y0 + top - 1 ? r[0] : right ? r[2] : r[1];
+    else if (y === y0 + h - 1) c = r[4];
+    else c = right ? r[4] : left ? r[2] : y >= y0 + h - 2 ? r[3] : r[2];
+    px(x, y, c);
+  }
+}
+
+/** An upright cylinder: an oval top `ry` deep, body shaded left to right, rounded foot. */
+function cylinder(px: Px, cx: number, y0: number, rx: number, h: number, ry: number, r: Ramp, lid = true) {
+  const yb = y0 + h - 1 - ry; // centre of the foot's curve
+  for (let y = y0; y < y0 + h; y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+    const t = (x + 0.5 - cx) / rx;
+    if (Math.abs(t) > 1) continue;
+    const yt = y0 + ry; // centre of the top's oval
+    const inTop = t * t + ((y + 0.5 - yt) / ry) ** 2 <= 1;
+    if (y < yt && !inTop) continue;
+    if (y > yb && t * t + ((y + 0.5 - yb) / (ry + 0.5)) ** 2 > 1) continue;
+    let c = roundShade(t, r);
+    if (y >= yb) c = t < 0.4 ? r[3] : r[4];
+    if (inTop && lid) {
+      const inner = t * t * 1.35 + ((y + 0.5 - yt) / (ry - 0.6)) ** 2 <= 1;
+      c = !inner ? (y + 0.5 >= yt ? r[0] : r[2]) : y + 0.5 < yt ? r[2] : r[1];
+    }
+    px(x, y, c);
+  }
+}
+
+/** A little ball (a float, a knob): lit pixel top left, dark bottom right. */
+function ball(px: Px, x: number, y: number, r: Ramp) {
+  px(x, y, r[0]); px(x + 1, y, r[1]); px(x, y + 1, r[2]); px(x + 1, y + 1, r[3]);
+}
+
 const COVER: Record<string, Paint> = {
   rack: px => {
-    // A server rack: a dark cabinet of slots, status lights blinking down its face
-    rect(px, 3, 1, 10, 14, '#1d2129');
-    for (let y = 1; y < 15; y++) { px(3, y, '#3a404c'); px(12, y, '#0d0f13'); }
-    for (let y = 3; y < 14; y += 2) { for (let x = 5; x < 11; x++) px(x, y, '#2b313b'); px(10, y, (y * 7) % 3 ? '#4ade80' : '#a78bfa'); }
+    // A server rack: a dark cabinet of drive bays, status lights down its face
+    box(px, 3, 1, 10, 14, 2, STEEL);
+    for (let x = 4; x < 12; x += 2) px(x, 1, STEEL[3]); // vents on the lid
+    for (let y = 4; y < 13; y += 2) {
+      for (let x = 4; x < 11; x++) px(x, y, '#2a303a');
+      for (let x = 4; x < 11; x++) px(x, y + 1, x === 4 ? '#3b4351' : '#151920');
+      px(10, y, (y * 7) % 3 ? '#4ade80' : '#a78bfa'); px(9, y, (y * 5) % 4 ? '#1d4d33' : '#4ade80');
+    }
   },
   planter: px => {
-    // A terrace planter: a concrete trough with rice standing in muddy water
-    rect(px, 1, 9, 14, 6, '#7d7f78');
-    for (let x = 1; x < 15; x++) { px(x, 9, '#a3a59d'); px(x, 14, '#4f514b'); }
-    rect(px, 2, 10, 12, 2, '#4a5a3a');
-    for (let x = 2; x < 14; x += 2) for (let y = 3 + (x % 3); y < 10; y++) px(x, y, y < 6 ? '#b5d86a' : '#7fa83f');
+    // A terrace planter: a concrete trough, muddy water, rice standing in it
+    box(px, 1, 8, 14, 7, 3, STONE);
+    for (let x = 2; x < 14; x++) { px(x, 9, '#3a4632'); px(x, 8, STONE[2]); }
+    for (let x = 3; x < 13; x += 3) px(x, 9, '#55663f');
+    for (let x = 2; x < 13; x += 2) {
+      const tall = 2 + ((x * 5) % 4);
+      for (let y = tall; y < 10; y++) px(x + (y < 5 && x % 4 === 0 ? 1 : 0), y, y < tall + 2 ? '#d9e77f' : y < 7 ? '#a8cc5a' : '#6f9a3b');
+    }
+    for (let x = 2; x < 14; x += 4) px(x, 12, STONE[3]); // stains
   },
   mast: px => {
-    // An antenna mast on a weighted base, a red light at the top
-    rect(px, 7, 2, 2, 12, '#8a939a');
-    for (let y = 2; y < 14; y++) px(7, y, '#b5bec4');
-    for (const y of [5, 9]) for (let x = 4; x < 12; x++) px(x, y, '#6b747a');
-    px(7, 1, '#ef4444'); px(8, 1, '#f87171');
-    rect(px, 4, 14, 8, 1, '#3e4448'); rect(px, 5, 13, 6, 1, '#555c61');
+    // A lattice antenna mast on a concrete block, a red light at the top
+    box(px, 3, 11, 10, 4, 2, STONE);
+    for (let y = 2; y < 11; y++) { px(6, y, GREY[1]); px(9, y, GREY[3]); }
+    for (let y = 2; y < 11; y++) px(y % 4 < 2 ? 7 : 8, y, GREY[2]);
+    for (const y of [4, 7]) { for (let x = 4; x < 12; x++) px(x, y, x < 8 ? GREY[1] : GREY[3]); }
+    px(4, 5, GREY[0]); px(11, 8, GREY[2]); // little dishes
+    rect(px, 7, 0, 2, 2, '#ef4444'); px(7, 0, '#ffb4a8');
   },
   locker: px => {
     // A dented staff locker, door ajar
-    rect(px, 4, 1, 8, 14, '#6d7c86');
-    for (let y = 1; y < 15; y++) { px(4, y, '#93a3ad'); px(11, y, '#3f4a51'); }
-    for (const y of [3, 4, 5]) for (let x = 6; x < 10; x++) px(x, y, '#3f4a51');
-    px(10, 8, '#d5dde2'); px(10, 9, '#d5dde2');
+    box(px, 3, 1, 10, 14, 2, SLATE);
+    for (let y = 4; y < 7; y++) for (let x = 5; x < 10; x += 2) px(x, y, SLATE[4]); // vents
+    for (let y = 3; y < 14; y++) px(11, y, '#0d1216'); // the gap of the open door
+    px(10, 8, SLATE[0]); px(10, 9, SLATE[1]);
+    px(6, 10, SLATE[3]); px(7, 11, SLATE[3]); px(6, 11, SLATE[1]); // a dent
   },
   canister: px => {
     // A tall gas canister with a hazard band
-    rect(px, 5, 3, 6, 12, '#7d8f6e');
-    for (let y = 3; y < 15; y++) { px(5, y, '#a1b38f'); px(10, y, '#4f5c44'); }
-    for (let x = 5; x < 11; x++) { px(x, 7, '#e0b43a'); px(x, 8, '#2b2b2b'); }
-    rect(px, 7, 1, 2, 2, '#9aa0a4');
+    cylinder(px, 8, 3, 3.5, 12, 1.5, OLIVE, false);
+    for (let x = 5; x < 11; x++) { px(x, 3, x < 8 ? OLIVE[0] : OLIVE[2]); }
+    for (let x = 5; x < 11; x++) for (const y of [7, 8]) {
+      const t = (x + 0.5 - 8) / 3.5;
+      px(x, y, (x + y) % 3 === 0 ? (t > 0.4 ? '#1a1a1a' : '#2b2b2b') : t > 0.4 ? '#b38a22' : t < -0.4 ? '#ffd65a' : '#e8b83a');
+    }
+    rect(px, 7, 1, 2, 2, GREY[2]); px(7, 1, GREY[0]); px(6, 1, GREY[3]); px(9, 1, GREY[3]);
   },
   cot: px => {
-    // Stacked folding cots, straps hanging
-    for (const y0 of [5, 9]) {
-      rect(px, 1, y0, 14, 2, '#7a8b94');
-      for (let x = 1; x < 15; x++) px(x, y0, '#a8b8bf');
-      px(2, y0 + 2, '#3b4448'); px(13, y0 + 2, '#3b4448'); px(2, y0 + 3, '#3b4448'); px(13, y0 + 3, '#3b4448');
+    // Two folding cots stacked, a strap hanging off the top one
+    for (const y0 of [8, 3]) {
+      for (let x = 1; x < 15; x++) for (let y = y0; y < y0 + 3; y++) px(x, y, y === y0 + 2 ? CLOTH[0] : x === 14 ? CLOTH[2] : CLOTH[1]);
+      for (let x = 1; x < 15; x++) px(x, y0 + 3, x === 14 ? STEEL[4] : STEEL[2]);
+      for (const x of [2, 13]) px(x, y0 + 4, STEEL[3]);
+      for (let x = 3; x < 13; x += 3) px(x, y0 + 1, CLOTH[2]); // creases
     }
-    px(7, 7, '#5b4632'); px(7, 8, '#5b4632'); px(8, 11, '#5b4632'); px(8, 12, '#5b4632');
+    px(3, 14, STEEL[3]); px(12, 14, STEEL[3]); px(2, 13, STEEL[3]); px(13, 13, STEEL[3]);
+    for (let y = 7; y < 11; y++) px(5, y, y % 2 ? '#7a5a3a' : '#5b4230');
   },
   terminal: px => {
     // A ward terminal on a stand: one number on the screen, ticking down
-    rect(px, 3, 2, 10, 8, '#1f272c');
-    rect(px, 4, 3, 8, 6, '#0d3b2e');
-    for (let x = 5; x < 11; x++) px(x, 6, x % 2 ? '#5df2a8' : '#2fa874');
-    rect(px, 7, 10, 2, 4, '#3a4449');
-    rect(px, 4, 14, 8, 1, '#2a3236');
+    box(px, 2, 1, 12, 9, 1, STEEL);
+    rect(px, 3, 2, 9, 7, '#0b3527');
+    for (let x = 3; x < 12; x++) px(x, 2, '#12503a');
+    // "07" in green
+    const glyphs = ['111101101101111', '111001001010010'];
+    glyphs.forEach((g, i) => { for (let k = 0; k < 15; k++) if (g[k] === '1') px(4 + i * 4 + (k % 3), 3 + Math.floor(k / 3), '#5df2a8'); });
+    cylinder(px, 8, 9, 1.2, 4, 0.6, STEEL, false);
+    box(px, 4, 12, 8, 3, 1, STEEL);
   },
   pod: px => {
-    // An incubator pod on its side: frosted glass lid, a sleeper's shape inside, cold blue light
-    for (let y = 3; y < 14; y++) for (let x = 1; x < 15; x++) {
-      const d = ((x - 7.5) / 7) ** 2 + ((y - 8.5) / 5.5) ** 2;
-      if (d < 1) px(x, y, d > 0.75 ? '#9fb4c4' : y < 8 ? '#bfe6f5' : '#7cc4de');
+    // An incubator pod on its side: frosted lid, a sleeper's shape inside, cold blue light
+    box(px, 1, 9, 14, 6, 1, CLOTH);
+    for (let y = 2; y < 10; y++) for (let x = 1; x < 15; x++) {
+      const d = ((x + 0.5 - 8) / 7) ** 2 + ((y + 0.5 - 10) / 7.5) ** 2;
+      if (d < 1) px(x, y, d > 0.82 ? '#8fb1c4' : x < 6 && y < 6 ? '#e6f7fd' : y < 6 ? '#bfe6f5' : '#86c8e0');
     }
-    for (let x = 4; x < 12; x++) px(x, 9, '#4f7f96');
-    px(5, 8, '#e8f7fd'); px(6, 8, '#e8f7fd'); px(10, 9, '#3a6075');
-    rect(px, 3, 13, 10, 2, '#46525c');
-    px(4, 13, '#8ff0ff'); px(11, 13, '#8ff0ff');
+    for (let x = 4; x < 12; x++) px(x, 8, '#4f7f96');
+    px(5, 7, '#5f8ea4'); px(4, 7, '#5f8ea4');
+    for (const x of [4, 11]) px(x, 12, '#8ff0ff');
   },
   cases: px => {
     // Sealed record cases stacked three high, steel clasps, a stencilled number
-    const box = (y0: number, w: number, x0: number, c: string, hi: string, lo: string) => {
-      rect(px, x0, y0, w, 4, c);
-      for (let i = x0; i < x0 + w; i++) { px(i, y0, hi); px(i, y0 + 3, lo); }
-      px(x0 + 2, y0 + 1, '#c9ced2'); px(x0 + w - 3, y0 + 1, '#c9ced2');
-    };
-    box(11, 12, 2, '#54606b', '#7b8894', '#2b333a');
-    box(7, 11, 3, '#5d6975', '#8592a0', '#2f373f');
-    box(3, 9, 4, '#4f5a64', '#76838f', '#283038');
-    px(7, 12, '#d6dade'); px(8, 12, '#d6dade'); px(8, 8, '#d6dade');
+    box(px, 1, 9, 14, 6, 2, SLATE);
+    box(px, 2, 5, 12, 5, 2, SLATE);
+    box(px, 4, 1, 9, 5, 2, SLATE);
+    for (const [x, y] of [[3, 12], [12, 12], [4, 8], [11, 8], [6, 4], [10, 4]]) { px(x, y, '#d9dee2'); px(x, y + 1, SLATE[4]); }
+    px(7, 12, '#e8d27a'); px(8, 12, '#e8d27a'); px(9, 12, '#c9b25e'); // a label
+    for (let x = 6; x < 9; x++) px(x, 1, SLATE[2]); // handle
   },
   bollard: px => {
     // An iron mooring bollard with a rope wound round it
-    rect(px, 5, 4, 6, 11, '#3d3b38');
-    for (let y = 4; y < 15; y++) { px(5, y, '#5a5753'); px(10, y, '#24221f'); }
-    rect(px, 4, 3, 8, 2, '#4a4844');
-    for (let x = 4; x < 12; x++) px(x, 3, '#6e6a64');
-    for (const y of [7, 9, 11]) for (let x = 4; x < 12; x++) px(x, y + ((x % 2) ? 0 : 1) - 1, (x + y) % 3 ? '#b49a6a' : '#8a7448');
-    rect(px, 3, 14, 10, 1, '#1d1b19');
+    cylinder(px, 8, 4, 3.5, 11, 1.5, IRON);
+    cylinder(px, 8, 1, 4.5, 4, 1.5, IRON);
+    for (const y0 of [7, 10]) for (let y = y0; y < y0 + 2; y++) for (let x = 4; x < 12; x++) {
+      const t = (x + 0.5 - 8) / 3.5;
+      const twist = (x - y + 20) % 3 === 0;
+      px(x, y, twist ? (t < 0.3 ? '#8d7647' : '#5e4c2b') : t < -0.3 ? '#ecd59c' : t < 0.4 ? '#c2a674' : '#86703f');
+    }
+    px(10, 6, '#8a4a2a'); px(5, 13, '#8a4a2a'); // rust
   },
   crate: px => {
-    // A stack of two plastic crates with handle slots
-    rect(px, 2, 3, 12, 12, '#2f6c94');
-    for (let i = 2; i < 14; i++) { px(i, 3, '#5f9cc2'); px(i, 14, '#173a52'); }
-    for (let j = 3; j < 15; j++) { px(2, j, '#4a88b0'); px(13, j, '#173a52'); }
-    for (let i = 2; i < 14; i++) px(i, 8, '#173a52');
-    rect(px, 6, 5, 4, 1, '#0e2232'); rect(px, 6, 10, 4, 1, '#0e2232');
-    for (let i = 3; i < 13; i += 2) px(i, 12, '#24577a');
+    // Two plastic crates stacked, strapped together with yellow tape
+    box(px, 1, 8, 14, 7, 1, BLUE);
+    box(px, 2, 2, 12, 7, 3, BLUE);
+    for (let x = 3; x < 13; x += 2) { px(x, 3, BLUE[3]); } // the lattice on top
+    for (let x = 4; x < 12; x += 2) px(x, 2, BLUE[2]);
+    for (const y0 of [6, 11]) for (let x = 4; x < 13; x += 2) px(x - (y0 === 11 ? 1 : 0), y0, BLUE[4]); // holes
+    rect(px, 5, 12, 5, 1, BLUE[4]); px(5, 13, BLUE[2]); // handle slot
+    for (let y = 2; y < 15; y++) px(9, y, y === 4 ? '#ffe68a' : y > 12 ? '#a8862a' : '#e0b83e');
   },
   drum: px => {
-    // A white-and-blue plastic drum, sun-faded
-    rect(px, 4, 3, 8, 12, '#3f7fb0');
-    for (let j = 3; j < 15; j++) { px(4, j, '#2a5a80'); px(11, j, '#2a5a80'); px(5, j, '#6aa6d4'); }
-    rect(px, 4, 2, 8, 2, '#8fc0e2'); px(9, 2, '#1a3a52');
-    rect(px, 4, 7, 8, 1, '#24507a'); rect(px, 4, 11, 8, 1, '#24507a');
-    rect(px, 6, 8, 4, 3, '#e8e2c8');
+    // A blue plastic drum, sun-faded, two bungs on the lid
+    cylinder(px, 8, 1, 5, 14, 2, BLUE);
+    for (const y of [6, 10]) for (let x = 3; x < 13; x++) {
+      const t = (x + 0.5 - 8) / 5;
+      px(x, y, t < 0.4 ? BLUE[3] : BLUE[4]);
+      px(x, y - 1, t < -0.45 && t > -0.75 ? BLUE[0] : roundShade(t, BLUE) === BLUE[2] ? BLUE[1] : roundShade(t, BLUE));
+    }
+    rect(px, 5, 7, 4, 2, '#e8e2c8'); px(9, 7, '#c8c1a6'); px(9, 8, '#c8c1a6'); px(5, 8, '#f6f1dc');
+    px(5, 2, '#dfe7ec'); px(6, 2, '#9fb0bb'); px(10, 3, '#9fb0bb');
   },
   nets: px => {
-    // A heap of green net with orange floats
-    for (let y = 4; y < 15; y++) for (let x = 1; x < 15; x++) if (Math.abs(x - 7.5) / 7 + (14 - y) / 11 < 1.05) px(x, y, (x + y) % 2 ? '#2f4c3e' : '#3f6650');
-    for (let y = 5; y < 15; y++) for (let x = 2; x < 14; x++) if ((x * 3 + y * 5) % 7 === 0 && Math.abs(x - 7.5) / 7 + (14 - y) / 11 < 1) px(x, y, '#a9c9a2');
-    rect(px, 4, 9, 2, 2, '#e88a2a'); rect(px, 10, 7, 2, 2, '#e88a2a'); rect(px, 7, 12, 2, 2, '#e88a2a');
+    // A heap of green net, orange floats tangled in it, a rope end trailing
+    const lumps = [[7.5, 15, 6.6, 10.5], [11.5, 15, 3.6, 6]];
+    for (let y = 1; y < 15; y++) for (let x = 0; x < 16; x++) {
+      let best = -2;
+      for (const [cx, cy, rx, ry] of lumps) {
+        const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry, d = nx * nx + ny * ny;
+        if (d > 1) continue;
+        const nz = Math.sqrt(1 - d);
+        best = Math.max(best, -0.55 * nx - 0.55 * ny + 0.63 * nz);
+      }
+      if (best < -1) continue;
+      let i = best > 0.85 ? 0 : best > 0.6 ? 1 : best > 0.35 ? 2 : best > 0.1 ? 3 : 4;
+      if (((x + y) % 3 === 0 || (x - y + 30) % 3 === 0) && i < 4) i++; // the mesh
+      px(x, y, NET[i]);
+    }
+    const ORANGE: Ramp = ['#ffd08a', '#f59a3a', '#d06d1c', '#8e4210', '#5a280a'];
+    ball(px, 5, 6, ORANGE); ball(px, 9, 9, ORANGE); ball(px, 3, 11, ORANGE); ball(px, 12, 11, ORANGE);
+    for (const [x, y] of [[1, 14], [2, 13], [0, 14], [3, 13]]) px(x, y, '#d8c79a');
   },
   pump: px => {
-    // A salvaged pump: grey housing, red valve wheel, pipe
-    rect(px, 3, 6, 10, 8, '#56656e');
-    for (let i = 3; i < 13; i++) { px(i, 6, '#7d8e98'); px(i, 13, '#2c363c'); }
-    rect(px, 6, 2, 4, 4, '#6a7a84'); px(6, 2, '#8fa0aa');
-    rect(px, 13, 8, 2, 2, '#2c363c'); rect(px, 14, 10, 1, 4, '#2c363c');
-    rect(px, 6, 8, 4, 4, '#c03a2a'); px(7, 9, '#7e1e14'); px(8, 10, '#7e1e14'); px(7, 10, '#e05a40');
+    // A salvaged pump: a grey housing, motor on top, red valve wheel, a pipe down to the deck
+    box(px, 2, 7, 11, 8, 2, GREY);
+    cylinder(px, 6.5, 1, 3, 8, 1.2, GREY);
+    for (let y = 3; y < 7; y += 2) for (let x = 4; x < 9; x++) px(x, y, (x + 0.5 - 6.5) / 3 > 0.3 ? GREY[4] : GREY[3]); // cooling fins
+    // pipe out of the side, down to the floor
+    for (let y = 9; y < 15; y++) { px(13, y, y === 9 ? GREY[2] : GREY[3]); px(14, y, GREY[4]); }
+    px(13, 9, GREY[1]); px(13, 14, GREY[4]);
+    // valve wheel on the front
+    for (const [x, y] of [[5, 9], [6, 9], [7, 9], [4, 10], [8, 10], [4, 11], [8, 11], [5, 12], [6, 12], [7, 12]]) px(x, y, y < 11 ? (x < 7 ? RED[0] : RED[1]) : (x < 6 ? RED[1] : RED[2]));
+    px(6, 10, RED[1]); px(6, 11, RED[3]); px(5, 11, RED[2]); px(7, 10, RED[2]);
+    px(10, 10, '#e8e2c8'); px(11, 10, '#e8e2c8'); px(10, 11, '#3a2a1a'); // a dial
   },
 };
 
