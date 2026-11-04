@@ -227,7 +227,7 @@ export function SignalMap() {
     if (!d) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (Math.abs(dx) + Math.abs(dy) > 6) d.moved = true;
-    if (d.moved) pan.current = { x: d.ox - dx / U, y: d.oy - dy / U };
+    if (d.moved) pan.current = { x: d.ox + dx / U, y: d.oy + dy / U };
   };
   const up = () => { if (drag.current && !drag.current.moved) setTall(t => !t); drag.current = null; };
 
