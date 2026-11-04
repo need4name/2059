@@ -65,12 +65,45 @@ test('the map remembers rooms across hosts, glimpses the doors beyond, and marks
   assert.deepEqual(seen, ['deck', 'dock', 'walkway']);
   for (const r of view.rooms.filter(r => !r.seen)) assert.ok([s.room, 'deck', 'dock'].some(id => M.roomById(id).exits.some(e => e.to === r.id)), `${r.id} is behind a door the signal has seen`);
   assert.ok(view.rooms.find(r => r.id === 'walkway')!.fell);
-  assert.ok(view.rooms.find(r => r.id === 'dock')!.market);
+  assert.equal(view.rooms.find(r => r.id === 'dock')!.mark, 'market');
   // Each way is drawn once
   const keys = view.links.map(l => [...l].sort().join('>'));
   assert.equal(new Set(keys).size, keys.length);
   // Dying in the same room twice marks it once, as the latest
   assert.deepEqual(M.newHost({ ...M.newHost({ ...host, room: 'deck' }), room: 'walkway' }).fell, ['deck', 'walkway']);
+});
+
+test('found rooms show what is there, most pressing first; glimpsed rooms show nothing', () => {
+  const s = M.newMapState();
+  const rooms = M.chapterMap().rooms;
+  const plain = rooms.find(r => r.threat !== undefined && r.threat % 5 !== 0 && !r.look && !r.cache && !r.ally)!;
+  assert.equal(M.roomMark(s, plain), 'fight', 'a fight waits for this host');
+  const won = { ...s, cleared: [plain.id] };
+  assert.equal(M.roomMark(won, plain), 'cleared');
+  assert.equal(M.roomMark(M.newHost(won), plain), 'fight', 'a new host finds it full again');
+  const boss = rooms.find(r => r.threat !== undefined && r.threat % 10 === 0)!;
+  const elite = rooms.find(r => r.threat !== undefined && r.threat % 5 === 0 && r.threat % 10 !== 0)!;
+  assert.equal(M.roomMark(s, boss), 'boss');
+  assert.equal(M.roomMark(s, elite), 'elite');
+  const ally = rooms.find(r => r.ally)!;
+  const clear = { ...s, cleared: rooms.map(r => r.id) };
+  assert.equal(M.roomMark(clear, ally), 'ally');
+  assert.notEqual(M.roomMark(clear, ally, [ally.ally!]), 'ally', 'linked: it stops calling');
+  const cache = rooms.find(r => r.cache)!;
+  assert.equal(M.roomMark(clear, cache), 'cache');
+  const lookRoom = rooms.find(r => r.look && !r.ally && !r.cache)!;
+  assert.equal(M.roomMark(clear, lookRoom), 'look');
+  assert.notEqual(M.roomMark({ ...clear, looked: [lookRoom.id] }, lookRoom), 'look');
+  for (const r of M.mapView(s).rooms.filter(r => !r.seen)) assert.equal(r.mark, null);
+});
+
+test('a door that needs every goal shows its room as sealed until they are found', () => {
+  const m = M.chapterMap();
+  const from = m.rooms.find(r => r.exits.some(e => e.requires === 'goals'))!;
+  const to = from.exits.find(e => e.requires === 'goals')!.to;
+  const s = { ...M.newMapState(), visited: [m.entry, from.id] };
+  assert.ok(M.mapView(s).rooms.find(r => r.id === to)!.sealed);
+  assert.ok(!M.mapView({ ...s, goals: [...m.goals] }).rooms.find(r => r.id === to)!.sealed);
 });
 
 test('every room has its own spot on the drawn map', () => {

@@ -24,7 +24,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - UI surfaces are solid, not see-through: buttons are `.key` (a solid face with a lip that sinks when pressed; `.key-primary`, `.key-gold`, `.key-danger`, `.key-selected`), panels are `.slab` (both in `index.css`). No glass, blur or gradient blobs. Icons are the pixel `Glyph`/`SlotIcon` in `hud.tsx`, never emoji.
 - The board is one slab: plates butt together with hairline seams, open edges show the slab's side and shadow, and cover stands up from its tile (contact shadow, cast shadow) and is drawn back to front with the units (`board.ts`, `CombatScene.tsx`). Each chapter's floor has a faint pressed `pattern` (plastic, boards, ward, steel, panel).
 - On the board, visual variety must carry information. The floor stays plain; only things that matter to play (units, cover, hazards, reach, telegraphs) stand out.
-- The hub's map (`SignalMap.tsx`, at the top of the room card) shows only what hosts have seen and where they fell; it carries over between hosts. New rooms need an `at` spot (`npx tsx scripts/layout-maps.ts` fills them in).
+- The hub's map (`SignalMap.tsx`, at the top of the room card) shows only what hosts have seen, a symbol for what waits in each room found, and where hosts fell; it carries over between hosts. New rooms need an `at` spot (`npx tsx scripts/layout-maps.ts` fills them in).
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
 
 ## Content

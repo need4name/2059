@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMap } from '@/lib/stores/useMap';
-import { mapView, type MapRoom } from '@/lib/engine/map';
+import { mapView, type MapRoom, type RoomMark } from '@/lib/engine/map';
+import { useAllies } from '@/lib/stores/useAllies';
+import { allyDef } from '@/lib/combat/allies';
 
 // The map the signal draws as it goes, at the top of the room card: every room any host has walked into, the
-// doors it has seen but not gone through, and where hosts were lost. It is kept
+// doors it has seen but not gone through, what waits in each room found, and where hosts were lost. It is kept
 // across hosts, so each life fills in a little more. Drawn as pixel art on a
 // small canvas and scaled up without smoothing.
 
@@ -32,11 +34,35 @@ const HOST = [
 ];
 const HOST_COL: Record<string, string> = { h: C.hair, s: C.skin, e: C.eye, c: C.cloth, d: C.clothDark };
 
+// What waits in a found room, one small symbol each (x the colour, o a darker shade, l a highlight).
+// Fights are red and grow with the threat; things to do are warm or bright; what's spent is dim.
+const MARKS: Record<RoomMark | 'sealed', { rows: string[]; x: string; o?: string; l?: string }> = {
+  // A small blade mark: someone holds the room
+  fight: { x: '#d2463f', o: '#842424', rows: ['x.x', '.x.', 'o.o'] },
+  // A skull
+  elite: { x: '#f0524f', o: '#7a1f1f', rows: ['.xxx.', 'xxxxx', 'xoxox', '.xxx.', '.x.x.'] },
+  // A horned skull, bigger
+  boss: { x: '#ff5a4e', o: '#4a1010', l: '#ffd0c8', rows: ['l.....l', 'll...ll', '.xxxxx.', 'xxoxoxx', '.xxxxx.', '..x.x..'] },
+  // Someone waiting (drawn in their own colour)
+  ally: { x: '#7ee0a0', rows: ['.xx.', '.xx.', 'xxxx', '.xx.', 'x..x'] },
+  // A crate with a lid
+  cache: { x: '#d9963a', o: '#7d521b', l: '#f2c46e', rows: ['lllll', 'xoxox', 'xxxxx', 'xooox', 'xxxxx'] },
+  // An eye, not yet looked at closely
+  look: { x: '#38d6f0', o: '#0a2f38', rows: ['.xxx.', 'xxoxx', '.xxx.'] },
+  // The Grey Lane's coin
+  market: { x: '#f2b33d', o: '#8a5a12', l: '#ffe08a', rows: ['.lxx.', 'lxoxx', 'xoxox', 'xxoxx', '.xxx.'] },
+  // A fight this host already won: the blade mark, dim
+  cleared: { x: '#43596d', rows: ['x.x', '.x.', 'x.x'] },
+  // A door that won't open yet: a padlock
+  sealed: { x: '#6f869b', o: '#2a3846', rows: ['.xxx.', 'x...x', 'xxxxx', 'xxoxx', 'xxxxx'] },
+};
+
 export function SignalMap() {
   const map = useMap();
   const ref = useRef<HTMLCanvasElement>(null);
   const [tall, setTall] = useState(false);
-  const view = mapView(map);
+  const met = useAllies(s => s.met);
+  const view = mapView(map, met);
   const live = useRef({ view, here: map.room });
   live.current = { view, here: map.room };
   const firstSeen = useRef<Map<string, number> | null>(null);
@@ -87,6 +113,22 @@ export function SignalMap() {
       const ox = Math.round(w / 2 - cam.current.x), oy = Math.round(h / 2 - cam.current.y);
       const px = (x: number, y: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
       const rect = (x: number, y: number, rw: number, rh: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, rw, rh); };
+      // A room's symbol, centred, with a dark outline so it reads on any face. `t` makes it breathe.
+      const mark = (kind: RoomMark | 'sealed', x: number, y: number, tint?: string, t = 0) => {
+        const m = MARKS[kind];
+        const mw = m.rows[0].length, mh = m.rows.length;
+        const sx = x + ((ROOM - mw) >> 1), sy = y + ((ROOM - mh) >> 1);
+        const on = (i: number, j: number) => (m.rows[j]?.[i] ?? '.') !== '.';
+        const prev = ctx.globalAlpha;
+        if (kind !== 'sealed') m.rows.forEach((row, j) => row.split('').forEach((ch, i) => {
+          if (ch === '.') return;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!on(i + dx, j + dy)) px(sx + i + dx, sy + j + dy, C.edge);
+        }));
+        if (t) ctx.globalAlpha = prev * (0.75 + 0.25 * Math.sin(t / 380));
+        const col: Record<string, string | undefined> = { x: tint ?? m.x, o: m.o ?? m.x, l: m.l ?? m.x };
+        m.rows.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') px(sx + i, sy + j, col[ch]!); }));
+        ctx.globalAlpha = prev;
+      };
 
       // Ground, with a faint chart grid of dots where rooms could be
       rect(0, 0, w, h, C.ground);
@@ -130,6 +172,7 @@ export function SignalMap() {
           // Only glimpsed: a broken outline with nothing inside
           for (let i = 1; i < ROOM - 1; i += 2) { px(x + i, y, C.glimpse); px(x + i, y + ROOM - 1, C.glimpse); px(x, y + i, C.glimpse); px(x + ROOM - 1, y + i, C.glimpse); }
           rect(x + 1, y + 1, ROOM - 2, ROOM - 2, C.ground);
+          if (r.sealed) mark('sealed', x, y);
           ctx.globalAlpha = 1;
           continue;
         }
@@ -147,14 +190,11 @@ export function SignalMap() {
           ctx.strokeRect(x - 1.5, y - 1.5, ROOM + 3, ROOM + 3);
           ctx.globalAlpha = 1;
         }
-        if (r.fell && !mine) {
-          // Where a host was lost: a dark stain in the corner
-          const sx = x + 2, sy = y + ROOM - 4;
-          rect(sx, sy, 2, 1, C.blood); rect(sx + 1, sy + 1, 2, 1, C.blood); px(sx, sy + 1, C.bloodDark); px(sx + 3, sy, C.bloodDark);
-        }
-        if (r.market && !mine) {
-          const sx = x + ROOM - 5, sy = y + 2;
-          rect(sx, sy, 3, 3, C.cred); px(sx, sy, C.credLit); px(sx + 1, sy + 1, C.edge);
+        if (r.mark && !mine) mark(r.mark, x, y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' ? now : 0);
+        if (r.fell) {
+          // Where a host was lost: a stain spilling over the room's lower corner
+          const sx = x - 1, sy = y + ROOM - 3;
+          rect(sx + 1, sy, 3, 1, C.blood); rect(sx, sy + 1, 4, 1, C.blood); rect(sx + 1, sy + 2, 2, 1, C.bloodDark); px(sx + 4, sy + 1, C.bloodDark); px(sx + 3, sy + 3, C.bloodDark);
         }
         if (mine) {
           // The host, bobbing on the spot

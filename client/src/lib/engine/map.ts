@@ -99,24 +99,45 @@ export const newHost = (s: MapState): MapState => ({
   fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
 });
 
-/** One room as the map draws it: been in, or only glimpsed through a door. */
-export interface MapRoom { id: string; at: [number, number]; seen: boolean; market: boolean; fell: boolean }
-/** What the signal remembers of a chapter's map: rooms any host has been in, the rooms
- *  their doors lead to (unnamed and unexplored), and the ways between them. */
-export function mapView(s: MapState): { rooms: MapRoom[]; links: [string, string][] } {
+/**
+ * The one thing a found room shows on the map, most pressing first: a fight still
+ * waiting for this host (boss, elite or regular), someone to link with, a cache to
+ * search, something not yet looked at, the Grey Lane, or a fight already won.
+ */
+export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'look' | 'market' | 'cleared';
+/** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
+export interface MapRoom { id: string; at: [number, number]; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean }
+
+export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark | null {
+  if (hasFight(s, room)) return room.threat! % 10 === 0 ? 'boss' : room.threat! % 5 === 0 ? 'elite' : 'fight';
+  if (room.ally && !met.includes(room.ally)) return 'ally';
+  if (cacheReady(s, room)) return 'cache';
+  if (room.look && !s.looked.includes(room.id)) return 'look';
+  if (room.market) return 'market';
+  if (room.threat !== undefined) return 'cleared';
+  return null;
+}
+
+/** What the signal remembers of a chapter's map: rooms any host has been in (each with its mark),
+ *  the rooms their doors lead to (unnamed and unexplored), and the ways between them.
+ *  `met` is the allies already linked, so their rooms stop calling. */
+export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; links: [string, string][] } {
   const m = mapOf(s.chapter);
   const byId = new Map(m.rooms.map(r => [r.id, r]));
   const seen = new Set(s.visited);
   const fell = new Set(s.fell ?? []);
   const shown = new Set(seen);
+  const sealed = new Set<string>();
   const links: [string, string][] = [];
   for (const id of Array.from(seen)) for (const e of byId.get(id)?.exits ?? []) {
     shown.add(e.to);
+    if (e.requires === 'goals' && !allGoals(s) && !seen.has(e.to)) sealed.add(e.to);
     if (!seen.has(e.to) || id < e.to) links.push([id, e.to]);
   }
   const rooms = Array.from(shown).map(id => {
     const r = byId.get(id)!;
-    return { id, at: r.at, seen: seen.has(id), market: seen.has(id) && !!r.market, fell: fell.has(id) };
+    const mark = seen.has(id) ? roomMark(s, r, met) : null;
+    return { id, at: r.at, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id) };
   });
   return { rooms, links };
 }
