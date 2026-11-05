@@ -7,6 +7,8 @@ import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/comb
 import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
 import { getReachableTiles } from '../client/src/lib/combat/grid';
 import { canHitTarget, getHitTiles } from '../client/src/lib/combat/patterns';
+import { rollParts, QUIRKS } from '../client/src/lib/combat/augments';
+import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 
 function arena(player: [number, number], boss: [number, number], hazard?: [number, number, number]): CombatGrid {
   const rows = 9, cols = 7;
@@ -778,4 +780,50 @@ test('an enduring boss heals half as much as an enduring regular enemy', () => {
   const plain = healOf(false), boss = healOf(true);
   assert.equal(plain.heal, Math.round(plain.max * Fight.ENDURING.rate));
   assert.equal(boss.heal, Math.round(boss.max * Fight.ENDURING.boss));
+});
+
+test('quirk: Sets them alight puts everyone hit on fire', () => {
+  seedRandom(21);
+  const s = crowd();
+  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'sweep_arc' as const, effects: { ignite: true } };
+  const after = Fight.resolvePlayerAttack(s, strike).state;
+  assert.equal(after.foes[0].burning, Fight.BURN.turns);
+  assert.equal(after.foes[1].burning, Fight.BURN.turns);
+  assert.equal(after.foes[2].burning, 0, 'not the one out of reach');
+});
+
+test('quirks: Runs hot and Desperate add damage only when their condition holds', () => {
+  const base = fight();
+  const hot = { ...PLAYER_ACTIONS[0], effects: { hotBonus: 0.5 } };
+  assert.equal(Fight.quirkDamage({ ...base, playerHeat: Fight.QUIRK.hotAt - 1 }, hot), 1);
+  assert.equal(Fight.quirkDamage({ ...base, playerHeat: Fight.QUIRK.hotAt }, hot), 1.5);
+  const low = { ...PLAYER_ACTIONS[0], effects: { lowBonus: 1 } };
+  assert.equal(Fight.quirkDamage(base, low), 1);
+  const hurt = { ...base, player: { ...base.player, currentHp: Math.floor(base.player.maxHp * 0.2) } };
+  assert.equal(Fight.quirkDamage(hurt, low), 2);
+  // The bonus lands in the hit itself
+  seedRandom(4); const plain = Fight.resolvePlayerAttack({ ...base, playerHeat: 70 }, { ...PLAYER_ACTIONS[0], accuracy: 'precise' }).state.foes[0].unit.currentHp;
+  seedRandom(4); const boosted = Fight.resolvePlayerAttack({ ...base, playerHeat: 70 }, { ...hot, accuracy: 'precise' }).state.foes[0].unit.currentHp;
+  assert.ok(boosted < plain, 'running hot hits harder');
+});
+
+test('quirk: Reaper vents all heat and guards you up on a takedown, not otherwise', () => {
+  seedRandom(9);
+  const base = fight({ playerHeat: 80 });
+  const reap = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, attackPattern: 'melee_long' as const, effects: { reap: true } };
+  const miss = Fight.resolvePlayerAttack(base, reap).state;
+  assert.ok(miss.playerHeat > 0, 'no takedown, no vent');
+  const dying = { ...base, foes: [{ ...base.foes[0], unit: { ...base.foes[0].unit, currentHp: 1 } }] };
+  const kill = Fight.resolvePlayerAttack(dying, reap).state;
+  assert.equal(kill.playerHeat, 0);
+  assert.ok(kill.playerDefenseBoost >= Fight.QUIRK.reapGuard);
+});
+
+test('only epic and legendary implants roll quirks', () => {
+  const arm = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && !i.id.startsWith('hx'))!;
+  const quirky = (rarity: any) => { let n = 0; for (let k = 0; k < 300; k++) { seedRandom(1000 + k); const p = rollParts({ ...arm, rarity }); if (p?.mods.some(m => m in QUIRKS)) n++; } return n; };
+  assert.equal(quirky('common'), 0);
+  assert.equal(quirky('rare'), 0);
+  assert.ok(quirky('epic') > 10);
+  assert.ok(quirky('legendary') > quirky('epic'));
 });

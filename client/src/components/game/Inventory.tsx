@@ -5,7 +5,7 @@ import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } f
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
 import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, nameOf } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
-import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText } from '@/lib/combat/augments';
+import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf } from '@/lib/combat/augments';
 import { DRIVE } from '@/lib/engine/fight';
 import { getRarityColor } from '@/lib/combat/loot';
 
@@ -146,6 +146,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
               <span className="truncate">{implantStats(item)}{cost > 0 && <span className="text-hostile"> · −{cost} HP</span>}</span>
             </span>
             {parts && <span className="block truncate text-[11px] text-ok/90">{parts}</span>}
+            {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
           </span>
         </button>
         {action}

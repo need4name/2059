@@ -888,6 +888,18 @@ function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction
   return state;
 }
 
+/** Quirk numbers: Runs hot from this heat, Desperate under this share of health, Reaper's guard. */
+export const QUIRK = { hotAt: 60, lowAt: 0.3, reapGuard: 10 };
+/** The damage a quirk adds to this attack right now (1 when none applies). */
+export function quirkDamage(s: FightState, action: CombatAction): number {
+  const fx = action.effects;
+  if (!fx) return 1;
+  let m = 1;
+  if (fx.hotBonus && s.playerHeat >= QUIRK.hotAt) m *= 1 + fx.hotBonus;
+  if (fx.lowBonus && s.player.currentHp < s.player.maxHp * QUIRK.lowAt) m *= 1 + fx.lowBonus;
+  return m;
+}
+
 /** Bleeding: a share of max health at the start of each of the next turns. */
 export const BLEED = { share: 0.05, min: 3, turns: 2 };
 
@@ -907,6 +919,7 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
     if (fx.bleed) { state = setFoe(state, i, { bleeding: BLEED.turns }); events.push(say(`${name} is bleeding`)); }
     if (fx.stun && random() < fx.stun) { state = setFoe(state, i, { stunned: true }); events.push(say(`${name} is stunned`, 'critical')); }
     if (fx.slow) { state = setFoe(state, i, { slowed: SPEED.statusRounds }); events.push(say(`${name} is slowed`)); }
+    if (fx.ignite) { state = setFoe(state, i, { burning: BURN.turns }); events.push(say(`${name} catches fire`)); }
     if (fx.knock && action.attackPattern !== 'knockback') state = knockBack(state, me, { kind: 'foe', i }, Math.round(dealt / Math.max(1, struck.length)), events, fx.crush ? 2 : 1);
   }
   if (fx.haste && struck.length) { state = { ...state, playerHasted: SPEED.statusRounds }; events.push(say('Hasted: you act sooner for 2 rounds')); }
@@ -965,9 +978,10 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const finishing = s.perks.finisherBonus > 0 && foe.unit.currentHp < foe.unit.maxHp * 0.3 ? 1 + s.perks.finisherBonus : 1;
     const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
+    const quirk = quirkDamage(s, action);
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * takenBy(foe),
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * takenBy(foe),
       hasTrait(foe, 'alert') ? 0 : getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
@@ -1005,6 +1019,11 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };
   state = afterFoeChanges(state, events);
+  // Reaper: a takedown vents all your heat and guards you up
+  if (action.effects?.reap && events.some(e => e.kind === 'foeDown')) {
+    state = { ...state, playerHeat: 0, playerDefenseBoost: Math.max(state.playerDefenseBoost, QUIRK.reapGuard) };
+    events.push(say('REAPER -- heat vented, guard up', 'critical'));
+  }
   // Chain: a takedown earns another action, unless that was the last enemy
   if (s.perks.chain && events.some(e => e.kind === 'foeDown') && !events.some(e => e.kind === 'allFoesDown')) {
     events.push(say('CHAIN -- takedown, act again', 'critical'));

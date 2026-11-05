@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
-import { actionForItem, partsText } from '@/lib/combat/augments';
+import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
 import { scrapValue } from '@/lib/combat/economy';
 import { implantStats, stimInfo, passiveText, nameOf } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
@@ -116,6 +116,7 @@ export function VictoryScreen() {
                           <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
                           <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
                           {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
+                          {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
                         </span>
                         {move?.type === 'attack' && <Footprint pattern={move.attackPattern} className="shrink-0" />}
                         {taken && <Chip tone="sys">Taken</Chip>}

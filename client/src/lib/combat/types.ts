@@ -86,6 +86,15 @@ export interface ActionEffects {
   slow?: boolean;
   /** Haste yourself: you act earlier for the next 2 rounds. */
   haste?: boolean;
+  // Quirks: rare rules only epic and legendary parts carry (QUIRKS in augments.ts)
+  /** Everyone hit catches fire (burning, as if they ended a turn on a fire). */
+  ignite?: boolean;
+  /** Extra damage while you run hot (at QUIRK.hotAt heat or more). */
+  hotBonus?: number;
+  /** Extra damage while you're low (under QUIRK.lowAt of your health). */
+  lowBonus?: number;
+  /** A takedown vents all your heat and guards you up. */
+  reap?: boolean;
 }
 
 export type WeaponType = 'pistol' | 'revolver' | 'shotgun';

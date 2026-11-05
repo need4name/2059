@@ -192,6 +192,18 @@ export const MODS: Record<string, Mod> = {
   rush:  { label: 'Hastes you', effects: { haste: true } },
 };
 
+/**
+ * Quirks: rare parts that change a rule rather than a number. Only epic and
+ * legendary implants roll one (QUIRK_CHANCE), in place of one of their mods.
+ */
+export const QUIRKS: Record<string, Mod> = {
+  ignite:  { label: 'Sets them alight', effects: { ignite: true } },
+  hothand: { label: 'Runs hot', effects: { hotBonus: 0.5 } },
+  despair: { label: 'Desperate', effects: { lowBonus: 1 } },
+  reaper:  { label: 'Reaper', effects: { reap: true } },
+};
+export const QUIRK_CHANCE: Partial<Record<Item['rarity'], number>> = { epic: 0.15, legendary: 0.4 };
+
 // What each maker leans toward: its usual heads (picked 60% of the time) and the mods it can carry
 const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string }> = {
   VOLKOV:    { word: 'Hydraulic',    heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance'], mods: ['knock', 'crush', 'rush'] },
@@ -233,6 +245,12 @@ export function rollParts(item: Item): Item['parts'] {
     const m = pick(modPool.filter(x => !mods.includes(x)).length ? modPool.filter(x => !mods.includes(x)) : modPool);
     if (!mods.includes(m)) mods.push(m);
   }
+  // A rare quirk takes the place of one mod (or joins, if there were none)
+  const qc = QUIRK_CHANCE[r] ?? 0;
+  if (qc && random() < qc) {
+    const q = pick(Object.keys(QUIRKS));
+    if (mods.length) mods[mods.length - 1] = q; else mods.push(q);
+  }
   return { head, mods };
 }
 
@@ -251,9 +269,15 @@ export function partsText(item: Item): string | null {
   const parts = item.parts ?? legacyParts(item, group, t.pattern);
   const head = HEADS[parts.head];
   if (!head) return null;
-  const mods = parts.mods.map(m => MODS[m]?.label).filter(Boolean);
+  const mods = parts.mods.map(m => MODS[m]?.label).filter(Boolean); // quirks show on their own line (quirkOf)
   const cheap = item.rarity === 'common' && !head.signature ? ' · hits one' : '';
   return `${head.signature ? 'Signature: ' : ''}${head.noun} head${mods.length ? ` · ${mods.join(', ')}` : ''}${cheap}`;
+}
+
+/** The quirk an implant carries, by name, or null: cards show it on its own line, in gold. */
+export function quirkOf(item: Item): string | null {
+  const q = item.parts?.mods.find(m => m in QUIRKS);
+  return q ? QUIRKS[q].label : null;
 }
 
 export interface ActiveTreeMod { path: 'A' | 'B' | null; tier: number }
@@ -281,7 +305,7 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
   const parts = item.parts ?? legacyParts(item, group, t.pattern);
   const head = HEADS[parts.head] ?? HEADS[legacyParts(item, group, t.pattern).head];
   const effects: ActionEffects = { ...(head.effects ?? {}) };
-  for (const m of parts.mods) Object.assign(effects, MODS[m]?.effects ?? {});
+  for (const m of parts.mods) Object.assign(effects, (MODS[m] ?? QUIRKS[m])?.effects ?? {});
   if (item.rarity === 'common' && item.parts && !head.signature) effects.focus = true;
   const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
 
