@@ -5,6 +5,7 @@ import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, DIR_LABEL } from '@/lib/engine/map';
 import { useInventory } from '@/lib/stores/useInventory';
+import { useStrain } from '@/lib/stores/useStrain';
 import { eventHere, cantChoose, partToGive } from '@/lib/engine/events';
 import { powerOf } from '@/lib/combat/augments';
 import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
@@ -20,6 +21,7 @@ export function RoomPanel() {
   const map = useMap();
   const { progression, openMarket, openRoomCache, chooseEvent } = useCombat();
   const inv = useInventory();
+  const shut = useStrain(s => s.active.includes('shut'));
   const allies = useAllies();
   const slots = usePlayi(s => s.perks)().allySlots;
   const room = roomById(map.room);
@@ -114,7 +116,14 @@ export function RoomPanel() {
         );
       })()}
 
-      {room.market && (
+      {room.market && shut && (
+        <div className="slab flex w-full items-center gap-3.5 rounded-[20px] p-4 opacity-60">
+          <Glyph name="market" size={22} className="shrink-0 text-hud-faint" />
+          <span className="min-w-0 flex-1 font-display text-[15px] font-semibold text-hud-dim">Grey Lane</span>
+          <span className="text-xs text-hud-faint">Shuttered</span>
+        </div>
+      )}
+      {room.market && !shut && (
         <button onClick={openMarket} className="key flex w-full items-center gap-3.5 rounded-[20px] p-4 text-left"
           style={{ backgroundImage: 'linear-gradient(135deg, rgba(242,179,61,0.12), transparent 70%)' }}>
           <Glyph name="market" size={22} className="shrink-0 text-cred" />

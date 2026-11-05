@@ -6,11 +6,11 @@ import { alliesUnlockedBy } from './combat/allies';
 
 export const SAVE_KEY = '2059-save';
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
-export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi', '2059-allies', '2059-journal', '2059-map'] as const;
+export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain'] as const;
 
 export interface SaveFile {
   game: '2059';
@@ -77,7 +77,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       const part = JSON.parse(raw);
       return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { spent: [], scar: 0, ...part.state } }) } };
     } catch { return save; }
-  },
+  },  // 7 -> 8: strain joins the save as its own part (older saves have none: locked, nothing on)
+  7: (save) => save,
 };
 
 function storage(): Storage | null {

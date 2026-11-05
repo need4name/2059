@@ -35,6 +35,8 @@ import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
+import { useStrain } from './useStrain';
+import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
 
@@ -355,15 +357,15 @@ const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun
 const direct = loot.items;
 // Strip the bodies: every beaten enemy's implants, to choose from (two picks with Pick of the wreck)
 const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: f.unit.carried ?? [] })).filter(b => b.items.length);
-const strip: Strip | null = bodies.length ? { bodies, picks: usePlayi.getState().perks().pickOfTwo ? 2 : 1, taken: [] } : null;
+const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + strainPicks(useStrain.getState().active), taken: [] } : null;
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
-if (chapterDone) useMap.getState().finishChapter();
+if (chapterDone) { useMap.getState().finishChapter(); useStrain.getState().unlock(); }
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ strip });
-useInventory.getState().addGold(loot.gold);
+useInventory.getState().addGold(strainCredits(loot.gold, useStrain.getState().active));
 const xp = getXpFromBoss(level);
 // Allies: the party learns from every win
 const allies = useAllies.getState();
@@ -471,6 +473,8 @@ usePlayi.getState().rememberBody(AUGMENTATION_SLOTS.map(sl => useInventory.getSt
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
 useAugmentTrees.getState().resetTrees();
+// The strain the player picked takes hold for this host
+useStrain.getState().wake();
 
 set({
 phase: 'menu',
@@ -535,7 +539,8 @@ seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange, perks } = buildPlayer(playerClass);
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
-const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy);
+const strain = useStrain.getState().active;
+const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy).map(u => strainUnit(u, strain));
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
 // Map fights use the room's own drawn arena; farm fights roll one
@@ -543,7 +548,7 @@ const fightRoom = !farm ? roomById(useMap.getState().room) : undefined;
 const drawn = fightRoom?.arena;
 const grid = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 const spots = spawnFoePositions(grid, units.length);
-const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)));
+const foes = units.slice(0, spots.length).map((u, k) => Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
 const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }));
 set({
@@ -884,7 +889,7 @@ set({ phase: 'menu', currentLoot: null });
 },
 
 openMarket: () => {
-if (get().phase === 'menu') set({ phase: 'shop' });
+if (get().phase === 'menu' && !useStrain.getState().active.includes('shut')) set({ phase: 'shop' });
 },
 
 completeIntro: () => set({ introCompleted: true }),
@@ -910,6 +915,7 @@ resetAll: () => {
 usePlayi.getState().reset();
 useJournal.getState().reset();
 useMap.getState().reset();
+useStrain.getState().reset();
 useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();

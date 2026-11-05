@@ -23,9 +23,11 @@ import { nextChapter } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
+import { useStrain } from '@/lib/stores/useStrain';
+import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
 import { PLAYER_BASE_MOVE, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
 
-type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies';
+type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain';
 
 export function actionColor(a: LoadoutAction) {
   if (a.type === 'brace') return 'text-sys';
@@ -311,6 +313,35 @@ function SavePanel() {
   );
 }
 
+/** Strain: harder fights for better pay, switched on for the next host (unlocked by finishing a chapter). */
+function StrainTab() {
+  const { chosen, active, toggle } = useStrain();
+  const same = chosen.length === active.length && chosen.every(id => active.includes(id));
+  const credits = Math.round(STRAIN_NUMBERS.credits * 100 * chosen.length);
+  return (
+    <div className="space-y-3">
+      <p className="px-1 text-sm leading-relaxed text-hud-dim">Takes hold when your next host wakes.</p>
+      {STRAIN.map(st => {
+        const on = chosen.includes(st.id);
+        return (
+          <button key={st.id} onClick={() => toggle(st.id)} className={cx('key flex w-full items-center gap-3 rounded-[20px] p-4 text-left', on && 'key-selected')}>
+            <Glyph name="strain" size={18} className={on ? 'text-hostile' : 'text-hud-faint'} />
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-[15px] font-semibold text-hud-text">{st.name}</span>
+              <span className="block text-[13px] text-hud-dim">{st.text}</span>
+            </span>
+            <span className={cx('text-xs font-semibold', on ? 'text-hostile' : 'text-hud-faint')}>{on ? 'On' : 'Off'}</span>
+          </button>
+        );
+      })}
+      <div className="slab rounded-[20px] p-4 text-sm leading-relaxed text-hud-text/85">
+        {chosen.length ? <>+{credits}% credits from every win{strainPicks(chosen) ? ', and one more part off the bodies' : ''}.</> : 'Nothing on.'}
+        {!same && <div className="mt-1 text-xs text-hud-faint">This host still lives under {active.length ? `${active.length} switch${active.length > 1 ? 'es' : ''}` : 'none'}.</div>}
+      </div>
+    </div>
+  );
+}
+
 function StatusTab() {
   const { playerClass, resetAll, progression, bossLevel } = useCombat();
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
@@ -393,7 +424,7 @@ function StatusTab() {
   );
 }
 
-const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies' };
+const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies', strain: 'Strain' };
 
 function Dock({ icon, title, alert, onClick }: { icon: GlyphName; title: string; alert?: boolean; onClick: () => void }) {
   return (
@@ -419,6 +450,8 @@ export function BaseScreen() {
   const [page, setPage] = useState<Tab | null>(null);
   const pool = useActionPool();
   const met = useAllies(s => s.met);
+  const strainOpen = useStrain(s => s.unlocked);
+  const strainOn = useStrain(s => s.active.length > 0);
 
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const fitsNow = items.some(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null);
@@ -451,6 +484,7 @@ export function BaseScreen() {
           <Dock icon="implant" title="Implants" alert={fitsNow} onClick={() => setPage('implants')} />
           <Dock icon="upgrade" title="Upgrades" alert={upgradeWaits} onClick={() => setPage('upgrades')} />
           {met.length > 0 && <Dock icon="allies" title="Allies" onClick={() => setPage('allies')} />}
+          {strainOpen && <Dock icon="strain" title="Strain" alert={strainOn} onClick={() => setPage('strain')} />}
           <Dock icon="status" title="Self" onClick={() => setPage('status')} />
         </nav>
 
@@ -463,6 +497,7 @@ export function BaseScreen() {
         {page === 'upgrades' && <UpgradesTab />}
         {page === 'status' && <StatusTab />}
         {page === 'allies' && <AlliesTab />}
+        {page === 'strain' && <StrainTab />}
       </Page>
     </Screen>
   );

@@ -12,6 +12,8 @@ import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
 import * as F from '../client/src/lib/engine/fight';
 import * as MAP from '../client/src/lib/engine/map';
+import { useStrain as ST } from '../client/src/lib/stores/useStrain';
+import type { StrainId } from '../client/src/lib/engine/strain';
 import { useMap as MP } from '../client/src/lib/stores/useMap';
 import * as P from '../client/src/lib/combat/patterns';
 import * as G from '../client/src/lib/combat/grid';
@@ -176,6 +178,8 @@ let chaptersDone = 0, stuckAtDoor = 0, debugShown = false;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   botState = seed * 7919 + 1;
   C.getState().resetAll(); C.getState().setRunSeed(seed); C.getState().completeIntro();
+  // STRAIN=tough,fierce,hot,shut plays every host under that strain (a rough check, not part of --check)
+  if (process.env.STRAIN) { const on = process.env.STRAIN.split(',') as StrainId[]; ST.setState({ unlocked: true, chosen: on, active: on }); }
   // CHAPTER=<id> plays that chapter's map from a fresh start (a rough check of its numbers)
   if (process.env.CHAPTER) MP.getState().travel(process.env.CHAPTER);
   const out: Fight[] = [];
