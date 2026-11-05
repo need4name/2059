@@ -196,7 +196,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     // No fight left in reach: either the last boss is down, or the goals door is still shut
     if (!walkToFight()) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut", s.room, "done", s.done, "cleared spire", s.cleared.includes("spire"), "spire fights", out.filter(f => f.lvl >= 30).map(f => [f.lvl, f.won, f.timedOut]), "last", lastThreat(), "fights", out.length); } } break; }
     const lvl = MAP.roomById(MP.getState().room).threat!; const deathsBefore = C.getState().progression.deathCount;
-    C.getState().startRoomFight(); let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
+    C.getState().startRoomFight(); C.getState().dismissIntro(); let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { playerTurn(skill); turns++; }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);

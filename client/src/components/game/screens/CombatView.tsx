@@ -395,28 +395,30 @@ function ActionBar() {
 }
 
 /** The enemy's first words on seeing a corpse get up, and the signal's own first impression. */
+/**
+ * What the enemy says as the fight opens (and what the signal notes about it).
+ * The fight waits for it: the screen dims, nothing moves, and a tap carries on.
+ */
 function FightIntro() {
-  const { fightIntro, dismissIntro, fightId } = useCombat();
-  useEffect(() => {
-    if (!fightIntro) return;
-    const t = setTimeout(dismissIntro, fightIntro.note ? 7000 : 4500);
-    return () => clearTimeout(t);
-  }, [fightIntro, fightId, dismissIntro]);
+  const { fightIntro, dismissIntro } = useCombat();
   if (!fightIntro) return null;
   return (
-    <button onClick={dismissIntro} className="rise-in absolute inset-x-3 top-3 z-20 space-y-2 rounded-3xl bg-black/70 px-4 py-3 text-left shadow-[0_10px_30px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-sm" aria-label="Dismiss">
-      {fightIntro.line && (
-        <div>
-          <div className="text-[11px] font-semibold" style={{ color: fightIntro.color }}>{fightIntro.speaker}</div>
-          <div className="text-[15px] leading-snug text-white">“{fightIntro.line}”</div>
-        </div>
-      )}
-      {fightIntro.note && (
-        <div className={fightIntro.line ? 'border-t border-white/10 pt-2' : ''}>
-          <div className="text-[11px] font-semibold text-sys">The signal notes</div>
-          <div className="text-[13px] italic leading-snug text-hud-text/90">{fightIntro.note}</div>
-        </div>
-      )}
+    <button onClick={dismissIntro} aria-label="Continue" className="absolute inset-0 z-30 flex cursor-pointer flex-col items-center justify-center bg-black/70 px-5 text-left">
+      <div className="rise-in slab w-full max-w-[var(--col)] space-y-3 rounded-[28px] px-5 py-5" style={{ boxShadow: `inset 0 0 0 1px ${fightIntro.color}44` }}>
+        {fightIntro.line && (
+          <div>
+            <div className="text-[13px] font-semibold" style={{ color: fightIntro.color }}>{fightIntro.speaker}</div>
+            <div className="mt-1 font-display text-[21px] font-medium leading-snug text-white">“{fightIntro.line}”</div>
+          </div>
+        )}
+        {fightIntro.note && (
+          <div className={fightIntro.line ? 'border-t border-white/10 pt-3' : ''}>
+            <div className="text-[12px] font-semibold text-sys">The signal notes</div>
+            <div className="mt-0.5 text-[15px] italic leading-snug text-hud-text/90">{fightIntro.note}</div>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 text-[13px] font-semibold text-hud-dim signal-pulse">Tap to continue</div>
     </button>
   );
 }
@@ -431,10 +433,10 @@ export function CombatView() {
         <div className="pointer-events-none absolute inset-0 mx-auto max-w-[var(--col)] [&>*]:pointer-events-auto">
           <HeatBar />
           <TurnStrip />
-          <FightIntro />
         </div>
       </div>
       <div className="mx-auto w-full max-w-[var(--col)]"><ActionBar /></div>
+      <FightIntro />
     </div>
   );
 }

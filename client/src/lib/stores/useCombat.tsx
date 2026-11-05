@@ -254,6 +254,9 @@ level: 1, currentXp: 0, xpToNextLevel: getXpForLevel(2), deathCount: 0,
 export const useCombat = create<CombatState>()(
 subscribeWithSelector(persist((set, get) => {
 
+/** A fight whose first turn waits for its opening line to be dismissed. */
+let heldStart: { fightId: number; begin: () => void } | null = null;
+
 // Runs fn after ms, but only if the same fight is still in progress.
 const later = (fn: () => void, ms: number) => {
 const id = get().fightId;
@@ -584,8 +587,13 @@ if (line) log(`${lead.name}: "${line}"`);
 set({ fightIntro: line || note ? { speaker: lead.name, color: lead.spriteColor, line, note } : null });
 }
 // If something is faster than you, it moves first (after a beat to see the board)
+const begin = () => {
 if (Fight.nextUp(fightState(), get().clock).who === 'player') nextActor();
 else { set({ phase: 'enemy_turn', inputLocked: true }); log('They move first', 'critical'); later(nextActor, ENEMY_TURN_DELAY * 2); }
+};
+// An opening line holds the fight: nothing moves until the player has read it and tapped on
+if (get().fightIntro) { set({ phase: 'enemy_turn', inputLocked: true }); heldStart = { fightId: get().fightId, begin }; }
+else begin();
 };
 
 return {
@@ -601,7 +609,13 @@ actingFoe: null,
 clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
 hostBestThreat: 0,
 fightIntro: null,
-dismissIntro: () => set({ fightIntro: null }),
+dismissIntro: () => {
+set({ fightIntro: null });
+// The fight was waiting on the line: start it now
+const held = heldStart;
+heldStart = null;
+if (held && held.fightId === get().fightId && isFightPhase(get().phase)) held.begin();
+},
 holdfastSpent: false,
 strip: null,
 combatLog: [],
