@@ -57,6 +57,7 @@ const ally = z.object({
   move: z.number().int().min(1).max(4),
   affinity: z.array(z.enum(['HELIX', 'VOLKOV', 'TIANXIA', 'KIZUNA', 'CROWN', 'IOA', 'CBN', 'PARSU', 'PATCHWORK'])).min(1).max(3),
   link: z.string().trim().min(1).max(120),
+  story: z.array(z.string().trim().min(1).max(160)).length(3),
   moves: z.array(allyMove).length(2),
 }).strict();
 // Art names the board can draw (lib/rendering/board.ts)

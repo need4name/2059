@@ -225,3 +225,13 @@ test('in a chapter of machines, a new host wakes in a machine frame', async () =
   assert.equal(kinds.size, 1, 'one frame, not a mix');
   useCombat.getState().resetAll();
 });
+
+test('an ally lets its story slip at levels 3, 6 and 10', async () => {
+  const { ALLIES, storySoFar, ALLY_STORY_AT } = await import('../client/src/lib/combat/allies');
+  const def = ALLIES[0];
+  assert.deepEqual(ALLY_STORY_AT, [3, 6, 10]);
+  assert.equal(storySoFar(def, 2).length, 0);
+  assert.deepEqual(storySoFar(def, 3), def.story.slice(0, 1));
+  assert.equal(storySoFar(def, 9).length, 2);
+  assert.deepEqual(storySoFar(def, 10), def.story);
+});

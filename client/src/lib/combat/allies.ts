@@ -32,7 +32,14 @@ export interface AllyDef {
   /** What riding with it does for you (the effect is ALLY_LINKS[id]). */
   link: string;
   moves: AllyMove[];
+  /** Three lines it lets slip as it levels (at ALLY_STORY_AT). */
+  story: string[];
 }
+
+/** The ally levels at which each story line comes out. */
+export const ALLY_STORY_AT = [3, 6, 10];
+/** The story lines an ally has let slip by this level. */
+export const storySoFar = (def: AllyDef, level: number) => def.story.filter((_, k) => level >= ALLY_STORY_AT[k]);
 
 /** The two implants an ally wears: a limb (its attack) and one other (stats only). */
 export interface AllyGear { limb?: Item; other?: Item }

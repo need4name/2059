@@ -18,7 +18,7 @@ import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
 import { nextChapter, activeChapter } from '../combat/chapters';
-import { withLinks } from '../combat/allies';
+import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
 import { roomById, isChapterEnd, hasFight } from '../engine/map';
@@ -371,6 +371,11 @@ const xp = getXpFromBoss(level);
 // Allies: the party learns from every win
 const allies = useAllies.getState();
 const allyLevelUps = allies.gainXp(Math.round(get().perks.allyXpMult));
+// A level can bring out a line of an ally's story: it goes into the journal
+for (const id of allyLevelUps) {
+const def = allyDef(id), lv = useAllies.getState().progress(id).level;
+if (def) storySoFar(def, lv).forEach((line, k) => useJournal.getState().addNote(`ally:${id}:${k}`, line, def.name, get().progression.deathCount + 1));
+}
 if (isKing) log('PATCHWORK KING: ...well fought. Contract noted.');
 set({
 phase: 'victory', inputLocked: true, fightId: get().fightId + 1,

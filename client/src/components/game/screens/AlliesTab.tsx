@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAllies } from '@/lib/stores/useAllies';
 import { useInventory } from '@/lib/stores/useInventory';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { ALLIES, AFFINITY, allyMoves, allySlotFor, fitsAlly, type AllyDef, type AllySlot } from '@/lib/combat/allies';
+import { ALLIES, AFFINITY, allyMoves, allySlotFor, fitsAlly, storySoFar, type AllyDef, type AllySlot } from '@/lib/combat/allies';
 import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
 import { nameOf } from '../itemText';
 import { Card, Btn, Label, Sheet, Footprint, RARITY_TEXT, cx } from '../hud';
@@ -44,6 +44,12 @@ function AllyCard({ def }: { def: AllyDef }) {
       <p className={cx('rounded-xl px-3 py-2 text-[13px] leading-snug', along ? 'bg-sys/10 text-hud-text' : 'bg-white/[0.03] text-hud-dim')}>
         {def.link}
       </p>
+
+      {storySoFar(def, level).length > 0 && (
+        <div className="space-y-1.5 border-l-2 pl-3" style={{ borderColor: `${def.color}66` }}>
+          {storySoFar(def, level).map((line, k) => <p key={k} className="text-[13px] italic leading-snug text-hud-text/75">{line}</p>)}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         {(['limb', 'other'] as AllySlot[]).map(slot => {
