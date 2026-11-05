@@ -11,6 +11,7 @@ import { ALLY_LINKS } from '../client/src/lib/combat/allies';
 import chapters from '../client/src/content/chapters.json';
 import { MAPS } from '../client/src/lib/engine/map';
 import figures from '../client/src/content/figures.json';
+import events from '../client/src/content/events.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
 import { MAKER_INFO, HEADS } from '../client/src/lib/combat/augments';
 
@@ -113,7 +114,7 @@ const mapFile = z.object({
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     tileset: z.string().regex(/^[a-z-]+$/).optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
-    ally: text.optional(), cache: z.boolean().optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
+    ally: text.optional(), cache: z.boolean().optional(), event: z.string().regex(/^[a-z]+$/).optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -122,6 +123,23 @@ const figure = z.object({
   skin: hex, cloth: hex, accent: hex, eyes: hex, hair: hex,
   head: z.enum(HEAD_KINDS), arms: z.tuple([z.enum(ARM_KINDS), z.enum(ARM_KINDS)]),
   legs: z.enum(['flesh', 'metal']), chest: z.array(z.enum(CHEST_KINDS)), weapon: z.enum(WEAPON_KINDS),
+}).strict();
+const outcome = z.object({
+  implant: z.union([rarity, z.literal('better')]).optional(), stims: z.number().int().min(1).max(3).optional(),
+  credits: z.number().int().min(1).max(500).optional(), health: z.number().int().min(1).max(40).optional(),
+  text: z.string().trim().min(1).max(200),
+}).strict();
+const eventFile = z.object({
+  events: z.record(z.string().regex(/^[a-z]+$/), z.object({
+    text: z.string().trim().min(1).max(260),
+    choices: z.array(z.object({
+      label: z.string().trim().min(1).max(40),
+      cost: z.object({ credits: z.number().int().min(1).max(500).optional(), health: z.number().int().min(1).max(40).optional(), part: z.literal(true).optional() }).strict().optional(),
+      odds: z.number().gt(0).lt(1).optional(), win: outcome, lose: outcome.optional(),
+    }).strict()
+      .refine(c => (c.odds === undefined) === (c.lose === undefined), 'a choice with odds needs a lose outcome, and only then')
+      .refine(c => c.win.implant !== 'better' || c.cost?.part, '"better" needs a part given up')).min(1).max(3),
+  }).strict()),
 }).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
@@ -226,6 +244,17 @@ export function checkContent(): string[] {
       if (!e.moves.some(m => m.type === 'attack' && !m.isHeavy)) problems.push(`enemies.json ${n}: needs a normal attack`);
     }
   }
+  // Room events
+  const evr = eventFile.safeParse(events);
+  report('events.json', evr);
+  const usedEvents = new Set<string>();
+  for (const m of Object.values(MAPS)) for (const r of m.rooms) if (r.event) {
+    usedEvents.add(r.event);
+    if (!(r.event in (events as { events: Record<string, unknown> }).events)) problems.push(`map ${r.id}: event "${r.event}" isn't in events.json`);
+    if (r.threat === undefined) problems.push(`map ${r.id}: events wait in fight rooms (they appear once the fight is won)`);
+    if (r.market || r.ally || r.cache) problems.push(`map ${r.id}: an event can't share a room with a market, an ally or a cache`);
+  }
+  for (const id of Object.keys((events as { events: Record<string, unknown> }).events)) if (!usedEvents.has(id)) problems.push(`events.json: "${id}" isn't placed in any room`);
   // Chapters
   const cr = chapterFile.safeParse(chapters);
   report('chapters.json', cr);

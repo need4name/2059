@@ -34,6 +34,7 @@ import { instancedItem, ITEM_POOLS } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf } from '../combat/augments';
+import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
 
@@ -124,6 +125,8 @@ openingTurn: boolean;
 round: number;
 /** Search the room's supply cache: a stim or some credits, once per host. Returns what was found. */
 openRoomCache: () => string | null;
+/** Take choice k of the event in this room. Returns what happened, or null if it can't be taken. */
+chooseEvent: (k: number) => string | null;
 /** Fight whatever holds the room you're standing in on the hidden map. */
 startRoomFight: () => void;
 startFarmCombat: (level: number) => void;
@@ -183,7 +186,8 @@ function buildPlayer(playerClass: PlayerClass) {
 // The play-i tree's perks plus what the allies riding with this host bring
 const perks = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
 const raw = useInventory.getState().getTotalAugmentationBonuses();
-const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) };
+// Events can cost max health for the rest of this host's life (the scar)
+const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
 const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlotList());
 const player = createPlayer({
 ...augBonuses,
@@ -639,6 +643,41 @@ if (stim) { useInventory.getState().addItems([instancedItem(stim)]); return `You
 const credits = 20 + Math.floor(random() * 30) + Math.max(0, roomById(map.room).threat ?? 0) * 2;
 useInventory.getState().addGold(credits);
 return `You find ¤${credits} in a sealed bag.`;
+},
+chooseEvent: (k) => {
+const map = useMap.getState();
+const ev = eventHere(map);
+const choice = ev?.choices[k];
+if (!ev || !choice) return null;
+const inv = useInventory.getState();
+const worn = AUGMENTATION_SLOTS.map(sl => inv.equippedAugmentations[sl]).filter((i): i is Item => !!i && !i.id.startsWith('frame_'));
+const part = choice.cost?.part ? partToGive(inv.items, worn, powerOf) : null;
+if (cantChoose(choice, inv.gold, !!part)) return null;
+// Seeded per host and room, so a replayed run gets the same outcome
+seedRandom(mixSeed(get().runSeed, hashSeed(`${map.room}:event:${k}`)));
+if (choice.cost?.credits) inv.spendGold(choice.cost.credits);
+if (part) {
+if (part.slot && inv.equippedAugmentations[part.slot as AugmentationSlot]?.id === part.id) inv.unequipAugmentation(part.slot as AugmentationSlot);
+useInventory.getState().removeItem(part.id);
+}
+const won = choice.odds === undefined || random() < choice.odds;
+const out = won ? choice.win : (choice.lose ?? { text: '' });
+const got: string[] = [];
+if (out.implant) {
+const rarity = out.implant === 'better' ? gradeUp(part?.rarity ?? 'common') : out.implant;
+const pool = ITEM_POOLS[rarity];
+const t = pool[Math.floor(random() * pool.length)];
+if (t) { const it = instancedItem(t); useInventory.getState().addItems([it]); got.push(it.name); }
+}
+for (let n = 0; n < (out.stims ?? 0); n++) {
+const stims = ITEMS_2059.filter(i => i.type === 'consumable' && i.consumableEffect && i.consumableEffect !== 'overclock');
+const stim = stims[Math.floor(random() * stims.length)];
+if (stim) { useInventory.getState().addItems([instancedItem(stim)]); got.push(stim.name); }
+}
+if (out.credits) { useInventory.getState().addGold(out.credits); got.push(`¤${out.credits}`); }
+useMap.getState().spendEvent((choice.cost?.health ?? 0) + (out.health ?? 0));
+useAudio.getState().play('cache');
+return [out.text, got.length ? `You get ${got.map(g => g.replace(/^\[[A-Z]+\]\s*/, '')).join(', ')}.` : ''].filter(Boolean).join(' ');
 },
 startRoomFight: () => {
 const room = roomById(useMap.getState().room);

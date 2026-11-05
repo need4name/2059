@@ -5,6 +5,9 @@ import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, DIR_LABEL } from '@/lib/engine/map';
 import { useInventory } from '@/lib/stores/useInventory';
+import { eventHere, cantChoose, partToGive } from '@/lib/engine/events';
+import { powerOf } from '@/lib/combat/augments';
+import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { allyDef } from '@/lib/combat/allies';
@@ -15,7 +18,8 @@ import { SignalMap } from './SignalMap';
 /** The room the signal is standing in: what's here, and the ways on (SignalMap, at the top, draws where it is). */
 export function RoomPanel() {
   const map = useMap();
-  const { progression, openMarket, openRoomCache } = useCombat();
+  const { progression, openMarket, openRoomCache, chooseEvent } = useCombat();
+  const inv = useInventory();
   const allies = useAllies();
   const slots = usePlayi(s => s.perks)().allySlots;
   const room = roomById(map.room);
@@ -66,6 +70,31 @@ export function RoomPanel() {
         )}
         {news && <p className="mt-3 text-sm text-sys">{news}</p>}
       </section>
+
+      {(() => {
+        // A room event: once its fight is won, once per host
+        const ev = eventHere(map, room);
+        if (!ev) return null;
+        const worn = AUGMENTATION_SLOTS.map(sl => inv.equippedAugmentations[sl]).filter((i): i is Item => !!i && !i.id.startsWith('frame_'));
+        const hasPart = !!partToGive(inv.items, worn, powerOf);
+        const costOf = (c: (typeof ev.choices)[number]) => [c.cost?.credits && `¤${c.cost.credits}`, c.cost?.health && `${c.cost.health} max health`, c.cost?.part && 'your weakest part', c.odds !== undefined && 'a risk'].filter(Boolean).join(' · ');
+        return (
+          <section className="slab space-y-3 rounded-[24px] p-4">
+            <p className="text-[15px] leading-relaxed text-hud-text/85">{ev.text}</p>
+            <div className="flex flex-wrap gap-2">
+              {ev.choices.map((c, k) => {
+                const why = cantChoose(c, inv.gold, hasPart);
+                return (
+                  <button key={k} disabled={!!why} onClick={() => setNews(chooseEvent(k))} className={cx(pill, 'flex-col items-start gap-0.5 rounded-[18px] text-left', why && 'opacity-50')}>
+                    <span>{c.label}</span>
+                    <span className="text-[11px] font-medium text-hud-faint">{why ?? (costOf(c) || 'free')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       {room.ally && !fight && (() => {
         const def = allyDef(room.ally)!;

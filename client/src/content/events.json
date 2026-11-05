@@ -1,0 +1,57 @@
+{
+  "events": {
+    "fitter": {
+      "text": "A pump-fleet fitter has laid her tools out on a towel under the painted face. She taps her own chest, then points at yours.",
+      "choices": [
+        {
+          "label": "Let her fit something",
+          "cost": { "health": 10 },
+          "win": { "implant": "rare", "text": "She works without asking what you want. It aches. It fits." }
+        }
+      ]
+    },
+    "swap": {
+      "text": "A boy in a fridge-door boat sorts salvage by touch, his eyes bandaged. He holds out a hand, palm up, and waits.",
+      "choices": [
+        {
+          "label": "Give him a part",
+          "cost": { "part": true },
+          "win": { "implant": "better", "text": "He weighs it, nods, and presses something else into your hand." }
+        }
+      ]
+    },
+    "dice": {
+      "text": "Three people sit round a stove that isn't theirs, throwing chip casings like dice. One of them shifts over to make room.",
+      "choices": [
+        {
+          "label": "Play",
+          "cost": { "credits": 30 },
+          "odds": 0.5,
+          "win": { "credits": 80, "text": "The casings land your way. They pay without looking at you." },
+          "lose": { "text": "The casings land wrong. Someone takes your money without looking up." }
+        }
+      ]
+    },
+    "netted": {
+      "text": "A body hangs in the lowest net, face down in the water. Something still blinks at the back of its neck.",
+      "choices": [
+        {
+          "label": "Cut it loose",
+          "odds": 0.65,
+          "win": { "implant": "uncommon", "text": "It comes free. The blinking stops when you take it." },
+          "lose": { "health": 6, "text": "The net is wired. It bites before it lets go." }
+        }
+      ]
+    },
+    "medic": {
+      "text": "An old woman sits under a crane with a medical kit open on her knees, its seal long broken. She holds up two stims and rubs her fingers together.",
+      "choices": [
+        {
+          "label": "Buy them",
+          "cost": { "credits": 25 },
+          "win": { "stims": 2, "text": "She counts the money twice and hands them over." }
+        }
+      ]
+    }
+  }
+}

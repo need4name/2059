@@ -47,6 +47,8 @@ const MARKS: Record<RoomMark | 'sealed', { rows: string[]; x: string; o?: string
   ally: { x: '#7ee0a0', rows: ['.xx.', '.xx.', 'xxxx', '.xx.', 'x..x'] },
   // A crate with a lid
   cache: { x: '#d9963a', o: '#7d521b', l: '#f2c46e', rows: ['lllll', 'xoxox', 'xxxxx', 'xooox', 'xxxxx'] },
+  // A speech bubble: someone here wants something from you (an event)
+  event: { x: '#c9b6f2', o: '#4b3a72', rows: ['xxxxx', 'xoxox', 'xxxxx', '.x...'] },
   // An eye, not yet looked at closely
   look: { x: '#38d6f0', o: '#0a2f38', rows: ['.xxx.', 'xxoxx', '.xxx.'] },
   // The Grey Lane's coin
