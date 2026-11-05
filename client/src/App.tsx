@@ -3,6 +3,7 @@ import { useCombat } from "./lib/stores/useCombat";
 import { useAudio } from "./lib/stores/useAudio";
 import { GameUI } from "./components/game/GameUI";
 import { TitleScreen } from "./components/game/screens/TitleScreen";
+import { dailyDay, dailySeed } from "./lib/daily";
 
 function App() {
   const [onTitle, setOnTitle] = useState(true);
@@ -13,6 +14,8 @@ function App() {
   const newGame = () => {
     const s = useCombat.getState();
     s.resetAll();
+    // Today's run plays from the day's seed, so everyone gets the same one
+    if (dailyDay) s.setRunSeed(dailySeed(dailyDay));
     s.completeIntro();
     setOnTitle(false);
     s.startCombat();

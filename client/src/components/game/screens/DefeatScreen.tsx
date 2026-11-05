@@ -7,6 +7,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { playiNode, FALLBACK_ID, FALLBACK_NODE, perksFor } from '@/lib/engine/playi';
 import { useAllies } from '@/lib/stores/useAllies';
 import { allyDef } from '@/lib/combat/allies';
+import { dailyDay, dailyRecords, endDaily } from '@/lib/daily';
 
 const CLASS_BLURB: Record<'melee' | 'ranged', string> = {
   melee: 'Up close. Takes a beating.',
@@ -140,6 +141,27 @@ export function DefeatScreen() {
             })}
           </div>
         ) : null}
+      </div>
+    </Screen>
+  );
+}
+
+/** The end of today's run: one life, so the host's deepest level is the score. */
+export function DailyEndScreen() {
+  const { boss, hostBestThreat } = useCombat();
+  const before = dailyDay ? dailyRecords()[dailyDay] : undefined;
+  const newBest = !before || hostBestThreat > before.best;
+  return (
+    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={() => endDaily(hostBestThreat)}>Back to your own game</Btn>}>
+      <div className="relative flex flex-col items-center gap-3 px-4 pt-[24vh] text-center">
+        <Glyph name="signal" size={30} className="signal-pulse text-sys" />
+        <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white">Host lost</h1>
+        <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
+        <div className="slab mt-6 w-full max-w-xs rounded-[24px] p-5">
+          <div className="text-sm text-hud-dim">Today's run, {dailyDay}</div>
+          <div className="mt-1 font-display text-[34px] font-semibold text-white">Level {hostBestThreat}</div>
+          <div className="mt-1 text-sm text-hud-faint">{newBest ? (before ? 'Your best today.' : 'Your first run today.') : `Your best today: level ${before!.best}`}</div>
+        </div>
       </div>
     </Screen>
   );

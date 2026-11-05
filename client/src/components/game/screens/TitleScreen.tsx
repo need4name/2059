@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Btn, ConfirmDialog, Glyph } from '../hud';
 import { useCombat } from '@/lib/stores/useCombat';
+import { dailyDay, dailyRecords, todayKey, startDaily, endDaily } from '@/lib/daily';
 
 export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void; onNewGame: () => void }) {
   const { introCompleted, progression, bossLevel } = useCombat();
   const hasSave = introCompleted || progression.deathCount > 0 || bossLevel > 1;
   const [confirmNew, setConfirmNew] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const best = dailyRecords()[todayKey()];
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-hud-bg">
@@ -26,7 +29,13 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
         <p className="mt-3 font-display text-[15px] font-medium text-hud-dim">The Long Convergence</p>
 
         <div className="mt-14 flex w-full max-w-xs flex-col gap-3">
-          {hasSave ? (
+          {dailyDay ? (
+            <>
+              <div className="mb-1 text-sm text-hud-dim">Today's run · one life</div>
+              <Btn variant="primary" size="lg" onClick={hasSave ? onContinue : onNewGame}>{hasSave ? 'Continue' : 'Wake'}</Btn>
+              <Btn variant="ghost" size="md" onClick={() => setConfirmLeave(true)}>Back to your own game</Btn>
+            </>
+          ) : hasSave ? (
             <>
               <Btn variant="primary" size="lg" onClick={onContinue}>Continue</Btn>
               <Btn variant="ghost" size="md" onClick={() => setConfirmNew(true)}>New game</Btn>
@@ -34,6 +43,11 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
             </>
           ) : (
             <Btn variant="primary" size="lg" onClick={onNewGame}>Wake</Btn>
+          )}
+          {!dailyDay && hasSave && (
+            <Btn variant="ghost" size="md" onClick={startDaily}>
+              Today's run{best ? <span className="ml-2 text-hud-faint">best: level {best.best}</span> : null}
+            </Btn>
           )}
         </div>
       </div>
@@ -46,6 +60,14 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
         danger
         onCancel={() => setConfirmNew(false)}
         onConfirm={() => { setConfirmNew(false); onNewGame(); }}
+      />
+      <ConfirmDialog
+        open={confirmLeave}
+        title="Leave today's run?"
+        body="This run ends here and won't count. Your own game is just as you left it."
+        confirmLabel="Leave"
+        onCancel={() => setConfirmLeave(false)}
+        onConfirm={() => endDaily(null)}
       />
     </div>
   );

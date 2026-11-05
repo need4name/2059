@@ -6,6 +6,7 @@ import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, DIR_LABEL } from '@/lib/engine/map';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useStrain } from '@/lib/stores/useStrain';
+import { firstLifeAt } from '@/lib/daily';
 import { eventHere, cantChoose, partToGive } from '@/lib/engine/events';
 import { powerOf } from '@/lib/combat/augments';
 import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
@@ -26,7 +27,7 @@ export function RoomPanel() {
   const slots = usePlayi(s => s.perks)().allySlots;
   const room = roomById(map.room);
   const fight = hasFight(map, room);
-  const enemy = room.threat !== undefined ? getBossPreview(room.threat, progression.deathCount === 0, room.enemy) : null;
+  const enemy = room.threat !== undefined ? getBossPreview(room.threat, firstLifeAt(progression.deathCount, room.threat), room.enemy) : null;
   const [news, setNews] = useState<string | null>(null);
   const looked = map.looked.includes(room.id);
   const wakingHere = room.id === 'dock' && map.cleared.length === 0 && map.cameFrom === null;

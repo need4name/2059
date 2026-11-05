@@ -33,7 +33,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 
 ## Saves
 
-- Every persisted store writes into one versioned save (`client/src/lib/save.ts`, key `2059-save`) through `saveStorage`. A new persisted store must use `storage: createJSONStorage(() => saveStorage)` and be added to `SAVE_PARTS`. When a save's shape changes, bump `SAVE_VERSION` and add a step to `MIGRATIONS`.
+- Every persisted store writes into one versioned save (`client/src/lib/save.ts`, key `2059-save`) through `saveStorage`. A new persisted store must use `storage: createJSONStorage(() => saveStorage)` and be added to `SAVE_PARTS`. When a save's shape changes, bump `SAVE_VERSION` and add a step to `MIGRATIONS`. Today's run (`lib/daily.ts`) plays in its own slot (`2059-daily-save`), so it never touches the player's own save; its records live under `2059-daily`.
 
 ## Randomness
 

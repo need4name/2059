@@ -2,7 +2,8 @@ import { lazy, Suspense, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { BaseScreen } from './screens/BaseScreen';
 import { VictoryScreen } from './screens/VictoryScreen';
-import { DefeatScreen } from './screens/DefeatScreen';
+import { DefeatScreen, DailyEndScreen } from './screens/DefeatScreen';
+import { dailyDay } from '@/lib/daily';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { useLoadoutSync } from './useActionPool';
@@ -23,7 +24,7 @@ export function GameUI() {
     case 'player_turn':
     case 'enemy_turn': screen = <CombatView />; break;
     case 'victory': screen = <VictoryScreen />; break;
-    case 'defeat': screen = <DefeatScreen />; break;
+    case 'defeat': screen = dailyDay ? <DailyEndScreen /> : <DefeatScreen />; break;
     case 'shop': screen = <ShopScreen />; break;
     default: screen = <BaseScreen />;
   }

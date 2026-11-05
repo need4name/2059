@@ -36,6 +36,7 @@ import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 import { useStrain } from './useStrain';
+import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
@@ -540,7 +541,7 @@ set({ fightsStarted: fightsStarted + 1 });
 const { player, moveRange, perks } = buildPlayer(playerClass);
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
 const strain = useStrain.getState().active;
-const units = planFoes(level, !farm && get().progression.deathCount === 0, farm, roomEnemy).map(u => strainUnit(u, strain));
+const units = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
 const party = partyForFight(perks);
 // The arena makes room for how far you move and how many bodies are on it
 // Map fights use the room's own drawn arena; farm fights roll one

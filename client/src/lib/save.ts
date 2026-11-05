@@ -3,8 +3,11 @@
 // text, imported on another device, and migrated as the game changes.
 import type { StateStorage } from 'zustand/middleware';
 import { alliesUnlockedBy } from './combat/allies';
+import { dailyDay, DAILY_SAVE_KEY } from './daily';
 
 export const SAVE_KEY = '2059-save';
+/** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
+const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
 export const SAVE_VERSION = 8;
 const EXPORT_PREFIX = '2059SAVE:';
@@ -77,7 +80,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       const part = JSON.parse(raw);
       return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { spent: [], scar: 0, ...part.state } }) } };
     } catch { return save; }
-  },  // 7 -> 8: strain joins the save as its own part (older saves have none: locked, nothing on)
+  },
+  // 7 -> 8: strain joins the save as its own part (older saves have none: locked, nothing on)
   7: (save) => save,
 };
 
@@ -104,17 +108,17 @@ export function readSave(): SaveFile {
   if (cache) return cache;
   const ls = storage();
   let save = emptySave();
-  const raw = ls?.getItem(SAVE_KEY);
+  const raw = ls?.getItem(slot());
   if (raw) {
     try { save = migrate(JSON.parse(raw) as SaveFile); } catch { save = emptySave(); }
-  } else if (ls) {
+  } else if (ls && !dailyDay) {
     // Before the single save file, each store had its own key
     for (const part of SAVE_PARTS) {
       const old = ls.getItem(part);
       if (old !== null) save.parts[part] = old;
     }
     if (Object.keys(save.parts).length) {
-      ls.setItem(SAVE_KEY, JSON.stringify(save));
+      ls.setItem(slot(), JSON.stringify(save));
       for (const part of SAVE_PARTS) ls.removeItem(part);
     }
   }
@@ -124,7 +128,7 @@ export function readSave(): SaveFile {
 
 function writeSave(save: SaveFile) {
   cache = { ...save, savedAt: new Date().toISOString() };
-  storage()?.setItem(SAVE_KEY, JSON.stringify(cache));
+  storage()?.setItem(slot(), JSON.stringify(cache));
 }
 
 /** Storage for zustand's persist: every store reads and writes its part of the one save. */

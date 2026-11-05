@@ -24,6 +24,7 @@ import { AlliesTab } from './AlliesTab';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { useStrain } from '@/lib/stores/useStrain';
+import { firstLifeAt } from '@/lib/daily';
 import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
 import { PLAYER_BASE_MOVE, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
 
@@ -441,7 +442,7 @@ export function BaseScreen() {
   const map = useMap();
   const roomNow = roomById(map.room);
   const fightHere = hasFight(map, roomNow);
-  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, progression.deathCount === 0, roomNow.enemy) : null;
+  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, firstLifeAt(progression.deathCount, roomNow.threat), roomNow.enemy) : null;
   const onward = map.done ? nextChapter(map.chapter) : null;
   const { gold, items, equippedAugmentations } = useInventory();
   const { progress, availablePoints } = useAugmentTrees();
