@@ -19,6 +19,8 @@ templateId: item.id,
 id: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 // Active implants are built from parts when they drop (head + mods; see augments.ts)
 parts: item.parts ?? rollParts(item),
+// Its upgrade tree grows from this (seeded, so a replayed run grows the same trees; engine/upgrades.ts)
+...(item.type === 'augmentation' ? { treeSeed: item.treeSeed ?? Math.floor(random() * 4294967296) } : {}),
 };
 }
 

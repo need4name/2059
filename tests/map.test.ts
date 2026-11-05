@@ -216,3 +216,16 @@ test('a fresh map forgets everything, so a new game or the next chapter starts c
   assert.deepEqual(merged.fell, []);
   assert.equal(merged.corpse, null);
 });
+
+test('rooms sit at heights the exits agree with: up climbs, down drops', () => {
+  for (const id of Object.keys(M.MAPS)) {
+    const m = M.MAPS[id], z = M.roomHeights(m);
+    assert.equal(z[m.entry], 0);
+    let ups = 0, upright = 0;
+    for (const r of m.rooms) for (const e of r.exits) {
+      if (e.dir === 'up') { ups++; if (z[e.to] > z[r.id]) upright++; }
+      if (e.dir === 'down') { ups++; if (z[e.to] < z[r.id]) upright++; }
+    }
+    assert.equal(upright, ups, `${id}: every up exit climbs and every down exit drops`);
+  }
+});

@@ -107,6 +107,7 @@ function arenaProblems(id: string, rows?: string[]): string[] {
   for (const e of E) if (!seen.has(e.join(','))) out.push(`map ${id}: enemy start ${e.join(',')} can't be reached from P`);
   return out;
 }
+const OPPOSITE: Record<string, string> = { up: 'down', down: 'up', north: 'south', south: 'north', east: 'west', west: 'east', in: 'out', out: 'in' };
 const mapFile = z.object({
   about: text, chapter: text, title: text, entry: text, end: text, ending: z.string().trim().min(1).max(300), goals: z.array(text).min(1),
   endTitle: text.optional(),
@@ -324,6 +325,8 @@ export function checkContent(): string[] {
       else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);
       if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);
+      // A way back must be the opposite way: up comes back down, north comes back south
+      for (const e of r.exits) for (const b of m.rooms.find(x => x.id === e.to)?.exits ?? []) if (b.to === r.id && b.dir !== OPPOSITE[e.dir]) problems.push(`map ${r.id}: goes ${e.dir} to ${e.to}, but the way back is ${b.dir} (should be ${OPPOSITE[e.dir]})`);
       if (r.look?.goal && !m.goals.includes(r.look.goal)) problems.push(`map ${r.id}: goal "${r.look.goal}" isn't one of the chapter's goals`);
     }
     const allyIds = (allies as { allies: { id: string }[] }).allies.map(a => a.id);

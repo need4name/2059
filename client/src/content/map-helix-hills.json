@@ -980,7 +980,7 @@
           "to": "guardhouse"
         },
         {
-          "dir": "north",
+          "dir": "down",
           "hint": "a shaft down into the dark",
           "to": "shaft"
         }

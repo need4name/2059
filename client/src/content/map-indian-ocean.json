@@ -242,7 +242,7 @@
           "to": "shacks"
         },
         {
-          "dir": "east",
+          "dir": "up",
           "hint": "the thump of pumps",
           "to": "pumps"
         }
@@ -276,7 +276,7 @@
           "to": "hull"
         },
         {
-          "dir": "west",
+          "dir": "down",
           "hint": "the bilge",
           "to": "bilge"
         },
@@ -313,7 +313,7 @@
           "to": "stall"
         },
         {
-          "dir": "east",
+          "dir": "north",
           "hint": "the pump room",
           "to": "pumps"
         },
@@ -499,7 +499,7 @@
           "to": "cables"
         },
         {
-          "dir": "south",
+          "dir": "up",
           "hint": "steps up to something",
           "to": "approach"
         }
@@ -531,7 +531,7 @@
           "to": "nets"
         },
         {
-          "dir": "east",
+          "dir": "down",
           "hint": "the generator",
           "to": "generator"
         },
@@ -1232,7 +1232,7 @@
           "to": "drift"
         },
         {
-          "dir": "south",
+          "dir": "down",
           "label": "Follow the wake down",
           "hint": "a spire under the water",
           "to": "spire",
@@ -1266,7 +1266,7 @@
       "quiet": "The tower's lights are out and the water round it is still. Nothing down there is listening any more.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "up",
           "hint": "the wake",
           "to": "wake"
         }

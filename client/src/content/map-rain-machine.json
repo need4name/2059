@@ -295,7 +295,7 @@
           "to": "foreman"
         },
         {
-          "dir": "east",
+          "dir": "down",
           "hint": "the seed depot",
           "to": "depot"
         },

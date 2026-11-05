@@ -124,7 +124,7 @@ export function takeCorpse(s: MapState): { state: MapState; item: Item | null } 
  */
 export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'event' | 'look' | 'market' | 'cleared';
 /** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
-export interface MapRoom { id: string; at: [number, number]; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
+export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
 
 export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark | null {
   if (hasFight(s, room)) return room.threat! % 10 === 0 ? 'boss' : room.threat! % 5 === 0 ? 'elite' : 'fight';
@@ -142,6 +142,7 @@ export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark 
  *  `met` is the allies already linked, so their rooms stop calling. */
 export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; links: [string, string][] } {
   const m = mapOf(s.chapter);
+  const heights = roomHeights(m);
   const byId = new Map(m.rooms.map(r => [r.id, r]));
   const seen = new Set(s.visited);
   const fell = new Set(s.fell ?? []);
@@ -156,9 +157,41 @@ export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; li
   const rooms = Array.from(shown).map(id => {
     const r = byId.get(id)!;
     const mark = seen.has(id) ? roomMark(s, r, met) : null;
-    return { id, at: r.at, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id), corpse: s.corpse?.room === id };
+    return { id, at: r.at, z: heights[id] ?? 0, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id), corpse: s.corpse?.room === id };
   });
   return { rooms, links };
+}
+
+/**
+ * How high each room sits, for the drawn map: up exits climb a level, down exits
+ * drop one, every other way stays level. Where loops of exits don't quite agree,
+ * the heights that fit every exit best win (a least-squares settle, the entry at
+ * 0), so a disagreement shows as a gentle slope rather than a wrong way round.
+ */
+const heightCache = new Map<string, Record<string, number>>();
+export function roomHeights(m: ChapterMap): Record<string, number> {
+  const hit = heightCache.get(m.chapter);
+  if (hit) return hit;
+  const rise = (dir: string) => (dir === 'up' ? 1 : dir === 'down' ? -1 : 0);
+  const z: Record<string, number> = Object.fromEntries(m.rooms.map(r => [r.id, 0]));
+  // Start from a walk outward, then settle each room toward what its exits say
+  const queue = [m.entry], seen = new Set(queue);
+  while (queue.length) {
+    const a = queue.shift()!;
+    for (const e of m.rooms.find(r => r.id === a)!.exits) if (!seen.has(e.to)) { seen.add(e.to); z[e.to] = z[a] + rise(e.dir); queue.push(e.to); }
+  }
+  const links = m.rooms.flatMap(r => r.exits.map(e => ({ a: r.id, b: e.to, d: rise(e.dir) })));
+  for (let pass = 0; pass < 300; pass++) {
+    for (const r of m.rooms) {
+      if (r.id === m.entry) continue;
+      const mine = links.filter(l => l.a === r.id || l.b === r.id);
+      if (!mine.length) continue;
+      z[r.id] = mine.reduce((n, l) => n + (l.a === r.id ? z[l.b] - l.d : z[l.a] + l.d), 0) / mine.length;
+    }
+  }
+  const out = Object.fromEntries(Object.entries(z).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+  heightCache.set(m.chapter, out);
+  return out;
 }
 
 /** Exits you can see from here, as the screen shows them. */

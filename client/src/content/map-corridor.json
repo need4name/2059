@@ -172,7 +172,7 @@
           "to": "switches"
         },
         {
-          "dir": "west",
+          "dir": "south",
           "hint": "the maintenance bay",
           "to": "bay1"
         },
@@ -461,7 +461,7 @@
           "to": "archiveracks"
         },
         {
-          "dir": "west",
+          "dir": "south",
           "hint": "the drone bay",
           "to": "dronebay"
         },
@@ -664,7 +664,7 @@
           "to": "listening"
         },
         {
-          "dir": "north",
+          "dir": "up",
           "hint": "the uplink stairs",
           "to": "uplinkstairs"
         }
@@ -690,12 +690,12 @@
       ],
       "exits": [
         {
-          "dir": "south",
+          "dir": "down",
           "hint": "the signatory's office",
           "to": "office"
         },
         {
-          "dir": "north",
+          "dir": "up",
           "hint": "the roof",
           "to": "roof"
         }
@@ -721,7 +721,7 @@
       ],
       "exits": [
         {
-          "dir": "south",
+          "dir": "down",
           "hint": "the uplink stairs",
           "to": "uplinkstairs"
         },

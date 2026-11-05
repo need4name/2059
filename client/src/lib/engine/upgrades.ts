@@ -7,8 +7,10 @@
 // Points come from winning fights and come back when the implant is sold or
 // given away. Pure functions; the store keeps who owns what.
 //
-// The tree's own dice come from a hash of the implant's id, never from the
-// run's random(), so looking at a tree can't change a seeded run.
+// The tree's own dice come from the implant's treeSeed (rolled from the run's
+// dice when it drops, so a replayed run grows the same trees) or, for older
+// implants, its id. Growing a tree never draws on random(), so looking at one
+// can't change a seeded run.
 
 import data from '../../content/upgrades.json';
 import type { ActionEffects, Item, ItemRarity } from '../combat/types';
@@ -64,10 +66,11 @@ const cache = new Map<string, UpgradeNode[]>();
 
 /** The tree an implant grows (the same every time for the same part). */
 export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
-  const key = `${item.id}:${item.templateId ?? item.name}:${kind}:${item.rarity}`;
+  const seed = item.treeSeed !== undefined ? `seed:${item.treeSeed}` : `tree:${item.id}`;
+  const key = `${seed}:${item.templateId ?? item.name}:${kind}:${item.rarity}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const roll = dice(`tree:${item.id}`);
+  const roll = dice(seed);
   const shape = SHAPES[item.rarity] ?? SHAPES.common;
   const maker = makerOf(item);
 

@@ -174,6 +174,8 @@ signature?: boolean;
 heads?: string[];
 /** Active implants: the head (attack shape) and mods (side effects) this one was built with. */
 parts?: { head: string; mods: string[] };
+/** What its upgrade tree grows from (set when it drops, from the run's dice). Older implants use their id. */
+treeSeed?: number;
 }
 
 export interface LootDrop {
