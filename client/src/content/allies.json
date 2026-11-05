@@ -1,8 +1,8 @@
 {
-  "about": "Allies: other minds in metal the signal can link with, met in rooms on the map. One joins each host (two with Second link). unlockLevel sets their strength: stats are relative to a regular enemy of that level (match it to the threat where they are met); moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you. `story` is three lines the ally lets slip at levels 3, 6 and 10 (ALLY_STORY_AT): they show on the Allies page and go into the journal.",
+  "about": "Allies: other minds in metal the signal can link with, met in rooms on the map. One joins each host (two with Second link). unlockLevel sets their strength: stats are relative to a regular enemy of that level (match it to the threat where they are met); moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you. `speed` is how often it takes its own turn (10 is average, like an unhurried host). `story` is three lines the ally lets slip at levels 3, 6 and 10 (ALLY_STORY_AT): they show on the Allies page and go into the journal.",
   "allies": [
     {
-      "id": "bale", "name": "Bale", "maker": "Tianxia", "role": "Tank", "unlockLevel": 10, "color": "#f59e0b",
+      "id": "bale", "speed": 8, "name": "Bale", "maker": "Tianxia", "role": "Tank", "unlockLevel": 10, "color": "#f59e0b",
       "blurb": "A dock-loader frame. Whoever was copied into it still says sorry when it bumps into things.",
       "hp": 1.5, "attack": 8, "defense": 8, "move": 2,
       "affinity": ["TIANXIA", "PARSU"], "link": "Load-bearing: your structure bar is 10% bigger.",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "matron", "name": "Matron", "maker": "Crown", "role": "Healer", "unlockLevel": 15, "color": "#f472b6",
+      "id": "matron", "speed": 10, "name": "Matron", "maker": "Crown", "role": "Healer", "unlockLevel": 15, "color": "#f472b6",
       "blurb": "A private-ward nurse unit. She was a real nurse once. She doesn't talk about which one.",
       "hp": 0.9, "attack": 6, "defense": 4, "move": 2,
       "affinity": ["CROWN"], "link": "Bedside manner: every brace also heals 5% of your health.",
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "id": "ghostline", "name": "Ghostline", "maker": "Kizuna", "role": "Spotter", "unlockLevel": 20, "color": "#a78bfa",
+      "id": "ghostline", "speed": 12, "name": "Ghostline", "maker": "Kizuna", "role": "Spotter", "unlockLevel": 20, "color": "#a78bfa",
       "blurb": "A military sensor shell. Its mind was a soldier's, sold in a lot of forty.",
       "hp": 0.8, "attack": 10, "defense": 3, "move": 2,
       "affinity": ["KIZUNA", "IOA"], "link": "Spotter: your first attack each fight always lands in full.",
@@ -35,7 +35,7 @@
       ]
     },
     {
-      "id": "ward", "name": "Ward", "maker": "Helix", "role": "Shield", "unlockLevel": 25, "color": "#38bdf8",
+      "id": "ward", "speed": 9, "name": "Ward", "maker": "Helix", "role": "Shield", "unlockLevel": 25, "color": "#38bdf8",
       "blurb": "A Helix continuity guard that walked off its post. Still won't carry a gun.",
       "hp": 1.3, "attack": 6, "defense": 10, "move": 2,
       "affinity": ["HELIX"], "link": "Cover me: parting blows do half damage to you.",
@@ -46,7 +46,7 @@
       ]
     },
     {
-      "id": "breaker", "name": "Breaker", "maker": "Volkov", "role": "Damage", "unlockLevel": 30, "color": "#ef4444",
+      "id": "breaker", "speed": 11, "name": "Breaker", "maker": "Volkov", "role": "Damage", "unlockLevel": 30, "color": "#ef4444",
       "blurb": "Operator limbs on a cheap torso. The mind inside asks for one thing: something to hit.",
       "hp": 1.0, "attack": 14, "defense": 5, "move": 2,
       "affinity": ["VOLKOV", "CBN"], "link": "Follow-through: enemies you knock into things take 50% more collision damage.",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "id": "tally", "name": "Tally", "maker": "IOA", "role": "Decoy", "unlockLevel": 8, "color": "#7dd3fc",
+      "id": "tally", "speed": 11, "name": "Tally", "maker": "IOA", "role": "Decoy", "unlockLevel": 8, "color": "#7dd3fc",
       "blurb": "Scanned at the checkpoint so many times there are several of them. This one isn't sure it was the first.",
       "hp": 1.0, "attack": 9, "defense": 6, "move": 3,
       "affinity": ["IOA", "KIZUNA"], "link": "Which one is real: the first heavy aimed at you each fight misses.",
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "id": "ninety", "name": "Ninety", "maker": "Helix", "role": "Insomniac", "unlockLevel": 8, "color": "#facc15",
+      "id": "ninety", "speed": 10, "name": "Ninety", "maker": "Helix", "role": "Insomniac", "unlockLevel": 8, "color": "#facc15",
       "blurb": "Woke up mid-sentence and has lived years in a few months. Calls the signal the thing in the walls.",
       "hp": 1.1, "attack": 8, "defense": 6, "move": 2,
       "affinity": ["HELIX", "CROWN"], "link": "Lucid: the sleeper inside your host never flinches.",
@@ -79,7 +79,7 @@
       ]
     },
     {
-      "id": "dust", "name": "Dust", "maker": "Tianxia", "role": "Scout", "unlockLevel": 9, "color": "#fbbf24",
+      "id": "dust", "speed": 10, "name": "Dust", "maker": "Tianxia", "role": "Scout", "unlockLevel": 9, "color": "#fbbf24",
       "blurb": "A farmer from the dry valley who knows when the drones will fly, and hasn't seen rain fall on their own land in years.",
       "hp": 1.0, "attack": 9, "defense": 5, "move": 3,
       "affinity": ["TIANXIA", "PARSU"], "link": "Reads the wind: it never pushes you.",

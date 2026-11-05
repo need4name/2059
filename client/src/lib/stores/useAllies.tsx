@@ -110,7 +110,7 @@ export function partyForFight(perks: Perks) {
     const { level } = st.progress(def!.id);
     const gear = st.gear[def!.id] ?? {};
     const moves = allyMoves(def!, level, gear);
-    return { id: def!.id, unit: allyUnit(def!, level, perks.allyHpMult, gear), moves, move: def!.move, cooldowns: moves.map(() => 0) };
+    return { id: def!.id, unit: allyUnit(def!, level, perks.allyHpMult, gear), moves, move: def!.move, cooldowns: moves.map(() => 0), speed: def!.speed };
   });
 }
 

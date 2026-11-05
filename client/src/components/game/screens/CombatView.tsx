@@ -191,42 +191,49 @@ function allyMoveDetail(m: AllyMove): string {
   }
 }
 
-/** Your allies: move them and use one of their fixed moves, any time in your turn. */
-function AllyStrip() {
+/**
+ * An ally's own turn: its moves take the place of yours. Tap a lit tile to move it
+ * (once, before it acts), then use one of its moves; acting ends its turn.
+ */
+function AllyTurnPanel({ k }: { k: number }) {
   const s = useCombat();
-  const { allies, allyMoveMode, toggleAllyMove, allyAct, phase, inputLocked, reflexMoveOpen } = s;
-  if (!allies.length) return null;
-  const myTurn = phase === 'player_turn' && !inputLocked && !reflexMoveOpen;
+  const { allies, allyAct, toggleAllyMove, allyMoveMode, endTurn, phase, inputLocked } = s;
+  const a = allies[k];
+  if (!a) return null;
+  const color = a.unit.spriteColor;
+  const live = phase === 'player_turn' && !inputLocked;
+  const canMove = live && !a.moved && !a.acted && Fight.allyReach(useCombat.getState(), k).size > 0;
   return (
-    <div className="mb-2 space-y-1.5">
-      {allies.map((a, k) => {
-        const down = a.unit.currentHp <= 0;
-        const color = a.unit.spriteColor;
-        const canMove = myTurn && !down && !a.moved && !a.acted;
-        return (
-          <div key={a.id} className={cx('flex items-center gap-1.5 rounded-2xl bg-white/[0.04] p-1.5', down && 'opacity-45')}>
-            <button onClick={() => toggleAllyMove(k)} disabled={!canMove} aria-pressed={allyMoveMode === k}
-              className={cx('w-[84px] shrink-0 rounded-xl px-2 py-1 text-left transition disabled:cursor-default', allyMoveMode === k ? 'bg-white/[0.12] ring-1' : canMove ? 'hover:bg-white/[0.08]' : '')}
-              style={allyMoveMode === k ? { boxShadow: `0 0 0 1px ${color}` } : undefined}>
-              <span className="block truncate font-display text-[12px] font-semibold" style={{ color }}>{a.unit.name}</span>
-              <span className="block text-[10px] text-hud-faint">{down ? 'Knocked out' : allyMoveMode === k ? 'Tap a tile' : canMove ? 'Tap to move' : a.acted ? 'Done' : 'Moved'}</span>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2.5 px-1">
+        <Portrait id={a.id} size={26} />
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-[15px] font-semibold" style={{ color }}>{a.unit.name}'s turn</div>
+          <div className="text-[11px] text-hud-dim">{a.acted ? 'Done' : a.moved ? 'Moved. Pick a move, or end the turn.' : canMove ? (allyMoveMode === k ? 'Tap a lit tile to move' : 'Tap it to move it') : 'Pick a move'}</div>
+        </div>
+        <div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
+          <div className="mt-0.5 text-right text-[10px] text-hud-faint">{a.unit.currentHp}/{a.unit.maxHp}</div></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {a.moves.map((m, n) => {
+          const cd = a.cooldowns[n] ?? 0;
+          const usable = live && Fight.canAllyUse(useCombat.getState(), k, n);
+          const reason = cd > 0 ? `Ready in ${cd}` : m.effect === 'attack' && !usable ? 'Out of reach: move closer' : allyMoveDetail(m);
+          return (
+            <button key={m.name} onClick={() => allyAct(k, n)} disabled={!usable}
+              className={cx('key flex min-h-[64px] flex-col items-start justify-center gap-0.5 rounded-2xl px-3 py-2 text-left', !usable && 'opacity-50')}>
+              <span className="w-full truncate font-display text-[14px] font-semibold" style={{ color: usable ? color : undefined }}>{m.name}</span>
+              <span className="w-full truncate text-[11px] text-hud-dim">{reason}</span>
             </button>
-            {a.moves.map((m, n) => {
-              const cd = a.cooldowns[n] ?? 0;
-              const usable = myTurn && Fight.canAllyUse(useCombat.getState(), k, n);
-              const reason = down ? '' : a.acted ? 'Done this round' : cd > 0 ? `Ready in ${cd}` : m.effect === 'attack' && !usable ? 'Out of range' : allyMoveDetail(m);
-              return (
-                <button key={m.name} onClick={() => allyAct(k, n)} disabled={!myTurn || down || a.acted || cd > 0}
-                  className={cx('min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left transition disabled:opacity-50', usable ? 'bg-white/[0.07] hover:bg-white/[0.12]' : 'bg-white/[0.03]')}>
-                  <span className="block truncate text-[12px] font-semibold text-hud-text">{m.name}</span>
-                  <span className={cx('block truncate text-[10px]', usable ? 'text-hud-dim' : 'text-hud-faint')}>{reason}</span>
-                </button>
-              );
-            })}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div className="flex gap-2">
+        {canMove && <Btn className="shrink-0 px-3.5" onClick={() => toggleAllyMove(k)}>{allyMoveMode === k ? 'Stay put' : 'Move'}</Btn>}
+        <Btn variant={live ? 'primary' : 'secondary'} className="min-w-0 flex-1 truncate" disabled={!live} onClick={endTurn}>
+          {live ? `End ${a.unit.name}'s turn` : 'Resolving…'}
+        </Btn>
+      </div>
     </div>
   );
 }
@@ -305,12 +312,15 @@ function TurnStrip() {
   const { foes, allies, acting, clock } = s;
   if (acting === null || !foes.length) return null;
   const ahead = Fight.forecast(s, clock, 5, acting);
-  const face = (a: Fight.Actor, key: string, now: boolean) => (
-    <div key={key} className={cx('relative flex items-center gap-0.5 rounded-full p-0.5', now && (a === 'player' ? 'bg-sys/40 ring-1 ring-sys' : 'bg-hostile/50 ring-1 ring-hostile'), !now && 'opacity-80')}>
-      <Portrait id={a === 'player' ? 'host' : foes[a].unit.name} size={now ? undefined : 18} />
-      {a === 'player' && now && allies.filter(x => x.unit.currentHp > 0).map(x => <Portrait key={x.id} id={x.id} size={18} />)}
-    </div>
-  );
+  const face = (a: Fight.Actor, key: string, now: boolean) => {
+    const k = Fight.allyOf(a), ally = k !== null ? allies[k] : null;
+    return (
+      <div key={key} className={cx('relative flex items-center gap-0.5 rounded-full p-0.5', now && (a === 'player' ? 'bg-sys/40 ring-1 ring-sys' : ally ? 'ring-1' : 'bg-hostile/50 ring-1 ring-hostile'), !now && 'opacity-80')}
+        style={now && ally ? { background: `${ally.unit.spriteColor}55`, boxShadow: `0 0 0 1px ${ally.unit.spriteColor}` } : undefined}>
+        <Portrait id={a === 'player' ? 'host' : ally ? ally.id : foes[a as number].unit.name} size={now ? undefined : 18} />
+      </div>
+    );
+  };
   return (
     <div className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-1 ring-1 ring-white/10" aria-label="Turn order">
       {face(acting, 'now', true)}
@@ -321,7 +331,7 @@ function TurnStrip() {
 }
 
 function ActionBar() {
-  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player } = useCombat();
+  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
   const { items } = useInventory();
   const { slots } = useLoadout();
   const [bag, setBag] = useState(false);
@@ -331,8 +341,8 @@ function ActionBar() {
 
   return (
     <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
+      {allyTurn !== null ? <AllyTurnPanel k={allyTurn} /> : <>
       <OverloadBar />
-      <AllyStrip />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="well flex min-h-[64px] items-center justify-center rounded-2xl text-[11px] text-hud-faint">Empty</div>
@@ -354,6 +364,7 @@ function ActionBar() {
           {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
         </Btn>
       </div>
+      </>}
       <div className="mt-1 flex items-center justify-between px-1 text-[11px] text-hud-faint">
         <span />
         <button className="shrink-0 py-1.5 pl-3 text-hud-dim hover:text-hud-text" onClick={() => setConfirmExit(true)}>Retreat</button>

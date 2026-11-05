@@ -34,6 +34,8 @@ export interface AllyDef {
   moves: AllyMove[];
   /** Three lines it lets slip as it levels (at ALLY_STORY_AT). */
   story: string[];
+  /** How often it takes its own turn (SPEED.base, 10, is average). */
+  speed: number;
 }
 
 /** The ally levels at which each story line comes out. */

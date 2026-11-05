@@ -97,6 +97,8 @@ export interface Ally {
   stunned: boolean;
   /** Knocked into the sea: can't be hit, and spends its next turn climbing out. */
   swimming?: boolean;
+  /** Its own speed: allies take their own turns on the clock (SPEED.base is average). */
+  speed?: number;
 }
 
 export interface FightState {
@@ -448,8 +450,12 @@ export function implantDrive(items: Item[]): number {
   return imps.length ? imps.reduce((n, i) => n + DRIVE[makerOf(i)], 0) / imps.length : 0;
 }
 
-/** Who takes a turn: the player (with allies) or foe i. */
-export type Actor = 'player' | number;
+/** Who takes a turn: the player, foe i, or ally k (`ally0`, `ally1`). */
+export type AllyActor = `ally${number}`;
+export type Actor = 'player' | number | AllyActor;
+export const allyActor = (k: number): AllyActor => `ally${k}`;
+/** The ally index behind an actor, or null if it isn't an ally. */
+export const allyOf = (a: Actor | null): number | null => (typeof a === 'string' && a.startsWith('ally') ? Number(a.slice(4)) : null);
 
 /** Speed right now, rounded to one decimal. */
 export function speedOf(s: FightState, a: Actor): number {
@@ -457,6 +463,8 @@ export function speedOf(s: FightState, a: Actor): number {
   if (a === 'player') {
     v = SPEED.base + (s.playerDrive ?? 0) - (s.playerHeat >= SPEED.hot ? SPEED.hotPenalty : 0)
       + ((s.playerHasted ?? 0) > 0 ? SPEED.status : 0) - ((s.playerSlowed ?? 0) > 0 ? SPEED.status : 0);
+  } else if (typeof a === 'string') {
+    v = s.allies[allyOf(a)!]?.speed ?? SPEED.base;
   } else {
     const f = s.foes[a];
     v = SPEED.base + implantDrive(f.unit.carried ?? []) + (hasTrait(f, 'fast') ? SPEED.fast : 0) - (f.heat >= SPEED.hot ? SPEED.hotPenalty : 0)
@@ -476,7 +484,10 @@ export const ROUND = 100;
 /** When each body next acts (player under 'player', foes under their index), and the time now. */
 export interface Clock { now: number; at: Record<string, number> }
 
-const liveActors = (s: FightState): Actor[] => ['player', ...s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i]))];
+const liveActors = (s: FightState): Actor[] => [
+  'player', ...s.foes.map((_, i) => i).filter(i => isAlive(s.foes[i])),
+  ...s.allies.map((_, k) => k).filter(k => allyAlive(s.allies[k])).map(allyActor),
+];
 /** How long a body waits between turns at its speed right now. */
 export const turnGap = (s: FightState, a: Actor): number => (ROUND * SPEED.base) / Math.max(2, speedOf(s, a));
 /** Which round a moment on the clock falls in (the first is 1). */
@@ -520,7 +531,7 @@ export function forecast(s: FightState, c: Clock, n: number, acting: Actor | nul
 /** Foes that will act twice or more before the player's next turn (`acting` is whoever is mid-turn). */
 export function doubleTurns(s: FightState, c: Clock, acting: Actor | null): number[] {
   const ahead = forecast(s, c, 12, acting);
-  const before = ahead.slice(0, Math.max(0, ahead.indexOf('player'))) as number[];
+  const before = ahead.slice(0, Math.max(0, ahead.indexOf('player'))).filter((a): a is number => typeof a === 'number');
   return Array.from(new Set(before.filter((i, n) => before.indexOf(i) !== n)));
 }
 
@@ -585,8 +596,6 @@ export function startPlayerTurn(s: FightState): FightState {
   return {
     ...s,
     playerHeat,
-    allies: s.allies.map(a => ({ ...a, moved: false, acted: false, taunting: false, defenseBoost: 0, cooldowns: a.cooldowns.map(c => Math.max(0, c - 1)) })),
-    mark: null, allyHitFoes: [], allyGuard: 0,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
     noParting: false,
@@ -730,16 +739,6 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
     events.push(say(`Bleeding: -${dmg} HP`, 'damage'));
     state = { ...hurt(state, { kind: 'player' }, dmg, events), playerBleeding: (s.playerBleeding ?? 0) - 1 };
   }
-  // Allies burn too, and a stunned ally sits this round out
-  state.allies.forEach((a, k) => {
-    if (!allyAlive(a) || a.burning <= 0) return;
-    const dmg = burnDamage(a.unit.maxHp);
-    events.push(say(`${a.unit.name} is burning: -${dmg}`, 'damage'), { kind: 'burn' });
-    state = hurt(state, { kind: 'ally', k }, dmg, events);
-    state = { ...state, allies: state.allies.map((x, n) => (n === k ? { ...x, burning: x.burning - 1 } : x)) };
-  });
-  state = { ...state, allies: state.allies.map(a => (a.stunned ? { ...a, stunned: false, acted: true, moved: true } : a)) };
-  state.allies.forEach((a, k) => { if (allyAlive(a) && a.swimming) state = climbOut(state, { kind: 'ally', k }, events); });
   const down = events.some(e => e.kind === 'playerDown');
   const swam = !!s.playerSwimming && !down;
   if (swam) state = climbOut(state, { kind: 'player' }, events);
@@ -747,6 +746,32 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   if (s.playerStunned && skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false }; }
   return { state, events, skipTurn };
 }
+
+/**
+ * Start of ally k's own turn: its guard and its draw-fire end, its cooldowns tick
+ * down, it burns; a stun or a climb out of the sea costs it the turn. The guard it
+ * gave you (`allyGuard`) lasts until now too.
+ */
+export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: boolean } {
+  const a = s.allies[k];
+  const events: FightEvent[] = [];
+  if (!a || !allyAlive(a)) return { state: s, events, skipTurn: true };
+  let state = setAlly(s, k, { moved: false, acted: false, taunting: false, defenseBoost: 0, cooldowns: a.cooldowns.map(c => Math.max(0, c - 1)) });
+  state = { ...state, allyGuard: 0 };
+  if (a.burning > 0) {
+    const dmg = burnDamage(a.unit.maxHp);
+    events.push(say(`${a.unit.name} is burning: -${dmg}`, 'damage'), { kind: 'burn' });
+    state = hurt(state, { kind: 'ally', k }, dmg, events);
+    state = setAlly(state, k, { burning: a.burning - 1 });
+    if (!allyAlive(state.allies[k])) return { state, events, skipTurn: true };
+  }
+  if (a.stunned) { events.push(say(`${a.unit.name} is stunned and loses the turn`, 'critical')); return { state: setAlly(state, k, { stunned: false, acted: true, moved: true }), events, skipTurn: true }; }
+  if (a.swimming) { state = climbOut(state, { kind: 'ally', k }, events); return { state, events, skipTurn: true }; }
+  return { state, events, skipTurn: false };
+}
+
+/** The end of the player's turn: what allies set up for it (a mark, Coordinated) is spent. */
+export const endPlayerTurn = (s: FightState): FightState => ({ ...s, mark: null, allyHitFoes: [] });
 
 /** Aim at a different foe (only living ones). */
 export function setTarget(s: FightState, i: number): FightState {

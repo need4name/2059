@@ -54,17 +54,44 @@ test('enemies go for whoever is nearest, the player winning ties', () => {
   assert.equal(Fight.victimOf(tie, 0), -1);
 });
 
-test('Draw fire pulls every enemy onto the ally until the next turn', () => {
+test("Draw fire pulls every enemy onto the ally until the ally's next turn", () => {
   const s = fight([ally('bale', [8, 0])]);
   const taunted = Fight.resolveAllyMove(s, 0, 1).state;
   assert.equal(taunted.allies[0].taunting, true);
   assert.equal(Fight.victimOf(taunted, 0), 0);
-  assert.equal(Fight.canAllyUse(taunted, 0, 1), false, 'one action a round');
-  const next = Fight.startPlayerTurn(taunted);
+  assert.equal(Fight.canAllyUse(taunted, 0, 1), false, 'one action a turn');
+  assert.equal(Fight.startPlayerTurn(taunted).allies[0].taunting, true, "the player's turn doesn't end it");
+  const next = Fight.startAllyTurn(taunted, 0).state;
   assert.equal(next.allies[0].taunting, false);
   assert.equal(next.allies[0].cooldowns[1], 1, 'cooldown ticks down');
   assert.equal(Fight.canAllyUse(next, 0, 1), false);
-  assert.equal(Fight.canAllyUse(Fight.startPlayerTurn(next), 0, 1), true);
+  assert.equal(Fight.canAllyUse(Fight.startAllyTurn(next, 0).state, 0, 1), true);
+});
+
+test('allies take their own turns on the clock, as often as their speed allows', () => {
+  const slow = fight([{ ...ally('bale', [8, 0]), speed: 8 }]);
+  const quick = fight([{ ...ally('bale', [8, 0]), speed: 14 }]);
+  const count = (s: any) => Fight.forecast(s, Fight.startClock(s), 30).filter(a => a === 'ally0').length;
+  assert.ok(count(slow) > 0, 'an ally gets turns');
+  assert.ok(count(quick) > count(slow), 'a faster ally gets more of them');
+  assert.equal(Fight.allyOf('ally0'), 0);
+  assert.equal(Fight.allyOf('player'), null);
+  assert.equal(Fight.allyOf(2), null);
+  // A knocked out ally drops out of the order
+  const out = { ...slow, allies: slow.allies.map(a => ({ ...a, unit: { ...a.unit, currentHp: 0 } })) };
+  assert.equal(Fight.forecast(out, Fight.startClock(out), 20).filter(a => a === 'ally0').length, 0);
+});
+
+test("a stunned ally loses its own turn; an ally's mark lasts until the player's turn ends", () => {
+  const s = fight([{ ...ally('bale', [8, 0]), stunned: true }]);
+  const start = Fight.startAllyTurn(s, 0);
+  assert.equal(start.skipTurn, true);
+  assert.equal(start.state.allies[0].stunned, false);
+  const marked = { ...s, mark: { foe: 0, bonus: 0.2 }, allyHitFoes: [0] };
+  assert.deepEqual(Fight.startPlayerTurn(marked).mark, marked.mark, 'still there when the player acts');
+  const ended = Fight.endPlayerTurn(marked);
+  assert.equal(ended.mark, null);
+  assert.deepEqual(ended.allyHitFoes, []);
 });
 
 test('a hit on an ally hurts the ally, not the player; a knockout does not end the fight', () => {

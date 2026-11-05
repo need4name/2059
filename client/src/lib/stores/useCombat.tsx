@@ -159,6 +159,8 @@ fightIntro: { speaker: string; color: string; line: string | null; note: string 
 dismissIntro: () => void;
 /** Which ally the next grid tap moves (null: taps move the player). */
 allyMoveMode: number | null;
+/** The ally whose turn it is (the action bar shows its moves), or null. */
+allyTurn: number | null;
 toggleAllyMove: (ally: number) => void;
 moveAlly: (pos: TilePosition) => void;
 allyAct: (ally: number, move: number) => void;
@@ -334,7 +336,7 @@ if (apply(cond)) return;
 if (!cond.skipTurn && activeChapter().rules?.flinch && apply(Fight.dreamerFlinch(fightState()))) return;
 const { grid } = get();
 set({
-phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, allyMoveMode: null,
+phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, allyMoveMode: null, allyTurn: null,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
 });
@@ -436,6 +438,7 @@ nextActor();
 const nextActor = () => {
 let { clock } = get();
 const done = get().acting;
+if (done === 'player') save(Fight.endPlayerTurn(fightState()));
 if (done !== null) { clock = Fight.spendTurn(fightState(), clock, done); set({ clock, acting: null }); }
 const { who, at } = Fight.nextUp(fightState(), clock);
 if (Fight.roundOf(at) > get().round) { beginRound(); return; }
@@ -446,8 +449,26 @@ if (get().openingTurn) { set({ phase: 'player_turn', inputLocked: false, actingF
 beginPlayerTurn();
 return;
 }
+const k = Fight.allyOf(who);
+if (k !== null) { beginAllyTurn(k); return; }
 set({ phase: 'enemy_turn', inputLocked: true });
-runFoeTurn(who);
+runFoeTurn(who as number);
+};
+
+// Ally k's own turn: the action bar shows its moves and grid taps move it. A stun or a climb out of the sea costs it
+const beginAllyTurn = (k: number) => {
+set({ actingFoe: null, selectedAction: null, selectedMovement: null, openingTurn: false });
+const start = Fight.startAllyTurn(fightState(), k);
+if (apply(start)) return;
+if (start.skipTurn) { set({ phase: 'enemy_turn', inputLocked: true, allyTurn: null }); later(nextActor, FOE_GAP_DELAY); return; }
+set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyMoveMode: Fight.allyReach(fightState(), k).size ? k : null });
+};
+
+// Ally k's turn is over (it acted, or the player ended it)
+const endAllyTurn = () => {
+if (get().allyTurn === null) return;
+set({ allyTurn: null, allyMoveMode: null, phase: 'enemy_turn', inputLocked: true });
+later(nextActor, FOE_GAP_DELAY);
 };
 
 // Foe i takes its turn: attack (or wind up, or walk), then walk, then whoever is next.
@@ -459,7 +480,7 @@ const step = Fight.foeTurn(fightState(), i, level);
 if (apply(step)) return;
 const done = () => {
 if (apply(Fight.applyFoeHazard(fightState(), i))) return;
-later(nextActor, Fight.forecast(fightState(), get().clock, 1, i)[0] === 'player' ? TURN_HANDOFF_DELAY : FOE_GAP_DELAY);
+later(nextActor, typeof Fight.forecast(fightState(), get().clock, 1, i)[0] !== 'number' ? TURN_HANDOFF_DELAY : FOE_GAP_DELAY);
 };
 // Enemies attack first, then walk
 if (step.walkAfter) later(() => { if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
@@ -563,7 +584,7 @@ set({
 ...freshFightState(grid),
 playerHeat: perks.startHeat,
 perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast && !get().holdfastSpent,
-reflexMoveOpen: false, allyMoveMode: null,
+reflexMoveOpen: false, allyMoveMode: null, allyTurn: null,
 phase: 'player_turn', player, grid,
 playerMoveRange: moveRange,
 farmLevel: farm ? level : null,
@@ -588,7 +609,7 @@ set({ fightIntro: line || note ? { speaker: lead.name, color: lead.spriteColor, 
 }
 // If something is faster than you, it moves first (after a beat to see the board)
 const begin = () => {
-if (Fight.nextUp(fightState(), get().clock).who === 'player') nextActor();
+if (typeof Fight.nextUp(fightState(), get().clock).who !== 'number') nextActor();
 else { set({ phase: 'enemy_turn', inputLocked: true }); log('They move first', 'critical'); later(nextActor, ENEMY_TURN_DELAY * 2); }
 };
 // An opening line holds the fight: nothing moves until the player has read it and tapped on
@@ -605,6 +626,7 @@ target: 0,
 ...Fight.BASE_FIGHT_FLAGS,
 reflexMoveOpen: false,
 allyMoveMode: null,
+allyTurn: null,
 actingFoe: null,
 clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
 hostBestThreat: 0,
@@ -714,6 +736,7 @@ startFarmCombat: (level) => startFight(level, true),
 
 setSelectedMovement: (pos) => set({ selectedMovement: pos }),
 setSelectedAction: (action) => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { phase, inputLocked, reflexMoveOpen } = get();
 if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
 set({ selectedAction: action });
@@ -721,6 +744,7 @@ reAim();
 },
 
 moveTentatively: (position) => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { phase, inputLocked, grid, originalPosition, playerHeat, playerMoveRange } = get();
 if (phase !== 'player_turn' || inputLocked || !originalPosition) return;
 // Tapping your starting tile undoes a move
@@ -744,6 +768,7 @@ if (reflex) { set({ inputLocked: true }); finishPlayerAction(true); }
 },
 
 undoMove: () => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { originalPosition, grid, phase, inputLocked } = get();
 if (!originalPosition || phase !== 'player_turn' || inputLocked) return;
 set({ grid: { ...grid, playerPosition: originalPosition }, selectedMovement: null, hasMoved: false });
@@ -753,6 +778,7 @@ reAim();
 endTurn: () => {
 const { selectedAction, phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
+if (get().allyTurn !== null) { log(`-- ${get().allies[get().allyTurn!]?.unit.name ?? 'Ally'} waits --`); endAllyTurn(); return; }
 if (get().reflexMoveOpen) { set({ inputLocked: true }); finishPlayerAction(true); return; }
 if (!selectedAction) {
 set({ inputLocked: true });
@@ -764,6 +790,7 @@ get().executePlayerTurn();
 },
 
 useConsumableItem: (itemId) => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
 const consumable = useInventory.getState().useConsumable(itemId);
@@ -780,6 +807,7 @@ finishPlayerAction(false);
 },
 
 executePlayerTurn: () => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { playerClass, selectedAction, phase, inputLocked } = get();
 if (!selectedAction || phase !== 'player_turn' || inputLocked) return;
 const action = selectedAction;
@@ -822,6 +850,7 @@ reAim();
 enemyTurn: () => nextActor(),
 
 surge: () => {
+if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { phase, inputLocked, reflexMoveOpen } = get();
 if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || !Fight.canSurge(fightState())) return;
 // Scaled from the strongest move on your fight bar
@@ -833,16 +862,14 @@ finishPlayerAction(false);
 
 toggleAllyMove: (ally) => {
 const { phase, inputLocked, reflexMoveOpen, allies, allyMoveMode } = get();
-if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
+if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || get().allyTurn !== ally) return;
 if (allyMoveMode === ally || !allies[ally]) { set({ allyMoveMode: null }); return; }
 set({ allyMoveMode: Fight.allyReach(fightState(), ally).size ? ally : null });
 },
 
 moveAlly: (pos) => {
-const { phase, inputLocked, allyMoveMode, originalPosition } = get();
-if (phase !== 'player_turn' || inputLocked || allyMoveMode === null) return;
-// Keep the player's starting tile free so an undo always has somewhere to go
-if (originalPosition && pos.row === originalPosition.row && pos.col === originalPosition.col) return;
+const { phase, inputLocked, allyMoveMode } = get();
+if (phase !== 'player_turn' || inputLocked || allyMoveMode === null || get().allyTurn !== allyMoveMode) return;
 const cur = fightState();
 const next = Fight.moveAlly(cur, allyMoveMode, pos);
 if (next !== cur) save(next);
@@ -851,14 +878,16 @@ set({ allyMoveMode: null });
 
 allyAct: (ally, move) => {
 const { phase, inputLocked, reflexMoveOpen } = get();
-if (phase !== 'player_turn' || inputLocked || reflexMoveOpen) return;
+if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || get().allyTurn !== ally) return;
 if (!Fight.canAllyUse(fightState(), ally, move)) {
 const m = get().allies[ally]?.moves[move];
 if (m?.effect === 'attack') log(`${get().allies[ally].unit.name}: out of range. Move closer.`);
 return;
 }
-set({ allyMoveMode: null });
-apply(Fight.resolveAllyMove(fightState(), ally, move));
+set({ allyMoveMode: null, inputLocked: true });
+if (apply(Fight.resolveAllyMove(fightState(), ally, move))) return;
+// Acting ends its turn
+later(endAllyTurn, ENEMY_STEP_DELAY);
 },
 
 setTarget: (index) => {

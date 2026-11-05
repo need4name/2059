@@ -69,10 +69,10 @@ function betweenFights() {
   L.getState().setSlots([pool[0], pool[1], extra[0] ?? null, extra[1] ?? null]);
 }
 
-// ── Allies act first: heal a hurt player, else get in range and hit, else support
-function allyTurn() {
-  C.getState().allies.forEach((a, k) => {
-    if (a.unit.currentHp <= 0) return;
+// ── An ally's own turn: heal a hurt player, else get in range and hit, else support; then the turn ends
+function allyTurnBot(k: number) {
+  const a = C.getState().allies[k];
+  if (a && a.unit.currentHp > 0) {
     const st = C.getState();
     const find = (e: string) => a.moves.findIndex((m, n) => m.effect === e && F.canAllyUse(st, k, n));
     const heal = find('heal');
@@ -80,24 +80,27 @@ function allyTurn() {
     const atk = a.moves.findIndex(m => m.effect === 'attack');
     const tgt = st.foes[st.target];
     if (tgt && !F.canAllyUse(st, k, atk)) {
-      const tiles = Array.from(F.allyReach(st, k)).map(key => { const [row, col] = key.split(',').map(Number); return { row, col }; })
-        .filter(p => !(st.originalPosition && p.row === st.originalPosition.row && p.col === st.originalPosition.col));
+      const tiles = Array.from(F.allyReach(st, k)).map(key => { const [row, col] = key.split(',').map(Number); return { row, col }; });
       const at = (pos: any) => ({ ...st, allies: st.allies.map((o, n) => (n === k ? { ...o, pos } : o)) });
       const best = tiles.find(p => F.canAllyUse(at(p), k, atk)) ?? tiles.sort((x, y) => G.chebyshev(x, tgt.pos) - G.chebyshev(y, tgt.pos))[0];
-      if (best && G.chebyshev(best, tgt.pos) < G.chebyshev(a.pos, tgt.pos) + (F.canAllyUse(at(best), k, atk) ? 1 : 0)) { st.toggleAllyMove(k); C.getState().moveAlly(best); }
+      if (best && G.chebyshev(best, tgt.pos) < G.chebyshev(a.pos, tgt.pos) + (F.canAllyUse(at(best), k, atk) ? 1 : 0)) {
+        if (C.getState().allyMoveMode !== k) C.getState().toggleAllyMove(k);
+        C.getState().moveAlly(best);
+      }
     }
     const now = C.getState();
     const support = ['mark', 'guard', 'taunt'].map(e => a.moves.findIndex((m, n) => m.effect === e && F.canAllyUse(now, k, n))).find(n => n >= 0);
     if (support !== undefined && (a.moves[support].effect !== 'taunt' || now.player.currentHp < now.player.maxHp * 0.6)) { now.allyAct(k, support); return; }
     for (let n = 0; n < a.moves.length; n++) if (a.moves[n].effect === 'attack' && F.canAllyUse(now, k, n)) { now.allyAct(k, n); return; }
-  });
+  }
+  // Nothing worth doing: it waits
+  if (C.getState().allyTurn === k) C.getState().endTurn();
 }
 
 // ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
 function playerTurn(skill: number) {
   // After attacking without moving (Reflex), the game waits for a step or a pass: the bot passes
   if (C.getState().reflexMoveOpen) { C.getState().endTurn(); return; }
-  allyTurn();
   // A full overload meter with enemies close: surge
   if (F.canSurge(C.getState() as any)) { C.getState().surge(); return; }
   const s = C.getState(); const slots = L.getState().slots.filter(Boolean) as any[];
@@ -198,7 +201,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     const lvl = MAP.roomById(MP.getState().room).threat!; const deathsBefore = C.getState().progression.deathCount;
     C.getState().startRoomFight(); C.getState().dismissIntro(); let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
-      if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { playerTurn(skill); turns++; }
+      if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { const k = C.getState().allyTurn; if (k !== null) allyTurnBot(k); else { playerTurn(skill); turns++; } }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);
       if (turns > 80) {
         if (process.env.DEBUGTO && !debugShown && (process.env.DEBUGTO === '1' || Number(process.env.DEBUGTO) === lvl)) { debugShown = true; const st = C.getState(); console.log('TIMEOUT threat', lvl, 'shape', st.grid.arenaShape, 'player', JSON.stringify(st.grid.playerPosition), 'hp', st.player.currentHp, 'heat', st.playerHeat, 'alarm', JSON.stringify((st as any).alarm), 'reflex', st.reflexMoveOpen, 'locked', st.inputLocked, 'foes', JSON.stringify(st.foes.map(f => [f.unit.name, f.unit.currentHp, f.pos, f.unit.traits])), 'allies', JSON.stringify(st.allies.map(a => [a.id, a.unit.currentHp, a.pos, a.taunting])), 'foeState', JSON.stringify(st.foes.map(f => ({ heat: f.heat, pend: f.pendingAction?.name, stun: f.stunned })))); console.log(st.grid.tiles.map((r, ri) => r.map((t, ci) => st.grid.playerPosition.row === ri && st.grid.playerPosition.col === ci ? 'P' : st.foes.some(f => f.unit.currentHp > 0 && f.pos.row === ri && f.pos.col === ci) ? 'E' : t.type === 'void' ? ' ' : t.type === 'obstacle' ? '#' : t.type === 'hazard' ? '~' : '.').join('')).join('\n')); console.log(st.combatLog.slice(-14).map(l => l.message).join(' | ')); }
