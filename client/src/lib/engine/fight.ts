@@ -1248,6 +1248,9 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
  * heavy, or attack from where it stands. Then it walks: `walkAfter` tells the
  * store to call foeWalk after a beat. With nothing in reach it just walks.
  */
+/** How much of its max health an Enduring foe heals at the start of its turn. */
+export const ENDURING = { rate: 0.02, boss: 0.01 };
+
 export function foeTurn(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
   if (!isAlive(s.foes[i])) return { state: s, events: [], walkAfter: false };
   // Start of its turn: a lung pack heals, burning ticks, and a stun costs the turn (and any wound-up heavy)
@@ -1262,7 +1265,9 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
   }
   const f = state.foes[i];
   if (hasTrait(f, 'enduring') && f.unit.currentHp < f.unit.maxHp) {
-    const heal = Math.min(f.unit.maxHp - f.unit.currentHp, Math.max(2, Math.round(f.unit.maxHp * 0.02)));
+    // Bosses (anything that enrages) heal half as fast, so a long fight can't stall
+    const rate = f.unit.enrage ? ENDURING.boss : ENDURING.rate;
+    const heal = Math.min(f.unit.maxHp - f.unit.currentHp, Math.max(2, Math.round(f.unit.maxHp * rate)));
     state = setFoe(state, i, { unit: { ...f.unit, currentHp: f.unit.currentHp + heal } });
     events.push(say(`${f.unit.name} patches up: +${heal}`, 'heal'));
   }

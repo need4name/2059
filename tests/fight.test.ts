@@ -764,3 +764,18 @@ test('orders: no heavies, hold position and no shoves do what they say', () => {
   const calm = fight({ orders: { now: 'noShoves', turnsLeft: 2, rewritten: false } });
   assert.deepEqual(Fight.resolveFoeAction(calm, 0, shove, 3, -1).state.grid.playerPosition, calm.grid.playerPosition);
 });
+
+test('an enduring boss heals half as much as an enduring regular enemy', () => {
+  seedRandom(5);
+  const s = fight({ playerHeat: 0, grid: arena([8, 0], [0, 6]) });
+  const healOf = (enrage: boolean) => {
+    const base = createBoss(12);
+    const unit = { ...base, currentHp: Math.round(base.maxHp / 4), traits: ['enduring' as const], enrage: enrage ? { at: 0, gain: [], line: '' } : undefined };
+    const st = { ...s, foes: [{ ...Fight.newFoe(unit, s.grid.bossPosition, 0), enraged: true }] };
+    const r = Fight.foeTurn(st, 0, 12);
+    return { heal: r.state.foes[0].unit.currentHp - unit.currentHp, max: unit.maxHp };
+  };
+  const plain = healOf(false), boss = healOf(true);
+  assert.equal(plain.heal, Math.round(plain.max * Fight.ENDURING.rate));
+  assert.equal(boss.heal, Math.round(boss.max * Fight.ENDURING.boss));
+});
