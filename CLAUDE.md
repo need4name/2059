@@ -26,6 +26,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - On the board, visual variety must carry information. The floor stays plain; only things that matter to play (units, cover, hazards, reach, telegraphs) stand out.
 - The hub's map (`SignalMap.tsx`, at the top of the room card) shows only what hosts have seen, a symbol for what waits in each room found, and where hosts fell; it carries over between hosts. New rooms need an `at` spot (`npx tsx scripts/layout-maps.ts` fills them in).
 - Shared UI pieces live in `client/src/components/game/hud.tsx`; screens in `client/src/components/game/screens/`.
+- Screens fill the whole screen (background, glow and scanlines edge to edge); content sits in a centred column `max-w-[var(--col)]` (520px on phones, 640px on tablets, set in `index.css`). `Screen`, `Page` and `Sheet` do this already; check new screens on a phone, an iPad portrait and an iPad landscape. Back is the `Page` header's `.key` button with the `back` glyph.
 
 ## Content
 

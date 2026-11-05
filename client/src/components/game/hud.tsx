@@ -42,10 +42,12 @@ export function Screen({ children, className, footer }: { children: ReactNode; c
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-hud-bg">
       <div className="pointer-events-none absolute inset-0 ambient" />
       <div className="pointer-events-none absolute inset-0 scanlines" />
-      <div className={cx('relative flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none no-scrollbar', className)}>{children}</div>
+      <div className={cx('relative flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none no-scrollbar', className)}>
+        <div className="relative mx-auto w-full max-w-[var(--col)]">{children}</div>
+      </div>
       {footer && (
         <div className="relative bg-gradient-to-t from-hud-bg via-hud-bg/95 to-transparent px-4 pt-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-          {footer}
+          <div className="mx-auto w-full max-w-[var(--col)]">{footer}</div>
         </div>
       )}
     </div>
@@ -205,7 +207,7 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="rise-in slab-solid w-full max-w-[520px] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+      <div className="rise-in slab-solid w-full max-w-[var(--col)] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/15" />
         <div className="flex items-center justify-between px-5 pb-2 pt-3">
           <span className="font-display text-lg font-semibold text-hud-text">{title}</span>
@@ -224,10 +226,12 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
     <div className="fixed inset-0 z-40 flex justify-center bg-hud-bg">
       <div className="pointer-events-none absolute inset-0 ambient" />
       <div className="pointer-events-none absolute inset-0 scanlines" />
-      <div className="rise-in relative flex w-full max-w-[520px] flex-col">
-        <header className="flex items-center gap-2 px-3 pb-2" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
-          <button onClick={onClose} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-hud-dim transition hover:bg-white/[0.06] hover:text-hud-text">
-            <span aria-hidden className="text-lg leading-none">‹</span>{back}
+      <div className="rise-in relative flex w-full max-w-[var(--col)] flex-col">
+        <header className="flex items-center gap-2 px-4 pb-1" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
+          {/* Back: a real button, so it reads as the way out */}
+          <button onClick={onClose} className="key inline-flex max-w-full items-center gap-2 rounded-full py-2.5 pl-3 pr-4 text-[14px] font-semibold text-hud-text">
+            <Glyph name="back" size={14} className="shrink-0 text-sys" />
+            <span className="truncate">{back}</span>
           </button>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-10 no-scrollbar">
@@ -298,6 +302,7 @@ const GLYPHS = {
   spine: ['...###...', '....#....', '..#####..', '....#....', '..#####..', '....#....', '..#####..', '....#....', '...###...'],
   arm: ['.##......', '.###.....', '..###....', '...###...', '....####.', '.....####', '......##.', '.......#.', '.........'],
   leg: ['..###....', '..###....', '..###....', '...##....', '...##....', '...##....', '...##....', '...####..', '...#####.'],
+  back: ['.........', '.....#...', '....##...', '...##....', '..##.....', '...##....', '....##...', '.....#...', '.........'],
   strain: ['....#....', '...##....', '...###...', '..####.#.', '.######..', '.###.###.', '.##...##.', '..#####..', '.........'],
   stim: ['.......#.', '......#.#', '.....###.', '....###..', '...###...', '..###....', '.#.#.....', '#........', '.........'],
 };

@@ -424,14 +424,17 @@ function FightIntro() {
 export function CombatView() {
   return (
     <div className="absolute inset-0 flex flex-col bg-hud-bg">
-      <CombatHud />
+      {/* The board's sea runs the full width; the bars sit in the content column */}
+      <div className="relative z-10 mx-auto w-full max-w-[var(--col)]"><CombatHud /></div>
       <div className="relative min-h-0 flex-1">
         <CombatScene />
-        <HeatBar />
-        <TurnStrip />
-        <FightIntro />
+        <div className="pointer-events-none absolute inset-0 mx-auto max-w-[var(--col)] [&>*]:pointer-events-auto">
+          <HeatBar />
+          <TurnStrip />
+          <FightIntro />
+        </div>
       </div>
-      <ActionBar />
+      <div className="mx-auto w-full max-w-[var(--col)]"><ActionBar /></div>
     </div>
   );
 }
