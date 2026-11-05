@@ -5,7 +5,7 @@ import { useLoadout, LoadoutAction, BASE_SLOT_COUNT } from '@/lib/stores/useLoad
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { perksFor } from '@/lib/engine/playi';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
-import { PLAYER_ACTIONS, createPlayer, CLASS_DEFINITIONS } from '@/lib/combat/actions';
+import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
 import type { AugmentationSlot } from '@/lib/combat/types';
 
 /** Every action the player could put in a loadout slot right now. */
@@ -16,31 +16,11 @@ export function useActionPool(): LoadoutAction[] {
 
   return useMemo(() => {
     const equippedSlots = (Object.keys(equippedAugmentations) as AugmentationSlot[]).filter(s => equippedAugmentations[s] !== null);
-    const classInfo = CLASS_DEFINITIONS[playerClass];
-    const stats = createPlayer(getTotalAugmentationBonuses(), playerClass);
+    // Firmware's own attack takes Strike's place (same key, so it drops into Strike's slot on the bar)
     const pool: LoadoutAction[] = [
-      { ...PLAYER_ACTIONS[0], key: 'base_strike', unlocked: true, source: 'base' },
+      { ...basicAttack(playerClass, createPlayer(getTotalAugmentationBonuses(), playerClass).physicalAttack), key: 'base_strike', unlocked: true, source: playerClass !== 'none' ? 'class' : 'base' },
       { ...PLAYER_ACTIONS[1], key: 'base_brace', unlocked: true, source: 'base' },
     ];
-    if (playerClass !== 'none' && classInfo) {
-      const sp = classInfo.specialAbility;
-      pool.push({
-        type: 'special',
-        name: sp.name,
-        description: sp.description,
-        damage: sp.damage ? Math.floor(stats.physicalAttack * sp.damage) : undefined,
-        healing: sp.healing,
-        defenseBoost: sp.defenseBoost,
-        heatGenerated: 25,
-        accuracy: 'precise',
-        attackPattern: sp.attackPattern,
-        ignoreRange: sp.ignoreRange,
-        physicalRatio: sp.physicalRatio,
-        key: `class_special_${playerClass}`,
-        unlocked: true,
-        source: 'class',
-      });
-    }
     pool.push(...getAugmentCombatActions(equippedSlots));
     if (equippedWeapon) {
       pool.push({ ...equippedWeapon.combatAction, key: `weapon_${equippedWeapon.id}`, unlocked: true, source: 'weapon' });

@@ -60,9 +60,9 @@ function betweenFights() {
   const inv = I.getState();
   const afford = W.TIER1_WEAPONS.filter(w => w.price <= inv.gold).sort((a, b) => (b.combatAction.damage ?? 0) - (a.combatAction.damage ?? 0))[0];
   if (afford && !inv.equippedWeapon && inv.buyWeapon(afford)) inv.equipWeapon(afford);
-  const cls = C.getState().playerClass; const def = A.CLASS_DEFINITIONS[cls];
-  const pool: any[] = [{ ...A.PLAYER_ACTIONS[0], key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
-  if (cls !== 'none') { const sp = def.specialAbility; const st = A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls); pool.push({ type: 'special', name: sp.name, description: '', damage: Math.floor(st.physicalAttack * (sp.damage || 1)), heatGenerated: 25, accuracy: 'precise', attackPattern: sp.attackPattern, ignoreRange: sp.ignoreRange, physicalRatio: sp.physicalRatio, key: 'cls' }); }
+  const cls = C.getState().playerClass;
+  // Firmware's attack stands in for Strike, as on the player's bar
+  const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
   pool.push(...T.getState().getAugmentCombatActions(slots).filter((a: any) => a.damage));
   const w = I.getState().equippedWeapon; if (w) pool.push({ ...w.combatAction, key: 'w' });
   const extra = pool.slice(2).sort((a, b) => (b.damage || 0) - (a.damage || 0)).slice(0, 2);

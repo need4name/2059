@@ -3,9 +3,9 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
-import { blockedIn, closedIn, costIn, depthIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
+import { blockedIn, closedIn, costIn, depthIn, effectIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
-import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, FIRMWARE_ATTACKS, createPlayer, getBossPreview } from '@/lib/combat/actions';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
@@ -52,10 +52,10 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
 }
 
 const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: string }[] = [
+  { source: 'class', label: 'Firmware', empty: '' },
   { source: 'base', label: 'Core', empty: '' },
   { source: 'augment', label: 'From your implants', empty: '' },
   { source: 'weapon', label: 'Weapon', empty: '' },
-  { source: 'class', label: 'Firmware', empty: '' },
 ];
 
 function LoadoutTab() {
@@ -188,6 +188,17 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
           <SlotIcon slot={slot} size={18} className="text-sys/80" />
           <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
         </div>
+        {(() => {
+          // What the attack does now, with what's been taken: its shape, and its numbers
+          const move = actionForItem(item, effectIn(nodes, owned));
+          if (!move || move.type !== 'attack') return null;
+          return (
+            <div className="mx-auto mb-1 flex w-fit items-center gap-2.5 rounded-2xl bg-black/20 px-3 py-1.5">
+              <Footprint action={move} cell={4} />
+              <span className="text-[12px] text-hud-dim"><span className="font-semibold text-hud-text">{move.name}</span><br />{move.damage} damage · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat</span>
+            </div>
+          );
+        })()}
         <div className="relative" style={{ height: rows * ROW }}>
           {/* The branches */}
           <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${rows * ROW}`} preserveAspectRatio="none" aria-hidden>
@@ -262,7 +273,7 @@ function UpgradesTab() {
           return (
             <button key={s} onClick={() => setPicked(s)} aria-pressed={s === slot}
               className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', s === slot && 'key-selected')}>
-              <SlotIcon slot={s} size={20} className="text-sys/80" />
+              {(() => { const mv = actionForItem(item); return mv?.type === 'attack' ? <Footprint action={mv} cell={3} /> : <SlotIcon slot={s} size={20} className="text-sys/80" />; })()}
               <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}</span>
               <span className="flex gap-1">{Array.from({ length: Math.max(...nodesOf(item)!.map(x => depthIn(nodesOf(item)!, x.id))) + 1 }, (_, t) => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t < n ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
@@ -399,7 +410,7 @@ function StatusTab() {
         <Panel label="Firmware">
           <div className="space-y-1">
             <div className="font-display text-lg font-semibold text-hud-text">{cls.name}</div>
-            <p className="text-sm text-aug">{cls.specialAbility.name}. {cls.specialAbility.description}</p>
+            <p className="text-sm text-aug">Your basic attack is {FIRMWARE_ATTACKS[playerClass]?.name ?? 'Strike'}. {FIRMWARE_ATTACKS[playerClass]?.description}</p>
           </div>
         </Panel>
       )}

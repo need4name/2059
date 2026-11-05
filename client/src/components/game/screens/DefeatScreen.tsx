@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
-import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, FIRMWARE_ATTACKS } from '@/lib/combat/actions';
 import type { PlayerClass } from '@/lib/combat/types';
-import { Screen, Label, Btn, Chip, Glyph, cx } from '../hud';
+import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { playiNode, FALLBACK_ID, FALLBACK_NODE, perksFor } from '@/lib/engine/playi';
 import { useAllies } from '@/lib/stores/useAllies';
@@ -134,7 +134,7 @@ export function DefeatScreen() {
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseAttack} ATK</span>
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseDefense} DEF</span>
                     </span>
-                    <span className="block text-xs text-aug">{def.specialAbility.name}: {def.specialAbility.description}</span>
+                    <span className="flex items-center gap-2 text-xs text-aug">{FIRMWARE_ATTACKS[c] && <Footprint action={FIRMWARE_ATTACKS[c]} className="shrink-0" />}<span>Strike becomes {FIRMWARE_ATTACKS[c]?.name}: {FIRMWARE_ATTACKS[c]?.description}</span></span>
                   </span>
                 </button>
               );

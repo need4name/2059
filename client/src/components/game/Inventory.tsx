@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useInventory } from '@/lib/stores/useInventory';
-import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
+import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
+import { depthIn } from '@/lib/engine/upgrades';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } from '@/lib/combat/types';
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
 import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, nameOf } from './itemText';
@@ -114,11 +115,26 @@ function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot 
             <span className={cx('mt-0.5 block truncate text-[11px] font-semibold leading-tight', eq ? RARITY_TEXT[eq.rarity] : 'text-hud-faint')}>
               {eq ? nameOf(eq) : 'Empty'}
             </span>
+            {eq && <UpgradeDots item={eq} className="mt-1" />}
             {spareFor(sp.slot) && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cred shadow-[0_0_8px_rgba(242,179,61,0.8)]" title="Spare implant for this slot" />}
           </button>
         );
       })}
     </div>
+  );
+}
+
+/** How far an implant has been upgraded: one dot per level of its tree, gold where taken. */
+function UpgradeDots({ item, className }: { item: Item; className?: string }) {
+  const owned = useAugmentTrees(st => st.owned[item.id]);
+  const tree = nodesOf(item);
+  if (!tree) return null;
+  const levels = Math.max(...tree.map(n => depthIn(tree, n.id))) + 1;
+  const n = owned?.length ?? 0;
+  return (
+    <span className={cx('flex items-center gap-0.5', className)} aria-label={`Upgraded ${n} of ${levels}`} title={`Upgraded ${n} of ${levels}`}>
+      {Array.from({ length: levels }, (_, k) => <span key={k} className={cx('h-1 w-2.5 rounded-full', k < n ? 'bg-cred' : 'bg-white/10')} />)}
+    </span>
   );
 }
 
@@ -139,7 +155,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
             <SlotIcon slot={item.slot} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
+            <span className="flex items-center gap-2"><span className={cx('min-w-0 truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span><UpgradeDots item={item} className="shrink-0" /></span>
             <span className="flex items-center gap-1.5 text-xs text-hud-dim">
               <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
               {DRIVE[makerOf(item)] !== 0 && <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', DRIVE[makerOf(item)] > 0 ? 'bg-amber-300/10 text-amber-200' : 'bg-white/[0.06] text-hud-dim')}>{DRIVE[makerOf(item)] > 0 ? '+' : ''}{DRIVE[makerOf(item)]} speed</span>}

@@ -86,3 +86,14 @@ test('wins earn points, and an implant that leaves gives its points back', async
   assert.equal(T().availablePoints, left + U.COSTS[0] + U.COSTS[1], 'the points come back');
   assert.equal(T().owned['arm-1'], undefined);
 });
+
+test('the two sides of a fork are always different upgrades', () => {
+  const base = armOf('rare');
+  for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary'] as ItemRarity[]) for (let k = 0; k < 60; k++) {
+    const t = U.treeFor(part(base, `fork-${r}-${k}`, r), 'attack');
+    for (const n of t) {
+      const kids = t.filter(c => c.parent === n.id).map(c => c.name);
+      assert.equal(new Set(kids).size, kids.length, `${r} ${k}: a fork offers ${kids.join(' / ')}`);
+    }
+  }
+});

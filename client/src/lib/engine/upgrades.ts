@@ -113,6 +113,8 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
   const nodes: UpgradeNode[] = parent.map((p, i) => {
     const avoid = new Set<string>();
     for (let a = p; a !== undefined; a = parent[a]) avoid.add(kindOf[a]);
+    // The other side of a fork is never the same upgrade (that would be no choice at all)
+    parent.forEach((q, j) => { if (j < i && q === p && p !== undefined) avoid.add(kindOf[j]); });
     if (moved) avoid.add('stride').add('reflex');
     let k: Kind, cap: UpgradeNode['cap'], m = shape.scale;
     if (i === legendaryAt) { k = choose(D.legendary[kind], avoid); cap = 'legendary'; }
