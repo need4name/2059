@@ -1,7 +1,7 @@
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 import type { ItemRarity } from '@/lib/combat/types';
-import { ATTACK_PATTERNS } from '@/lib/combat/patterns';
-import type { AttackPatternType, AugmentationSlot, CombatGrid } from '@/lib/combat/types';
+import type { AttackPatternType, AugmentationSlot, CombatAction, PlayerClass } from '@/lib/combat/types';
+import { attackFootprint } from '@/lib/engine/fight';
 
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   common: 'text-slate-300',
@@ -244,35 +244,25 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
 }
 
 /**
- * A tiny pixel picture of an attack's footprint, South Park style: you in cyan,
- * where it can reach faint, where a typical aim lands bright. Drawn on an empty
- * 7x7 board with you near the bottom, aiming up.
+ * A tiny pixel picture of an attack, on an empty 7x7 board with you (cyan) in
+ * the middle: every tile it can reach, brighter where it lands harder on an
+ * enemy standing there (from behind brightest, from the side next). Arm moves
+ * aim only on their own side. The tiles come from the fight engine's own rules
+ * (attackFootprint).
  */
-export function Footprint({ pattern, className }: { pattern?: AttackPatternType; className?: string }) {
-  if (!pattern) return null;
-  const n = 7, me = { row: 5, col: 3 };
-  const grid: CombatGrid = { rows: n, cols: n, playerPosition: me, bossPosition: { row: -9, col: -9 }, tiles: Array.from({ length: n }, () => Array.from({ length: n }, () => ({ type: 'empty' as const }))) };
-  const shape = ATTACK_PATTERNS[pattern];
-  const key = (r: number, c: number) => `${r},${c}`;
-  const reach = new Set<string>();
-  let aim: string[] = [];
-  // Prefer aiming straight up, nearest first; otherwise the first tile it can reach
-  const order: [number, number][] = [];
-  for (let d = 1; d < n; d++) order.push([me.row - d, me.col]);
-  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) order.push([r, c]);
-  for (const [r, c] of order) {
-    if (r < 0 || (r === me.row && c === me.col)) continue;
-    const tiles = shape.getTargetTiles(me, { row: r, col: c }, grid);
-    if (!tiles.length) continue;
-    tiles.forEach(t => reach.add(key(t.row, t.col)));
-    if (!aim.length) aim = tiles.map(t => key(t.row, t.col));
-  }
-  const cell = 4, gap = 1, size = n * (cell + gap) - gap;
+export function Footprint({ action, pattern, playerClass = 'none', className, cell = 4 }: { action?: CombatAction; pattern?: AttackPatternType; playerClass?: PlayerClass; className?: string; /** Size of one tile in pixels (bigger on cards, small on fight buttons). */ cell?: number }) {
+  const act: CombatAction | null = action ?? (pattern ? { type: 'attack', name: '', description: '', attackPattern: pattern } : null);
+  if (!act) return null;
+  const n = 7;
+  const { me, tiles } = attackFootprint(act, playerClass, n);
+  const at = new Map(tiles.map(t => [`${t.row},${t.col}`, t.mult]));
+  const gap = 1, size = n * (cell + gap) - gap;
+  const shade = (m: number) => (m >= 1.25 ? '#ffb43a' : m >= 1.1 ? 'rgba(255,180,58,0.65)' : m >= 0.9 ? 'rgba(255,180,58,0.38)' : 'rgba(255,180,58,0.2)');
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className={className} aria-hidden shapeRendering="crispEdges">
       {Array.from({ length: n * n }, (_, k) => {
-        const r = Math.floor(k / n), c = k % n, id = key(r, c);
-        const fill = r === me.row && c === me.col ? '#38d6f0' : aim.includes(id) ? '#ffb43a' : reach.has(id) ? 'rgba(255,180,58,0.3)' : 'rgba(255,255,255,0.07)';
+        const r = Math.floor(k / n), c = k % n, m = at.get(`${r},${c}`);
+        const fill = r === me.row && c === me.col ? '#38d6f0' : m !== undefined ? shade(m) : 'rgba(255,255,255,0.07)';
         return <rect key={k} x={c * (cell + gap)} y={r * (cell + gap)} width={cell} height={cell} rx={1} fill={fill} />;
       })}
     </svg>
@@ -302,7 +292,7 @@ const GLYPHS = {
   spine: ['...###...', '....#....', '..#####..', '....#....', '..#####..', '....#....', '..#####..', '....#....', '...###...'],
   arm: ['.##......', '.###.....', '..###....', '...###...', '....####.', '.....####', '......##.', '.......#.', '.........'],
   leg: ['..###....', '..###....', '..###....', '...##....', '...##....', '...##....', '...##....', '...####..', '...#####.'],
-  back: ['.........', '.....#...', '....##...', '...##....', '..##.....', '...##....', '....##...', '.....#...', '.........'],
+  back: ['.........', '.....##..', '....##...', '...##....', '..##.....', '...##....', '....##...', '.....##..', '.........'],
   strain: ['....#....', '...##....', '...###...', '..####.#.', '.######..', '.###.###.', '.##...##.', '..#####..', '.........'],
   stim: ['.......#.', '......#.#', '.....###.', '....###..', '...###...', '..###....', '.#.#.....', '#........', '.........'],
 };

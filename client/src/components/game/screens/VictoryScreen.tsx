@@ -118,7 +118,7 @@ export function VictoryScreen() {
                           {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
                           {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
                         </span>
-                        {move?.type === 'attack' && <Footprint pattern={move.attackPattern} className="shrink-0" />}
+                        {move?.type === 'attack' && <Footprint action={move} cell={5} className="shrink-0" />}
                         {taken && <Chip tone="sys">Taken</Chip>}
                       </button>
                     );

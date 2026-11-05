@@ -14,7 +14,7 @@
 import type { Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
-  calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS,
+  calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { canHitTarget, getHitTiles } from '../combat/patterns';
@@ -802,6 +802,34 @@ export function aimTiles(s: FightState, action: CombatAction, playerClass: Playe
   // An "ignores cover" mod: shots fly as if the cover weren't there
   const seen = action.effects?.ignoreCover ? { ...view, tiles: view.tiles.map(r => r.map(t => (t.type === 'obstacle' ? { type: 'empty' as const } : t))) } : view;
   return getHitTiles(from, aim, attackPatternOf(action, playerClass), seen);
+}
+
+/**
+ * An attack's footprint for the little diagram on its card: every tile it can
+ * reach on an empty n x n board with you in the middle, and how hard it lands on
+ * an enemy standing there. Today that's the flank bonus (from the side +15%,
+ * from behind +30%: the enemy is below you on the board), times the range
+ * falloff for any move that has a best range. It uses the same rules as a real
+ * aim, so arm moves only aim on their own side (a wide swing can still spill across).
+ */
+export function attackFootprint(action: CombatAction, playerClass: PlayerClass = 'none', n = 7): { me: TilePosition; tiles: { row: number; col: number; mult: number }[] } {
+  const me = { row: Math.floor(n / 2), col: Math.floor(n / 2) };
+  const grid: CombatGrid = { rows: n, cols: n, playerPosition: me, bossPosition: { row: -9, col: -9 }, tiles: Array.from({ length: n }, () => Array.from({ length: n }, () => ({ type: 'empty' as const }))) };
+  const pattern = attackPatternOf(action, playerClass);
+  const flat = ignoresRange(action, playerClass) || !action.rangeOptimal;
+  const seen = new Map<string, { row: number; col: number; mult: number }>();
+  for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
+    const aim = { row, col };
+    if (same(aim, me) || !onSide(action, me, aim)) continue;
+    const tiles = ignoresRange(action, playerClass) ? [aim] : getHitTiles(me, aim, pattern, grid);
+    for (const t of tiles) {
+      // (only the aim must be on the arm's side; a wide swing can still spill across, as in a real fight)
+      if (same(t, me)) continue;
+      const range = flat ? 1 : getRangeBand(chebyshev(me, t), action.rangeOptimal!);
+      seen.set(`${t.row},${t.col}`, { row: t.row, col: t.col, mult: (1 + getFlankBonus(me, t)) * range });
+    }
+  }
+  return { me, tiles: Array.from(seen.values()) };
 }
 
 /** Every living foe standing on the tiles an aim lands on. */

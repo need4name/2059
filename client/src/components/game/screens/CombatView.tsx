@@ -167,7 +167,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
       {isAttack ? (
         <span className="flex items-center gap-1 text-[10px] text-hud-faint">
-          {action.side === 'left' && '◀'}<Footprint pattern={Fight.attackPatternOf(action, s.playerClass)} />{action.side === 'right' && '▶'}
+          <Footprint action={action} playerClass={s.playerClass} />
         </span>
       ) : getMechanicTag(action) && <span className="text-[10px] text-hud-faint">{getMechanicTag(action)!.toLowerCase().replace(/^\w/, c => c.toUpperCase())}</span>}
       <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">

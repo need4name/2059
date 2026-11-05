@@ -827,3 +827,19 @@ test('only epic and legendary implants roll quirks', () => {
   assert.ok(quirky('epic') > 10);
   assert.ok(quirky('legendary') > quirky('epic'));
 });
+
+test('the attack diagram matches the real rules: arm sides and flank bonus', () => {
+  const jab = { ...PLAYER_ACTIONS[0], attackPattern: 'melee' as const };
+  const left = Fight.attackFootprint({ ...jab, side: 'left' });
+  const right = Fight.attackFootprint({ ...jab, side: 'right' });
+  const both = Fight.attackFootprint(jab);
+  assert.ok(left.tiles.every(t => t.col <= left.me.col), 'a left arm only reaches its own side');
+  assert.ok(right.tiles.every(t => t.col >= right.me.col), 'a right arm only reaches its own side');
+  assert.ok(both.tiles.some(t => t.col < both.me.col) && both.tiles.some(t => t.col > both.me.col));
+  // Every tile it shows can really be aimed at or hit from there
+  const at = (r: number, c: number) => both.tiles.find(t => t.row === r && t.col === c)?.mult;
+  const { row, col } = both.me;
+  assert.equal(at(row - 1, col), 1, 'straight ahead: no bonus');
+  assert.equal(at(row, col - 1), 1.15, 'from the side: +15%');
+  assert.equal(at(row + 1, col), 1.3, 'from behind: +30%');
+});

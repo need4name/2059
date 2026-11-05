@@ -91,6 +91,12 @@ function LoadoutTab() {
         ))}
       </div>
 
+      {/* How to read the little attack pictures */}
+      <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] px-3.5 py-2.5 text-[12px] leading-snug text-hud-dim">
+        <Footprint pattern="melee" cell={6} className="shrink-0" />
+        <span>You're the blue square. Orange is where the move can hit; brighter hits harder: from the side +15%, from behind +30%.</span>
+      </div>
+
       {SOURCE_GROUPS.map(g => {
         const moves = pool.filter(a => a.source === g.source);
         if (!moves.length && !g.empty) return null;
@@ -107,7 +113,7 @@ function LoadoutTab() {
                       <button key={a.key} onClick={() => toggle(a)} aria-pressed={on}
                         className={cx('relative flex flex-col gap-1 rounded-2xl p-3 text-left transition', on ? 'bg-sys/[0.09] ring-1 ring-sys/40' : 'bg-white/[0.04] hover:bg-white/[0.07]')}>
                         <span className={cx('pr-5 font-display text-[14px] font-semibold leading-tight', actionColor(a))}>{a.name}</span>
-                        {(a.type === 'attack' || a.type === 'special') && <Footprint pattern={attackPatternOf(a, playerClass)} className="my-0.5" />}
+                        {(a.type === 'attack' || a.type === 'special') && <Footprint action={a} playerClass={playerClass} cell={6} className="my-1" />}
                         <ActionDetail a={a} />
                         <span className={cx('absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold', on ? 'bg-sys text-hud-bg' : 'bg-white/[0.08] text-hud-dim')}>{on ? '✓' : '+'}</span>
                       </button>

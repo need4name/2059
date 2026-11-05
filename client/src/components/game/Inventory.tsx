@@ -159,7 +159,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
           </div>
           {move && (
             <div className="flex items-start gap-3 text-ok">
-              {move.type === 'attack' && <Footprint pattern={move.attackPattern} className="mt-0.5 shrink-0" />}
+              {move.type === 'attack' && <Footprint action={move} cell={5} className="mt-0.5 shrink-0" />}
               <div>
                 Combat move: <span className="font-semibold">{move.name}</span>
                 {move.damage ? ` · ${move.damage} damage` : ` · +${move.defenseBoost} guard`} · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat
