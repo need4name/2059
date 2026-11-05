@@ -6,7 +6,8 @@
 import { drainTimers as drain } from './headless';
 import { useCombat as C } from '../client/src/lib/stores/useCombat';
 import { useInventory as I } from '../client/src/lib/stores/useInventory';
-import { useAugmentTrees as T } from '../client/src/lib/stores/useAugmentTrees';
+import { useAugmentTrees as T, treeOf } from '../client/src/lib/stores/useAugmentTrees';
+import * as UP from '../client/src/lib/engine/upgrades';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
@@ -31,7 +32,7 @@ function betweenFights() {
   const value = (x: any) => (x.attackBonus || 0) + (x.defenseBonus || 0) + (x.hpBonus || 0) / 3;
   for (const it of I.getState().items.filter((i: any) => i.type === 'augmentation')) {
     const eq = I.getState().equippedAugmentations[it.slot!];
-    if (!eq || value(it) > value(eq)) { I.getState().equipAugmentation(it); T.getState().unlockSlot(it.slot!); }
+    if (!eq || value(it) > value(eq)) { I.getState().equipAugmentation(it); }
   }
   // Spare implants go to allies riding along, best fit first
   for (const id of AL.getState().party) {
@@ -44,10 +45,17 @@ function betweenFights() {
     }
   }
   const slots = Object.entries(I.getState().equippedAugmentations).filter(([, v]) => v).map(([k]) => k as any);
-  for (const s of slots) if (!T.getState().getProgress(s)?.chosenPath) T.getState().choosePath(s, botRandom() < 0.5 ? 'A' : 'B');
-  for (let g = 30; T.getState().availablePoints > 0 && g--;) {
-    const s = slots.find(sl => { const pr = T.getState().getProgress(sl); return pr?.chosenPath && pr.tier < 3; });
-    if (!s) break; T.getState().upgradeTier(s);
+  // Spend upgrade points: walk each implant's tree, a coin flip at every fork
+  for (let g = 60; T.getState().availablePoints > 0 && g--;) {
+    let took = false;
+    for (const sl of slots) {
+      const item = I.getState().equippedAugmentations[sl as keyof ReturnType<typeof I.getState>['equippedAugmentations']];
+      const kind: UP.TreeKind | null = item ? treeOf(item) : null;
+      if (!item || !kind) continue;
+      const open = UP.TREES[kind].filter((n: UP.UpgradeNode) => !UP.blockedBy(kind, T.getState().owned[item.id] ?? [], n.id, T.getState().availablePoints));
+      if (open.length) { T.getState().take(sl, open[Math.floor(botRandom() * open.length)].id); took = true; break; }
+    }
+    if (!took) break;
   }
   const inv = I.getState();
   const afford = W.TIER1_WEAPONS.filter(w => w.price <= inv.gold).sort((a, b) => (b.combatAction.damage ?? 0) - (a.combatAction.damage ?? 0))[0];

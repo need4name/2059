@@ -194,6 +194,7 @@ const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.roun
 const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlotList());
 const player = createPlayer({
 ...augBonuses,
+evasion: augBonuses.evasion + treeBonus.evasion,
 treeAttack: treeBonus.attack,
 treeDefense: treeBonus.defense,
 treeHp: treeBonus.hp,
@@ -384,12 +385,11 @@ pendingShop: false,
 bossLevel: farmLevel !== null ? bossLevel : level + 1,
 });
 const { levelsGained } = get().gainXp(xp);
-// A point for every new threat cleared, on top of the level-up points
-// A point for each new depth this host reaches (a deeper threat than it has beaten before)
-const winPoint = farmLevel === null && level > get().hostBestThreat ? 1 : 0;
-if (farmLevel === null) set({ hostBestThreat: Math.max(get().hostBestThreat, level) });
-if (winPoint) useAugmentTrees.getState().addPoints(winPoint);
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained: levelsGained + winPoint, allyLevelUps, chapterDone } });
+// Upgrade points come from wins: one for every WINS_PER_POINT fights won (engine/upgrades.ts)
+const pointsBefore = useAugmentTrees.getState().availablePoints;
+if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
+const pointsGained = useAugmentTrees.getState().availablePoints - pointsBefore;
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone } });
 useAudio.getState().playSuccess();
 };
 
@@ -526,7 +526,6 @@ for (const id of frame.parts) {
 const t = ITEMS_2059.find(i => i.id === id);
 if (!t?.slot) continue;
 useInventory.getState().equipAugmentation(instancedItem(t));
-useAugmentTrees.getState().unlockSlot(t.slot);
 }
 }
 };
@@ -670,6 +669,7 @@ if (choice.cost?.credits) inv.spendGold(choice.cost.credits);
 if (part) {
 if (part.slot && inv.equippedAugmentations[part.slot as AugmentationSlot]?.id === part.id) inv.unequipAugmentation(part.slot as AugmentationSlot);
 useInventory.getState().removeItem(part.id);
+useAugmentTrees.getState().forget(part);
 }
 const won = choice.odds === undefined || random() < choice.odds;
 const out = won ? choice.win : (choice.lose ?? { text: '' });
@@ -966,8 +966,6 @@ set({ progression: { ...progression, level: newLevel, currentXp: newXp, xpToNext
 if (levelsGained > 0) {
 const msg = getAwarenessMessage(newLevel);
 if (msg) log(`SYSTEM: ${msg}`);
-// 1 augment tree upgrade point per level gained
-useAugmentTrees.getState().addPoints(levelsGained);
 }
 return { levelsGained };
 },

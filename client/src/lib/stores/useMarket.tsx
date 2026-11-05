@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
+import { useAugmentTrees } from './useAugmentTrees';
 import type { Item } from '../combat/types';
 import { generateMarketStock, buyPrice, sellPrice } from '../combat/economy';
 import { useInventory } from './useInventory';
@@ -48,6 +49,8 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
     if (!item) return false;
     inv.removeItem(itemId);
     inv.addGold(sellPrice(item));
+    // The points sunk into its upgrade tree come back
+    useAugmentTrees.getState().forget(item);
     return true;
   },
 

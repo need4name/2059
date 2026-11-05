@@ -181,7 +181,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
 
 export function Inventory() {
   const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses } = useInventory();
-  const { unlockSlot, getTreeStatBonuses } = useAugmentTrees();
+  const { getTreeStatBonuses } = useAugmentTrees();
   const [filter, setFilter] = useState<AugmentationSlot | null>(null);
 
   const equippedSlots = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
@@ -193,7 +193,6 @@ export function Inventory() {
 
   const install = (item: Item) => {
     equipAugmentation(item);
-    if (item.slot) unlockSlot(item.slot);
     setFilter(null);
   };
 

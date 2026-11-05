@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
-import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
+import { useAugmentTrees, treeOf } from '@/lib/stores/useAugmentTrees';
+import { TREES, blockedBy, closed, costOf, depthOf, effectText, nodeOf, WINS_PER_POINT, type TreeKind } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
-import { AUGMENT_TREES } from '@/lib/combat/augmentTrees';
 import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
@@ -13,7 +13,6 @@ import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Pag
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText, effectsText, nameOf } from '../itemText';
-import { pathSummary, statText, moveText } from '../upgradeText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
@@ -141,95 +140,97 @@ function LoadoutTab() {
 }
 
 
-/** Does this installed implant want the player's attention? (a free path to pick, or a point to spend) */
-function upgradeWaiting(slot: AugmentationSlot, item: Item, progress: Record<string, { chosenPath: 'A' | 'B' | null; tier: number }>, points: number) {
-  if (!AUGMENT_TREES[slot]) return false;
-  const p = progress[item.id];
-  if (!p?.chosenPath) return true;
-  return p.tier < 3 && points > 0;
+/** Does this installed implant have a node the player can take right now? */
+function upgradeWaiting(item: Item, owned: Record<string, string[]>, points: number) {
+  const kind = treeOf(item);
+  return !!kind && TREES[kind].some(n => !blockedBy(kind, owned[item.id] ?? [], n.id, points));
 }
 
-type Node = { p: 'A' | 'B'; t: 1 | 2 | 3 };
-
-/** One implant's upgrade tree: the implant at the top, two branches of three tiers. */
-function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
-  const { progress, availablePoints, choosePath, upgradeTier } = useAugmentTrees();
-  const tree = AUGMENT_TREES[slot];
-  const prog = progress[item.id];
-  const tier = prog?.tier ?? 0;
-  const path = prog?.chosenPath ?? null;
-  const active = augmentKind(slot) === 'active';
-  const next: Node | null = path ? (tier < 3 ? { p: path, t: (tier + 1) as 1 | 2 | 3 } : { p: path, t: 3 }) : null;
-  const [focus, setFocus] = useState<Node>(next ?? { p: 'A', t: 1 });
-  const f = path && focus.p !== path && tier > 0 ? { p: path, t: focus.t } : focus;
-
-  const state = (n: Node) => {
-    if (path && n.p !== path) return 'closed';
-    if (path && n.t <= tier) return 'owned';
-    if ((path && n.t === tier + 1) || (!path && n.t === 1)) return 'open';
-    return 'locked';
+/** Where each node sits: leaves spread evenly, a parent centred over its children. */
+function treeLayout(kind: TreeKind) {
+  const nodes = TREES[kind];
+  const kids = (id?: string) => nodes.filter(n => n.parent === id);
+  const leaves: string[] = [];
+  const walk = (id: string) => { const k = kids(id); if (!k.length) leaves.push(id); k.forEach(c => walk(c.id)); };
+  const root = nodes.find(n => !n.parent)!;
+  walk(root.id);
+  const x: Record<string, number> = {};
+  const place = (id: string): number => {
+    const k = kids(id);
+    x[id] = k.length ? k.map(c => place(c.id)).reduce((a, b) => a + b, 0) / k.length : ((leaves.indexOf(id) + 0.5) / leaves.length) * 100;
+    return x[id];
   };
+  place(root.id);
+  return { x, depth: Object.fromEntries(nodes.map(n => [n.id, depthOf(kind, n.id)])), rows: Math.max(...nodes.map(n => depthOf(kind, n.id))) + 1 };
+}
 
-  const data = tree.paths[f.p].tiers[f.t - 1];
-  const st = state(f);
-  const stats = statText(data);
-  const move = active ? moveText(item, f.p, f.t) : null;
-  const moveName = active ? actionForItem(item, { path: f.p, tier: f.t })?.name : null;
-  const sum = pathSummary(item, slot, f.p);
+const ROW = 92; // px between rows of the tree
+
+/** One implant's tree: tap a node to see it; a fork takes one side only. */
+function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
+  const { owned: all, availablePoints, take } = useAugmentTrees();
+  const kind = treeOf(item)!;
+  const owned = all[item.id] ?? [];
+  const { x, depth, rows } = treeLayout(kind);
+  const nodes = TREES[kind];
+  const next = nodes.find(n => blockedBy(kind, owned, n.id, Infinity) === null);
+  const [focus, setFocus] = useState<string>(next?.id ?? nodes[0].id);
+  const node = nodeOf(kind, focus)!;
+  const why = blockedBy(kind, owned, focus, availablePoints);
+  const cost = costOf(kind, focus);
+  const state = (id: string) => owned.includes(id) ? 'owned' : closed(kind, owned, id) ? 'closed' : blockedBy(kind, owned, id, Infinity) === null ? 'open' : 'locked';
+  const taken = (id: string) => nodes.find(n => n.parent === nodeOf(kind, id)?.parent && owned.includes(n.id));
+  const isCap = !nodes.some(n => n.parent === focus);
 
   return (
     <div className="space-y-4">
-      <div className="relative rounded-3xl bg-hud-panel/80 px-4 pb-5 pt-4 ring-1 ring-white/[0.06]">
-        <div className="mx-auto flex w-fit items-center gap-2 rounded-2xl bg-white/[0.06] px-3.5 py-2">
-          <SlotIcon slot={slot} size={20} className="text-sys/80" />
+      <div className="slab rounded-[28px] px-2 pb-3 pt-4">
+        <div className="mx-auto mb-2 flex w-fit items-center gap-2 px-3">
+          <SlotIcon slot={slot} size={18} className="text-sys/80" />
           <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
         </div>
-        <div className="mt-1 grid grid-cols-2 gap-3">
-          {(['A', 'B'] as const).map(p => {
-            const closed = !!path && p !== path;
+        <div className="relative" style={{ height: rows * ROW }}>
+          {/* The branches */}
+          <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${rows * ROW}`} preserveAspectRatio="none" aria-hidden>
+            {nodes.filter(n => n.parent).map(n => {
+              const on = owned.includes(n.id);
+              const shut = closed(kind, owned, n.id);
+              return <line key={n.id} x1={x[n.parent!]} y1={depth[n.parent!] * ROW + ROW / 2} x2={x[n.id]} y2={depth[n.id] * ROW + ROW / 2}
+                stroke={on ? '#38d6f0' : shut ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.14)'} strokeWidth={on ? 3 : 2} vectorEffect="non-scaling-stroke" />;
+            })}
+          </svg>
+          {nodes.map(n => {
+            const st = state(n.id), on = focus === n.id, cap = !nodes.some(c => c.parent === n.id);
             return (
-              <div key={p} className={cx('flex flex-col items-center', closed && 'opacity-35')}>
-                <div className="h-4 w-px bg-white/15" />
-                <div className="mb-2 font-display text-sm font-semibold capitalize text-hud-text">{tree.paths[p].name.toLowerCase()}</div>
-                {([1, 2, 3] as const).map(t => {
-                  const n = { p, t }, s = state(n), on = f.p === p && f.t === t;
-                  return (
-                    <div key={t} className="flex flex-col items-center">
-                      {t > 1 && <div className={cx('h-4 w-0.5 rounded-full', s === 'owned' ? 'bg-sys' : 'bg-white/10')} />}
-                      <button onClick={() => setFocus(n)} aria-label={`${tree.paths[p].name} tier ${t}`} aria-pressed={on}
-                        className={cx('flex h-12 w-12 items-center justify-center rounded-full font-display text-base font-bold transition',
-                          s === 'owned' && (t === 3 ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
-                          s === 'open' && 'bg-sys/10 text-sys ring-2 ring-sys/70',
-                          (s === 'locked' || s === 'closed') && 'bg-white/[0.05] text-hud-faint',
-                          on && 'scale-110 shadow-[0_0_0_4px_rgba(255,255,255,0.12)]')}>
-                        {t === 3 ? '★' : t}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+              <button key={n.id} onClick={() => setFocus(n.id)} aria-pressed={on} aria-label={n.name}
+                className="absolute flex w-[84px] -translate-x-1/2 -translate-y-[22px] flex-col items-center gap-1"
+                style={{ left: `${x[n.id]}%`, top: depth[n.id] * ROW + ROW / 2 }}>
+                <span className={cx('flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] font-bold transition',
+                  st === 'owned' && (cap ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
+                  st === 'open' && 'bg-hud-raised text-sys ring-2 ring-sys/70',
+                  st === 'locked' && 'bg-hud-raised text-hud-faint ring-1 ring-white/10',
+                  st === 'closed' && 'bg-hud-panel text-hud-faint/30 ring-1 ring-white/[0.04]',
+                  on && 'scale-110 shadow-[0_0_0_4px_rgba(255,255,255,0.14)]')}>
+                  {cap ? <Glyph name="upgrade" size={14} /> : costOf(kind, n.id)}
+                </span>
+                <span className={cx('text-center text-[11px] font-semibold leading-tight', st === 'closed' ? 'text-hud-faint/50' : st === 'owned' ? 'text-hud-text' : 'text-hud-dim')}>{n.name}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      <div className="space-y-2 rounded-3xl bg-white/[0.04] p-4">
+      <div className="slab space-y-2 rounded-[24px] p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-display text-base font-semibold capitalize text-white">{tree.paths[f.p].name.toLowerCase()} · {f.t === 3 ? 'capstone' : `tier ${f.t}`}</span>
-          <span className="text-xs text-hud-faint">{data.augmentLabel}</span>
+          <span className="font-display text-base font-semibold text-white">{node.name}</span>
+          {isCap && <span className="text-xs font-semibold text-cred">Capstone</span>}
         </div>
-        {!path && f.t === 1 && <p className="text-sm text-hud-text/85">{sum.headline}. {sum.detail.join(' ')}</p>}
-        {stats && <div className="text-sm text-ok">{stats}</div>}
-        {move && <div className="text-sm text-sys">{moveName} becomes {move}</div>}
-        {st === 'open' && !path && <Btn className="w-full" variant="primary" onClick={() => { choosePath(slot, f.p); setFocus({ p: f.p, t: 2 }); }}>Take this path · free</Btn>}
-        {st === 'open' && path && (
-          <Btn className="w-full" variant={availablePoints > 0 ? 'gold' : 'secondary'} disabled={availablePoints < 1} onClick={() => { upgradeTier(slot); if (f.t < 3) setFocus({ p: f.p, t: (f.t + 1) as 2 | 3 }); }}>
-            {availablePoints > 0 ? 'Upgrade · 1 point' : 'Needs 1 point'}
-          </Btn>
-        )}
-        {st === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
-        {st === 'locked' && <p className="text-sm text-hud-faint">{path ? 'Upgrade the tier above first.' : 'Take this path first.'}</p>}
-        {!path && <p className="text-xs text-hud-faint">One path only.</p>}
+        <p className="text-sm text-hud-text/85">{effectText(node.effect)}</p>
+        {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
+        {why === 'points' && <Btn className="w-full" variant="secondary" disabled>Needs {cost} point{cost > 1 ? 's' : ''}</Btn>}
+        {why === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
+        {why === 'fork' && <p className="text-sm text-hud-faint">You took {taken(focus)?.name} instead.</p>}
+        {why === 'parent' && <p className="text-sm text-hud-faint">{closed(kind, owned, focus) ? 'Closed off by an earlier choice.' : `Take ${nodeOf(kind, node.parent!)?.name} first.`}</p>}
       </div>
     </div>
   );
@@ -237,39 +238,41 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
 
 function UpgradesTab() {
   const { equippedAugmentations } = useInventory();
-  const { progress, availablePoints } = useAugmentTrees();
-  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null && AUGMENT_TREES[s]);
-  const firstWaiting = equipped.find(s => upgradeWaiting(s, equippedAugmentations[s]!, progress, availablePoints));
+  const { owned, availablePoints, wins } = useAugmentTrees();
+  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] && treeOf(equippedAugmentations[s]!));
+  const firstWaiting = equipped.find(s => upgradeWaiting(equippedAugmentations[s]!, owned, availablePoints));
   const [picked, setPicked] = useState<AugmentationSlot | null>(null);
   const slot = picked && equipped.includes(picked) ? picked : (firstWaiting ?? equipped[0]);
 
   if (!slot) {
     return <Card raised className="px-4 py-10 text-center text-sm text-hud-dim">Nothing to grow yet.</Card>;
   }
+  const toGo = WINS_PER_POINT - wins;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-2xl bg-cred/[0.08] px-4 py-3">
-        <span className="text-sm text-hud-dim">Points to spend</span>
+        <span className="text-sm text-hud-dim">Points <span className="text-hud-faint">· next in {toGo} win{toGo > 1 ? 's' : ''}</span></span>
         <span className="font-display text-2xl font-semibold text-cred">{availablePoints}</span>
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
         {equipped.map(s => {
           const item = equippedAugmentations[s]!;
-          const p = progress[item.id];
-          const waiting = upgradeWaiting(s, item, progress, availablePoints);
+          const n = (owned[item.id] ?? []).length;
+          const waiting = upgradeWaiting(item, owned, availablePoints);
           return (
             <button key={s} onClick={() => setPicked(s)} aria-pressed={s === slot}
-              className={cx('relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5 transition', s === slot ? 'bg-sys/[0.12] ring-1 ring-sys/50' : 'bg-white/[0.04] hover:bg-white/[0.07]')}>
+              className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', s === slot && 'key-selected')}>
               <SlotIcon slot={s} size={20} className="text-sys/80" />
               <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}</span>
-              <span className="flex gap-1">{[1, 2, 3].map(t => <span key={t} className={cx('h-1.5 w-3 rounded-full', t <= (p?.tier ?? 0) ? 'bg-sys' : 'bg-white/10')} />)}</span>
+              <span className="flex gap-1">{[1, 2, 3, 4].map(t => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t <= n ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
             </button>
           );
         })}
       </div>
       <UpgradeTree key={equippedAugmentations[slot]!.id} slot={slot} item={equippedAugmentations[slot]!} />
+      <p className="px-1 text-xs text-hud-faint">Selling an implant or giving it away gives its points back.</p>
     </div>
   );
 }
@@ -451,7 +454,7 @@ export function BaseScreen() {
   const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, firstLifeAt(progression.deathCount, roomNow.threat), roomNow.enemy) : null;
   const onward = map.done ? nextChapter(map.chapter) : null;
   const { gold, items, equippedAugmentations } = useInventory();
-  const { progress, availablePoints } = useAugmentTrees();
+  const { owned: treeOwned, availablePoints } = useAugmentTrees();
   const { slots } = useLoadout();
   const { isMuted, toggleMute } = useAudio();
   const [page, setPage] = useState<Tab | null>(null);
@@ -462,7 +465,7 @@ export function BaseScreen() {
 
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const fitsNow = items.some(i => i.type === 'augmentation' && i.slot && equippedAugmentations[i.slot] === null);
-  const upgradeWaits = installed.some(s => upgradeWaiting(s, equippedAugmentations[s]!, progress, availablePoints));
+  const upgradeWaits = installed.some(s => upgradeWaiting(equippedAugmentations[s]!, treeOwned, availablePoints));
   const barGap = slots.some(s => s === null) && pool.some(a => !slots.some(s => s?.key === a.key));
 
   const footer = fightHere && foe

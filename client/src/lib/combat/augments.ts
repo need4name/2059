@@ -1,3 +1,4 @@
+import type { UpgradeEffect } from '../engine/upgrades';
 import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects } from './types';
 import { random } from '../engine/rng';
 import { augmentKind } from './types';
@@ -280,25 +281,23 @@ export function quirkOf(item: Item): string | null {
   return q ? QUIRKS[q].label : null;
 }
 
-export interface ActiveTreeMod { path: 'A' | 'B' | null; tier: number }
-
 /**
- * The combat action an active implant gives you. Upgrade path A pushes damage
- * and heat; path B sharpens accuracy and runs cooler.
+ * The combat action an active implant gives you, with its upgrade tree's effect
+ * (engine/upgrades.ts) on top: more damage or guard, heat up or down, a steadier
+ * or always-full aim, and side effects.
  */
-export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tier: 0 }): CombatAction | null {
+export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction | null {
   if (item.type !== 'augmentation' || !item.slot || augmentKind(item.slot) !== 'active') return null;
   const group = groupOf(item.slot);
   if (!group) return null;
   const maker = makerOf(item);
   const t = T[group][maker] ?? T[group].default;
   const cond = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
-  const tierUp = Math.max(0, mod.tier);
-  const description = `${t.flavour}${mod.path ? ` Tuned path ${mod.path}, tier ${tierUp}.` : ''}`;
+  const description = t.flavour;
 
   if (t.brace) {
-    const guard = Math.round((t.guard ?? 8) * RARITY_DAMAGE[item.rarity] * cond * (1 + 0.12 * tierUp));
-    return { type: 'brace', name: t.name, description, defenseBoost: guard, heatGenerated: t.heat - (mod.path === 'B' ? 3 * tierUp : 0) };
+    const guard = Math.round((t.guard ?? 8) * RARITY_DAMAGE[item.rarity] * cond * (1 + (up.guard ?? 0)));
+    return { type: 'brace', name: t.name, description, defenseBoost: guard, heatGenerated: t.heat + (up.heat ?? 0) };
   }
 
   // The parts decide the shape, name and side effects; the frame (maker) the base numbers
@@ -307,17 +306,15 @@ export function actionForItem(item: Item, mod: ActiveTreeMod = { path: null, tie
   const effects: ActionEffects = { ...(head.effects ?? {}) };
   for (const m of parts.mods) Object.assign(effects, (MODS[m] ?? QUIRKS[m])?.effects ?? {});
   if (item.rarity === 'common' && item.parts && !head.signature) effects.focus = true;
+  if (up.fx) Object.assign(effects, up.fx);
   const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
 
-  let damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult;
+  const damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult * (1 + (up.dmg ?? 0));
   // Guaranteed full damage costs extra heat
-  let heat = t.heat + (t.accuracy === 'precise' ? 3 : 0);
+  const heat = Math.max(2, t.heat + (t.accuracy === 'precise' ? 3 : 0) + (up.heat ?? 0));
   let accuracy = t.accuracy ?? 'variable';
-  if (mod.path === 'A') { damage *= 1 + 0.18 * tierUp; heat += 2 * tierUp; }
-  if (mod.path === 'B') {
-    damage *= 1 + 0.08 * tierUp; heat = Math.max(3, heat - 2 * tierUp);
-    if (tierUp >= 2) accuracy = accuracy === 'unreliable' ? 'variable' : 'precise';
-  }
+  if (up.steady) accuracy = accuracy === 'unreliable' ? 'variable' : 'precise';
+  if (up.precise) accuracy = 'precise';
   return {
     type: 'attack',
     name,

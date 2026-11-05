@@ -188,11 +188,14 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 - **Dash** puts you on the farthest open tile of the lane; **step-cut** steps you a tile straight back from the enemy hit (onto open, non-hazard deck). Neither earns a parting blow.
 
 ### Upgrades
-- Stored per implant (by id), so only installed implants can be upgraded and a part keeps its upgrades if you take it out.
-- Picking path A or B is free; tiers 2 and 3 cost 1 point each.
-- On an active implant, path A adds 18% damage and 2 heat per tier; path B adds 8% damage, runs 2 heat cooler per tier, and raises accuracy one step at tier 2.
-- Points: 1 per level-up, plus 1 for each new threat cleared.
-- Each tier also adds the stats listed for it in `augmentTrees.ts`. The upgrade screen works its text out from these real numbers (`components/game/upgradeText.ts`): a headline, the move's damage and heat before and after, and the stat totals. The paths' old flavour descriptions aren't shown.
+- **Trees** (`content/upgrades.json`, rules in `engine/upgrades.ts`, owned nodes in `useAugmentTrees`): every implant grows a tree. Attack implants grow the attack tree, Helix braces the brace tree, the rest the passive tree. Each tree is a root, a fork into two styles, a fork under each style, and a capstone at the end of every branch (11 nodes, 4 branches). A node needs its parent, and taking one side of a fork closes the other side and everything under it.
+- **Costs** by depth: 1, 1, 2, 3 (a full branch is 7 points).
+- **Attack tree:** Tuned (+15% damage, +2 attack), then Force (+25% damage, +2 heat, +3 attack: Breaker knocks back and crushes into Wrecking ball, +35% damage and a 25% stun; Ripper bleeds and drains 15% into Harvest, draining 35%) or Finesse (+10% damage, 4 heat cooler, aim one step steadier, +2 attack: Surgeon always lands in full into Executioner, +45% damage; Coolant vents 8 heat into Cold hands, you act sooner and vent 12). Every attack node also adds 2–4 attack.
+- **Brace tree:** Tuned (+15% guard), then Bulwark (+20% guard: Plating +6 defence into Fortress; Padding +12 health into Second skin) or Vent (6 heat cooler: Heat sink into Ice; Reflex +1 move into Light frame, dodge and defence).
+- **Passive tree:** Tuned (+3 attack, +3 defence), then Aggressor (+6 attack: Hunter into Predator; Runner +1 move into Ghost) or Guardian (+6 defence, +10 health: Bulk into Mountain; Evasive dodge into Blur).
+- Stored per implant (by id): a part keeps its upgrades if you take it out. Movement from trees doesn't stack across implants (the best counts).
+- **Points:** one for every fight won (`winsPerPoint`), shown as "next in N wins". Selling an implant, giving it to an ally or giving it up at an event gives back every point sunk into it. Trees and points start fresh with each host, like the implants.
+- **The screen** draws the tree with the price on each node; tapping one shows its name, one line of what it does, and a Take button.
 - The implants screen is a body map: each slot is marked on a host figure with a card per slot down each side.
 
 ---
@@ -206,7 +209,7 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 - On top of that, every enemy's health is × 0.39 × 1.06^(threat − 1) and its attack × 1.34 × 1.047^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
 - Enemies alone are then eased (`ENEMY_EASE`): × 0.9 health and × 0.82 attack, and their attack grows × 1.04 a threat instead of × 1.047. Allies are built from the uneased numbers.
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.15 health, ×0.95 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
-- Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.7 health, ×1.45 attack, ×1.25 defence and three scripted phases.
+- Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.5 health, ×1.3 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
 - **First life only:** threat 3 is the **Cartel Enforcer** (×1.85 health, ×1.8 attack). It waits on the walkway and ends most first runs, but a careful player can beat it (the bot wins about 30% of the time).
 - Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 9 after 5 hosts lost and 18–20 after 10.
@@ -284,7 +287,7 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Markets** are in three safe rooms (the body dock, the Grey Lane stall, the canopy stall). The Grey Lane is only reachable from those rooms.
 - **Things to look at:** 21 rooms have something to look closer at once they're clear; what you see goes into the journal.
 - **Caches:** five rooms (pumps, generator, containers, smelt, drift) hide a cache that can be searched once per host once the room is clear: half the time a stim (never Overclock), otherwise 20–50 credits + 2 × threat. Seeded from the run seed and the room.
-- **Upgrade points come from new depths:** a win gives a point only when it is deeper than any fight this host has already won (`hostBestThreat`), so walking back over cleared ground can't farm points.
+- **Upgrade points come from wins:** one per room fight won. A host can't refight a room it cleared, so points can't be farmed.
 - **Hidden goals:** three (the slab, the manifest, the Mother: placeholders until the story is written), each found by looking at something in a particular room. They're never listed. When all three are found, the sealed way from the wake down to the drowned spire opens.
 - **Chapter ending:** winning the end room (`end` in the map file, the drowned spire) finishes the chapter. The victory screen shows the ending text, hosts used, places seen, things looked at and allies linked, and what the signal keeps. From then on the spire reads its `quiet` text and holds no fight for any host; the rest of the map keeps refilling, so the run can go on.
 - **Death:** a new host is another corpse reanimating at the body dock. Fights and caches refill; visited rooms, things looked at, allies met and goals are kept.

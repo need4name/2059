@@ -1,0 +1,46 @@
+{
+  "about": "Implant upgrade trees (engine/upgrades.ts). Every implant grows one tree: attack implants the attack tree, Helix braces the brace tree, the rest the passive tree. A node needs its parent; the children of one node are a fork (take one, the others close). costs[d] is the price of a node d steps from the root. effect: dmg (share of damage), heat (added to the move's heat), steady (aim one step steadier), precise (always full damage), guard (share of guard), attack/defense/hp/move/evasion (stats), fx (side effects, as on implant parts).",
+  "costs": [1, 1, 2, 3],
+  "winsPerPoint": 1,
+  "trees": {
+    "attack": [
+      { "id": "root", "name": "Tuned", "effect": { "attack": 2, "dmg": 0.15 } },
+      { "id": "force", "parent": "root", "name": "Force", "effect": { "attack": 3, "dmg": 0.25, "heat": 2 } },
+      { "id": "finesse", "parent": "root", "name": "Finesse", "effect": { "attack": 2, "dmg": 0.1, "heat": -4, "steady": true } },
+      { "id": "breaker", "parent": "force", "name": "Breaker", "effect": { "attack": 3, "fx": { "knock": true, "crush": true } } },
+      { "id": "ripper", "parent": "force", "name": "Ripper", "effect": { "attack": 3, "fx": { "bleed": true, "drain": 0.15 } } },
+      { "id": "surgeon", "parent": "finesse", "name": "Surgeon", "effect": { "attack": 2, "dmg": 0.1, "precise": true } },
+      { "id": "coolant", "parent": "finesse", "name": "Coolant", "effect": { "attack": 2, "heat": -2, "fx": { "cool": 8 } } },
+      { "id": "wrecker", "parent": "breaker", "name": "Wrecking ball", "effect": { "attack": 4, "dmg": 0.35, "fx": { "stun": 0.25 } } },
+      { "id": "harvest", "parent": "ripper", "name": "Harvest", "effect": { "attack": 4, "dmg": 0.25, "fx": { "drain": 0.35 } } },
+      { "id": "execute", "parent": "surgeon", "name": "Executioner", "effect": { "attack": 4, "dmg": 0.45 } },
+      { "id": "coldhands", "parent": "coolant", "name": "Cold hands", "effect": { "attack": 4, "dmg": 0.2, "fx": { "haste": true, "cool": 12 } } }
+    ],
+    "brace": [
+      { "id": "root", "name": "Tuned", "effect": { "guard": 0.15, "defense": 2 } },
+      { "id": "bulwark", "parent": "root", "name": "Bulwark", "effect": { "guard": 0.2 } },
+      { "id": "vent", "parent": "root", "name": "Vent", "effect": { "heat": -6 } },
+      { "id": "plating", "parent": "bulwark", "name": "Plating", "effect": { "defense": 6 } },
+      { "id": "padding", "parent": "bulwark", "name": "Padding", "effect": { "hp": 12 } },
+      { "id": "sink", "parent": "vent", "name": "Heat sink", "effect": { "heat": -6 } },
+      { "id": "reflex", "parent": "vent", "name": "Reflex", "effect": { "move": 1 } },
+      { "id": "fortress", "parent": "plating", "name": "Fortress", "effect": { "guard": 0.3, "defense": 4 } },
+      { "id": "skin", "parent": "padding", "name": "Second skin", "effect": { "hp": 24 } },
+      { "id": "ice", "parent": "sink", "name": "Ice", "effect": { "heat": -8, "guard": 0.15 } },
+      { "id": "light", "parent": "reflex", "name": "Light frame", "effect": { "evasion": 5, "defense": 3 } }
+    ],
+    "passive": [
+      { "id": "root", "name": "Tuned", "effect": { "attack": 3, "defense": 3 } },
+      { "id": "aggressor", "parent": "root", "name": "Aggressor", "effect": { "attack": 6 } },
+      { "id": "guardian", "parent": "root", "name": "Guardian", "effect": { "defense": 6, "hp": 10 } },
+      { "id": "hunter", "parent": "aggressor", "name": "Hunter", "effect": { "attack": 9 } },
+      { "id": "runner", "parent": "aggressor", "name": "Runner", "effect": { "move": 1 } },
+      { "id": "bulk", "parent": "guardian", "name": "Bulk", "effect": { "hp": 22 } },
+      { "id": "evasive", "parent": "guardian", "name": "Evasive", "effect": { "evasion": 4 } },
+      { "id": "predator", "parent": "hunter", "name": "Predator", "effect": { "attack": 12 } },
+      { "id": "ghost", "parent": "runner", "name": "Ghost", "effect": { "evasion": 4, "attack": 3 } },
+      { "id": "mountain", "parent": "bulk", "name": "Mountain", "effect": { "hp": 35, "defense": 6 } },
+      { "id": "blur", "parent": "evasive", "name": "Blur", "effect": { "evasion": 6 } }
+    ]
+  }
+}

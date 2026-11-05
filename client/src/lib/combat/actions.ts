@@ -397,7 +397,7 @@ const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
-export const KING_MULT = { hp: 1.7, atk: 1.45, def: 1.25 };
+export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall

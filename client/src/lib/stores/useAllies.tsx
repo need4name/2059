@@ -5,6 +5,7 @@ import { ALLIES, ALLY_MAX_LEVEL, allyDef, allyMoves, allySlotFor, allyUnit, ally
 import type { Perks } from '../engine/playi';
 import type { Item } from '../combat/types';
 import { useInventory } from './useInventory';
+import { useAugmentTrees } from './useAugmentTrees';
 
 export interface AllyProgress { level: number; xp: number }
 
@@ -74,6 +75,8 @@ export const useAllies = create<AlliesState>()(persist((set, get) => ({
     if (inv.items.some(i => i.id === item.id)) inv.removeItem(item.id);
     else if (item.slot && inv.equippedAugmentations[item.slot]?.id === item.id) { inv.unequipAugmentation(item.slot); useInventory.getState().removeItem(item.id); }
     else return false;
+    // Its upgrades don't work on an ally: the points come back
+    useAugmentTrees.getState().forget(item);
     const old = get().gear[id]?.[slot];
     if (old) useInventory.getState().addItems([old]);
     set({ gear: { ...get().gear, [id]: { ...get().gear[id], [slot]: item } } });

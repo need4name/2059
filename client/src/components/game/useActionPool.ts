@@ -12,7 +12,7 @@ import type { AugmentationSlot } from '@/lib/combat/types';
 export function useActionPool(): LoadoutAction[] {
   const playerClass = useCombat(s => s.playerClass);
   const { equippedAugmentations, equippedWeapon, getTotalAugmentationBonuses } = useInventory();
-  const { progress, getAugmentCombatActions } = useAugmentTrees();
+  const { owned, getAugmentCombatActions } = useAugmentTrees();
 
   return useMemo(() => {
     const equippedSlots = (Object.keys(equippedAugmentations) as AugmentationSlot[]).filter(s => equippedAugmentations[s] !== null);
@@ -46,9 +46,9 @@ export function useActionPool(): LoadoutAction[] {
       pool.push({ ...equippedWeapon.combatAction, key: `weapon_${equippedWeapon.id}`, unlocked: true, source: 'weapon' });
     }
     return pool;
-    // progress is read inside getAugmentCombatActions
+    // owned upgrades are read inside getAugmentCombatActions
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerClass, equippedAugmentations, equippedWeapon, progress, getAugmentCombatActions, getTotalAugmentationBonuses]);
+  }, [playerClass, equippedAugmentations, equippedWeapon, owned, getAugmentCombatActions, getTotalAugmentationBonuses]);
 }
 
 /**
