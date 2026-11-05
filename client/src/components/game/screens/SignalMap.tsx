@@ -196,6 +196,13 @@ export function SignalMap() {
           const sx = x - 1, sy = y + ROOM - 3;
           rect(sx + 1, sy, 3, 1, C.blood); rect(sx, sy + 1, 4, 1, C.blood); rect(sx + 1, sy + 2, 2, 1, C.bloodDark); px(sx + 4, sy + 1, C.bloodDark); px(sx + 3, sy + 3, C.bloodDark);
         }
+        if (r.corpse) {
+          // The last host's body, with something still on it: a glint over the stain that comes and goes
+          const gx = x + 1, gy = y + ROOM - 4, on = Math.floor(now / 380) % 3 !== 2;
+          ctx.globalAlpha = on ? 1 : 0.45;
+          px(gx, gy - 1, C.credLit); px(gx - 1, gy, C.credLit); px(gx, gy, '#fff6d0'); px(gx + 1, gy, C.credLit); px(gx, gy + 1, C.credLit);
+          ctx.globalAlpha = 1;
+        }
         if (mine) {
           // The host, bobbing on the spot
           const hx = x + ((ROOM - 5) >> 1), hy = y + 2 - (Math.floor(now / 520) % 2);

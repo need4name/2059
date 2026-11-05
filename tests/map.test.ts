@@ -176,3 +176,43 @@ test('chapters: the map state knows its chapter; travel starts a fresh map there
     assert.deepEqual(s.visited, [m.entry]);
   }
 });
+
+test('a lost host leaves its part on its body; the next host can take it back once', () => {
+  const part = { id: 'x-1', name: 'Test Arm', type: 'augmentation', rarity: 'rare' } as any;
+  let s = M.newMapState('indian-ocean');
+  s = { ...s, room: 'walkway' };
+  s = M.newHost(s, part);
+  assert.deepEqual(s.corpse, { room: 'walkway', item: part });
+  // Not from the entry room, and not while the room's fight is still waiting
+  assert.equal(M.takeCorpse(s).item, null);
+  s = { ...s, room: 'walkway' };
+  if (M.hasFight(s)) assert.equal(M.takeCorpse(s).item, null);
+  s = M.clearRoom(s);
+  const r = M.takeCorpse(s);
+  assert.equal(r.item, part);
+  assert.equal(r.state.corpse, null);
+  assert.equal(M.takeCorpse(r.state).item, null);
+  assert.equal(M.mapView({ ...s, visited: [...s.visited, 'walkway'] }).rooms.find(x => x.id === 'walkway')?.corpse, true);
+});
+
+test('losing another host first loses the last body\'s part', () => {
+  const a = { id: 'a', name: 'A' } as any, b = { id: 'b', name: 'B' } as any;
+  let s = { ...M.newMapState('indian-ocean'), room: 'walkway' };
+  s = M.newHost(s, a);
+  s = M.newHost({ ...s, room: 'dock' }, b);
+  assert.deepEqual(s.corpse, { room: 'dock', item: b });
+  assert.equal(M.newHost(s, null).corpse, null);
+});
+
+test('a fresh map forgets everything, so a new game or the next chapter starts clean', () => {
+  const fresh = M.newMapState('deltas');
+  assert.equal(fresh.done, false);
+  assert.deepEqual(fresh.fell, []);
+  assert.equal(fresh.corpse, null);
+  // Merged over a finished chapter's state (as the store does), nothing old survives
+  const old = { ...M.newMapState('indian-ocean'), done: true, fell: ['walkway'], corpse: { room: 'walkway', item: { id: 'x' } as any } };
+  const merged = { ...old, ...fresh };
+  assert.equal(merged.done, false);
+  assert.deepEqual(merged.fell, []);
+  assert.equal(merged.corpse, null);
+});

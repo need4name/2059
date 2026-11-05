@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import * as M from '../engine/map';
 import { setActiveChapter } from '../combat/chapters';
+import type { Item } from '../combat/types';
 
 const CHAPTER_ONE = 'indian-ocean';
 
@@ -16,13 +17,16 @@ interface MapStore extends M.MapState {
   takeCache: () => boolean;
   /** The chapter's last fight is won. */
   finishChapter: () => void;
-  newHost: () => void;
+  /** A host is lost; `left` is the part that stays on its body. */
+  newHost: (left?: Item | null) => void;
+  /** Take the part back off the last host's body, if it lies here. */
+  takeCorpse: () => Item | null;
   /** Wake in another chapter's entry room (a fresh map for it). */
   travel: (chapter: string) => void;
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [] });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
@@ -31,7 +35,8 @@ export const useMap = create<MapStore>()(persist((set, get) => ({
   look: () => { const r = M.look(pick(get())); set(r.state); return r.found; },
   takeCache: () => { const before = pick(get()); const after = M.takeCache(before); set(after); return after !== before; },
   finishChapter: () => set(M.finishChapter(pick(get()))),
-  newHost: () => set(M.newHost(pick(get()))),
+  newHost: (left) => set(M.newHost(pick(get()), left ?? null)),
+  takeCorpse: () => { const r = M.takeCorpse(pick(get())); set(r.state); return r.item; },
   travel: (chapter) => { setActiveChapter(chapter); set(M.newMapState(chapter)); },
   reset: () => { setActiveChapter(M.newMapState(CHAPTER_ONE).chapter); set(M.newMapState(CHAPTER_ONE)); },
 }), {

@@ -132,6 +132,8 @@ function tidyRoom() {
     if (AL.getState().party.length < slots) AL.getState().setParty([...AL.getState().party, room.ally], slots);
   }
   if (MAP.cacheReady(s, room)) C.getState().openRoomCache();
+  // The last host's body: take its part back
+  if (MAP.corpseHere(s, room)) { const it = MP.getState().takeCorpse(); if (it) I.getState().addItems([it]); }
 }
 
 /** Walk to the lowest-threat uncleared fight the bot can reach. False when none is left (chapter done). */
@@ -180,7 +182,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   while (out.length < maxFights) {
     betweenFights();
     // No fight left in reach: either the last boss is down, or the goals door is still shut
-    if (!walkToFight()) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut; goals", s.goals, "need", MAP.chapterMap().goals, "room", s.room); } } break; }
+    if (!walkToFight()) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut", s.room, "done", s.done, "cleared spire", s.cleared.includes("spire"), "spire fights", out.filter(f => f.lvl >= 30).map(f => [f.lvl, f.won, f.timedOut]), "last", lastThreat(), "fights", out.length); } } break; }
     const lvl = MAP.roomById(MP.getState().room).threat!; const deathsBefore = C.getState().progression.deathCount;
     C.getState().startRoomFight(); let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {

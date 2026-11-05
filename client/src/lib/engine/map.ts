@@ -6,6 +6,7 @@ import oceanMap from '../../content/map-indian-ocean.json';
 import deltasMap from '../../content/map-deltas.json';
 import hillsMap from '../../content/map-helix-hills.json';
 import rainMap from '../../content/map-rain-machine.json';
+import type { Item } from '../combat/types';
 import corridorMap from '../../content/map-corridor.json';
 import { activeChapter, chapterById } from '../combat/chapters';
 
@@ -45,11 +46,15 @@ export interface MapState {
   done?: boolean;
   /** Rooms where hosts were lost, oldest first (kept across hosts). */
   fell?: string[];
+  /** The last lost host's body and the best part still fitted to it, where it fell.
+   *  The next host can take it back; losing another host first loses it for good. */
+  corpse?: { room: string; item: Item } | null;
 }
 
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [] };
+  // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -94,10 +99,19 @@ export const cacheReady = (s: MapState, room = roomById(s.room)) => !!room.cache
 export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, taken: [...(s.taken ?? []), s.room] } : s);
 
 /** A new host wakes at the entry: fights refill, caches restock, memory and goals stay. */
-export const newHost = (s: MapState): MapState => ({
+export const newHost = (s: MapState, left: Item | null = null): MapState => ({
   ...s, room: mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [],
   fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
+  corpse: left ? { room: s.room, item: left } : null,
 });
+
+/** The last host's body lies in this room, and nothing here is fighting you for it. */
+export const corpseHere = (s: MapState, room = roomById(s.room)) => !!s.corpse && s.corpse.room === room.id && !hasFight(s, room);
+/** Take the part back off the last host's body. */
+export function takeCorpse(s: MapState): { state: MapState; item: Item | null } {
+  if (!corpseHere(s)) return { state: s, item: null };
+  return { state: { ...s, corpse: null }, item: s.corpse!.item };
+}
 
 /**
  * The one thing a found room shows on the map, most pressing first: a fight still
@@ -106,7 +120,7 @@ export const newHost = (s: MapState): MapState => ({
  */
 export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'look' | 'market' | 'cleared';
 /** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
-export interface MapRoom { id: string; at: [number, number]; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean }
+export interface MapRoom { id: string; at: [number, number]; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
 
 export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark | null {
   if (hasFight(s, room)) return room.threat! % 10 === 0 ? 'boss' : room.threat! % 5 === 0 ? 'elite' : 'fight';
@@ -137,7 +151,7 @@ export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; li
   const rooms = Array.from(shown).map(id => {
     const r = byId.get(id)!;
     const mark = seen.has(id) ? roomMark(s, r, met) : null;
-    return { id, at: r.at, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id) };
+    return { id, at: r.at, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id), corpse: s.corpse?.room === id };
   });
   return { rooms, links };
 }

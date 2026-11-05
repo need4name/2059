@@ -33,6 +33,7 @@ import { NO_PERKS } from '../engine/playi';
 import { instancedItem, ITEM_POOLS } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
+import { powerOf } from '../combat/augments';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
 
@@ -452,6 +453,12 @@ else done();
 
 // A new body: implants, credits, weapons, loadout and upgrade trees all start fresh.
 // `place` puts the signal on the map (the chapter's entry, or the next chapter's).
+/** The strongest implant the host is wearing (not a machine frame's built-in part): what stays on its body. */
+const bodyLeftBehind = (): Item | null => {
+const worn = AUGMENTATION_SLOTS.map(sl => useInventory.getState().equippedAugmentations[sl]).filter((i): i is Item => !!i && !i.id.startsWith('frame_'));
+return worn.length ? worn.reduce((a, b) => (powerOf(b) > powerOf(a) ? b : a)) : null;
+};
+
 const wakeNewHost = (finalClass: PlayerClass, place: () => void) => {
 const { progression, runSeed: lastSeed } = get();
 // The signal remembers what the body it left was wearing (chapter two's Echo wears it)
@@ -848,8 +855,10 @@ const { classesUnlocked, playerClass } = get();
 const finalClass: PlayerClass = classesUnlocked
 ? (newClass && newClass !== 'none' ? newClass : (playerClass !== 'none' ? playerClass : 'melee'))
 : 'none';
-// The new corpse wakes at the chapter's entry; fights refill, memory stays
-wakeNewHost(finalClass, () => useMap.getState().newHost());
+// The new corpse wakes at the chapter's entry; fights refill, memory stays.
+// The best part the lost host wore stays on its body, where it fell.
+const left = bodyLeftBehind();
+wakeNewHost(finalClass, () => useMap.getState().newHost(left));
 },
 
 goToNextChapter: () => {

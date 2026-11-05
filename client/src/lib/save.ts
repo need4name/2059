@@ -6,7 +6,7 @@ import { alliesUnlockedBy } from './combat/allies';
 
 export const SAVE_KEY = '2059-save';
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -59,6 +59,15 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
     try {
       const part = JSON.parse(raw);
       return { ...save, parts: { ...save.parts, '2059-playi': JSON.stringify({ ...part, state: { lastBody: [], ...part.state }, version: 2 }) } };
+    } catch { return save; }
+  },
+  // 5 -> 6: the map remembers the last lost host's body and its part (none yet)
+  5: (save) => {
+    const raw = save.parts['2059-map'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { corpse: null, ...part.state } }) } };
     } catch { return save; }
   },
 };
