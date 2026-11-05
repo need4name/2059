@@ -6,7 +6,7 @@
 import { drainTimers as drain } from './headless';
 import { useCombat as C } from '../client/src/lib/stores/useCombat';
 import { useInventory as I } from '../client/src/lib/stores/useInventory';
-import { useAugmentTrees as T, treeOf } from '../client/src/lib/stores/useAugmentTrees';
+import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugmentTrees';
 import * as UP from '../client/src/lib/engine/upgrades';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
@@ -50,9 +50,9 @@ function betweenFights() {
     let took = false;
     for (const sl of slots) {
       const item = I.getState().equippedAugmentations[sl as keyof ReturnType<typeof I.getState>['equippedAugmentations']];
-      const kind: UP.TreeKind | null = item ? treeOf(item) : null;
-      if (!item || !kind) continue;
-      const open = UP.TREES[kind].filter((n: UP.UpgradeNode) => !UP.blockedBy(kind, T.getState().owned[item.id] ?? [], n.id, T.getState().availablePoints));
+      const tree = item ? nodesOf(item) : null;
+      if (!item || !tree) continue;
+      const open = tree.filter(n => !UP.blockedIn(tree, T.getState().owned[item.id] ?? [], n.id, T.getState().availablePoints));
       if (open.length) { T.getState().take(sl, open[Math.floor(botRandom() * open.length)].id); took = true; break; }
     }
     if (!took) break;

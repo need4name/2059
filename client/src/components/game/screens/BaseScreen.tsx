@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
-import { useAugmentTrees, treeOf } from '@/lib/stores/useAugmentTrees';
-import { TREES, blockedBy, closed, costOf, depthOf, effectText, nodeOf, WINS_PER_POINT, type TreeKind } from '@/lib/engine/upgrades';
+import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
+import { blockedIn, closedIn, costIn, depthIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
 import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
@@ -142,13 +142,12 @@ function LoadoutTab() {
 
 /** Does this installed implant have a node the player can take right now? */
 function upgradeWaiting(item: Item, owned: Record<string, string[]>, points: number) {
-  const kind = treeOf(item);
-  return !!kind && TREES[kind].some(n => !blockedBy(kind, owned[item.id] ?? [], n.id, points));
+  const tree = nodesOf(item);
+  return !!tree && tree.some(n => !blockedIn(tree, owned[item.id] ?? [], n.id, points));
 }
 
 /** Where each node sits: leaves spread evenly, a parent centred over its children. */
-function treeLayout(kind: TreeKind) {
-  const nodes = TREES[kind];
+function treeLayout(nodes: UpgradeNode[]) {
   const kids = (id?: string) => nodes.filter(n => n.parent === id);
   const leaves: string[] = [];
   const walk = (id: string) => { const k = kids(id); if (!k.length) leaves.push(id); k.forEach(c => walk(c.id)); };
@@ -161,26 +160,26 @@ function treeLayout(kind: TreeKind) {
     return x[id];
   };
   place(root.id);
-  return { x, depth: Object.fromEntries(nodes.map(n => [n.id, depthOf(kind, n.id)])), rows: Math.max(...nodes.map(n => depthOf(kind, n.id))) + 1 };
+  return { x, depth: Object.fromEntries(nodes.map(n => [n.id, depthIn(nodes, n.id)])), rows: Math.max(...nodes.map(n => depthIn(nodes, n.id))) + 1 };
 }
 
-const ROW = 92; // px between rows of the tree
+const ROW = 84; // px between rows of the tree
 
-/** One implant's tree: tap a node to see it; a fork takes one side only. */
+/** One implant's tree (its own, grown from the part): tap a node to see it; a fork takes one side only. */
 function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
   const { owned: all, availablePoints, take } = useAugmentTrees();
-  const kind = treeOf(item)!;
+  const nodes = nodesOf(item)!;
   const owned = all[item.id] ?? [];
-  const { x, depth, rows } = treeLayout(kind);
-  const nodes = TREES[kind];
-  const next = nodes.find(n => blockedBy(kind, owned, n.id, Infinity) === null);
+  const { x, depth, rows } = treeLayout(nodes);
+  const next = nodes.find(n => blockedIn(nodes, owned, n.id, Infinity) === null);
   const [focus, setFocus] = useState<string>(next?.id ?? nodes[0].id);
-  const node = nodeOf(kind, focus)!;
-  const why = blockedBy(kind, owned, focus, availablePoints);
-  const cost = costOf(kind, focus);
-  const state = (id: string) => owned.includes(id) ? 'owned' : closed(kind, owned, id) ? 'closed' : blockedBy(kind, owned, id, Infinity) === null ? 'open' : 'locked';
-  const taken = (id: string) => nodes.find(n => n.parent === nodeOf(kind, id)?.parent && owned.includes(n.id));
-  const isCap = !nodes.some(n => n.parent === focus);
+  const node = nodeIn(nodes, focus)!;
+  const why = blockedIn(nodes, owned, focus, availablePoints);
+  const cost = costIn(nodes, focus);
+  const state = (id: string) => owned.includes(id) ? 'owned' : closedIn(nodes, owned, id) ? 'closed' : blockedIn(nodes, owned, id, Infinity) === null ? 'open' : 'locked';
+  const taken = (id: string) => nodes.find(n => n.parent === nodeIn(nodes, id)?.parent && owned.includes(n.id));
+  // Five branch ends need narrower nodes to fit a phone
+  const wide = nodes.filter(n => !nodes.some(c => c.parent === n.id)).length > 4;
 
   return (
     <div className="space-y-4">
@@ -193,27 +192,27 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
           {/* The branches */}
           <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${rows * ROW}`} preserveAspectRatio="none" aria-hidden>
             {nodes.filter(n => n.parent).map(n => {
-              const on = owned.includes(n.id);
-              const shut = closed(kind, owned, n.id);
+              const on = owned.includes(n.id), shut = closedIn(nodes, owned, n.id);
               return <line key={n.id} x1={x[n.parent!]} y1={depth[n.parent!] * ROW + ROW / 2} x2={x[n.id]} y2={depth[n.id] * ROW + ROW / 2}
                 stroke={on ? '#38d6f0' : shut ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.14)'} strokeWidth={on ? 3 : 2} vectorEffect="non-scaling-stroke" />;
             })}
           </svg>
           {nodes.map(n => {
-            const st = state(n.id), on = focus === n.id, cap = !nodes.some(c => c.parent === n.id);
+            const st = state(n.id), on = focus === n.id, legend = n.cap === 'legendary';
             return (
               <button key={n.id} onClick={() => setFocus(n.id)} aria-pressed={on} aria-label={n.name}
-                className="absolute flex w-[84px] -translate-x-1/2 -translate-y-[22px] flex-col items-center gap-1"
-                style={{ left: `${x[n.id]}%`, top: depth[n.id] * ROW + ROW / 2 }}>
-                <span className={cx('flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] font-bold transition',
-                  st === 'owned' && (cap ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
+                className={cx('absolute flex -translate-x-1/2 flex-col items-center gap-1', wide ? 'w-[68px]' : 'w-[84px]')}
+                style={{ left: `${x[n.id]}%`, top: depth[n.id] * ROW + ROW / 2 - 20 }}>
+                <span className={cx('flex h-10 w-10 items-center justify-center rounded-full font-display text-[13px] font-bold transition',
+                  st === 'owned' && (n.cap ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
                   st === 'open' && 'bg-hud-raised text-sys ring-2 ring-sys/70',
                   st === 'locked' && 'bg-hud-raised text-hud-faint ring-1 ring-white/10',
                   st === 'closed' && 'bg-hud-panel text-hud-faint/30 ring-1 ring-white/[0.04]',
+                  legend && st !== 'closed' && st !== 'owned' && 'text-cred ring-2 ring-cred/70',
                   on && 'scale-110 shadow-[0_0_0_4px_rgba(255,255,255,0.14)]')}>
-                  {cap ? <Glyph name="upgrade" size={14} /> : costOf(kind, n.id)}
+                  {n.cap ? <Glyph name={legend ? 'strain' : 'upgrade'} size={14} /> : costIn(nodes, n.id)}
                 </span>
-                <span className={cx('text-center text-[11px] font-semibold leading-tight', st === 'closed' ? 'text-hud-faint/50' : st === 'owned' ? 'text-hud-text' : 'text-hud-dim')}>{n.name}</span>
+                <span className={cx('text-center text-[10.5px] font-semibold leading-tight', st === 'closed' ? 'text-hud-faint/50' : legend ? 'text-cred' : st === 'owned' ? 'text-hud-text' : 'text-hud-dim')}>{n.name}</span>
               </button>
             );
           })}
@@ -222,15 +221,15 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
 
       <div className="slab space-y-2 rounded-[24px] p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-display text-base font-semibold text-white">{node.name}</span>
-          {isCap && <span className="text-xs font-semibold text-cred">Capstone</span>}
+          <span className={cx('font-display text-base font-semibold', node.cap === 'legendary' ? 'text-cred' : 'text-white')}>{node.name}</span>
+          {node.cap && <span className="text-xs font-semibold text-cred">{node.cap === 'legendary' ? 'Legendary capstone' : 'Capstone'}</span>}
         </div>
         <p className="text-sm text-hud-text/85">{effectText(node.effect)}</p>
         {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'points' && <Btn className="w-full" variant="secondary" disabled>Needs {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
         {why === 'fork' && <p className="text-sm text-hud-faint">You took {taken(focus)?.name} instead.</p>}
-        {why === 'parent' && <p className="text-sm text-hud-faint">{closed(kind, owned, focus) ? 'Closed off by an earlier choice.' : `Take ${nodeOf(kind, node.parent!)?.name} first.`}</p>}
+        {why === 'parent' && <p className="text-sm text-hud-faint">{closedIn(nodes, owned, focus) ? 'Closed off by an earlier choice.' : `Take ${nodeIn(nodes, node.parent!)?.name} first.`}</p>}
       </div>
     </div>
   );
@@ -239,7 +238,7 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
 function UpgradesTab() {
   const { equippedAugmentations } = useInventory();
   const { owned, availablePoints, wins } = useAugmentTrees();
-  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] && treeOf(equippedAugmentations[s]!));
+  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] && nodesOf(equippedAugmentations[s]!));
   const firstWaiting = equipped.find(s => upgradeWaiting(equippedAugmentations[s]!, owned, availablePoints));
   const [picked, setPicked] = useState<AugmentationSlot | null>(null);
   const slot = picked && equipped.includes(picked) ? picked : (firstWaiting ?? equipped[0]);
@@ -265,7 +264,7 @@ function UpgradesTab() {
               className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', s === slot && 'key-selected')}>
               <SlotIcon slot={s} size={20} className="text-sys/80" />
               <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}</span>
-              <span className="flex gap-1">{[1, 2, 3, 4].map(t => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t <= n ? 'bg-sys' : 'bg-white/10')} />)}</span>
+              <span className="flex gap-1">{Array.from({ length: Math.max(...nodesOf(item)!.map(x => depthIn(nodesOf(item)!, x.id))) + 1 }, (_, t) => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t < n ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
             </button>
           );

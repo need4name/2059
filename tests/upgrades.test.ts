@@ -3,61 +3,86 @@ import assert from 'node:assert/strict';
 import * as U from '../client/src/lib/engine/upgrades';
 import { actionForItem } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
-import { seedRandom } from '../client/src/lib/engine/rng';
+import type { Item, ItemRarity } from '../client/src/lib/combat/types';
 
-test('a node needs its parent, a fork takes one side, and deeper nodes cost more', () => {
-  const k: U.TreeKind = 'attack';
-  assert.equal(U.blockedBy(k, [], 'force', 9), 'parent');
-  assert.equal(U.blockedBy(k, [], 'root', 0), 'points');
-  assert.equal(U.blockedBy(k, [], 'root', 1), null);
-  assert.equal(U.blockedBy(k, ['root', 'force'], 'finesse', 9), 'fork', 'the other side of the fork closes');
-  assert.ok(U.closed(k, ['root', 'force'], 'surgeon'), 'and everything under it');
-  assert.equal(U.blockedBy(k, ['root'], 'root', 9), 'owned');
-  assert.deepEqual(['root', 'force', 'breaker', 'wrecker'].map(id => U.costOf(k, id)), U.COSTS);
-  assert.equal(U.spent(k, ['root', 'force', 'breaker', 'wrecker']), U.COSTS.reduce((a, b) => a + b, 0));
+const armOf = (rarity: ItemRarity, prefix = '') => ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && !i.id.startsWith('hx') && i.id.startsWith(prefix))!;
+const part = (base: Item, id: string, rarity: ItemRarity = base.rarity): Item => ({ ...base, id, rarity, parts: { head: 'jab', mods: [] } });
+const leaves = (t: U.UpgradeNode[]) => t.filter(n => !t.some(c => c.parent === n.id));
+const depth = (t: U.UpgradeNode[]) => Math.max(...t.map(n => U.depthIn(t, n.id)));
+
+test('the same part always grows the same tree; different parts grow different ones', () => {
+  const base = armOf('rare');
+  const a = U.treeFor(part(base, 'x-1', 'rare'), 'attack');
+  assert.deepEqual(U.treeFor(part(base, 'x-1', 'rare'), 'attack'), a);
+  const shapes = new Set(Array.from({ length: 30 }, (_, k) => JSON.stringify(U.treeFor(part(base, `y-${k}`, 'rare'), 'attack').map(n => [n.parent, n.name]))));
+  assert.ok(shapes.size > 20, 'trees vary from part to part');
 });
 
-test('every tree has one root and forks at each of its first two levels', () => {
-  for (const kind of ['attack', 'brace', 'passive'] as const) {
-    const nodes = U.TREES[kind];
-    assert.equal(nodes.filter(n => !n.parent).length, 1);
-    const root = nodes.find(n => !n.parent)!;
-    const kids = (id: string) => nodes.filter(n => n.parent === id);
-    assert.equal(kids(root.id).length, 2, `${kind}: the root forks`);
-    for (const c of kids(root.id)) assert.equal(kids(c.id).length, 2, `${kind}: each side forks again`);
+test('rarity sets the size, depth and branch ends; only legendary parts get a legendary capstone', () => {
+  const base = armOf('rare');
+  for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary'] as ItemRarity[]) {
+    const sh = U.SHAPES[r];
+    for (let k = 0; k < 40; k++) {
+      const t = U.treeFor(part(base, `${r}-${k}`, r), 'attack');
+      assert.ok(t.length <= sh.nodes && t.length >= sh.rootKids + 1);
+      assert.ok(depth(t) <= sh.depth);
+      assert.ok(leaves(t).length <= Math.max(sh.leaves, sh.rootKids));
+      assert.ok(leaves(t).every(n => n.cap), 'every branch ends in a capstone');
+      assert.equal(t.filter(n => n.cap === 'legendary').length, r === 'legendary' ? 1 : 0);
+      assert.equal(t.filter(n => !n.parent).length, 1);
+      assert.ok(t.filter(n => n.parent === t[0].id).length >= 2, 'the root forks');
+    }
   }
 });
 
+test("a part's maker leans its tree toward that maker's upgrades", () => {
+  const kizuna = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && /KIZUNA/i.test(i.name))!;
+  const volkov = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && /VOLKOV/i.test(i.name))!;
+  const count = (base: Item, names: string[]) => { let n = 0; for (let k = 0; k < 40; k++) n += U.treeFor(part(base, `m-${k}`, 'epic'), 'attack').filter(x => names.includes(x.name)).length; return n; };
+  assert.ok(count(kizuna, ['Gyro sight', 'Target lock']) > count(volkov, ['Gyro sight', 'Target lock']));
+  assert.ok(count(volkov, ['Servo boost', 'Hydraulic ram']) > count(kizuna, ['Servo boost', 'Hydraulic ram']));
+});
+
+test('a node needs its parent, a fork takes one side, and deeper nodes cost more', () => {
+  const t = U.treeFor(part(armOf('rare'), 'fork-1', 'epic'), 'attack');
+  const root = t[0], [a, b] = t.filter(n => n.parent === root.id);
+  assert.equal(U.blockedIn(t, [], a.id, 9), 'parent');
+  assert.equal(U.blockedIn(t, [], root.id, 0), 'points');
+  assert.equal(U.blockedIn(t, [root.id, a.id], b.id, 9), 'fork');
+  assert.ok(t.filter(n => n.parent === b.id).every(n => U.closedIn(t, [root.id, a.id], n.id)), 'everything under the closed side closes');
+  assert.equal(U.costIn(t, root.id), U.COSTS[0]);
+  assert.equal(U.spentIn(t, [root.id, a.id]), U.COSTS[0] + U.COSTS[1]);
+});
+
 test("an attack implant's tree really changes its move", () => {
-  seedRandom(3);
-  const arm = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && i.rarity === 'rare' && !i.signature && !i.id.startsWith('hx'))!;
-  const item = { ...arm, parts: { head: 'jab', mods: [] } };
+  const item = part(armOf('rare'), 'move-1', 'rare');
+  const t = U.treeFor(item, 'attack');
   const base = actionForItem(item)!;
-  const force = actionForItem(item, U.effectOf('attack', ['root', 'force']))!;
-  assert.ok(force.damage! > base.damage!, 'more damage');
-  assert.ok(force.heatGenerated! > base.heatGenerated!, 'runs hotter');
-  const surgeon = actionForItem(item, U.effectOf('attack', ['root', 'finesse', 'surgeon']))!;
-  assert.equal(surgeon.accuracy, 'precise');
-  const breaker = actionForItem(item, U.effectOf('attack', ['root', 'force', 'breaker']))!;
-  assert.ok(breaker.effects?.knock && breaker.effects?.crush);
-  assert.equal(U.effectText(U.nodeOf('attack', 'force')!.effect), '+25% damage, +2 heat, +3 attack');
+  // Take a whole branch, root to capstone
+  const end = t.find(n => n.cap)!;
+  const chain: string[] = [];
+  for (let n: U.UpgradeNode | undefined = end; n; n = n.parent ? U.nodeIn(t, n.parent) : undefined) chain.unshift(n.id);
+  const up = actionForItem(item, U.effectIn(t, chain))!;
+  assert.notDeepEqual(up, base);
+  assert.ok(U.effectText(end.effect).length > 0);
 });
 
 test('wins earn points, and an implant that leaves gives its points back', async () => {
-  const { useAugmentTrees } = await import('../client/src/lib/stores/useAugmentTrees');
+  const { useAugmentTrees, nodesOf } = await import('../client/src/lib/stores/useAugmentTrees');
   const { useInventory } = await import('../client/src/lib/stores/useInventory');
   const T = useAugmentTrees.getState, I = useInventory.getState;
   T().resetTrees(); I().clearInventory();
   for (let k = 0; k < U.WINS_PER_POINT * 4; k++) T().winFight();
   assert.equal(T().availablePoints, 4, `one point per ${U.WINS_PER_POINT} wins`);
-  const arm = { ...ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && !i.id.startsWith('hx'))!, id: 'arm-1', parts: { head: 'jab', mods: [] } };
+  const arm = part(armOf('rare'), 'arm-1', 'rare');
   I().addItems([arm]); I().equipAugmentation(arm);
-  assert.ok(T().take('right_arm', 'root'));
-  assert.ok(T().take('right_arm', 'force'));
-  assert.ok(T().take('right_arm', 'breaker'));
-  assert.equal(T().availablePoints, 0);
-  assert.equal(T().take('right_arm', 'finesse'), false, 'the fork is closed');
+  const t = nodesOf(arm)!;
+  const [a, b] = t.filter(n => n.parent === t[0].id);
+  assert.ok(T().take('right_arm', t[0].id));
+  assert.ok(T().take('right_arm', a.id));
+  assert.equal(T().take('right_arm', b.id), false, 'the fork is closed');
+  const left = T().availablePoints;
   T().forget(arm);
-  assert.equal(T().availablePoints, 4, 'all four points back');
+  assert.equal(T().availablePoints, left + U.COSTS[0] + U.COSTS[1], 'the points come back');
   assert.equal(T().owned['arm-1'], undefined);
 });

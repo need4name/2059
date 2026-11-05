@@ -1,46 +1,87 @@
 {
-  "about": "Implant upgrade trees (engine/upgrades.ts). Every implant grows one tree: attack implants the attack tree, Helix braces the brace tree, the rest the passive tree. A node needs its parent; the children of one node are a fork (take one, the others close). costs[d] is the price of a node d steps from the root. effect: dmg (share of damage), heat (added to the move's heat), steady (aim one step steadier), precise (always full damage), guard (share of guard), attack/defense/hp/move/evasion (stats), fx (side effects, as on implant parts).",
-  "costs": [1, 1, 2, 3],
+  "about": "Implant upgrade trees (engine/upgrades.ts). Every implant grows its own tree, worked out from the implant itself (always the same for the same part): its rarity sets the size and depth (shapes), its maker which upgrades turn up (each kind lists the makers that lean on it; 'any' suits every maker). Inner nodes come from kinds, the end of every branch is a capstone, and only a legendary implant ends its deepest branch in a legendary capstone. Numbers grow with rarity (scale) and capstones with how deep they sit. A node needs its parent; the children of one node are a fork. costs[d] is the price of a node d steps from the root. effect: dmg (share of damage), heat (added to the move's heat), steady (aim one step steadier), precise (always full damage), guard (share of guard), attack/defense/hp/move/evasion (stats), fx (side effects, as on implant parts).",
+  "costs": [1, 1, 2, 2, 3, 3],
   "winsPerPoint": 1,
-  "trees": {
+  "shapes": {
+    "common":    { "nodes": 5,  "depth": 3, "leaves": 2, "rootKids": 2, "scale": 1 },
+    "uncommon":  { "nodes": 7,  "depth": 3, "leaves": 3, "rootKids": 2, "scale": 1.05 },
+    "rare":      { "nodes": 9,  "depth": 4, "leaves": 4, "rootKids": 2, "scale": 1.15 },
+    "epic":      { "nodes": 11, "depth": 4, "leaves": 4, "rootKids": 3, "scale": 1.3 },
+    "legendary": { "nodes": 13, "depth": 5, "leaves": 5, "rootKids": 3, "scale": 1.45 }
+  },
+  "kinds": {
     "attack": [
-      { "id": "root", "name": "Tuned", "effect": { "attack": 2, "dmg": 0.15 } },
-      { "id": "force", "parent": "root", "name": "Force", "effect": { "attack": 3, "dmg": 0.25, "heat": 2 } },
-      { "id": "finesse", "parent": "root", "name": "Finesse", "effect": { "attack": 2, "dmg": 0.1, "heat": -4, "steady": true } },
-      { "id": "breaker", "parent": "force", "name": "Breaker", "effect": { "attack": 3, "fx": { "knock": true, "crush": true } } },
-      { "id": "ripper", "parent": "force", "name": "Ripper", "effect": { "attack": 3, "fx": { "bleed": true, "drain": 0.15 } } },
-      { "id": "surgeon", "parent": "finesse", "name": "Surgeon", "effect": { "attack": 2, "dmg": 0.1, "precise": true } },
-      { "id": "coolant", "parent": "finesse", "name": "Coolant", "effect": { "attack": 2, "heat": -2, "fx": { "cool": 8 } } },
-      { "id": "wrecker", "parent": "breaker", "name": "Wrecking ball", "effect": { "attack": 4, "dmg": 0.35, "fx": { "stun": 0.25 } } },
-      { "id": "harvest", "parent": "ripper", "name": "Harvest", "effect": { "attack": 4, "dmg": 0.25, "fx": { "drain": 0.35 } } },
-      { "id": "execute", "parent": "surgeon", "name": "Executioner", "effect": { "attack": 4, "dmg": 0.45 } },
-      { "id": "coldhands", "parent": "coolant", "name": "Cold hands", "effect": { "attack": 4, "dmg": 0.2, "fx": { "haste": true, "cool": 12 } } }
+      { "id": "servo", "name": "Servo boost", "makers": ["VOLKOV", "PARSU", "TIANXIA"], "effect": { "dmg": 0.12, "attack": 2 } },
+      { "id": "ram", "name": "Hydraulic ram", "makers": ["VOLKOV", "TIANXIA"], "effect": { "attack": 2, "fx": { "knock": true } } },
+      { "id": "plate", "name": "Crush plate", "makers": ["PARSU", "VOLKOV"], "effect": { "dmg": 0.08, "fx": { "crush": true } } },
+      { "id": "overdrive", "name": "Overdrive", "makers": ["VOLKOV", "IOA"], "effect": { "dmg": 0.1, "heat": 2, "fx": { "haste": true } } },
+      { "id": "loop", "name": "Coolant loop", "makers": ["TIANXIA", "KIZUNA", "CROWN"], "effect": { "heat": -2, "fx": { "cool": 6 } } },
+      { "id": "gyro", "name": "Gyro sight", "makers": ["KIZUNA", "IOA"], "effect": { "attack": 2, "steady": true } },
+      { "id": "lock", "name": "Target lock", "makers": ["KIZUNA"], "effect": { "dmg": 0.05, "precise": true } },
+      { "id": "barbs", "name": "Barbed edge", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 2, "fx": { "bleed": true } } },
+      { "id": "leech", "name": "Leech line", "makers": ["CBN", "CROWN"], "effect": { "attack": 1, "fx": { "drain": 0.12 } } },
+      { "id": "jammer", "name": "Jammer", "makers": ["IOA"], "effect": { "fx": { "stun": 0.15 } } },
+      { "id": "snare", "name": "Snare code", "makers": ["IOA", "KIZUNA"], "effect": { "attack": 1, "fx": { "slow": true } } },
+      { "id": "edge", "name": "Overclocked edge", "makers": ["any"], "effect": { "dmg": 0.18, "heat": 3 } },
+      { "id": "trim", "name": "Heat trim", "makers": ["any"], "effect": { "attack": 1, "heat": -4 } },
+      { "id": "tune", "name": "Fine tuning", "makers": ["any"], "effect": { "dmg": 0.1, "attack": 2 } }
     ],
     "brace": [
-      { "id": "root", "name": "Tuned", "effect": { "guard": 0.15, "defense": 2 } },
-      { "id": "bulwark", "parent": "root", "name": "Bulwark", "effect": { "guard": 0.2 } },
-      { "id": "vent", "parent": "root", "name": "Vent", "effect": { "heat": -6 } },
-      { "id": "plating", "parent": "bulwark", "name": "Plating", "effect": { "defense": 6 } },
-      { "id": "padding", "parent": "bulwark", "name": "Padding", "effect": { "hp": 12 } },
-      { "id": "sink", "parent": "vent", "name": "Heat sink", "effect": { "heat": -6 } },
-      { "id": "reflex", "parent": "vent", "name": "Reflex", "effect": { "move": 1 } },
-      { "id": "fortress", "parent": "plating", "name": "Fortress", "effect": { "guard": 0.3, "defense": 4 } },
-      { "id": "skin", "parent": "padding", "name": "Second skin", "effect": { "hp": 24 } },
-      { "id": "ice", "parent": "sink", "name": "Ice", "effect": { "heat": -8, "guard": 0.15 } },
-      { "id": "light", "parent": "reflex", "name": "Light frame", "effect": { "evasion": 5, "defense": 3 } }
+      { "id": "guard", "name": "Shield lattice", "makers": ["HELIX"], "effect": { "guard": 0.12 } },
+      { "id": "plating", "name": "Plating", "makers": ["HELIX", "PARSU"], "effect": { "defense": 4 } },
+      { "id": "padding", "name": "Padding", "makers": ["HELIX", "CROWN"], "effect": { "hp": 10 } },
+      { "id": "vent", "name": "Vent", "makers": ["any"], "effect": { "heat": -4 } },
+      { "id": "dodge", "name": "Slip joint", "makers": ["any"], "effect": { "evasion": 3 } },
+      { "id": "reflex", "name": "Reflex", "makers": ["HELIX"], "effect": { "move": 1 } }
     ],
     "passive": [
-      { "id": "root", "name": "Tuned", "effect": { "attack": 3, "defense": 3 } },
-      { "id": "aggressor", "parent": "root", "name": "Aggressor", "effect": { "attack": 6 } },
-      { "id": "guardian", "parent": "root", "name": "Guardian", "effect": { "defense": 6, "hp": 10 } },
-      { "id": "hunter", "parent": "aggressor", "name": "Hunter", "effect": { "attack": 9 } },
-      { "id": "runner", "parent": "aggressor", "name": "Runner", "effect": { "move": 1 } },
-      { "id": "bulk", "parent": "guardian", "name": "Bulk", "effect": { "hp": 22 } },
-      { "id": "evasive", "parent": "guardian", "name": "Evasive", "effect": { "evasion": 4 } },
-      { "id": "predator", "parent": "hunter", "name": "Predator", "effect": { "attack": 12 } },
-      { "id": "ghost", "parent": "runner", "name": "Ghost", "effect": { "evasion": 4, "attack": 3 } },
-      { "id": "mountain", "parent": "bulk", "name": "Mountain", "effect": { "hp": 35, "defense": 6 } },
-      { "id": "blur", "parent": "evasive", "name": "Blur", "effect": { "evasion": 6 } }
+      { "id": "aggro", "name": "Aggressor", "makers": ["VOLKOV", "CBN", "PATCHWORK"], "effect": { "attack": 4 } },
+      { "id": "plating", "name": "Plating", "makers": ["HELIX", "PARSU", "TIANXIA"], "effect": { "defense": 4 } },
+      { "id": "bulk", "name": "Bulk", "makers": ["CROWN", "HELIX", "TIANXIA"], "effect": { "hp": 10 } },
+      { "id": "nerves", "name": "Quick nerves", "makers": ["KIZUNA", "IOA"], "effect": { "evasion": 3 } },
+      { "id": "stride", "name": "Long stride", "makers": ["IOA", "VOLKOV"], "effect": { "move": 1 } },
+      { "id": "balance", "name": "Balance", "makers": ["any"], "effect": { "attack": 2, "defense": 2 } },
+      { "id": "grit", "name": "Grit", "makers": ["any"], "effect": { "hp": 6, "defense": 2 } },
+      { "id": "spite", "name": "Spite", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 5, "hp": -4 } }
+    ]
+  },
+  "capstones": {
+    "attack": [
+      { "id": "wrecker", "name": "Wrecking ball", "makers": ["VOLKOV", "PARSU"], "effect": { "attack": 4, "dmg": 0.3, "fx": { "stun": 0.2 } } },
+      { "id": "breach", "name": "Breach", "makers": ["VOLKOV", "TIANXIA"], "effect": { "attack": 4, "dmg": 0.25, "fx": { "knock": true, "crush": true } } },
+      { "id": "harvest", "name": "Harvest", "makers": ["CBN", "CROWN"], "effect": { "attack": 4, "dmg": 0.2, "fx": { "drain": 0.3 } } },
+      { "id": "execute", "name": "Executioner", "makers": ["KIZUNA"], "effect": { "attack": 4, "dmg": 0.4, "precise": true } },
+      { "id": "coldhands", "name": "Cold hands", "makers": ["TIANXIA", "CROWN"], "effect": { "attack": 4, "dmg": 0.15, "fx": { "haste": true, "cool": 10 } } },
+      { "id": "ghost", "name": "Ghost protocol", "makers": ["IOA"], "effect": { "attack": 4, "dmg": 0.25, "fx": { "slow": true, "stun": 0.15 } } },
+      { "id": "coldread", "name": "Cold read", "makers": ["KIZUNA", "CROWN"], "effect": { "attack": 4, "dmg": 0.25, "steady": true, "fx": { "cool": 8 } } },
+      { "id": "signalghost", "name": "Signal ghost", "makers": ["KIZUNA", "IOA"], "effect": { "attack": 4, "dmg": 0.2, "fx": { "slow": true, "haste": true } } },
+      { "id": "fury", "name": "Scrap fury", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.35, "heat": 4 } }
+    ],
+    "brace": [
+      { "id": "fortress", "name": "Fortress", "makers": ["HELIX", "PARSU"], "effect": { "guard": 0.3, "defense": 4 } },
+      { "id": "skin", "name": "Second skin", "makers": ["HELIX", "CROWN"], "effect": { "hp": 25 } },
+      { "id": "ice", "name": "Ice", "makers": ["any"], "effect": { "heat": -8, "guard": 0.15 } },
+      { "id": "light", "name": "Light frame", "makers": ["any"], "effect": { "evasion": 5, "defense": 3 } }
+    ],
+    "passive": [
+      { "id": "predator", "name": "Predator", "makers": ["VOLKOV", "CBN", "PATCHWORK"], "effect": { "attack": 10 } },
+      { "id": "mountain", "name": "Mountain", "makers": ["HELIX", "CROWN", "TIANXIA", "PARSU"], "effect": { "hp": 30, "defense": 5 } },
+      { "id": "blur", "name": "Blur", "makers": ["KIZUNA", "IOA"], "effect": { "evasion": 6 } },
+      { "id": "wraith", "name": "Wraith", "makers": ["any"], "effect": { "evasion": 4, "attack": 4 } }
+    ]
+  },
+  "legendary": {
+    "attack": [
+      { "id": "wildfire", "name": "Wildfire", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.3, "fx": { "ignite": true } } },
+      { "id": "runhot", "name": "Redline", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.2, "fx": { "hotBonus": 0.5 } } },
+      { "id": "laststand", "name": "Last stand", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.2, "fx": { "lowBonus": 1 } } },
+      { "id": "reaper", "name": "Reaper", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.3, "fx": { "reap": true } } }
+    ],
+    "brace": [
+      { "id": "continuity", "name": "Continuity", "makers": ["any"], "effect": { "guard": 0.5, "hp": 30 } }
+    ],
+    "passive": [
+      { "id": "apex", "name": "Apex", "makers": ["any"], "effect": { "attack": 12, "defense": 6, "hp": 20 } }
     ]
   }
 }

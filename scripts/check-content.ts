@@ -143,18 +143,22 @@ const eventFile = z.object({
       .refine(c => c.win.implant !== 'better' || c.cost?.part, '"better" needs a part given up')).min(1).max(3),
   }).strict()),
 }).strict();
-const fxFields = z.object({ knock: z.boolean(), crush: z.boolean(), bleed: z.boolean(), drain: z.number().gt(0).max(1), stun: z.number().gt(0).max(1), cool: z.number().int().min(1).max(30), haste: z.boolean(), slow: z.boolean(), ignite: z.boolean() }).partial().strict();
-const upgradeNode = z.object({
-  id: z.string().regex(/^[a-z]+$/), parent: z.string().regex(/^[a-z]+$/).optional(), name: z.string().trim().min(1).max(20),
+const fxFields = z.object({ knock: z.boolean(), crush: z.boolean(), bleed: z.boolean(), drain: z.number().gt(0).max(1), stun: z.number().gt(0).max(1), cool: z.number().int().min(1).max(30), haste: z.boolean(), slow: z.boolean(), ignite: z.boolean(), hotBonus: z.number().gt(0).max(2), lowBonus: z.number().gt(0).max(2), reap: z.boolean() }).partial().strict();
+const upgradeKind = z.object({
+  id: z.string().regex(/^[a-z]+$/), name: z.string().trim().min(1).max(20),
+  makers: z.array(z.enum(['HELIX', 'VOLKOV', 'TIANXIA', 'KIZUNA', 'CROWN', 'IOA', 'CBN', 'PARSU', 'PATCHWORK', 'any'])).min(1),
   effect: z.object({
     dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
-    attack: z.number().int().min(1).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(1).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
+    attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
     fx: fxFields,
-  }).partial().strict().refine(e => Object.keys(e).length > 0, 'a node must do something'),
+  }).partial().strict().refine(e => Object.keys(e).length > 0, 'an upgrade must do something'),
 }).strict();
+const perTree = z.object({ attack: z.array(upgradeKind).min(1), brace: z.array(upgradeKind).min(1), passive: z.array(upgradeKind).min(1) }).strict();
+const shape = z.object({ nodes: z.number().int().min(3).max(16), depth: z.number().int().min(2).max(6), leaves: z.number().int().min(2).max(6), rootKids: z.number().int().min(2).max(3), scale: z.number().gt(0).max(2) }).strict();
 const upgradeFile = z.object({
-  about: text, costs: z.array(z.number().int().min(1).max(5)).min(2).max(6), winsPerPoint: z.number().int().min(1).max(5),
-  trees: z.object({ attack: z.array(upgradeNode).min(3), brace: z.array(upgradeNode).min(3), passive: z.array(upgradeNode).min(3) }).strict(),
+  about: text, costs: z.array(z.number().int().min(1).max(5)).min(3).max(8), winsPerPoint: z.number().int().min(1).max(5),
+  shapes: z.object({ common: shape, uncommon: shape, rare: shape, epic: shape, legendary: shape }).strict(),
+  kinds: perTree, capstones: perTree, legendary: perTree,
 }).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
@@ -259,16 +263,19 @@ export function checkContent(): string[] {
       if (!e.moves.some(m => m.type === 'attack' && !m.isHeavy)) problems.push(`enemies.json ${n}: needs a normal attack`);
     }
   }
-  // Upgrade trees: one root, parents exist, no deeper than the price list
+  // Upgrade trees: each rarity's shape fits the price list, and every tree kind has enough to fill a branch
   const ur = upgradeFile.safeParse(upgrades);
   report('upgrades.json', ur);
-  if (ur.success) for (const [kind, nodes] of Object.entries(ur.data.trees)) {
-    const ids = new Set(nodes.map(n => n.id));
-    if (ids.size !== nodes.length) problems.push(`upgrades.json ${kind}: duplicate node ids`);
-    if (nodes.filter(n => !n.parent).length !== 1) problems.push(`upgrades.json ${kind}: needs exactly one root (a node with no parent)`);
-    for (const n of nodes) if (n.parent && !ids.has(n.parent)) problems.push(`upgrades.json ${kind}.${n.id}: parent "${n.parent}" isn't in the tree`);
-    const depth = (id: string, seen = 0): number => { const n = nodes.find(x => x.id === id); return !n?.parent || seen > nodes.length ? 0 : 1 + depth(n.parent, seen + 1); };
-    for (const n of nodes) if (depth(n.id) >= ur.data.costs.length) problems.push(`upgrades.json ${kind}.${n.id}: deeper than the costs list reaches`);
+  if (ur.success) {
+    for (const [r, sh] of Object.entries(ur.data.shapes)) {
+      if (sh.depth >= ur.data.costs.length) problems.push(`upgrades.json shapes.${r}: deeper than the costs list reaches`);
+      if (sh.nodes < sh.rootKids + 1) problems.push(`upgrades.json shapes.${r}: too few nodes for its root to fork`);
+    }
+    for (const [kind, list] of Object.entries(ur.data.kinds)) {
+      const deepest = Math.max(...Object.values(ur.data.shapes).map(sh => sh.depth));
+      if (list.length < deepest) problems.push(`upgrades.json kinds.${kind}: needs at least ${deepest} kinds so no branch repeats one`);
+      if (new Set(list.map(k => k.id)).size !== list.length) problems.push(`upgrades.json kinds.${kind}: duplicate ids`);
+    }
   }
   // Room events
   const evr = eventFile.safeParse(events);

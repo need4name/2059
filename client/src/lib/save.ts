@@ -9,7 +9,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -85,6 +85,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
   7: (save) => save,
   // 8 -> 9: implant upgrades became forked trees; the trees store gives back every point spent on the old ones
   8: (save) => save,
+  // 9 -> 10: every implant grows its own tree; the trees store gives back every point spent on the shared one
+  9: (save) => save,
 };
 
 function storage(): Storage | null {
