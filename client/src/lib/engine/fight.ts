@@ -660,7 +660,8 @@ export function startPlayerTurn(s: FightState): FightState {
  * Overload fills as blows are traded: a share of each hit you land (relative to the
  * target's health) and more for each hit you take (relative to yours). Full = one Surge.
  */
-export const OVERLOAD = { dealt: 25, taken: 50, full: 100, reach: 2, mult: 1.5 };
+/** Overload: hits dealt and taken fill it (a share of the target's health), and so does ending your turn hot or critical. */
+export const OVERLOAD = { dealt: 35, taken: 50, hot: 15, critical: 25, full: 100, reach: 3, mult: 1.5 };
 const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, overload: Math.min(OVERLOAD.full, s.overload + Math.max(0, Math.round(amount))) });
 const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
 
@@ -823,7 +824,9 @@ export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: bool
 }
 
 /** The end of the player's turn: what allies set up for it (a mark, Coordinated) is spent. */
-export const endPlayerTurn = (s: FightState): FightState => ({ ...s, mark: null, allyHitFoes: [] });
+/** The end of your turn: marks lapse, and running hot feeds Overload (more when critical). */
+export const endPlayerTurn = (s: FightState): FightState =>
+  gainOverload({ ...s, mark: null, allyHitFoes: [] }, s.playerHeat >= 86 ? OVERLOAD.critical : s.playerHeat >= HEAT.hotAt ? OVERLOAD.hot : 0);
 
 /** Aim at a different foe (only living ones). */
 export function setTarget(s: FightState, i: number): FightState {
