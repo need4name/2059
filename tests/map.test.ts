@@ -292,3 +292,9 @@ test('a boss implant sells for a little less than calling its boss back', () => 
   assert.ok(sellPrice({ ...crown, bossThreat: 10 }) >= recallCost(10) * 0.85);
   assert.ok(sellPrice(crown) < sellPrice({ ...crown, bossThreat: 10 }), 'only a boss-dropped one is worth that');
 });
+
+test('Overload carries between fights for a host, and a new host starts empty', () => {
+  const s = { ...M.newMapState(), overload: 60 };
+  assert.equal(M.newHost(s).overload, 0);
+  assert.equal({ ...s }.overload, 60);
+});

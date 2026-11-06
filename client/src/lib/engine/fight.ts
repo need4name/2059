@@ -661,7 +661,7 @@ export function startPlayerTurn(s: FightState): FightState {
  * target's health) and more for each hit you take (relative to yours). Full = one Surge.
  */
 /** Overload: hits dealt and taken fill it (a share of the target's health), and so does ending your turn hot or critical. */
-export const OVERLOAD = { dealt: 35, taken: 50, hot: 15, critical: 25, full: 100, reach: 3, mult: 1.5 };
+export const OVERLOAD = { dealt: 25, taken: 40, hot: 10, critical: 16, full: 100, reach: 3, mult: 1.5 };
 const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, overload: Math.min(OVERLOAD.full, s.overload + Math.max(0, Math.round(amount))) });
 const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
 

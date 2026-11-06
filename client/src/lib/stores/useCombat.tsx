@@ -392,7 +392,7 @@ justOpened: availableFirmware().filter(c => !before.includes(c)),
 const handleBossDefeated = () => {
 const { farmLevel, bossLevel, player } = get();
 // The host keeps its wounds into the next fight, less a breath caught after winning
-if (farmLevel === null) useMap.getState().setHurt(hurtAfterWin(player.currentHp, player.maxHp));
+if (farmLevel === null) { useMap.getState().setHurt(hurtAfterWin(player.currentHp, player.maxHp)); useMap.getState().setOverload(get().overload); }
 const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'Patchwork King';
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
@@ -645,7 +645,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: farm ? 0 : (useMap.getState().overload ?? 0), target: 0,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.

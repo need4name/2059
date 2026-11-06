@@ -55,6 +55,8 @@ export interface MapState {
   scar?: number;
   /** Health this host is missing: it carries from fight to fight. Resting at a server or a new host clears it. */
   hurt?: number;
+  /** Overload this host has built up: it carries from fight to fight. A new host starts empty. */
+  overload?: number;
   /** Server rooms any host has reached: a new host can wake in one (kept across hosts). */
   lit?: string[];
   /** Boss rooms beaten (kept across hosts): the boss stays down unless called back. */
@@ -66,7 +68,7 @@ export interface MapState {
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, lit: [], beaten: [], recalled: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -144,7 +146,7 @@ export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, tak
 
 /** A new host wakes at the entry (or a server reached before, `at`): fights refill, caches restock, memory and goals stay. */
 export const newHost = (s: MapState, left: Item | null = null, at?: string): MapState => ({
-  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, recalled: [],
+  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, overload: 0, recalled: [],
   fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
   corpse: left ? { room: s.room, item: left } : null,
 });

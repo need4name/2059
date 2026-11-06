@@ -26,6 +26,8 @@ interface MapStore extends M.MapState {
   recall: () => void;
   /** How much health this host is missing now. */
   setHurt: (n: number) => void;
+  /** How much Overload this host carries into its next fight. */
+  setOverload: (n: number) => void;
   /** Take the part back off the last host's body, if it lies here. */
   takeCorpse: () => Item | null;
   /** This host used the room's event (and lost `health` max health to it). */
@@ -35,7 +37,7 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [] });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [] });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
@@ -48,6 +50,7 @@ export const useMap = create<MapStore>()(persist((set, get) => ({
   rest: () => set(M.rest(pick(get()))),
   recall: () => set(M.recall(pick(get()))),
   setHurt: (n) => set({ hurt: Math.max(0, Math.round(n)) }),
+  setOverload: (n) => set({ overload: Math.max(0, Math.min(100, Math.round(n))) }),
   spendEvent: (health = 0) => set(E.scar(E.spendEvent(pick(get())), health)),
   takeCorpse: () => { const r = M.takeCorpse(pick(get())); set(r.state); return r.item; },
   travel: (chapter) => { setActiveChapter(chapter); set(M.newMapState(chapter)); },
