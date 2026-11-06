@@ -54,11 +54,17 @@ test('enemies go for whoever is nearest, the player winning ties', () => {
   assert.equal(Fight.victimOf(tie, 0), -1);
 });
 
-test("Draw fire pulls every enemy onto the ally until the ally's next turn", () => {
-  const s = fight([ally('bale', [8, 0])]);
+test("Draw fire pulls the enemies near the ally onto it until the ally's next turn", () => {
+  const s0 = fight([ally('bale', [8, 0])]);
+  // Put the ally within reach of the enemy for the pull to work
+  const foe = s0.foes[0].pos;
+  const s = { ...s0, allies: [{ ...s0.allies[0], pos: { row: foe.row + 2, col: foe.col } }] };
   const taunted = Fight.resolveAllyMove(s, 0, 1).state;
   assert.equal(taunted.allies[0].taunting, true);
   assert.equal(Fight.victimOf(taunted, 0), 0);
+  // Too far away, the pull doesn't reach
+  const far = { ...taunted, allies: [{ ...taunted.allies[0], pos: { row: foe.row + Fight.TAUNT_RANGE + 2, col: foe.col } }] };
+  assert.notEqual(Fight.victimOf(far, 0), 0);
   assert.equal(Fight.canAllyUse(taunted, 0, 1), false, 'one action a turn');
   assert.equal(Fight.startPlayerTurn(taunted).allies[0].taunting, true, "the player's turn doesn't end it");
   const next = Fight.startAllyTurn(taunted, 0).state;

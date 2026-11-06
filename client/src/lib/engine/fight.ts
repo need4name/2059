@@ -27,6 +27,8 @@ import { NO_PERKS, type Perks } from './playi';
 
 // ── Tuning ────────────────────────────────────────────────────────────────────
 
+/** How far a taunting ally's pull reaches (tiles, any direction). */
+export const TAUNT_RANGE = 3;
 export const PLAYER_BASE_MOVE = 1;
 /**
  * How far the player can walk, from its movement points. Movement is an area of floor: the base
@@ -565,9 +567,10 @@ export function viewFor(s: FightState, i: number): CombatGrid {
 
 /** Who foe i goes for: -1 for the player, or an ally's index. */
 export function victimOf(s: FightState, i: number): number {
-  const taunt = s.allies.findIndex(a => allyAlive(a) && !a.swimming && a.taunting);
-  if (taunt >= 0) return taunt;
   const from = s.foes[i].pos;
+  // A taunting ally draws only the enemies near it: where you put it matters
+  const taunt = s.allies.findIndex(a => allyAlive(a) && !a.swimming && a.taunting && chebyshev(from, a.pos) <= TAUNT_RANGE);
+  if (taunt >= 0) return taunt;
   // Nobody in the sea can be reached: the player only counts while on deck
   let best = -1, bestDist = s.playerSwimming ? Infinity : chebyshev(from, s.grid.playerPosition);
   s.allies.forEach((a, k) => {

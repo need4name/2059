@@ -9,7 +9,7 @@
       "story": ["Bale stacks the empty crates the way someone once taught it: corners square, labels out.", "It says sorry to a crate it dropped. Then, quieter, to someone who isn't there.", "\"I had hands that ached at the end of a shift,\" Bale says. \"I miss that. Is that strange?\""],
       "moves": [
         { "type": "attack", "effect": "attack", "name": "Shoulder Check", "description": "A heavy shove at close range", "damage": 12, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "melee" },
-        { "type": "defend", "effect": "taunt", "name": "Draw Fire", "description": "Every enemy aims at Bale until your next turn. Bale guards +10", "defenseBoost": 10, "cooldown": 2 }
+        { "type": "defend", "effect": "taunt", "name": "Draw Fire", "description": "Every enemy within 3 tiles of Bale aims at Bale until your next turn. Bale guards +10", "defenseBoost": 10, "cooldown": 2 }
       ]
     },
     {
@@ -64,7 +64,7 @@
       "story": ["Tally flinches at every scanner arch, then laughs at itself.", "It keeps a count scratched into its forearm, in neat rows. It won't say of what.", "\"If there are several of me,\" Tally says, \"one of us chose to come with you. I'd like it to be me.\""],
       "moves": [
         { "type": "attack", "effect": "attack", "name": "Borrowed Swing", "description": "Somebody else's swing, from somebody else's arm", "damage": 14, "accuracy": "variable", "physicalRatio": 0.6, "attackPattern": "melee_long" },
-        { "type": "defend", "effect": "taunt", "name": "Not Me, Them", "description": "Every enemy aims at Tally until your next turn. Tally guards +8", "defenseBoost": 8, "cooldown": 2 }
+        { "type": "defend", "effect": "taunt", "name": "Not Me, Them", "description": "Every enemy within 3 tiles of Tally aims at Tally until your next turn. Tally guards +8", "defenseBoost": 8, "cooldown": 2 }
       ]
     },
     {
