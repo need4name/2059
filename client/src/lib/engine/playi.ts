@@ -54,7 +54,7 @@ export interface Perks {
   hotTakenMult: number;       // scales the extra damage taken while hot (1 = normal)
   doubleActionHeat: number;   // act twice at or below this heat
   ventBonus: number;          // extra cooling on brace
-  runaway: boolean;           // move at 100 heat, critical crit chance 45%
+  runaway: boolean;           // burnout at 100 heat costs no turn, critical crit chance 45%
   damageMult: number;         // all your damage
   extraSlots: number;         // extra fight-bar slots
   flankMult: number;          // multiplies flank bonuses

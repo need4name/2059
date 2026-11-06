@@ -36,9 +36,10 @@ return (
     className={`well relative w-4 rounded-full overflow-hidden ${isCritical ? 'animate-pulse' : ''}`}
     style={{ height: '140px' }}
   >
-    {/* Phase zone markers - subtle dividers at 40% and 70% */}
+    {/* Band dividers: cool / warm at 35, warm / hot at 60, hot / critical at 85 */}
+    <div className="absolute left-0 right-0 border-t border-slate-600/40" style={{ bottom: '35%' }} />
     <div className="absolute left-0 right-0 border-t border-slate-600/40" style={{ bottom: '60%' }} />
-    <div className="absolute left-0 right-0 border-t border-slate-600/40" style={{ bottom: '30%' }} />
+    <div className="absolute left-0 right-0 border-t border-slate-600/40" style={{ bottom: '85%' }} />
 
 {/* Fill - grows from bottom */}
 <div

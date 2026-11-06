@@ -329,5 +329,6 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     healing: t.healing ? Math.round(t.healing * RARITY_DAMAGE[item.rarity]) : undefined,
     bypassStructuralDefense: item.passiveEffect === 'bypass_sdef' || undefined,
     side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,
+    maker,
   };
 }

@@ -11,7 +11,7 @@
 // fixed moves during their own turn. Each foe aims at whoever is nearest (the
 // player wins ties) unless an ally is drawing fire.
 
-import type { Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
+import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
   calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
@@ -56,6 +56,36 @@ export const PASSIVE_COOLING = 6;
 export const DOUBLE_ACTION_HEAT = 15;
 /** Heavy attacks only come out against a player at or above this heat. */
 export const HEAVY_MIN_PLAYER_HEAT = 45;
+
+/**
+ * Heat is the core: running hot pays, venting is a weapon, and 100 burns you out.
+ * - hotAt: from here (Hot and Critical) attacks gain their maker's extra effect (HOT_FX).
+ * - ventAt: bracing from this heat lets the vented heat out as a burst on every enemy beside you,
+ *   ventDmg damage per degree vented per point of physical attack.
+ * - Reaching 100 is a burnout: you take burnoutHp of your health, a burst of burnoutVent degrees hits
+ *   everyone beside you, your heat drops to burnoutLeft, and you lose your next turn.
+ * - An enemy pushed to 100 heat overheats: it takes foeBurnHp of its health, is stunned, and drops to burnoutLeft.
+ * - Enemies wind up heavies from their own heat (heavyFrom; Focused from 30), not yours.
+ */
+export const HEAT = { hotAt: 61, ventAt: 55, ventDmg: 0.06, burnoutHp: 0.12, burnoutVent: 50, burnoutLeft: 50, foeBurnHp: 0.1, heavyFrom: 45, defaultPush: 4 };
+/** What a maker's attack does extra when you're hot. Moves with no maker push heat into the target instead. */
+export const HOT_FX: Record<string, ActionEffects> = {
+  VOLKOV: { knock: true, crush: true }, TIANXIA: { knock: true }, KIZUNA: { ignoreCover: true }, CROWN: { drain: 0.25 },
+  CBN: { bleed: true }, IOA: { stun: 0.25 }, PARSU: { crush: true, knock: true }, PATCHWORK: { ignite: true },
+};
+/** An attack as it lands at this heat: hot, it gains its maker's effect (or extra heat pushed). */
+export function hotAction(action: CombatAction, heat: number): CombatAction {
+  if (heat < HEAT.hotAt || action.type === 'brace' || action.type === 'defend') return action;
+  const fx = action.maker ? HOT_FX[action.maker] : undefined;
+  if (!fx) return { ...action, heatTransfer: (action.heatTransfer ?? 0) + HEAT.defaultPush };
+  return { ...action, effects: { ...(action.effects ?? {}), ...fx } };
+}
+/** The extra effect an attack gets when hot, in a few words (for cards). */
+export function hotText(action: CombatAction): string {
+  const fx = action.maker ? HOT_FX[action.maker] : undefined;
+  if (!fx) return `pushes ${HEAT.defaultPush} more heat into them`;
+  return [fx.knock && 'knocks back', fx.crush && 'crushes', fx.ignoreCover && 'shoots through cover', fx.drain && `heals ${Math.round(fx.drain * 100)}% of damage`, fx.bleed && 'makes them bleed', fx.stun && `${Math.round(fx.stun * 100)}% stun`, fx.ignite && 'sets them alight'].filter(Boolean).join(', ');
+}
 /** Share of the structure bar a brace repairs. */
 export const BRACE_REPAIR = 0.4;
 /** Share of structural damage that lands on flesh when there are no implants. */
@@ -800,6 +830,46 @@ export function setTarget(s: FightState, i: number): FightState {
   return s.foes[i] && isAlive(s.foes[i]) ? { ...s, target: i } : s;
 }
 
+// ── Heat bursts ──────────────────────────────────────────────────────────────
+
+/** Heat let out as a burst: every enemy beside you takes damage for each degree. */
+function heatBurst(s: FightState, degrees: number, events: FightEvent[], label: string): FightState {
+  let state = s;
+  for (const { f, i } of livingFoes(s)) {
+    if (f.swimming || chebyshev(f.pos, s.grid.playerPosition) !== 1) continue;
+    const raw = degrees * HEAT.ventDmg * s.player.physicalAttack;
+    const dmg = Math.max(1, Math.round(raw * (40 / (40 + Math.max(0, f.unit.physicalDefense)))));
+    const hp = Math.max(0, f.unit.currentHp - dmg);
+    state = setFoe(state, i, { unit: { ...f.unit, currentHp: hp } });
+    events.push(say(`${label}: ${f.unit.name} -${dmg}`, 'damage'));
+    if (hp <= 0) { events.push(say(`${f.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
+  }
+  return state;
+}
+
+/** At 100 heat the host burns out: it's hurt, the heat bursts out on everyone beside it, and it loses its next turn. */
+export function burnout(s: FightState, events: FightEvent[]): FightState {
+  if (s.playerHeat < 100) return s;
+  const hurt = Math.max(1, Math.round(s.player.maxHp * HEAT.burnoutHp * s.perks.damageTakenMult));
+  events.push(say(`BURNOUT -- -${hurt} health, heat bursts out`, 'critical'));
+  let state = heatBurst(s, HEAT.burnoutVent, events, 'Burnout');
+  const hp = Math.max(0, state.player.currentHp - hurt);
+  if (hp <= 0) events.push({ kind: 'playerDown' });
+  state = { ...state, player: { ...state.player, currentHp: hp }, playerHeat: HEAT.burnoutLeft, playerStunned: s.perks.runaway ? state.playerStunned : true };
+  return afterFoeChanges(state, events);
+}
+
+/** An enemy pushed to 100 heat overheats: hurt and stunned, its heat falls back. */
+function foeOverheat(s: FightState, i: number, events: FightEvent[]): FightState {
+  const f = s.foes[i];
+  if (!f || f.heat < 100 || !isAlive(f)) return s;
+  const dmg = Math.max(1, Math.round(f.unit.maxHp * HEAT.foeBurnHp));
+  const hp = Math.max(0, f.unit.currentHp - dmg);
+  events.push(say(`${f.unit.name} OVERHEATS -- -${dmg}, stunned`, 'critical'));
+  if (hp <= 0) { events.push(say(`${f.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
+  return setFoe(s, i, { unit: { ...f.unit, currentHp: hp }, heat: HEAT.burnoutLeft, stunned: hp > 0, chargingHeavy: false, pendingAction: null, pendingTiles: null });
+}
+
 // ── Player actions ───────────────────────────────────────────────────────────
 
 /** Brace: guard up, cool down, repair part of the structure bar. */
@@ -811,16 +881,17 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
   const events: FightEvent[] = [];
   if (wasMalfunctioning && structure > 0) events.push(say('STRUCTURAL INTEGRITY RESTORED -- system nominal'));
   events.push(say(`${action.name} -- guard up${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
-  return {
-    state: {
-      ...s,
-      player: { ...player, currentStructuralHp: structure, currentHp: player.currentHp + Math.max(0, heal) },
-      playerDefenseBoost: action.defenseBoost || 8,
-      playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
-      playerHeat: clampHeat(s.playerHeat + (action.heatGenerated ?? -25) - s.perks.ventBonus),
-    },
-    events,
+  const heat = clampHeat(s.playerHeat + (action.heatGenerated ?? -25) - s.perks.ventBonus);
+  let state: FightState = {
+    ...s,
+    player: { ...player, currentStructuralHp: structure, currentHp: player.currentHp + Math.max(0, heal) },
+    playerDefenseBoost: action.defenseBoost || 8,
+    playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
+    playerHeat: heat,
   };
+  // Venting from high heat: the heat let out hits every enemy beside you
+  if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, s.playerHeat - heat, events, 'Vent burst'), events);
+  return { state, events };
 }
 
 /** The shape an attack uses, filling in class specials and the old default. */
@@ -1026,16 +1097,20 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
 
 /** An attack or special aimed at a tile (the best aim if none is given). Everyone on the struck tiles is hit. */
 export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
+  const events0: FightEvent[] = [];
   const { player, grid, playerHeat } = s;
   const heatMult = getHeatMultipliers(playerHeat);
+  // Hot: the move gains its maker's extra effect
+  const hot = hotAction(action, playerHeat);
+  if (hot !== action) events0.push(say(`HOT -- ${action.name}: ${hotText(action)}`, 'critical'));
 
   // Kizuna cold start: the first strike while cool is precise. Overclock is too.
   const kizunaFiredNow = !!player.hasKizuna && playerHeat <= 20 && !s.kizunaJustFired;
   const cleanFirst = s.perks.firstStrikePrecise && !s.firstStrikeUsed;
-  let finalAction = kizunaFiredNow || cleanFirst ? { ...action, accuracy: 'precise' as const } : action;
+  let finalAction = kizunaFiredNow || cleanFirst ? { ...hot, accuracy: 'precise' as const } : hot;
   if (s.overclockActive || order(s) === 'precise') finalAction = { ...finalAction, accuracy: 'precise' as const };
 
-  const events: FightEvent[] = [];
+  const events: FightEvent[] = [...events0];
   if (kizunaFiredNow) events.push(say('KIZUNA ACTIVE -- cold-start precision lock'));
   if (s.playerMalfunctioning) events.push(say('MALFUNCTION', 'malfunction'));
 
@@ -1043,7 +1118,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   const struck = foesStruck(s, action, playerClass, aim);
   // A knockback shoves the nearest one it hits
   const pushed = struck.slice().sort((a, b) => chebyshev(grid.playerPosition, s.foes[a].pos) - chebyshev(grid.playerPosition, s.foes[b].pos))[0];
-  const heatPush = action.heatTransfer ?? 0;
+  const heatPush = hot.heatTransfer ?? 0;
   let nearest = Infinity, dealtTotal = 0;
   events.push({ kind: 'hit' });
   for (const i of struck) {
@@ -1075,11 +1150,12 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
+    if (hp > 0 && heat >= 100) state = foeOverheat(state, i, events);
     events.push(say(`${who}${dmg.isCrit ? 'CRITICAL! ' : ''}Dealt ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural${dmg.isFlank ? ' [FLANK]' : ''}`, dmg.isCrit ? 'critical' : 'damage'));
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
   }
 
-  state = applyHitEffects(state, s, action, struck, dealtTotal, aim, events);
+  state = applyHitEffects(state, s, hot, struck, dealtTotal, aim, events);
   const adjacentHeat = nearest === 1 ? 2 : 0;
   const healed = action.healing && action.healing > 0 ? Math.min(player.maxHp, state.player.currentHp + action.healing) : state.player.currentHp;
   state = {
@@ -1094,6 +1170,8 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };
   state = afterFoeChanges(state, events);
+  // Pushed to 100: burnout
+  state = burnout(state, events);
   // Reaper: a takedown vents all your heat and guards you up
   if (action.effects?.reap && events.some(e => e.kind === 'foeDown')) {
     state = { ...state, playerHeat: 0, playerDefenseBoost: Math.max(state.playerDefenseBoost, QUIRK.reapGuard) };
@@ -1158,9 +1236,10 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
   if (victimOf(s, i) === -1 && s.playerSwimming) return { action: null, state: s, events: [] };
   const roster = foeRoster(foe);
   const dist = chebyshev(foe.pos, grid.playerPosition);
-  const heavyFrom = hasTrait(foe, 'focused') ? 30 : HEAVY_MIN_PLAYER_HEAT;
+  // Heavies come from the enemy's own heat (Focused ones sooner)
+  const heavyFrom = hasTrait(foe, 'focused') ? 30 : HEAT.heavyFrom;
   const filtered = roster.filter(a => {
-    if (a.isHeavy && (s.playerHeat < heavyFrom || order(s) === 'noHeavies')) return false;
+    if (a.isHeavy && (foe.heat < heavyFrom || order(s) === 'noHeavies')) return false;
     // Shields only come out when the enemy is hurt, and not every time
     if (a.type === 'defend' && (unit.currentHp > unit.maxHp * 0.5 || random() > 0.35)) return false;
     const pat = a.attackPattern;
@@ -1298,7 +1377,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
   const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0));
 
-  if (playerHeat >= 100 && s.playerHeat < 100) events.push(say('OVERHEATED -- movement locked next turn'));
+
   events.push({ kind: 'hit' });
   events.push(say(spill
     ? `${foe.unit.name} -- ${action.name}: ${dmg.bioDamage + spill} damage (no implants to absorb it)`
@@ -1319,6 +1398,9 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   // Knockback shoves you a tile straight back, or into whatever is behind you
   if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
   state = foeHitEffects(state, i, { kind: 'player' }, action, dmg.bioDamage, events);
+  // Heat pushed onto you can tip you over; an enemy that runs itself to 100 burns out too
+  if (hp > 0) state = burnout(state, events);
+  state = foeOverheat(state, i, events);
   return { state, events };
 }
 

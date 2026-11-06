@@ -12,6 +12,8 @@ interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
+/** Whose firmware each is (sets what its attack does extra when you're hot). */
+export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA' };
 export const FIRMWARE_XP = D.xp;
 export const XP_TO_NEXT = D.xpToNext;
 /** The highest level a firmware reaches. */
@@ -49,6 +51,7 @@ export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?:
   }
   return {
     ...def.base,
+    maker: FIRMWARE_MAKER[cls],
     damage: physicalAttack !== undefined ? Math.floor(physicalAttack * scale) : def.base.damage,
     heatGenerated: heat, accuracy, attackPattern: pattern,
     effects: Object.keys(effects).length ? effects : undefined,

@@ -432,13 +432,7 @@ export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
 export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.04 };
-/** The middle stretch (threats 4-14) was too easy: enemies there get a little tougher, fading back out by threat 18. */
-export const MID_PUSH = { hp: 0.3, atk: 0.22, from: 4, to: 12, fade: 4 };
-const midPush = (level: number) => (level < MID_PUSH.from ? 0 : level <= MID_PUSH.to ? 1 : Math.max(0, 1 - (level - MID_PUSH.to) / MID_PUSH.fade));
-const growth = (level: number) => ({
-  hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * (1 + MID_PUSH.hp * midPush(level)),
-  atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * (1 + MID_PUSH.atk * midPush(level)),
-});
+const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.

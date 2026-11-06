@@ -88,12 +88,34 @@ test('stepping out of a telegraphed heavy dodges it', () => {
   assert.equal(moved.state.foes[0].pendingAction, null);
 });
 
-test('enemies hold heavy attacks against a cool player', () => {
+test('enemies wind up heavies from their own heat, not yours', () => {
+  const cool = (s: FightState) => ({ ...s, foes: s.foes.map(f => ({ ...f, heat: 10 })) });
   for (let k = 0; k < 40; k++) {
     seedRandom(k);
-    const { action } = Fight.chooseFoeAction(fight({ playerHeat: 0 }), 0);
+    // A cool enemy holds its heavies however hot you run
+    const { action } = Fight.chooseFoeAction(cool(fight({ playerHeat: 95 })), 0);
     assert.ok(!action?.isHeavy);
   }
+});
+
+test('heat: hot attacks gain their maker\'s effect, venting hot bursts out, 100 burns you out', () => {
+  const move = { type: 'attack', name: 'Slam', description: '', damage: 10, accuracy: 'variable', physicalRatio: 0.7, attackPattern: 'melee', maker: 'VOLKOV' } as const;
+  assert.equal(Fight.hotAction(move, 50), move, 'not hot yet');
+  assert.equal(Fight.hotAction(move, 80).effects?.knock, true, 'Volkov knocks back when hot');
+  assert.equal(Fight.hotAction({ ...move, maker: undefined }, 80).heatTransfer, Fight.HEAT.defaultPush, 'no maker: pushes heat');
+  // Bracing from high heat hurts the enemy beside you; from low heat it doesn't
+  const s = fight();
+  const brace = { type: 'brace', name: 'Brace', description: '', defenseBoost: 8, heatGenerated: -25 } as const;
+  const hp = (st: FightState) => st.foes[0].unit.currentHp;
+  assert.ok(hp(Fight.resolveBrace({ ...s, playerHeat: 80 }, brace).state) < hp(s));
+  assert.equal(hp(Fight.resolveBrace({ ...s, playerHeat: 40 }, brace).state), hp(s));
+  // Burnout: hurt, heat back to 50, next turn lost
+  const events: Fight.FightEvent[] = [];
+  const out = Fight.burnout({ ...s, playerHeat: 100 }, events);
+  assert.equal(out.playerHeat, Fight.HEAT.burnoutLeft);
+  assert.ok(out.player.currentHp < s.player.currentHp);
+  assert.equal(out.playerStunned, true);
+  assert.ok(hp(out) < hp(s), 'the burst hits the enemy beside you');
 });
 
 test('ending a turn on a hazard burns you, and can finish you', () => {

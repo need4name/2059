@@ -52,7 +52,7 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 | Blast (`aoe`) | a 3×3 square centred on a tile up to 3 away | leaving the square |
 
 ### Enemy behaviour
-- **Heavy attacks lock their tiles.** The enemy winds up where it stands, aimed at where its target stands; the orange tiles are exactly the tiles that fire next turn. Anyone on them then is hit (allies included), anyone off them is safe, wherever they are. If the shape can't reach its target from there, the heavy isn't wound up. Enemies only use heavies when your heat is **45 or more**.
+- **Heavy attacks lock their tiles.** The enemy winds up where it stands, aimed at where its target stands; the orange tiles are exactly the tiles that fire next turn. Anyone on them then is hit (allies included), anyone off them is safe, wherever they are. If the shape can't reach its target from there, the heavy isn't wound up. Enemies only use heavies when their own heat is **45 or more** (see Heat).
 - **Collisions:** a knockback whose next tile is solid (cover, the arena edge, another body) doesn't move its target; instead the target slams into it for 30% of the hit again (at least 4) and is **stunned**. A body it slams into takes the same damage.
 - **Stunned:** loses its next turn (an enemy also loses any heavy it was winding up; a stunned ally sits out the round).
 - **Burning:** ending a turn on a fuel fire sets you (or an enemy) burning for 2 turns: 4% of max health each turn (at least 3), at the start of that unit's turn. A flame and circling stars show over units that are burning or stunned.
@@ -118,19 +118,22 @@ Strike (10 damage, 70% bio, variable) from a player with 12 attack and 5 disrupt
 
 ## 3. Heat
 
-**Where:** `getHeatPhase` and `getHeatMultipliers` in `client/src/lib/combat/types.ts`.
+Heat is the game's core: something to ride, not avoid. **Where:** `getHeatPhase` and `getHeatMultipliers` in `client/src/lib/combat/types.ts`; `HEAT`, `HOT_FX`, `hotAction`, `burnout` in `fight.ts`.
 
 | Heat | Band | Your damage | Damage you take | Crit chance |
 | --- | --- | --- | --- | --- |
-| 0–40 | Cool | ×1.00 | ×1.00 | 0% |
-| 41–70 | Warm | ×1.10 | ×1.10 | 8% |
-| 71–90 | Hot | ×1.25 | ×1.25 | 18% |
-| 91–100 | Critical | ×1.50 | ×1.75 | 30% |
+| 0–35 | Cool | ×1.00 | ×1.00 | 0% |
+| 36–60 | Warm | ×1.10 | ×1.05 | 8% |
+| 61–85 | Hot | ×1.25 | ×1.15 | 18% |
+| 86–100 | Critical | ×1.50 | ×1.40 | 30% |
 
-- Actions add their own heat (Strike +11; brace −25; Helix braces −15 to −18). Standing next to the enemy when you attack adds +2.
-- Some moves push heat onto the target (`heatTransfer`); some enemy attacks heat you up or cool you down.
-- At **15 or less** you act twice. At **45 or more** enemies start using heavies. At **100** you can't move until you cool.
-
+- Actions add their own heat (Strike +11; brace −25; Helix braces −15 to −18). Standing next to the enemy when you attack adds +2. Everyone sheds 6 at the start of each of their turns.
+- **Hot moves** (61+): every attack gains its maker's extra effect (`HOT_FX`): Volkov knocks back and crushes, Tianxia knocks back, Kizuna shoots through cover, Crown heals 25% of the damage, CBN makes them bleed, IOA has a 25% stun, PARSU crushes and knocks back, Patchwork sets them alight. Moves with no maker (Strike, guns) push 4 more heat into the target instead. Firmware attacks count as their maker (Enforcer Volkov, Operative Kizuna, Courier IOA, Foreman Tianxia). The log says "HOT" when it happens.
+- **Venting is a weapon:** bracing from 55 heat or more lets the heat out as a burst on every enemy beside you: 0.06 damage per degree vented per point of your physical attack, cut by its defence.
+- **Burnout at 100:** you take 12% of your max health, a 50-degree burst hits everyone beside you, your heat drops to 50 and you lose your next turn (Runaway keeps the turn). Heat pushed onto you by an enemy can tip you over too.
+- **Cooking enemies:** an enemy pushed to 100 heat (by your hits' heat transfer, or its own attacks) overheats: it takes 10% of its max health, is stunned (losing any heavy it was winding up) and drops to 50.
+- **Enemies wind up heavies from their own heat** (45 or more; Focused ones from 30), whatever yours is.
+- At **15 or less** you act twice (to be decided in the firmware conversation).
 ---
 
 ## 4. Implants
@@ -208,7 +211,7 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 - Base health: 36 + 17 × threat + 0.85 × threat². Attack +4.4 and defence +2.4 per threat on top of each enemy's base. Move damage +19% per threat.
 - On top of that, every enemy's health is × 0.39 × 1.06^(threat − 1) and its attack × 1.34 × 1.047^(threat − 1) (`ENEMY_TUNING`, `ENEMY_GROWTH`). Fights stay short early, and the compounding growth means each host meets a wall it can't push through yet.
 - Enemies alone are then eased (`ENEMY_EASE`): × 0.9 health and × 0.82 attack, and their attack grows × 1.04 a threat instead of × 1.047. Allies are built from the uneased numbers.
-- **The middle push** (`MID_PUSH`): threats 4 to 12 were too easy, so enemies there get +30% health and +22% attack, fading back to nothing by threat 16.
+- Hosts are meant to grow strong: by the time a signal has lost a few hosts (firmware levels, tree picks, allies), the early and middle rooms should feel easy. The difficulty lives at the first-life fight and in the deep rooms.
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.15 health, ×0.95 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.5 health, ×1.3 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.

@@ -55,6 +55,8 @@ attackPattern?: AttackPatternType;
 ignoreRange?: boolean;
 /** Arm moves only reach their own side of the body (left arm: left, right arm: right; straight up and down are both). */
 side?: 'left' | 'right';
+/** The maker whose part this move comes from (it sets what the move does extra when you're hot). */
+maker?: string;
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
 effects?: ActionEffects;
 }
@@ -261,9 +263,9 @@ getTargetTiles: (from: TilePosition, to: TilePosition, grid: CombatGrid) => Tile
 export type HeatPhase = 'cool' | 'warm' | 'hot' | 'critical';
 
 export function getHeatPhase(heat: number): HeatPhase {
-if (heat <= 40) return 'cool';
-if (heat <= 70) return 'warm';
-if (heat <= 90) return 'hot';
+if (heat <= 35) return 'cool';
+if (heat <= 60) return 'warm';
+if (heat <= 85) return 'hot';
 return 'critical';
 }
 
@@ -272,9 +274,9 @@ export function getHeatMultipliers(heat: number): { dealt: number; received: num
 const phase = getHeatPhase(heat);
 switch (phase) {
 case 'cool':     return { dealt: 1.00, received: 1.00 };
-case 'warm':     return { dealt: 1.10, received: 1.10 };
-case 'hot':      return { dealt: 1.25, received: 1.25 };
-case 'critical': return { dealt: 1.50, received: 1.75 };
+case 'warm':     return { dealt: 1.10, received: 1.05 };
+case 'hot':      return { dealt: 1.25, received: 1.15 };
+case 'critical': return { dealt: 1.50, received: 1.40 };
 }
 }
 
