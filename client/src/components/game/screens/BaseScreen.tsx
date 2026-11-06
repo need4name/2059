@@ -5,7 +5,9 @@ import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
 import { blockedIn, closedIn, costIn, depthIn, effectIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
-import { CLASS_DEFINITIONS, FIRMWARE_ATTACKS, createPlayer, getBossPreview } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
+import { useFirmware } from '@/lib/stores/useFirmware';
+import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
@@ -61,6 +63,7 @@ const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: st
 function LoadoutTab() {
   const { slots, setSlot } = useLoadout();
   const playerClass = useCombat(s => s.playerClass);
+  const fwLevel = useFirmware(st => st.level(playerClass));
   const pool = useActionPool();
   const [replacing, setReplacing] = useState<LoadoutAction | null>(null);
   const slotOf = (a: LoadoutAction) => slots.findIndex(s => s?.key === a.key);
@@ -101,7 +104,7 @@ function LoadoutTab() {
         if (!moves.length && !g.empty) return null;
         return (
           <section key={g.source} className="space-y-2">
-            <Label>{g.label}</Label>
+            <Label>{g.source === 'class' ? `Firmware · level ${fwLevel}` : g.label}</Label>
             {moves.length === 0
               ? <p className="rounded-2xl bg-white/[0.03] px-4 py-3 text-sm text-hud-faint">{g.empty}</p>
               : (
@@ -362,6 +365,39 @@ function StrainTab() {
   );
 }
 
+/** The loaded firmware: its level, how close the next is, its attack now, and every level's step. */
+function FirmwarePanel() {
+  const playerClass = useCombat(st => st.playerClass);
+  const xp = useFirmware(st => st.xp[playerClass] ?? 0);
+  const { level, into, need } = firmwareLevel(xp);
+  const att = firmwareAttack(playerClass, level);
+  const steps = FIRMWARE[playerClass]?.levels ?? [];
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-display text-lg font-semibold text-hud-text">{CLASS_DEFINITIONS[playerClass].name}</div>
+          <div className="text-xs text-hud-dim">Level {level}{level < MAX_FIRMWARE_LEVEL ? ` · ${need - into} xp to the next` : ' · fully grown'}</div>
+        </div>
+        {att && <Footprint action={att} cell={4} />}
+      </div>
+      {level < MAX_FIRMWARE_LEVEL && <Meter value={into} max={need} tone="aug" className="h-1.5" />}
+      <p className="text-sm text-aug">Strike is {att?.name}: {att?.description}</p>
+      <ol className="space-y-1">
+        {steps.map((st, k) => {
+          const lv = k + 2, got = level >= lv;
+          return (
+            <li key={k} className={cx('flex gap-2 text-[13px]', got ? 'text-hud-text' : lv === level + 1 ? 'text-hud-dim' : 'text-hud-faint')}>
+              <span className={cx('w-12 shrink-0 font-semibold', got ? 'text-aug' : '')}>Lv {lv}</span>
+              <span>{st.text}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 function StatusTab() {
   const { playerClass, resetAll, progression, bossLevel } = useCombat();
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
@@ -408,10 +444,7 @@ function StatusTab() {
 
 {playerClass !== 'none' && (
         <Panel label="Firmware">
-          <div className="space-y-1">
-            <div className="font-display text-lg font-semibold text-hud-text">{cls.name}</div>
-            <p className="text-sm text-aug">Your basic attack is {FIRMWARE_ATTACKS[playerClass]?.name ?? 'Strike'}. {FIRMWARE_ATTACKS[playerClass]?.description}</p>
-          </div>
+          <FirmwarePanel />
         </Panel>
       )}
 

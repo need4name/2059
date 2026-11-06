@@ -13,6 +13,7 @@ import { MAPS } from '../client/src/lib/engine/map';
 import figures from '../client/src/content/figures.json';
 import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
+import firmware from '../client/src/content/firmware.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
 import { MAKER_INFO, HEADS } from '../client/src/lib/combat/augments';
 
@@ -162,6 +163,15 @@ const upgradeFile = z.object({
   shapes: z.object({ common: shape, uncommon: shape, rare: shape, epic: shape, legendary: shape }).strict(),
   kinds: perTree, capstones: perTree, legendary: perTree,
 }).strict();
+const firmwareStep = z.object({
+  text: z.string().trim().min(1).max(60), scale: z.number().gt(0).max(1).optional(), heat: z.number().int().min(-10).max(10).optional(),
+  accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean() }).partial().optional(),
+}).strict().refine(st => Object.keys(st).length > 1, 'a level must add something');
+const firmwareFile = z.object({
+  about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
+  xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),
+  firmware: z.object({ melee: z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep) }).strict(), ranged: z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep) }).strict() }).strict(),
+}).strict().refine(f => Object.values(f.firmware).every(fw => fw.levels.length === f.xpToNext.length), 'every firmware needs one step per level (as many as xpToNext)');
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
 const item = z.object({
@@ -279,6 +289,8 @@ export function checkContent(): string[] {
       if (new Set(list.map(k => k.id)).size !== list.length) problems.push(`upgrades.json kinds.${kind}: duplicate ids`);
     }
   }
+  // Firmware
+  report('firmware.json', firmwareFile.safeParse(firmware));
   // Room events
   const evr = eventFile.safeParse(events);
   report('events.json', evr);

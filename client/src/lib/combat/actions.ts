@@ -1,5 +1,6 @@
 import { activeChapter } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
+import { firmwareAttack } from '../engine/firmware';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
@@ -84,19 +85,11 @@ physicalRatio: 0.80,
 };
 
 // ── Firmware: the basic attack ───────────────────────────────────────────────
-// Loaded firmware replaces Strike with its own basic attack (the Moves screen and
-// the fight bar show it in Strike's place). No firmware: Strike.
-export const FIRMWARE_ATTACKS: Partial<Record<PlayerClass, CombatAction>> = {
-melee: { type: 'attack', name: 'Hydraulic Slam', description: 'Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.', damage: 14, heatGenerated: 15, heatTransfer: +5, accuracy: 'variable', physicalRatio: 0.6, attackPattern: 'melee_long' },
-ranged: { type: 'attack', name: 'Precision Shot', description: 'Kizuna targeting firmware: an optical lock down a straight line of four tiles, at the first body in it. Always lands in full.', damage: 12, heatGenerated: 14, heatTransfer: +3, accuracy: 'precise', physicalRatio: 0.8, attackPattern: 'bolt' },
-};
-/** How hard a firmware attack hits for its wearer's attack stat (it grows with your gear, as Strike's doesn't). */
-export const FIRMWARE_SCALE: Partial<Record<PlayerClass, number>> = { melee: 1.75, ranged: 1.55 };
-/** The basic attack for a firmware (Strike without one). Pass the wearer's physical attack to size a firmware attack. */
-export function basicAttack(playerClass: PlayerClass, physicalAttack?: number): CombatAction {
-const fw = FIRMWARE_ATTACKS[playerClass];
-if (!fw) return PLAYER_ACTIONS[0];
-return physicalAttack !== undefined ? { ...fw, damage: Math.floor(physicalAttack * (FIRMWARE_SCALE[playerClass] ?? 1)) } : fw;
+// Loaded firmware replaces Strike with its own attack, which grows with the
+// firmware's level (engine/firmware.ts). No firmware: Strike.
+/** The basic attack for a firmware at a level (Strike without one). Pass the wearer's physical attack to size it. */
+export function basicAttack(playerClass: PlayerClass, physicalAttack?: number, level = 1): CombatAction {
+return firmwareAttack(playerClass, level, physicalAttack) ?? PLAYER_ACTIONS[0];
 }
 
 // ── Player actions ────────────────────────────────────────────────────────────

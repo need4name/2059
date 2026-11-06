@@ -6,6 +6,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { perksFor } from '@/lib/engine/playi';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
+import { useFirmware } from '@/lib/stores/useFirmware';
 import type { AugmentationSlot } from '@/lib/combat/types';
 
 /** Every action the player could put in a loadout slot right now. */
@@ -13,12 +14,13 @@ export function useActionPool(): LoadoutAction[] {
   const playerClass = useCombat(s => s.playerClass);
   const { equippedAugmentations, equippedWeapon, getTotalAugmentationBonuses } = useInventory();
   const { owned, getAugmentCombatActions } = useAugmentTrees();
+  const fwLevel = useFirmware(st => st.level(playerClass));
 
   return useMemo(() => {
     const equippedSlots = (Object.keys(equippedAugmentations) as AugmentationSlot[]).filter(s => equippedAugmentations[s] !== null);
     // Firmware's own attack takes Strike's place (same key, so it drops into Strike's slot on the bar)
     const pool: LoadoutAction[] = [
-      { ...basicAttack(playerClass, createPlayer(getTotalAugmentationBonuses(), playerClass).physicalAttack), key: 'base_strike', unlocked: true, source: playerClass !== 'none' ? 'class' : 'base' },
+      { ...basicAttack(playerClass, createPlayer(getTotalAugmentationBonuses(), playerClass).physicalAttack, fwLevel), key: 'base_strike', unlocked: true, source: playerClass !== 'none' ? 'class' : 'base' },
       { ...PLAYER_ACTIONS[1], key: 'base_brace', unlocked: true, source: 'base' },
     ];
     pool.push(...getAugmentCombatActions(equippedSlots));
@@ -28,7 +30,7 @@ export function useActionPool(): LoadoutAction[] {
     return pool;
     // owned upgrades are read inside getAugmentCombatActions
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerClass, equippedAugmentations, equippedWeapon, owned, getAugmentCombatActions, getTotalAugmentationBonuses]);
+  }, [playerClass, fwLevel, equippedAugmentations, equippedWeapon, owned, getAugmentCombatActions, getTotalAugmentationBonuses]);
 }
 
 /**

@@ -8,6 +8,7 @@ import { useCombat as C } from '../client/src/lib/stores/useCombat';
 import { useInventory as I } from '../client/src/lib/stores/useInventory';
 import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugmentTrees';
 import * as UP from '../client/src/lib/engine/upgrades';
+import { useFirmware as FW } from '../client/src/lib/stores/useFirmware';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
@@ -62,7 +63,7 @@ function betweenFights() {
   if (afford && !inv.equippedWeapon && inv.buyWeapon(afford)) inv.equipWeapon(afford);
   const cls = C.getState().playerClass;
   // Firmware's attack stands in for Strike, as on the player's bar
-  const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
+  const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack, FW.getState().level(cls)), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
   pool.push(...T.getState().getAugmentCombatActions(slots).filter((a: any) => a.damage));
   const w = I.getState().equippedWeapon; if (w) pool.push({ ...w.combatAction, key: 'w' });
   const extra = pool.slice(2).sort((a, b) => (b.damage || 0) - (a.damage || 0)).slice(0, 2);

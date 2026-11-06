@@ -36,6 +36,8 @@ import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 import { useStrain } from './useStrain';
+import { useFirmware } from './useFirmware';
+import { firmwareXpFor, levelStep } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -54,6 +56,8 @@ gold: number;
 xp: number;
 levelsGained: number;
 pointsGained: number;
+/** The level the loaded firmware reached in this fight, if it went up. */
+firmwareUp?: number | null;
 /** Party members that went up a level. */
 allyLevelUps: string[];
 /** This win finished the chapter (first time only). */
@@ -391,10 +395,13 @@ bossLevel: farmLevel !== null ? bossLevel : level + 1,
 });
 const { levelsGained } = get().gainXp(xp);
 // Upgrade points come from wins: one for every WINS_PER_POINT fights won (engine/upgrades.ts)
+// The loaded firmware learns from every room fight won (elites and bosses teach it more)
+const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, firmwareXpFor(level)) : null;
+if (firmwareUp) log(`FIRMWARE -- level ${firmwareUp}: ${levelStep(get().playerClass, firmwareUp)?.text ?? ''}`);
 const pointsBefore = useAugmentTrees.getState().availablePoints;
 if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
 const pointsGained = useAugmentTrees.getState().availablePoints - pointsBefore;
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone, firmwareUp } });
 useAudio.getState().playSuccess();
 };
 
@@ -965,6 +972,7 @@ usePlayi.getState().reset();
 useJournal.getState().reset();
 useMap.getState().reset();
 useStrain.getState().reset();
+useFirmware.getState().reset();
 useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();

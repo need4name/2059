@@ -1,0 +1,56 @@
+// Firmware (content/firmware.json): with firmware loaded, its attack takes Strike's
+// place, and the firmware grows over many hosts. Room fights won with it loaded give
+// it xp (elites more, bosses and set pieces most); its level never resets on death.
+// Each level from 2 adds one thing to its attack, so the strong version is earned.
+// Pure functions; the firmware store keeps the xp.
+
+import data from '../../content/firmware.json';
+import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
+
+export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects }
+interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[] }
+const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
+
+export const FIRMWARE = D.firmware;
+export const FIRMWARE_XP = D.xp;
+export const XP_TO_NEXT = D.xpToNext;
+/** The highest level a firmware reaches. */
+export const MAX_FIRMWARE_LEVEL = D.xpToNext.length + 1;
+
+/** The level a firmware is at with this much xp, and how far it is to the next. */
+export function firmwareLevel(xp: number): { level: number; into: number; need: number } {
+  let level = 1, left = xp;
+  while (level < MAX_FIRMWARE_LEVEL && left >= XP_TO_NEXT[level - 1]) { left -= XP_TO_NEXT[level - 1]; level++; }
+  return { level, into: level >= MAX_FIRMWARE_LEVEL ? 0 : left, need: level >= MAX_FIRMWARE_LEVEL ? 0 : XP_TO_NEXT[level - 1] };
+}
+
+/** XP a won room fight gives the loaded firmware: a boss or set piece most, an elite more, anyone else one. */
+export const firmwareXpFor = (threat: number) => (threat % 10 === 0 ? FIRMWARE_XP.boss : threat % 5 === 0 ? FIRMWARE_XP.elite : FIRMWARE_XP.win);
+
+/** What a level adds, for the screen: "Level 5: Optical lock: always full damage". */
+export const levelStep = (cls: PlayerClass, level: number): FirmwareStep | null => FIRMWARE[cls]?.levels[level - 2] ?? null;
+
+/**
+ * A firmware's attack at a level. Its damage is the level's scale times the wearer's
+ * physical attack (pass it; without, the base damage stands). Null with no firmware.
+ */
+export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?: number): CombatAction | null {
+  const def = FIRMWARE[cls];
+  if (!def) return null;
+  let scale = def.scale, heat = def.base.heatGenerated ?? 0;
+  let accuracy = def.base.accuracy, pattern = def.base.attackPattern;
+  let effects: ActionEffects = { ...(def.base.effects ?? {}) };
+  for (const step of def.levels.slice(0, Math.max(0, level - 1))) {
+    scale += step.scale ?? 0;
+    heat += step.heat ?? 0;
+    if (step.accuracy) accuracy = step.accuracy;
+    if (step.pattern) pattern = step.pattern;
+    if (step.fx) effects = { ...effects, ...step.fx };
+  }
+  return {
+    ...def.base,
+    damage: physicalAttack !== undefined ? Math.floor(physicalAttack * scale) : def.base.damage,
+    heatGenerated: heat, accuracy, attackPattern: pattern,
+    effects: Object.keys(effects).length ? effects : undefined,
+  };
+}

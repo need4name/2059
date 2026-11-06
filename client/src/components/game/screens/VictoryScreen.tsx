@@ -3,6 +3,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
+import { levelStep } from '@/lib/engine/firmware';
 import { scrapValue } from '@/lib/combat/economy';
 import { implantStats, stimInfo, passiveText, nameOf } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
@@ -12,7 +13,7 @@ import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart } = useCombat();
+  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, playerClass } = useCombat();
   const items = currentLoot?.items ?? [];
   const picksLeft = strip ? strip.picks - strip.taken.length : 0;
   const scrap = strip ? scrapValue(strip.bodies.flatMap(b => b.items).filter(i => !strip.taken.includes(i.id))) : 0;
@@ -143,6 +144,13 @@ export function VictoryScreen() {
               <span className="text-xs text-hud-dim">Points</span>
               <span className={cx('font-display text-2xl font-semibold', lastVictory.pointsGained ? 'text-cred' : 'text-hud-faint')}>+{lastVictory.pointsGained}</span>
             </div>
+          </Card>
+        )}
+
+        {lastVictory?.firmwareUp && (
+          <Card className="space-y-1 p-4">
+            <div className="font-display text-[15px] font-semibold text-aug">Firmware level {lastVictory.firmwareUp}</div>
+            <p className="text-sm text-hud-text/85">{levelStep(playerClass, lastVictory.firmwareUp)?.text}</p>
           </Card>
         )}
 
