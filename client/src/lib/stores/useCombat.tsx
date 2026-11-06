@@ -21,7 +21,7 @@ import { nextChapter, activeChapter } from '../combat/chapters';
 import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
-import { roomById, isChapterEnd, hasFight } from '../engine/map';
+import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin } from '../engine/map';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -385,7 +385,9 @@ justOpened: availableFirmware().filter(c => !before.includes(c)),
 };
 
 const handleBossDefeated = () => {
-const { farmLevel, bossLevel } = get();
+const { farmLevel, bossLevel, player } = get();
+// The host keeps its wounds into the next fight, less a breath caught after winning
+if (farmLevel === null) useMap.getState().setHurt(hurtAfterWin(player.currentHp, player.maxHp));
 const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'Patchwork King';
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
@@ -605,7 +607,9 @@ const { playerClass, runSeed, fightsStarted } = get();
 // Same run seed + same fight number = same arena, rolls and loot
 seedRandom(mixSeed(runSeed, fightsStarted));
 set({ fightsStarted: fightsStarted + 1 });
-const { player, moveRange, perks } = buildPlayer(playerClass);
+const { player: fresh, moveRange, perks } = buildPlayer(playerClass);
+// Health carries from fight to fight (practice fights start whole)
+const player = farm ? fresh : { ...fresh, currentHp: healthNow(useMap.getState(), fresh.maxHp) };
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
 const strain = useStrain.getState().active;
 const units = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
@@ -1092,6 +1096,12 @@ progression: s.progression,
 );
 
 /** Every firmware a new host can wake with: Enforcer and Operative once a death opened them, then whatever going deep opened. */
+/** The host's health between fights: what it would start the next fight on, out of its max. */
+export function hostHealth(): { hp: number; max: number } {
+const max = buildPlayer(useCombat.getState().playerClass).player.maxHp;
+return { hp: healthNow(useMap.getState(), max), max };
+}
+
 export function availableFirmware(): PlayerClass[] {
 const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
 return all.filter((c, k) => all.indexOf(c) === k);

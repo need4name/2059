@@ -79,7 +79,7 @@ export function RoomPanel() {
       </section>
 
       {room.server && canRest(map, room) && (
-        // A server: later hosts can wake here, and resting brings this host's won fights back
+        // A server: later hosts can wake here; resting heals, and brings this host's won fights back
         <section className="slab space-y-3 rounded-[24px] p-4" style={{ backgroundImage: 'linear-gradient(135deg, rgba(92,242,176,0.10), transparent 70%)' }}>
           <p className="text-[15px] leading-relaxed text-hud-text/85">{room.server}</p>
           {firmware.length > 1 && (
@@ -93,8 +93,8 @@ export function RoomPanel() {
           {!resting ? <button onClick={() => setResting(true)} className={pill}><Glyph name="signal" size={14} className="text-[#5cf2b0]" />Rest</button>
             : (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-hud-dim">Everything you've beaten will be back.</span>
-                <button onClick={() => { useMap.getState().rest(); setResting(false); useAudio.getState().play('door'); setNews('You rest. Somewhere out there, the rooms fill up again.'); }} className={pill}>Rest</button>
+                <span className="text-sm text-hud-dim">You'll mend, and everything you've beaten will be back.</span>
+                <button onClick={() => { useMap.getState().rest(); setResting(false); useAudio.getState().play('door'); setNews('You rest. The body mends. Out there, the rooms fill up again.'); }} className={pill}>Rest</button>
                 <button onClick={() => setResting(false)} className={pill}>Not yet</button>
               </div>
             )}

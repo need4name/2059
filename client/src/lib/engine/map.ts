@@ -53,6 +53,8 @@ export interface MapState {
   spent?: string[];
   /** Max health this host has lost to events. */
   scar?: number;
+  /** Health this host is missing: it carries from fight to fight. Resting at a server or a new host clears it. */
+  hurt?: number;
   /** Server rooms any host has reached: a new host can wake in one (kept across hosts). */
   lit?: string[];
 }
@@ -60,7 +62,7 @@ export interface MapState {
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, lit: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, lit: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -95,7 +97,14 @@ export const wakePlaces = (s: MapState): string[] => [mapOf(s.chapter).entry, ..
 /** A server this host can rest at (in this room, and nothing here is fighting you). */
 export const canRest = (s: MapState, room = roomById(s.room)) => !!room.server && !hasFight(s, room);
 /** Rest at the server: every fight this host has won comes back. Caches and events stay used. */
-export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [] } : s);
+export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0 } : s);
+
+/** Share of max health a host gets back after winning a fight (catching its breath). */
+export const WIN_RECOVER = 0.3;
+/** What a host is still missing after a won fight that left it on `hp` of `max`. */
+export const hurtAfterWin = (hp: number, max: number) => Math.max(0, max - hp - Math.round(max * WIN_RECOVER));
+/** The health a host starts its next fight on. */
+export const healthNow = (s: MapState, max: number) => Math.max(1, max - (s.hurt ?? 0));
 
 export const clearRoom = (s: MapState): MapState => (s.cleared.includes(s.room) ? s : { ...s, cleared: [...s.cleared, s.room] });
 
@@ -115,7 +124,7 @@ export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, tak
 
 /** A new host wakes at the entry (or a server reached before, `at`): fights refill, caches restock, memory and goals stay. */
 export const newHost = (s: MapState, left: Item | null = null, at?: string): MapState => ({
-  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0,
+  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0,
   fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
   corpse: left ? { room: s.room, item: left } : null,
 });

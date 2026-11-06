@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCombat } from '@/lib/stores/useCombat';
+import { useCombat, hostHealth } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
@@ -594,6 +594,9 @@ export function BaseScreen() {
   const upgradeWaits = installed.some(s => upgradeWaiting(equippedAugmentations[s]!, treeOwned, availablePoints));
   const barGap = slots.some(s => s === null) && pool.some(a => !slots.some(s => s?.key === a.key));
 
+  useMap(s => s.hurt); // health shown below changes with it
+  const health = hostHealth();
+
   const footer = fightHere && foe
     ? <Btn variant="primary" size="lg" className="w-full" onClick={startRoomFight}>Fight</Btn>
     : onward ? <Btn variant="primary" size="lg" className="w-full" onClick={goToNextChapter}>Go on</Btn> : undefined;
@@ -607,7 +610,12 @@ export function BaseScreen() {
               <span className="font-display text-[15px] font-semibold text-white">Host {progression.deathCount + 1}</span>
               <span className="text-xs font-semibold text-sys/90">Lv {progression.level}</span>
             </div>
-            <Meter value={progression.currentXp} max={progression.xpToNextLevel} tone="sys" className="mt-1.5 h-1 w-full max-w-[150px]" />
+            {/* Health carries from fight to fight; resting at a server heals it */}
+            <div className="mt-1.5 flex max-w-[190px] items-center gap-2">
+              <Meter value={health.hp} max={health.max} tone={health.hp < health.max * 0.35 ? 'hostile' : 'sys'} className="h-1.5 flex-1" />
+              <span className="text-[11px] font-semibold tabular-nums text-hud-text">{health.hp}<span className="text-hud-faint">/{health.max}</span></span>
+            </div>
+            <Meter value={progression.currentXp} max={progression.xpToNextLevel} tone="dim" className="mt-1 h-[3px] w-full max-w-[150px]" />
           </div>
           <span className="slab rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
           <button onClick={toggleMute} aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'} className="key flex h-9 w-9 items-center justify-center rounded-full text-hud-dim hover:text-hud-text">

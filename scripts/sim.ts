@@ -10,7 +10,7 @@ import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugme
 import * as UP from '../client/src/lib/engine/upgrades';
 import { useFirmware as FW } from '../client/src/lib/stores/useFirmware';
 import { useRunStats } from '../client/src/lib/stores/useRunStats';
-import { availableFirmware } from '../client/src/lib/stores/useCombat';
+import { availableFirmware, hostHealth } from '../client/src/lib/stores/useCombat';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
@@ -156,6 +156,31 @@ function tidyRoom() {
 /** The deepest threat on the current chapter's map: its last boss. */
 const lastThreat = () => Math.max(...MAP.chapterMap().rooms.map(r => r.threat ?? 0));
 
+/** Badly hurt (under half health): walk back through quiet rooms to a server and rest there, if one is in reach. */
+function restIfHurt() {
+  const { hp, max } = hostHealth();
+  if (hp >= max * 0.5) return;
+  const s = MP.getState();
+  const prev = new Map<string, { from: string; exit: number }>();
+  const seen = new Set([s.room]); const queue = [s.room]; let goal = MAP.canRest(s) ? s.room : null;
+  while (queue.length && !goal) {
+    const id = queue.shift()!;
+    MAP.roomById(id).exits.forEach((e, k) => {
+      if (goal || seen.has(e.to) || (e.requires === 'goals' && !MAP.allGoals(s))) return;
+      const room = MAP.roomById(e.to);
+      if (MAP.hasFight(s, room)) return;
+      seen.add(e.to); prev.set(e.to, { from: id, exit: k }); queue.push(e.to);
+      if (room.server) goal = e.to;
+    });
+  }
+  if (!goal) return;
+  const path: number[] = [];
+  for (let cur = goal; cur !== s.room;) { const p = prev.get(cur)!; path.unshift(p.exit); cur = p.from; }
+  for (const ex of path) MP.getState().go(ex);
+  MP.getState().rest();
+  rested++;
+}
+
 function walkToFight(): boolean {
   for (let tries = 0; tries < 40; tries++) {
     tidyRoom();
@@ -188,7 +213,7 @@ function walkToFight(): boolean {
 
 interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean }
 
-let chaptersDone = 0, stuckAtDoor = 0, debugShown = false;
+let chaptersDone = 0, stuckAtDoor = 0, debugShown = false, rested = 0;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   botState = seed * 7919 + 1;
   C.getState().resetAll(); C.getState().setRunSeed(seed); C.getState().completeIntro();
@@ -199,6 +224,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   const out: Fight[] = [];
   while (out.length < maxFights) {
     betweenFights();
+    restIfHurt();
     // No fight left in reach: either the last boss is down, or the goals door is still shut
     if (!walkToFight()) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut", s.room, "done", s.done, "cleared spire", s.cleared.includes("spire"), "spire fights", out.filter(f => f.lvl >= 30).map(f => [f.lvl, f.won, f.timedOut]), "last", lastThreat(), "fights", out.length); } } break; }
     const lvl = MAP.roomById(MP.getState().room).threat!; const deathsBefore = C.getState().progression.deathCount;
@@ -252,6 +278,7 @@ const turnsOf = (k: string) => { const f = all.filter(x => kind(x.lvl) === k && 
 console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('elite')}, boss ${turnsOf('boss')}`);
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
+console.log(`rests at a server: ${rested}`);
 console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
 if (process.env.STATS) { console.log('firmware:', JSON.stringify(FW.getState().xp), 'opened by going deep:', JSON.stringify(FW.getState().opened)); console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
 console.log(`runs that beat the last boss: ${chaptersDone} of ${runs.length}; stopped at the goals door: ${stuckAtDoor}`);

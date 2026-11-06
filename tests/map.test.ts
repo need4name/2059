@@ -264,3 +264,15 @@ test('reaching a server lets later hosts wake there; resting brings this host\'s
   assert.equal(M.newHost(s, null, 'deck').room, M.chapterMap().entry);
   assert.equal(M.newHost(M.newMapState(), null, server.id).room, M.chapterMap().entry);
 });
+
+test('health carries between fights: a win gives some back, resting and a new host heal it all', () => {
+  const max = 100;
+  assert.equal(M.hurtAfterWin(40, max), 60 - Math.round(max * M.WIN_RECOVER));
+  assert.equal(M.hurtAfterWin(95, max), 0, 'never below nothing missing');
+  const server = M.chapterMap().rooms.find(r => r.server)!;
+  const s = { ...walk(M.newMapState(), ...pathTo(server.id)), hurt: 70 };
+  assert.equal(M.healthNow(s, max), 30);
+  assert.equal(M.healthNow({ ...s, hurt: 500 }, max), 1, 'a host never starts a fight dead');
+  assert.equal(M.rest(s).hurt, 0);
+  assert.equal(M.newHost(s).hurt, 0);
+});
