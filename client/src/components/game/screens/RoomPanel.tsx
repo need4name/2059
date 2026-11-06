@@ -3,7 +3,9 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useMap } from '@/lib/stores/useMap';
 import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
-import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, DIR_LABEL } from '@/lib/engine/map';
+import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, canRest, DIR_LABEL } from '@/lib/engine/map';
+import { availableFirmware } from '@/lib/stores/useCombat';
+import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
@@ -20,7 +22,7 @@ import { SignalMap } from './SignalMap';
 /** The room the signal is standing in: what's here, and the ways on (SignalMap, at the top, draws where it is). */
 export function RoomPanel() {
   const map = useMap();
-  const { progression, openMarket, openRoomCache, chooseEvent } = useCombat();
+  const { progression, openMarket, openRoomCache, chooseEvent, playerClass, setPlayerClass, fightsStarted } = useCombat();
   const inv = useInventory();
   const shut = useStrain(s => s.active.includes('shut'));
   const allies = useAllies();
@@ -30,7 +32,9 @@ export function RoomPanel() {
   const enemy = room.threat !== undefined ? getBossPreview(room.threat, firstLifeAt(progression.deathCount, room.threat), room.enemy) : null;
   const [news, setNews] = useState<string | null>(null);
   const looked = map.looked.includes(room.id);
-  const wakingHere = room.id === 'dock' && map.cleared.length === 0 && map.cameFrom === null;
+  const wakingHere = map.cameFrom === null && fightsStarted === 0 && map.cleared.length === 0;
+  const [resting, setResting] = useState(false);
+  const firmware = availableFirmware();
 
   const doLook = () => {
     const found = map.look();
@@ -73,6 +77,29 @@ export function RoomPanel() {
         )}
         {news && <p className="mt-3 text-sm text-sys">{news}</p>}
       </section>
+
+      {room.server && canRest(map, room) && (
+        // A server: later hosts can wake here, and resting brings this host's won fights back
+        <section className="slab space-y-3 rounded-[24px] p-4" style={{ backgroundImage: 'linear-gradient(135deg, rgba(92,242,176,0.10), transparent 70%)' }}>
+          <p className="text-[15px] leading-relaxed text-hud-text/85">{room.server}</p>
+          {firmware.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {firmware.map(c => (
+                <button key={c} onClick={() => setPlayerClass(c)} aria-pressed={playerClass === c}
+                  className={cx(pill, playerClass === c && 'key-selected text-white')}>{CLASS_DEFINITIONS[c].name}</button>
+              ))}
+            </div>
+          )}
+          {!resting ? <button onClick={() => setResting(true)} className={pill}><Glyph name="signal" size={14} className="text-[#5cf2b0]" />Rest</button>
+            : (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-hud-dim">Everything you've beaten will be back.</span>
+                <button onClick={() => { useMap.getState().rest(); setResting(false); useAudio.getState().play('door'); setNews('You rest. Somewhere out there, the rooms fill up again.'); }} className={pill}>Rest</button>
+                <button onClick={() => setResting(false)} className={pill}>Not yet</button>
+              </div>
+            )}
+        </section>
+      )}
 
       {(() => {
         // A room event: once its fight is won, once per host

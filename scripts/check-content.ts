@@ -119,7 +119,7 @@ const mapFile = z.object({
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     tileset: z.string().regex(/^[a-z-]+$/).optional(),
     look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
-    ally: text.optional(), cache: z.boolean().optional(), event: z.string().regex(/^[a-z]+$/).optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
+    ally: text.optional(), cache: z.boolean().optional(), server: z.string().trim().min(1).max(260).optional(), event: z.string().regex(/^[a-z]+$/).optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -338,6 +338,7 @@ export function checkContent(): string[] {
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
+      if (r.threat !== undefined && r.server) problems.push(`map ${r.id}: a server room can't hold a fight (a host could wake into it)`);
       if (r.threat !== undefined) problems.push(...arenaProblems(r.id, r.arena));
       else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);

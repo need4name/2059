@@ -58,6 +58,8 @@ const MARKS: Record<RoomMark | 'sealed', { rows: string[]; x: string; o?: string
   event: { x: '#c9b6f2', o: '#4b3a72', rows: ['xxxxx', 'xoxox', 'xxxxx', '.x...'] },
   // An eye, not yet looked at closely
   look: { x: '#38d6f0', o: '#0a2f38', rows: ['.xxx.', 'xxoxx', '.xxx.'] },
+  // A server rack with its lights on: a later host can wake here, and a host can rest
+  server: { x: '#4f6b7d', o: '#1b2a35', l: '#5cf2b0', rows: ['xxxx', 'xllx', 'xoox', 'xlox', 'xxxx'] },
   // The Grey Lane's coin
   market: { x: '#f2b33d', o: '#8a5a12', l: '#ffe08a', rows: ['.lxx.', 'lxoxx', 'xoxox', 'xxoxx', '.xxx.'] },
   // A fight this host already won: the blade mark, dim
@@ -263,7 +265,7 @@ export function SignalMap() {
           px(gx, gy - 1, C.credLit); px(gx - 1, gy, C.credLit); px(gx, gy, '#fff6d0'); px(gx + 1, gy, C.credLit); px(gx, gy + 1, C.credLit);
           ctx.globalAlpha = fade(r);
         }
-        if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' ? now : 0);
+        if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' || r.mark === 'server' ? now : 0);
         if (mine) {
           // The host, standing on the slab and bobbing on the spot
           const hx = Math.round(c.x) - 2, hy = Math.round(c.y) - HOST.length + 2 - (Math.floor(now / 520) % 2);

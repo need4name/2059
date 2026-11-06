@@ -178,6 +178,7 @@
     },
     {
       "id": "stall",
+      "server": "Under the counter, a server lashed to a pallet, warm to the touch. One side carries a shipping firm's contract tag; the other, a fist sprayed in tar.",
       "at": [1, 3],
       "name": "Grey Lane stall",
       "text": "A lantern-lit stall selling parts from a cool box, no questions asked. The seller doesn't look up when you arrive.",
@@ -935,6 +936,7 @@
     },
     {
       "id": "stall2",
+      "server": "A server in a rain cover, cabled up the canopy pole. Its screen scrolls two lists side by side: invoices, and names.",
       "at": [5, 10],
       "name": "Canopy stall",
       "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.",

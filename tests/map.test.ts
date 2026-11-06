@@ -229,3 +229,38 @@ test('rooms sit at heights the exits agree with: up climbs, down drops', () => {
     assert.equal(upright, ups, `${id}: every up exit climbs and every down exit drops`);
   }
 });
+
+// The way from the entry to a room, by the fewest doors
+const pathTo = (target: string) => {
+  const m = M.chapterMap();
+  const back = new Map<string, string>([[m.entry, '']]);
+  const queue = [m.entry];
+  while (queue.length) { const a = queue.shift()!; for (const e of M.roomById(a).exits) if (!back.has(e.to)) { back.set(e.to, a); queue.push(e.to); } }
+  const out: string[] = [];
+  for (let r = target; r !== m.entry; r = back.get(r)!) out.unshift(r);
+  return out;
+};
+
+test('reaching a server lets later hosts wake there; resting brings this host\'s fights back', () => {
+  const server = M.chapterMap().rooms.find(r => r.server)!;
+  assert.ok(server && server.threat === undefined, 'a server stands in a quiet room');
+  const s = walk(M.newMapState(), ...pathTo(server.id));
+  assert.deepEqual(s.lit, [server.id], 'walking in reaches it');
+  assert.deepEqual(M.wakePlaces(s), [M.chapterMap().entry, server.id]);
+  assert.equal(M.roomMark(s, server), 'server');
+  // Resting: every won fight comes back, the host stays put, caches and events stay used
+  assert.ok(s.cleared.length > 0);
+  const rested = M.rest({ ...s, taken: ['x'], spent: ['y'] });
+  assert.deepEqual(rested.cleared, []);
+  assert.equal(rested.room, server.id);
+  assert.deepEqual([rested.taken, rested.spent], [['x'], ['y']]);
+  // Can't rest somewhere without a server
+  const elsewhere = { ...s, room: M.chapterMap().entry };
+  assert.equal(M.rest(elsewhere), elsewhere);
+  // A new host can wake at it (and it stays reached), but not in a room nobody reached
+  const woke = M.newHost(s, null, server.id);
+  assert.equal(woke.room, server.id);
+  assert.deepEqual(woke.lit, [server.id]);
+  assert.equal(M.newHost(s, null, 'deck').room, M.chapterMap().entry);
+  assert.equal(M.newHost(M.newMapState(), null, server.id).room, M.chapterMap().entry);
+});

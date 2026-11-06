@@ -180,7 +180,8 @@ moveAlly: (pos: TilePosition) => void;
 allyAct: (ally: number, move: number) => void;
 resetCombat: () => void;
 resetAll: () => void;
-rebirth: (newClass?: PlayerClass) => void;
+/** A new host wakes with this firmware, at the entry or a server reached before (`at`). */
+rebirth: (newClass?: PlayerClass, at?: string) => void;
 /** The chapter is done: wake in a new body at the next chapter's entry (allies, the play-i tree and ally implants come too). */
 goToNextChapter: () => void;
 continueFromVictory: () => void;
@@ -993,16 +994,16 @@ if (get().phase === 'menu' && !useStrain.getState().active.includes('shut')) set
 
 completeIntro: () => set({ introCompleted: true }),
 
-rebirth: (newClass) => {
+rebirth: (newClass, at) => {
 const { playerClass } = get();
 // Wake with the chosen firmware if it's open (else the last one, else the first open), or none
 const open = availableFirmware();
 const finalClass: PlayerClass = !open.length ? 'none'
 : newClass && open.includes(newClass) ? newClass : open.includes(playerClass) ? playerClass : open[0];
-// The new corpse wakes at the chapter's entry; fights refill, memory stays.
+// The new corpse wakes at the chapter's entry (or a server a host reached); fights refill, memory stays.
 // The best part the lost host wore stays on its body, where it fell.
 const left = bodyLeftBehind();
-wakeNewHost(finalClass, () => useMap.getState().newHost(left));
+wakeNewHost(finalClass, () => useMap.getState().newHost(left, at));
 },
 
 goToNextChapter: () => {

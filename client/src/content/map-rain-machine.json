@@ -410,6 +410,7 @@
     },
     {
       "id": "canteen",
+      "server": "A server bolted under the counter, dripping condensation. A payroll on its screen, and under it, a queue of broadcasts waiting to go.",
       "at": [3, 14],
       "name": "The canteen",
       "text": "A shipping container with a counter, a kettle and someone selling parts out of a cool box. The kettle never boils; the air's too thin.",

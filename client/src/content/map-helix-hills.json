@@ -465,6 +465,7 @@
     },
     {
       "id": "commissary",
+      "server": "Behind the drinks fridge, a server with its fans running. A company asset sticker on the front; on the back, addresses in marker pen.",
       "at": [3, 9],
       "name": "The commissary",
       "text": "A canteen where the staff eat under a mural of happy sleepers. Someone at the till sells parts from under the counter.",
@@ -752,6 +753,7 @@
     },
     {
       "id": "chapel",
+      "server": "Under the back pew, a server wrapped in a choir robe. It answers every ping with two call signs.",
       "at": [5, 6],
       "name": "The chapel",
       "text": "A chapel where the pews face a window onto the wards. People come here to watch the sleepers breathe.",

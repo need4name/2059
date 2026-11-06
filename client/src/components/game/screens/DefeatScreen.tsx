@@ -11,6 +11,8 @@ import { useAllies } from '@/lib/stores/useAllies';
 import { availableFirmware } from '@/lib/stores/useCombat';
 import { allyDef } from '@/lib/combat/allies';
 import { dailyDay, dailyRecords, endDaily } from '@/lib/daily';
+import { useMap } from '@/lib/stores/useMap';
+import { wakePlaces, roomById } from '@/lib/engine/map';
 
 const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
   melee: 'Up close. Takes a beating.',
@@ -27,6 +29,9 @@ export function DefeatScreen() {
   const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' && choices.includes(playerClass) ? playerClass : null);
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
+  // Where the next host wakes: the chapter's entry, or a server some host reached
+  const places = wakePlaces(useMap());
+  const [wakeAt, setWakeAt] = useState(places[0]);
   const canReboot = (!anyFirmware || choice !== null) && (!offer || learned !== null);
   // Allies: who links with the next host (Second link allows two)
   const allies = useAllies();
@@ -41,7 +46,7 @@ export function DefeatScreen() {
   const jump = () => {
     if (offer && learned) pick(learned);
     allies.setParty(team.slice(0, slots), slots);
-    rebirth(choice ?? undefined);
+    rebirth(choice ?? undefined, wakeAt);
   };
 
   return (
@@ -52,7 +57,7 @@ export function DefeatScreen() {
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-hostile/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
-        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || anyFirmware ? 'pt-8' : 'pt-[28vh]')}>
+        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || anyFirmware || places.length > 1 ? 'pt-8' : 'pt-[28vh]')}>
           <Glyph name="signal" size={30} className="signal-pulse text-sys" />
           <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
@@ -149,6 +154,20 @@ export function DefeatScreen() {
             })}
           </div>
         ) : null}
+
+        {places.length > 1 && (
+          <div className="space-y-2.5">
+            <Label>Wake in</Label>
+            <div className="flex flex-wrap gap-2">
+              {places.map(id => (
+                <button key={id} onClick={() => setWakeAt(id)} aria-pressed={wakeAt === id}
+                  className={cx('key rounded-full px-4 py-2 text-[13px] font-semibold', wakeAt === id ? 'key-selected text-white' : 'text-hud-text')}>
+                  {roomById(id).name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Screen>
   );

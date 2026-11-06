@@ -9,7 +9,7 @@ import type { Item } from '../combat/types';
 const CHAPTER_ONE = 'indian-ocean';
 
 // Where the signal is on the chapter's hidden map. Survives death (a new host
-// wakes at the entry); only a full save wipe clears it.
+// wakes at the entry or a server reached before); only a full save wipe clears it.
 interface MapStore extends M.MapState {
   go: (exitIndex: number) => void;
   clearRoom: () => void;
@@ -19,7 +19,9 @@ interface MapStore extends M.MapState {
   /** The chapter's last fight is won. */
   finishChapter: () => void;
   /** A host is lost; `left` is the part that stays on its body. */
-  newHost: (left?: Item | null) => void;
+  newHost: (left?: Item | null, at?: string) => void;
+  /** Rest at this room's server: this host's won fights come back. */
+  rest: () => void;
   /** Take the part back off the last host's body, if it lies here. */
   takeCorpse: () => Item | null;
   /** This host used the room's event (and lost `health` max health to it). */
@@ -29,7 +31,7 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0 });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [] });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
@@ -38,7 +40,8 @@ export const useMap = create<MapStore>()(persist((set, get) => ({
   look: () => { const r = M.look(pick(get())); set(r.state); return r.found; },
   takeCache: () => { const before = pick(get()); const after = M.takeCache(before); set(after); return after !== before; },
   finishChapter: () => set(M.finishChapter(pick(get()))),
-  newHost: (left) => set(M.newHost(pick(get()), left ?? null)),
+  newHost: (left, at) => set(M.newHost(pick(get()), left ?? null, at)),
+  rest: () => set(M.rest(pick(get()))),
   spendEvent: (health = 0) => set(E.scar(E.spendEvent(pick(get())), health)),
   takeCorpse: () => { const r = M.takeCorpse(pick(get())); set(r.state); return r.item; },
   travel: (chapter) => { setActiveChapter(chapter); set(M.newMapState(chapter)); },

@@ -255,6 +255,7 @@
     },
     {
       "id": "vending",
+      "server": "A server wedged inside a gutted machine, its lights blinking through the glass. One sticker says Contractor. Another says Not for sale.",
       "at": [2, 20],
       "name": "The night machine",
       "text": "A vending machine for the technicians who never come. It sells you parts and wishes you a good shift.",

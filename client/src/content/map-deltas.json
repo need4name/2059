@@ -207,6 +207,7 @@
     },
     {
       "id": "lantern",
+      "server": "A server sealed in a cool box under the lanterns, humming. Someone has scratched a tally of jobs into the lid and crossed half of them out.",
       "at": [3, 1],
       "name": "Lantern barge",
       "text": "A barge hung with lanterns where someone sells parts out of a cold box. They take your money without looking at your face.",
@@ -830,6 +831,7 @@
     },
     {
       "id": "clinic",
+      "server": "A server propped on a gurney above the waterline, still drawing power. A security firm's crest on the casing, and over it, a painted fist.",
       "at": [6, 8],
       "name": "The drowned clinic",
       "text": "A clinic on stilts, its beds still made, its trays still laid. Someone has been working here recently, on someone.",
