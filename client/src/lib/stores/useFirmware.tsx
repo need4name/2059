@@ -8,7 +8,7 @@ import { firmwareLevel } from '../engine/firmware';
 // hosts. Only a full save wipe clears it.
 interface FirmwareState {
   xp: Partial<Record<PlayerClass, number>>;
-  /** Firmware opened by going deep (Courier, Foreman); Enforcer and Operative open with a death (classesUnlocked). */
+  /** Firmware opened outside classesUnlocked: Courier and Foreman by going deep, the Enforcer by a death after 5 kills. */
   opened: PlayerClass[];
   open: (cls: PlayerClass) => void;
   /** The firmware's level now. */

@@ -20,12 +20,11 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 };
 
 export function DefeatScreen() {
-  const { boss, playerClass, classesUnlocked, rebirth } = useCombat();
+  const { boss, playerClass, justOpened, rebirth } = useCombat();
   // Every firmware opened so far (Enforcer and Operative by a death, the rest by going deep)
   const choices = availableFirmware();
   const anyFirmware = choices.length > 0;
   const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' && choices.includes(playerClass) ? playerClass : null);
-  const justUnlocked = classesUnlocked && playerClass === 'none';
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
   const canReboot = (!anyFirmware || choice !== null) && (!offer || learned !== null);
@@ -115,7 +114,6 @@ export function DefeatScreen() {
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <Label>Firmware</Label>
-              {justUnlocked && <Chip tone="cred">New!</Chip>}
             </div>
             {choices.map(c => {
               const def = CLASS_DEFINITIONS[c];
@@ -135,7 +133,7 @@ export function DefeatScreen() {
                     <Glyph name={c === 'melee' ? 'arm' : c === 'ranged' ? 'eye' : c === 'swift' ? 'leg' : 'allies'} size={22} />
                   </span>
                   <span className="min-w-0 flex-1 space-y-1.5">
-                    <span className="block font-display text-lg font-semibold text-white">{def.name}</span>
+                    <span className="flex items-center gap-2"><span className="font-display text-lg font-semibold text-white">{def.name}</span>{justOpened.includes(c) && <Chip tone="cred">New</Chip>}</span>
                     <span className="block text-sm text-hud-dim">{CLASS_BLURB[c]}</span>
                     <span className="flex gap-2 text-xs font-semibold">
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseHp} HP</span>

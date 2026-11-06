@@ -8,7 +8,7 @@ import data from '../../content/firmware.json';
 import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
 
 export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
-interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death at threat 11+). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
+interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;

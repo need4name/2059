@@ -44,6 +44,8 @@ import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
 export const CLASS_UNLOCK_LEVEL = 11;
+/** Enemies beaten (by every host together) before a death opens the Enforcer. */
+export const ENFORCER_KILLS = 5;
 
 // Pacing (ms)
 const ENEMY_TURN_DELAY = 700;
@@ -87,6 +89,8 @@ fightsStarted: number;
 setRunSeed: (seed: number) => void;
 playerClass: PlayerClass;
 classesUnlocked: boolean;
+/** Firmware the last death opened (for the "New" tag on the defeat screen; not saved). */
+justOpened: PlayerClass[];
 introCompleted: boolean;
 grid: CombatGrid;
 debugMode: boolean;
@@ -364,14 +368,18 @@ if (cond.skipTurn) later(() => finishPlayerAction(false), TURN_HANDOFF_DELAY);
 };
 
 const handlePlayerDefeated = () => {
-const { bossLevel, playerClass, classesUnlocked, runSeed, progression } = get();
+const { bossLevel, classesUnlocked, runSeed, progression } = get();
 // The signal learns something from every lost host: deal two cards to choose from
 seedRandom(mixSeed(runSeed, 0x5eed, progression.deathCount));
 usePlayi.getState().makeOffer(useAllies.getState().unlocked().length > 0);
-const unlockNow = !classesUnlocked && playerClass === 'none' && bossLevel >= CLASS_UNLOCK_LEVEL;
+// Firmware opened by this death: Enforcer once hosts have beaten enough enemies, Operative (and Enforcer) deep enough
+const before = availableFirmware();
+if (useRunStats.getState().total.enemiesKilled >= ENFORCER_KILLS) useFirmware.getState().open('melee');
+const unlockNow = !classesUnlocked && bossLevel >= CLASS_UNLOCK_LEVEL;
+set({ classesUnlocked: classesUnlocked || unlockNow });
 set({
 phase: 'defeat', inputLocked: true, fightId: get().fightId + 1,
-classesUnlocked: classesUnlocked || unlockNow,
+justOpened: availableFirmware().filter(c => !before.includes(c)),
 });
 };
 
@@ -686,6 +694,7 @@ fightsStarted: 0,
 setRunSeed: (seed) => set({ runSeed: seed >>> 0, fightsStarted: 0 }),
 playerClass: 'none',
 classesUnlocked: false,
+justOpened: [],
 introCompleted: false,
 debugMode: false,
 originalPosition: null,
@@ -1083,5 +1092,6 @@ progression: s.progression,
 
 /** Every firmware a new host can wake with: Enforcer and Operative once a death opened them, then whatever going deep opened. */
 export function availableFirmware(): PlayerClass[] {
-return [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
+const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
+return all.filter((c, k) => all.indexOf(c) === k);
 }
