@@ -253,7 +253,7 @@ function OverloadBar() {
     return (
       <button onClick={s.surge} disabled={!myTurn}
         className="key mb-3 w-full rounded-2xl px-4 py-2.5 text-left key-surge">
-        <span className="block font-display text-[15px] font-semibold text-white">Signal Surge</span>
+        <span className="block font-display text-[15px] font-semibold text-white">{Fight.SURGE_NAME[s.perks.surgeKind ?? 'blast']}</span>
       </button>
     );
   }

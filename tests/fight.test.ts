@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tileWeight } from '../client/src/lib/combat/patterns';
+import { withClass } from '../client/src/lib/engine/firmware';
 import * as Fight from '../client/src/lib/engine/fight';
 import type { FightState } from '../client/src/lib/engine/fight';
 import { seedRandom, random } from '../client/src/lib/engine/rng';
@@ -31,13 +32,30 @@ function fight(over: Partial<FightState> = {}): FightState {
 const withImplants = () => ({ ...createPlayer(), maxStructuralHp: 50, currentStructuralHp: 10 });
 const hitFor = (damage: number, phys = 0.5): CombatAction => ({ type: 'attack', name: 'Test Blow', description: '', damage, physicalRatio: phys, accuracy: 'precise', attackPattern: 'melee' });
 
-test('both sides cool down at the start of a round; cool players act twice', () => {
+test('both sides cool down at the start of a round; only a cool Operative acts twice', () => {
   const base = fight({ playerHeat: 20 });
   const s = Fight.startPlayerTurn({ ...base, foes: [{ ...base.foes[0], heat: 3 }] });
   assert.equal(s.playerHeat, 20 - Fight.PASSIVE_COOLING);
   assert.equal(s.foes[0].heat, 0);
-  assert.equal(s.doubleActionReady, true);
-  assert.equal(Fight.startPlayerTurn(fight({ playerHeat: 60 })).doubleActionReady, false);
+  assert.equal(s.doubleActionReady, false, 'no free double action without the class');
+  const op = { ...base, perks: withClass(base.perks, 'ranged') };
+  assert.equal(Fight.startPlayerTurn(op).doubleActionReady, true, 'the Operative acts twice when cool');
+  assert.equal(Fight.startPlayerTurn({ ...op, playerHeat: 60 }).doubleActionReady, false);
+});
+
+test('firmware classes: each has its own rule and its own Overload ultimate', () => {
+  const base = fight();
+  assert.equal(withClass(base.perks, 'melee').chain, true, 'Enforcer: takedowns chain');
+  assert.equal(withClass(base.perks, 'swift').reflexMove, true, 'Courier: a step after attacking');
+  assert.ok(withClass(base.perks, 'crowd').transferBonus > 0, 'Foreman: hits push heat');
+  assert.equal(withClass(base.perks, 'ranged').surgeKind, 'overwatch');
+  // Overrun pumps heat into everyone it hits; Blink hits nobody and gives an action
+  const full = { ...base, overload: 100 };
+  const overrun = Fight.resolveSurge({ ...full, perks: withClass(base.perks, 'crowd') }, 10).state;
+  assert.ok(overrun.foes[0].heat > base.foes[0].heat || overrun.foes[0].stunned);
+  const blink = Fight.resolveSurge({ ...full, perks: withClass(base.perks, 'swift') }, 10);
+  assert.equal(blink.state.foes[0].unit.currentHp, base.foes[0].unit.currentHp);
+  assert.ok(blink.events.some(e => e.kind === 'extraAction'));
 });
 
 test('brace cools you, raises guard and repairs 40% of structure', () => {

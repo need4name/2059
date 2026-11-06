@@ -174,7 +174,11 @@ const firmwareStep = z.object({
   accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean(), retreat: z.boolean() }).partial().optional(),
   speed: z.number().int().min(1).max(4).optional(), twin: z.enum(['cool', 'always']).optional(),
 }).strict().refine(st => Object.keys(st).length > 1, 'a level must add something');
-const firmwareDef = z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), unlockAt: z.number().int().min(2).max(30).optional(), speed: z.number().int().min(1).max(4).optional() }).strict();
+const identity = z.object({
+  rule: text, heat: text, ultimate: text, surge: z.enum(['piledriver', 'overwatch', 'blink', 'overrun']),
+  perks: z.object({ chain: z.literal(true), heatGenBonus: z.number().int().min(1).max(10), ventMult: z.number().gt(1).max(3), coolAct: z.number().int().min(16).max(60), extraCooling: z.number().int().min(1).max(10), reflexMove: z.literal(true), transferBonus: z.number().int().min(1).max(20) }).partial().strict(),
+}).strict();
+const firmwareDef = z.object({ identity, base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), unlockAt: z.number().int().min(2).max(30).optional(), speed: z.number().int().min(1).max(4).optional() }).strict();
 const firmwareFile = z.object({
   about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
   xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),

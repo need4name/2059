@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCombat, hostHealth } from '@/lib/stores/useCombat';
+import { useCombat, hostHealth, availableFirmware, ALL_FIRMWARE_OPEN } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
@@ -9,7 +9,7 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/li
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
-import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel } from '@/lib/engine/firmware';
+import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, identityOf } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
@@ -405,8 +405,25 @@ function StrainTab() {
 }
 
 /** The loaded firmware: its level, how close the next is, its attack now, and every level's step. */
+/** Testing: load any firmware from here (ALL_FIRMWARE_OPEN). */
+function FirmwareSwitch() {
+  const { playerClass, setPlayerClass } = useCombat();
+  return (
+    <div className="mb-4 space-y-1.5">
+      <div className="text-xs text-hud-faint">Testing: every firmware is open</div>
+      <div className="flex flex-wrap gap-2">
+        {availableFirmware().map(c => (
+          <button key={c} onClick={() => setPlayerClass(c)} aria-pressed={playerClass === c}
+            className={cx('key rounded-full px-3.5 py-1.5 text-[13px] font-semibold', playerClass === c ? 'key-selected text-white' : 'text-hud-text')}>{CLASS_DEFINITIONS[c].name}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
+  const id = identityOf(playerClass);
   const xp = useFirmware(st => st.xp[playerClass] ?? 0);
   const { level, into, need } = firmwareLevel(xp);
   const att = firmwareAttack(playerClass, level);
@@ -422,6 +439,13 @@ function FirmwarePanel() {
       </div>
       {level < MAX_FIRMWARE_LEVEL && <Meter value={into} max={need} tone="aug" className="h-1.5" />}
       <p className="text-sm text-aug">Strike is {att?.name}: {att?.description}</p>
+      {id && (
+        <div className="space-y-1 rounded-2xl bg-white/[0.04] px-3.5 py-3 text-[13px] leading-snug">
+          <div><span className="font-semibold text-white">Its rule: </span><span className="text-hud-text">{id.rule}</span></div>
+          <div><span className="font-semibold text-orange-300">Heat: </span><span className="text-hud-text">{id.heat}</span></div>
+          <div><span className="font-semibold text-violet-300">Overload: </span><span className="text-hud-text">{id.ultimate}</span></div>
+        </div>
+      )}
       <ol className="space-y-1">
         {steps.map((st, k) => {
           const lv = k + 2, got = level >= lv;
@@ -568,11 +592,10 @@ function StatusTab() {
 
       <Noticed notes={notes} />
 
-{playerClass !== 'none' && (
-        <Panel label="Firmware">
-          <FirmwarePanel />
-        </Panel>
-      )}
+<Panel label="Firmware">
+        {ALL_FIRMWARE_OPEN && <FirmwareSwitch />}
+        {playerClass !== 'none' ? <FirmwarePanel /> : <p className="text-sm text-hud-dim">No firmware loaded.</p>}
+      </Panel>
 
       <RunStatsPanel />
 

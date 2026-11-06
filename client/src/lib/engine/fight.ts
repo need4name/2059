@@ -21,6 +21,7 @@ import { canHitTarget, getHitTiles, tileWeight } from '../combat/patterns';
 import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
+import type { SurgeKind } from './playi';
 import { random } from './rng';
 import { makerOf, type Maker } from '../combat/augments';
 import { NO_PERKS, type Perks } from './playi';
@@ -649,7 +650,7 @@ export function startPlayerTurn(s: FightState): FightState {
     ...s,
     playerHeat,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
-    doubleActionReady: playerHeat <= s.perks.doubleActionHeat,
+    doubleActionReady: s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat,
     noParting: false,
   };
 }
@@ -665,15 +666,28 @@ export const OVERLOAD = { dealt: 25, taken: 40, hot: 10, critical: 16, full: 100
 const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, overload: Math.min(OVERLOAD.full, s.overload + Math.max(0, Math.round(amount))) });
 const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
 
-export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => !x.f.swimming && chebyshev(x.f.pos, s.grid.playerPosition) <= OVERLOAD.reach).map(x => x.i);
+/** How far each ultimate reaches (Blink needs no one in reach: it's for you). */
+export const SURGE_REACH: Record<SurgeKind, number> = { blast: OVERLOAD.reach, piledriver: 2, overwatch: 6, blink: 99, overrun: 3 };
+/** Each ultimate's name, for the button. */
+export const SURGE_NAME: Record<SurgeKind, string> = { blast: 'Signal Surge', piledriver: 'Piledriver', overwatch: 'Overwatch', blink: 'Blink', overrun: 'Overrun' };
+export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => !x.f.swimming && chebyshev(x.f.pos, s.grid.playerPosition) <= SURGE_REACH[s.perks.surgeKind ?? 'blast']).map(x => x.i);
 export const canSurge = (s: FightState) => s.overload >= OVERLOAD.full && surgeTargets(s).length > 0;
 
 /** Signal Surge: every enemy within 2 tiles takes 1.5x your best move's damage, and your heat vents to zero. */
 export function resolveSurge(s: FightState, bestDamage: number): Step {
-  const events: FightEvent[] = [say('SIGNAL SURGE -- the body screams and everything near it reels', 'critical'), { kind: 'surge' }];
+  const kind = s.perks.surgeKind ?? 'blast';
+  const events: FightEvent[] = [say(`${SURGE_NAME[kind].toUpperCase()} -- the body screams and everything near it reels`, 'critical'), { kind: 'surge' }];
   let state: FightState = { ...s, overload: 0, playerHeat: 0 };
-  const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * OVERLOAD.mult)) };
-  for (const i of surgeTargets(s)) {
+  // Blink (Courier): no hit at all; all your heat vented, hasted, and you act again at once
+  if (kind === 'blink') {
+    events.push(say('BLINK -- act again', 'critical'), { kind: 'extraAction' });
+    return { state: { ...state, playerHasted: 2 }, events };
+  }
+  // How hard: Piledriver twice your best move, Overwatch 1.2x a shot each, Overrun 0.8x, the plain surge 1.5x
+  const mult = kind === 'piledriver' ? 2 : kind === 'overwatch' ? 1.2 : kind === 'overrun' ? 0.8 : OVERLOAD.mult;
+  const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * mult)) };
+  const targets = surgeTargets(s);
+  for (const i of targets) {
     const foe = state.foes[i];
     const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult * takenBy(foe), 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
@@ -681,6 +695,12 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
     events.push(say(`${foe.unit.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage'));
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
+  }
+  // Piledriver and Overrun shove everyone hit; Overrun pumps heat into them too (they may overheat)
+  for (const i of targets) {
+    if (!isAlive(state.foes[i])) continue;
+    if (kind === 'overrun') { state = setFoe(state, i, { heat: clampHeat(state.foes[i].heat + 50) }); state = foeOverheat(state, i, events); }
+    if ((kind === 'piledriver' || kind === 'overrun') && isAlive(state.foes[i])) state = knockBack(state, state.grid.playerPosition, { kind: 'foe', i }, Math.round(action.damage * 0.3), events);
   }
   return { state: afterFoeChanges(state, events), events };
 }
@@ -893,7 +913,7 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
     playerHeat: heat,
   };
   // Venting from high heat: the heat let out hits every enemy beside you
-  if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, s.playerHeat - heat, events, 'Vent burst'), events);
+  if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, (s.playerHeat - heat) * s.perks.ventMult, events, 'Vent burst'), events);
   return { state, events };
 }
 
@@ -1142,7 +1162,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   const struck = foesStruck(s, action, playerClass, aim);
   // A knockback shoves the nearest one it hits
   const pushed = struck.slice().sort((a, b) => chebyshev(grid.playerPosition, s.foes[a].pos) - chebyshev(grid.playerPosition, s.foes[b].pos))[0];
-  const heatPush = hot.heatTransfer ?? 0;
+  const heatPush = (hot.heatTransfer ?? 0) + s.perks.transferBonus;
   let nearest = Infinity, dealtTotal = 0;
   events.push({ kind: 'hit' });
   for (const i of struck) {
@@ -1191,7 +1211,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
     firstStrikeUsed: true,
-    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat - (action.effects?.cool ?? 0)),
+    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (action.effects?.cool ?? 0)),
   };
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };

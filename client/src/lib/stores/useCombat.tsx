@@ -40,7 +40,7 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
+import { withClass, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -212,7 +212,8 @@ const linked = withLinks(usePlayi.getState().perks(), useAllies.getState().party
 const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClass));
 const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 // What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
-const perks = withTreePerks(twinned, useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+// The firmware's class rules (Enforcer chains takedowns, Operative acts twice cool, ...), then the slot upgrades
+const perks = withTreePerks(withClass(twinned, playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
@@ -919,8 +920,14 @@ if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || !Fight.canSurge(
 const best = Math.max(10, ...useLoadout.getState().slots.map(a => (a && a.type !== 'brace' ? a.damage ?? 0 : 0)));
 set({ inputLocked: true, selectedAction: null });
 useRunStats.getState().add({ surges: 1 });
-doer = { kind: 'player', move: 'Signal Surge' };
-if (apply(Fight.resolveSurge(fightState(), best))) return;
+doer = { kind: 'player', move: Fight.SURGE_NAME[get().perks.surgeKind ?? 'blast'] };
+const step = Fight.resolveSurge(fightState(), best);
+if (apply(step)) return;
+// Blink: act again at once
+if (step.events.some(e => e.kind === 'extraAction')) {
+later(() => { const g = get().grid; set({ inputLocked: false, hasMoved: false, selectedMovement: null, selectedAction: null, originalPosition: { ...g.playerPosition } }); }, 300);
+return;
+}
 finishPlayerAction(false);
 },
 
@@ -1113,7 +1120,11 @@ const max = buildPlayer(useCombat.getState().playerClass).player.maxHp;
 return { hp: healthNow(useMap.getState(), max), max };
 }
 
+/** Testing: every firmware is open from the start, so each class can be tried. Turn off to use the unlock rules. */
+export const ALL_FIRMWARE_OPEN = true;
+
 export function availableFirmware(): PlayerClass[] {
+if (ALL_FIRMWARE_OPEN) return ['melee', 'ranged', 'swift', 'crowd'];
 const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
 return all.filter((c, k) => all.indexOf(c) === k);
 }

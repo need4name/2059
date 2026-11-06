@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
-import { firmwareAttack } from '@/lib/engine/firmware';
+import { firmwareAttack, identityOf } from '@/lib/engine/firmware';
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
@@ -139,7 +139,8 @@ export function DefeatScreen() {
                   </span>
                   <span className="min-w-0 flex-1 space-y-1.5">
                     <span className="flex items-center gap-2"><span className="font-display text-lg font-semibold text-white">{def.name}</span>{justOpened.includes(c) && <Chip tone="cred">New</Chip>}</span>
-                    <span className="block text-sm text-hud-dim">{CLASS_BLURB[c]}</span>
+                    <span className="block text-sm text-hud-dim">{identityOf(c)?.rule ?? CLASS_BLURB[c]}</span>
+                    {identityOf(c) && <span className="block text-xs text-orange-300/90">{identityOf(c)!.heat}</span>}
                     <span className="flex gap-2 text-xs font-semibold">
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseHp} HP</span>
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseAttack} ATK</span>

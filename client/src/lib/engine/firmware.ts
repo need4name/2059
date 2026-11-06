@@ -6,9 +6,12 @@
 
 import data from '../../content/firmware.json';
 import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
+import type { Perks, SurgeKind } from './playi';
 
 export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
-interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
+/** A firmware's class: its own rule, heat style and Overload ultimate. */
+export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number } }
+interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
@@ -76,3 +79,23 @@ export const TWIN_HEAT = { cool: 40, always: 100 };
 export const DEEP_FIRMWARE = (Object.entries(FIRMWARE) as [PlayerClass, FirmwareDef][]).filter(([, d]) => d.unlockAt !== undefined).sort((a, b) => a[1].unlockAt! - b[1].unlockAt!).map(([cls, d]) => ({ cls, at: d.unlockAt! }));
 /** Firmware a won room fight at this threat opens (that isn't open yet). */
 export const opensAt = (threat: number, open: PlayerClass[]) => DEEP_FIRMWARE.filter(f => threat >= f.at && !open.includes(f.cls)).map(f => f.cls);
+
+/** A firmware's class (rule, heat style, ultimate), or null with none loaded. */
+export const identityOf = (cls: PlayerClass): FirmwareIdentity | null => FIRMWARE[cls]?.identity ?? null;
+/** The host's perks with its firmware's class rules on top. */
+export function withClass(p: Perks, cls: PlayerClass): Perks {
+  const id = identityOf(cls);
+  if (!id) return p;
+  const k = id.perks;
+  return {
+    ...p,
+    chain: p.chain || !!k.chain,
+    reflexMove: p.reflexMove || !!k.reflexMove,
+    doubleActionHeat: Math.max(p.doubleActionHeat, k.coolAct ?? 0),
+    extraCooling: p.extraCooling + (k.extraCooling ?? 0),
+    heatGenBonus: p.heatGenBonus + (k.heatGenBonus ?? 0),
+    ventMult: p.ventMult * (k.ventMult ?? 1),
+    transferBonus: p.transferBonus + (k.transferBonus ?? 0),
+    surgeKind: id.surge,
+  };
+}

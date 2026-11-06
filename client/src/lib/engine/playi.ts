@@ -81,16 +81,24 @@ export interface Perks {
   collisionMult: number;      // collision damage enemies take from your knockbacks (Breaker's link)
   noFlinch: boolean;          // the sleeper inside your host never flinches (Ninety's link)
   windproof: boolean;         // the wind never pushes you (Dust's link)
+  // Firmware class (firmware.json identity)
+  heatGenBonus: number;       // extra heat on every hit you make (Enforcer)
+  ventMult: number;           // multiplies venting bursts (Enforcer)
+  transferBonus: number;      // extra heat pushed into whoever you hit (Foreman)
+  surgeKind: SurgeKind;       // what Overload does when it goes off
 }
+/** Each firmware's Overload ultimate; unclassified hosts get the plain Signal Surge. */
+export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun';
 
 export const NO_PERKS: Perks = {
   moveBonus: 0, reflexMove: false, hazardMult: 1, sidestep: false, phaseStep: false,
-  extraCooling: 0, startHeat: 20, hotTakenMult: 1, doubleActionHeat: 15, ventBonus: 0, runaway: false,
+  extraCooling: 0, startHeat: 20, hotTakenMult: 1, doubleActionHeat: 0, ventBonus: 0, runaway: false,
   damageMult: 1, extraSlots: 0, flankMult: 1, firstStrikePrecise: false, finisherBonus: 0, chain: false,
   healthCostMult: 1, structureMult: 1, startImplant: false, startPoints: 0, pickOfTwo: false, braceRepair: 0.4,
   maxHpBonus: 0, startBioStims: 0, priceMult: 1, holdfast: false, damageTakenMult: 1,
   allyHpMult: 1, allyXpMult: 1, coordinated: false, allySlots: 1,
   braceHeal: 0, partingTakenMult: 1, collisionMult: 1, noFlinch: false, windproof: false,
+  heatGenBonus: 0, ventMult: 1, transferBonus: 0, surgeKind: 'blast',
 };
 
 /** Turns owned node ids (fallback fragments may repeat) into modifiers. */
