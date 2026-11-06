@@ -6,14 +6,17 @@ import { allyDef } from '@/lib/combat/allies';
 
 // The map the signal draws as it goes, at the top of the room card: every room any host has walked into, the
 // doors it has seen but not gone through, what waits in each room found, and where hosts were lost. It is kept
-// across hosts, so each life fills in a little more. Drawn in 2.5D, seen from the south at a steep angle: north
-// stays straight up the screen and east to the right, each room is a slab whose height shows how far up it sits
-// (up exits climb, down exits drop; roomHeights in map.ts), halls run straight between slab tops (ramps between
-// levels), and slabs are drawn north to south. Pixel art on a small canvas, scaled up without smoothing.
+// across hosts, so each life fills in a little more. Drawn in 2.5D: the room grid turned a little (TILT, so north
+// points up and slightly right) and seen from above at an angle (SQUASH). Each room is a slab floating at its height
+// (up exits climb, down exits drop; roomHeights in map.ts) on a post over its shadow, halls run between slab tops
+// (ramps between levels), and slabs are drawn back to front. Pixel art on a small canvas, scaled up without smoothing.
 
 const ZOOMS = [2, 3, 4, 5]; // screen pixels per map pixel, from the +/- buttons
-const TW = 14, TH = 9; // a room's top, seen from the south at a steep angle: this wide and this deep
-const PX = 20, PY = 15; // one grid step east moves this far right, one step south this far down (room for a hall)
+const TILT = (30 * Math.PI) / 180; // how far the grid is turned (0: north straight up, 45: a diamond)
+const SQUASH = 0.62;  // how flat the ground looks from the viewing angle (1: straight down)
+const STEP = 21;      // map pixels from one room to the next on the ground, before the turn and squash
+const SIDE = 13;      // a room's top, on the ground, before the turn and squash
+const TW = 14, TH = 9; // roughly how wide and deep a room's top shows (for the camera and culling)
 const ZH = 5;         // map pixels per level of height
 const BASE = 3;       // how thick a block at the lowest level is
 const C = {
@@ -106,9 +109,15 @@ export function SignalMap() {
       for (const r of view.rooms) if (!firstSeen.current.has(r.id + r.seen)) firstSeen.current.set(r.id + r.seen, now);
       const fade = (r: MapRoom) => Math.min(1, (now - (firstSeen.current!.get(r.id + r.seen) ?? 0)) / 700);
 
-      // Where things land on screen: the grid as it is (north up, east right), squashed a little for the steep angle and lifted by height
+      // Where things land on screen: the grid turned by TILT, squashed by SQUASH, lifted by height
       const zs = view.rooms.map(r => r.z), zMin = Math.min(0, ...zs);
-      const iso = (r: MapRoom) => ({ x: r.at[0] * PX, y: r.at[1] * PY - (r.z - zMin) * ZH });
+      const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
+      const proj = (gx: number, gy: number) => ({ x: (gx * cosT - gy * sinT) * STEP, y: (gx * sinT + gy * cosT) * STEP * SQUASH });
+      const iso = (r: MapRoom) => { const p = proj(r.at[0], r.at[1]); return { x: p.x, y: p.y - (r.z - zMin) * ZH }; };
+      const depth = (r: MapRoom) => proj(r.at[0], r.at[1]).y;
+      // A room's four top corners around its centre (north-west, north-east, south-east, south-west)
+      const half = SIDE / 2 / STEP;
+      const corners = (cx: number, cy: number) => ([[-half, -half], [half, -half], [half, half], [-half, half]] as const).map(([dx, dy]) => { const p = proj(dx, dy); return { x: cx + p.x, y: cy + p.y }; });
 
       // Camera: follow the host's room, but keep a small map centred
       const pts = view.rooms.map(iso);
@@ -119,8 +128,8 @@ export function SignalMap() {
       const meRoom = view.rooms.find(r => r.id === here);
       const me = meRoom ? iso(meRoom) : { x: 0, y: 0 };
       const goal = {
-        x: span(Math.min(...pts.map(p => p.x)) - TW / 2, Math.max(...pts.map(p => p.x)) + TW / 2, w, me.x) - pan.current.x,
-        y: span(Math.min(...pts.map(p => p.y)) - 10, Math.max(...pts.map(p => p.y)) + TH + BASE + 12, h, me.y + TH / 2) - pan.current.y,
+        x: span(Math.min(...pts.map(p => p.x)) - TW, Math.max(...pts.map(p => p.x)) + TW, w, me.x) - pan.current.x,
+        y: span(Math.min(...pts.map(p => p.y)) - 10, Math.max(...pts.map(p => p.y)) + TH + BASE + 12, h, me.y) - pan.current.y,
       };
       if (!cam.current) cam.current = { ...goal };
       cam.current.x += (goal.x - cam.current.x) * 0.18;
@@ -128,13 +137,30 @@ export function SignalMap() {
       const ox = Math.round(w / 2 - cam.current.x), oy = Math.round(h / 2 - cam.current.y);
       const px = (x: number, y: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
       const rect = (x: number, y: number, rw: number, rh: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, rw, rh); };
-      // A rounded rectangle (its corner pixels cut), the shape of a room's top
-      const pad = (x: number, y: number, rw: number, rh: number, col: string) => { rect(x + 1, y, rw - 2, rh, col); rect(x, y + 1, rw, rh - 2, col); };
+      // Fill a shape pixel by pixel, row by row, so its edges stay crisp (no smoothing)
+      const fillPoly = (pts: { x: number; y: number }[], col: string) => {
+        ctx.fillStyle = col;
+        const ys = pts.map(p => p.y), y0 = Math.ceil(Math.min(...ys)), y1 = Math.floor(Math.max(...ys));
+        for (let y = y0; y <= y1; y++) {
+          const xs: number[] = [];
+          for (let i = 0; i < pts.length; i++) {
+            const a = pts[i], b = pts[(i + 1) % pts.length];
+            if ((a.y <= y + 0.5 && b.y > y + 0.5) || (b.y <= y + 0.5 && a.y > y + 0.5)) xs.push(a.x + ((y + 0.5 - a.y) / (b.y - a.y)) * (b.x - a.x));
+          }
+          xs.sort((m, n) => m - n);
+          for (let k = 0; k + 1 < xs.length; k += 2) { const l = Math.round(xs[k]), r = Math.round(xs[k + 1]); if (r > l) ctx.fillRect(l, y, r - l, 1); }
+        }
+      };
+      // Pixels along a line (every `gap`th one), for outlines
+      const line = (a: { x: number; y: number }, b: { x: number; y: number }, col: string, gap = 1) => {
+        const n = Math.max(1, Math.round(Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y))));
+        for (let i = 0; i <= n; i += gap) px(Math.round(a.x + ((b.x - a.x) * i) / n), Math.round(a.y + ((b.y - a.y) * i) / n), col);
+      };
       // A room's symbol, standing on its top, with a dark outline so it reads on any face. `t` makes it breathe.
-      const mark = (kind: RoomMark | 'sealed', cx: number, top: number, tint?: string, t = 0) => {
+      const mark = (kind: RoomMark | 'sealed', cx: number, cy: number, tint?: string, t = 0) => {
         const m = MARKS[kind];
         const mw = m.rows[0].length, mh = m.rows.length;
-        const sx = cx - (mw >> 1), sy = top + Math.ceil(TH / 2) - mh + 1;
+        const sx = Math.round(cx) - (mw >> 1), sy = Math.round(cy) - mh + 2;
         const on = (i: number, j: number) => (m.rows[j]?.[i] ?? '.') !== '.';
         const prev = ctx.globalAlpha;
         m.rows.forEach((row, j) => row.split('').forEach((ch, i) => {
@@ -150,95 +176,97 @@ export function SignalMap() {
       // Ground: a faint chart of dots on the lowest level, where rooms could stand
       rect(0, 0, w, h, C.ground);
       for (let gy = -40; gy < 40; gy++) for (let gx = -40; gx < 40; gx++) {
-        const x = ox + gx * PX, y = oy + gy * PY + (TH >> 1);
+        const p = proj(gx, gy), x = Math.round(ox + p.x), y = Math.round(oy + p.y);
         if (x >= 0 && y >= 0 && x < w && y < h) px(x, y, C.dot);
       }
 
       const known = new Map(view.rooms.map(r => [r.id, r]));
-      const topCentre = (r: MapRoom) => { const p = iso(r); return [ox + p.x, oy + p.y + (TH >> 1)]; };
+      const centreOf = (r: MapRoom) => { const p = iso(r); return { x: ox + p.x, y: oy + p.y }; };
+      const inside = (pt: { x: number; y: number }, c: { x: number; y: number }[]) => {
+        let n = false;
+        for (let i = 0, j = c.length - 1; i < c.length; j = i++) if ((c[i].y > pt.y) !== (c[j].y > pt.y) && pt.x < ((c[j].x - c[i].x) * (pt.y - c[i].y)) / (c[j].y - c[i].y) + c[i].x) n = !n;
+        return n;
+      };
 
-      // A hall, slab top to slab top: straight across the level, a ramp between levels
+      // A hall, slab top to slab top: a bridge on the level, a ramp between levels
       const hallBetween = (ra: MapRoom, rb: MapRoom) => {
-        const [x1, y1] = topCentre(ra), [x2, y2] = topCentre(rb);
+        const a = centreOf(ra), b = centreOf(rb), far = corners(a.x, a.y);
         const both = ra.seen && rb.seen;
         ctx.globalAlpha = Math.min(fade(ra), fade(rb));
-        const steps = Math.max(1, Math.abs(x2 - x1), Math.abs(y2 - y1));
-        const across = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
+        const steps = Math.max(1, Math.round(Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y))));
         for (let i = 0; i <= steps; i++) {
-          const x = Math.round(x1 + ((x2 - x1) * i) / steps), y = Math.round(y1 + ((y2 - y1) * i) / steps);
+          const x = Math.round(a.x + ((b.x - a.x) * i) / steps), y = Math.round(a.y + ((b.y - a.y) * i) / steps);
           // Not over the far room's top: the hall leaves from its edge
-          if (Math.abs(x - x1) <= TW / 2 && Math.abs(y - y1) <= TH / 2 + 1) continue;
-          if (both) {
-            if (across) { rect(x, y - 1, 1, 1, C.hallLit); rect(x, y, 1, 2, C.hall); rect(x, y + 2, 1, 1, C.edge); }
-            else { rect(x - 1, y, 1, 1, C.hallLit); rect(x, y, 2, 1, C.hall); rect(x + 2, y, 1, 1, C.edge); }
-          } else if (i % 3 === 0) px(x, y, C.glimpse);
+          if (inside({ x: x + 0.5, y: y + 0.5 }, far)) continue;
+          if (both) { rect(x - 1, y - 1, 3, 1, C.hallLit); rect(x - 1, y, 3, 1, C.hall); rect(x - 1, y + 1, 3, 1, C.edge); }
+          else if (i % 3 === 0) px(x, y, C.glimpse);
         }
         ctx.globalAlpha = 1;
       };
 
-      // Rooms north to south (and lower before higher), so nearer and higher slabs cover what's behind. Each hall
+      // Rooms back to front (and lower before higher), so nearer and higher slabs cover what's behind. Each hall
       // is drawn just before the nearer of its two rooms: over the far slab, under the near one
-      const order = view.rooms.slice().sort((p, q) => p.at[1] - q.at[1] || p.z - q.z || p.at[0] - q.at[0]);
+      const order = view.rooms.slice().sort((p, q) => depth(p) - depth(q) || p.z - q.z);
       const rank = new Map(order.map((r, k) => [r.id, k]));
       for (const r of order) {
         for (const [a, b] of view.links) {
           const other = a === r.id ? b : b === r.id ? a : null;
           if (other && rank.get(other)! < rank.get(r.id)!) hallBetween(known.get(other)!, r);
         }
-        const p = iso(r);
-        const cx = ox + p.x, top = oy + p.y, left = cx - (TW >> 1);
-        // A slab at its height, on a thin post down to its shadow on the ground
+        const c = centreOf(r);
+        const top = corners(c.x, c.y);
         const lift = Math.round((r.z - zMin) * ZH);
-        if (left + TW < 0 || left > w || top > h || top + TH + BASE + lift < 0) continue;
+        if (c.x + TW < 0 || c.x - TW > w || c.y - TH > h || c.y + TH + BASE + lift < 0) continue;
         ctx.globalAlpha = fade(r);
         if (!r.seen) {
           // Only glimpsed: a broken outline at its height, nothing inside
-          for (let i = 1; i < TW - 1; i += 2) { px(left + i, top, C.glimpse); px(left + i, top + TH - 1, C.glimpse); }
-          for (let j = 1; j < TH - 1; j += 2) { px(left, top + j, C.glimpse); px(left + TW - 1, top + j, C.glimpse); }
-          if (r.sealed) mark('sealed', cx, top);
+          for (let i = 0; i < 4; i++) line(top[i], top[(i + 1) % 4], C.glimpse, 2);
+          if (r.sealed) mark('sealed', c.x, c.y);
           ctx.globalAlpha = 1;
           continue;
         }
         const mine = r.id === here;
         const [base, lit, shade] = mine ? [C.here, C.hereLit, C.hereShade] : [C.room, C.lit, C.shade];
+        const down = (p: { x: number; y: number }, d: number) => ({ x: p.x, y: p.y + d });
         if (lift > 0) {
           // Its shadow on the ground, and the post holding it up
-          ctx.globalAlpha = fade(r) * 0.5;
-          for (let j = 1; j < TH - 1; j += 2) rect(left + 2, top + lift + j, TW - 4, 1, C.edge);
+          ctx.globalAlpha = fade(r) * 0.45;
+          fillPoly(top.map(p => down(p, lift + BASE)), C.edge);
           ctx.globalAlpha = fade(r);
-          rect(cx - 1, top + TH + BASE, 2, Math.max(0, lift - BASE), mine ? C.hereShade : C.shade);
+          rect(Math.round(c.x) - 1, Math.round(c.y + BASE + 2), 2, Math.max(0, lift - 1), mine ? C.hereShade : C.shade);
         }
-        // The slab: a dark outline, its front edge (facing you, south), then the top, lit along its north edge
-        pad(left - 1, top - 1, TW + 2, TH + BASE + 2, C.edge);
-        rect(left, top + TH, TW, BASE, mine ? C.hereShade : C.shade);
-        rect(left, top + TH + BASE - 1, TW, 1, C.edge);
-        pad(left, top, TW, TH, base);
-        rect(left + 1, top, TW - 2, 1, lit);
-        rect(left, top + 1, 1, TH - 2, mine ? lit : C.lit);
-        rect(left + TW - 1, top + 1, 1, TH - 2, shade);
+        // The slab's two edges facing you (south and east, as turned), the lit one on the left
+        const [nw, ne, se, sw] = top;
+        fillPoly([sw, se, down(se, BASE), down(sw, BASE)], mine ? C.hereShade : C.shade);
+        fillPoly([se, ne, down(ne, BASE), down(se, BASE)], mine ? '#082128' : '#111a23');
+        line(down(sw, BASE), down(se, BASE), C.edge); line(down(se, BASE), down(ne, BASE), C.edge);
+        // The top: face, a dark outline, lit along its far (north-west) edges
+        fillPoly(top, base);
+        line(sw, se, C.edge); line(se, ne, shade);
+        line(nw, ne, lit); line(sw, nw, mine ? lit : C.lit);
         if (mine) {
           // A slow pulse round the room the signal is in
-          ctx.globalAlpha = 0.25 + 0.2 * Math.sin(now / 450);
-          ctx.strokeStyle = C.hereLit; ctx.lineWidth = 1;
-          ctx.strokeRect(left - 1.5, top - 1.5, TW + 3, TH + BASE + 3);
+          ctx.globalAlpha = 0.3 + 0.25 * Math.sin(now / 450);
+          const grow = corners(c.x, c.y).map(p => ({ x: c.x + (p.x - c.x) * 1.35, y: c.y + (p.y - c.y) * 1.35 }));
+          for (let i = 0; i < 4; i++) line(grow[i], grow[(i + 1) % 4], C.hereLit);
           ctx.globalAlpha = fade(r);
         }
         if (r.fell) {
-          // Where a host was lost: a stain on the near left corner of the top
-          const sx = left + 1, sy = top + TH - 3;
-          rect(sx, sy, 3, 1, C.blood); rect(sx, sy + 1, 4, 1, C.blood); rect(sx + 1, sy + 2, 2, 1, C.bloodDark);
+          // Where a host was lost: a stain near the top's south-west corner
+          const sx = Math.round(sw.x + (c.x - sw.x) * 0.35), sy = Math.round(sw.y + (c.y - sw.y) * 0.35) - 1;
+          rect(sx, sy, 3, 1, C.blood); rect(sx - 1, sy + 1, 4, 1, C.blood); rect(sx, sy + 2, 2, 1, C.bloodDark);
         }
         if (r.corpse) {
           // The last host's body, with something still on it: a glint over the stain that comes and goes
-          const gx = left + 3, gy = top + TH - 3, on = Math.floor(now / 380) % 3 !== 2;
+          const gx = Math.round(sw.x + (c.x - sw.x) * 0.35) + 2, gy = Math.round(sw.y + (c.y - sw.y) * 0.35) - 1, on = Math.floor(now / 380) % 3 !== 2;
           ctx.globalAlpha = on ? 1 : 0.45;
           px(gx, gy - 1, C.credLit); px(gx - 1, gy, C.credLit); px(gx, gy, '#fff6d0'); px(gx + 1, gy, C.credLit); px(gx, gy + 1, C.credLit);
           ctx.globalAlpha = fade(r);
         }
-        if (r.mark && !mine) mark(r.mark, cx, top, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' ? now : 0);
+        if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' ? now : 0);
         if (mine) {
           // The host, standing on the slab and bobbing on the spot
-          const hx = cx - 2, hy = top + (TH >> 1) - HOST.length + 2 - (Math.floor(now / 520) % 2);
+          const hx = Math.round(c.x) - 2, hy = Math.round(c.y) - HOST.length + 2 - (Math.floor(now / 520) % 2);
           HOST.forEach((row, j) => row.split('').forEach((ch, i) => {
             if (ch === '.') return;
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if ((HOST[j + dy]?.[i + dx] ?? '.') === '.') px(hx + i + dx, hy + j + dy, C.out);
