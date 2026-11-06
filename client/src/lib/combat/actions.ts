@@ -424,7 +424,7 @@ return types[idx % types.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 1.85, atk: 1.8 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 1.7, atk: 1.6 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };

@@ -843,3 +843,12 @@ test('the attack diagram matches the real rules: arm sides and flank bonus', () 
   assert.equal(at(row, col - 1), 1.15, 'from the side: +15%');
   assert.equal(at(row + 1, col), 1.3, 'from behind: +30%');
 });
+
+test('movement is an area: reach grows slowly with points and comes out round', () => {
+  assert.equal(Fight.moveTiles(0), 8, 'the eight tiles around you');
+  assert.equal(Fight.moveTiles(1), 12, 'one point: two tiles straight out, not a whole 5x5');
+  assert.equal(Fight.moveTiles(3), 24, 'three points to fill a 5x5');
+  // Each point adds the same floor, so each extra point adds less reach
+  const gain = (p: number) => Fight.moveReach(p + 1) - Fight.moveReach(p);
+  assert.ok(gain(4) < gain(1));
+});

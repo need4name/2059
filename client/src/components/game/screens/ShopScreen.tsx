@@ -203,7 +203,7 @@ export function ShopScreen() {
                   </div>
                   <WeaponStats w={w} />
                   <p className="text-[13px] leading-relaxed text-hud-dim">{w.description}</p>
-                  <Btn size="sm" variant={affordable ? 'gold' : 'secondary'} disabled={!affordable} className="w-full" onClick={() => { if (buyWeapon(w)) setAssigning(w); }}>
+                  <Btn size="sm" variant={affordable ? 'gold' : 'secondary'} disabled={!affordable} className="w-full" onClick={() => { if (buyWeapon(w)) { equipWeapon(w); setAssigning(w); } }}>
                     {affordable ? 'Buy' : `Need ¤${w.price - gold} more`}
                   </Btn>
                 </div>

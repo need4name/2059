@@ -4,6 +4,7 @@ import * as U from '../client/src/lib/engine/upgrades';
 import { actionForItem } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 import type { Item, ItemRarity } from '../client/src/lib/combat/types';
+import { NO_PERKS } from '../client/src/lib/engine/playi';
 
 const armOf = (rarity: ItemRarity, prefix = '') => ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && !i.signature && !i.id.startsWith('hx') && i.id.startsWith(prefix))!;
 const part = (base: Item, id: string, rarity: ItemRarity = base.rarity): Item => ({ ...base, id, rarity, parts: { head: 'jab', mods: [] } });
@@ -96,4 +97,18 @@ test('the two sides of a fork are always different upgrades', () => {
       assert.equal(new Set(kids).size, kids.length, `${r} ${k}: a fork offers ${kids.join(' / ')}`);
     }
   }
+});
+
+test("each body slot grows its own upgrades, and they change how the host plays", () => {
+  const ear = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'ears' && !i.signature)!;
+  const names = new Set<string>();
+  for (let k = 0; k < 20; k++) U.treeFor({ ...ear, id: `ear-${k}`, rarity: 'rare' }, 'passive').forEach(n => names.add(n.name));
+  assert.ok(names.has('Sound map') || names.has('Inner ear') || names.has('Echo sense'), 'ear upgrades turn up on ears');
+  assert.ok(!names.has('Filters') && !names.has('Cold logic'), "another slot's upgrades never do");
+  // A slot upgrade's perk reaches the host's perks
+  const p = U.withTreePerks(NO_PERKS, U.addPerks({ partingCut: 0.3 }, { cooling: 3, coolAct: 30 }));
+  assert.equal(Math.round(p.partingTakenMult * 100), 70);
+  assert.equal(p.extraCooling, 3);
+  assert.equal(p.doubleActionHeat, 30);
+  assert.match(U.effectText({ perk: { hazardCut: 1 } }), /hazards can't hurt you/);
 });

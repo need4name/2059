@@ -70,6 +70,35 @@ export function stepDistances(
   return dist;
 }
 
+/**
+ * Tiles the player can walk to with this much reach, measured round: a straight step costs 1
+ * and a diagonal one about 1.41, so reach makes a circle rather than a square. Units and cover
+ * block the way (with `passThrough`, the Phase step, they don't, but you still stop on open ground).
+ */
+export function getPlayerReach(from: TilePosition, grid: CombatGrid, reach: number, passThrough = false): Set<string> {
+  const others = new Set([grid.bossPosition, ...(grid.occupied ?? [])].map(key));
+  const best = new Map<string, number>([[key(from), 0]]);
+  const out = new Set<string>();
+  const open: [number, TilePosition][] = [[0, from]];
+  while (open.length) {
+    open.sort((a, b) => a[0] - b[0]);
+    const [d, cur] = open.shift()!;
+    if (d > (best.get(key(cur)) ?? Infinity)) continue;
+    for (const o of NEIGHBOURS) {
+      const np = { row: cur.row + o.row, col: cur.col + o.col };
+      const k = key(np), nd = d + (o.row && o.col ? Math.SQRT2 : 1);
+      if (nd > reach + 1e-9 || nd >= (best.get(k) ?? Infinity)) continue;
+      if (!inBounds(np, grid) || tileAt(np, grid)?.type === 'void') continue;
+      const blocked = others.has(k) || isImpassable(np, grid);
+      if (blocked && !passThrough) continue;
+      best.set(k, nd);
+      open.push([nd, np]);
+      if (!blocked) out.add(k);
+    }
+  }
+  return out;
+}
+
 /** Tiles the player can move to this turn (not counting the start tile). */
 export function getReachableTiles(from: TilePosition, grid: CombatGrid, range: number, passThrough = false): Set<string> {
   const others = [grid.bossPosition, ...(grid.occupied ?? [])];

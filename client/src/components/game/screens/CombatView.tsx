@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { actionColor } from './BaseScreen';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
@@ -137,6 +138,8 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   const { player, grid, playerHeat, selectedAction, setSelectedAction, phase, inputLocked } = s;
   const selected = (selectedAction as LoadoutAction | null)?.key === action.key;
   const isAttack = action.type === 'attack' || action.type === 'special';
+  // The extra step after acting (Reflex loop): only a step or a pass, so every move is greyed out
+  const stepOnly = !!s.reflexMoveOpen;
   // Estimates are against whoever this attack would hit (its current aim when picked, else its best aim)
   const aim = isAttack ? (selected && s.aim ? s.aim : Fight.bestAim(s, action, s.playerClass)) : null;
   const struck = aim ? Fight.struckAt(s, action, s.playerClass, aim) : [];
@@ -154,15 +157,15 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   }) : null;
   const crit = action.type === 'attack' ? CRIT_PCT[getHeatPhase(playerHeat)] : 0;
   const heat = action.heatGenerated ?? 0;
-  const tone = action.type === 'brace' ? 'text-sys' : action.type === 'special' ? 'text-aug' : action.source === 'weapon' ? 'text-cred' : action.source === 'augment' ? 'text-ok' : 'text-hud-text';
+  const tone = actionColor(action);
 
   return (
     <button
       onClick={() => setSelectedAction(selected ? null : action)}
-      disabled={phase !== 'player_turn' || inputLocked}
+      disabled={phase !== 'player_turn' || inputLocked || stepOnly}
       aria-pressed={selected}
       className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
-        selected ? 'key key-selected' : 'key')}
+        selected ? 'key key-selected' : 'key', stepOnly && 'opacity-45 grayscale')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
       {isAttack ? (
@@ -176,7 +179,8 @@ function SlotButton({ action }: { action: LoadoutAction }) {
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
         {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
       </span>
-      {isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Nobody in reach</span>}
+      {stepOnly ? <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Step only</span>
+        : isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Nobody in reach</span>}
     </button>
   );
 }
@@ -357,7 +361,7 @@ function ActionBar() {
         </Btn>
         <Btn className="shrink-0 px-3.5" disabled={!myTurn || !hasMoved} onClick={undoMove}>Undo</Btn>
         <Btn
-          variant={myTurn ? 'primary' : 'secondary'}
+          variant={!myTurn ? 'secondary' : selectedAction ? (selectedAction.type === 'brace' ? 'primary' : 'strike') : 'secondary'}
           className="min-w-0 flex-1 truncate"
           disabled={!myTurn}
           onClick={endTurn}

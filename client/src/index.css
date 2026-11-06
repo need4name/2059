@@ -98,6 +98,7 @@
 .key-gold { --face: #f2b33d; --lip: #8c5c0f; --rim: #f7c869; }
 .key-selected { --face: #0e3442; --lip: #0b5f71; --rim: #38d6f0; }
 .key-surge { --face: #6d4fe0; --lip: #33237a; --rim: #9a80ff; }
+.key-strike { --face: #f0524f; --lip: #8a2326; --rim: #ff7d77; }
 .key-danger { --face: #3b161b; --lip: #16080a; --rim: #5a222a; }
 .key:disabled {
   --face: #121926; --lip: #0a0e16; --rim: #1a2232;

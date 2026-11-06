@@ -16,17 +16,59 @@ import data from '../../content/upgrades.json';
 import type { ActionEffects, Item, ItemRarity } from '../combat/types';
 import { makerOf } from '../combat/augments';
 import { hashSeed } from './rng';
+import type { Perks } from './playi';
 
 export type TreeKind = 'attack' | 'brace' | 'passive';
+/**
+ * What a slot's own upgrades change about how you play (beyond stats), added to the host's perks while
+ * the implant is fitted. Numbers add up; the "Cut"s take that share off (0.3: 30% less); flags switch on.
+ */
+export interface TreePerk {
+  cooling?: number; finisher?: number; flank?: number; firstLook?: boolean; partingCut?: number; sidestep?: boolean;
+  hazardCut?: number; vent?: number; braceHeal?: number; structure?: number; toughness?: number; holdfast?: boolean; coolAct?: number;
+}
 export interface UpgradeEffect {
   dmg?: number; heat?: number; steady?: boolean; precise?: boolean; guard?: number;
   attack?: number; defense?: number; hp?: number; move?: number; evasion?: number;
-  fx?: ActionEffects;
+  fx?: ActionEffects; perk?: TreePerk;
+}
+
+/** Several trees' perks together (numbers add, flags stay on). */
+export function addPerks(a: TreePerk, b: TreePerk | undefined): TreePerk {
+  if (!b) return a;
+  const out: TreePerk = { ...a };
+  for (const [k, v] of Object.entries(b) as [keyof TreePerk, number | boolean][]) {
+    if (typeof v === 'boolean') (out as Record<string, unknown>)[k] = v || !!out[k];
+    else (out as Record<string, unknown>)[k] = k === 'coolAct' ? Math.max(Number(out[k] ?? 0), v) : Number(out[k] ?? 0) + v;
+  }
+  return out;
+}
+
+/** The host's perks with what fitted implants' trees add. */
+export function withTreePerks(p: Perks, t: TreePerk): Perks {
+  const cut = (x?: number) => 1 - Math.min(1, x ?? 0);
+  return {
+    ...p,
+    extraCooling: p.extraCooling + (t.cooling ?? 0),
+    finisherBonus: p.finisherBonus + (t.finisher ?? 0),
+    flankMult: p.flankMult + (t.flank ?? 0),
+    firstStrikePrecise: p.firstStrikePrecise || !!t.firstLook,
+    partingTakenMult: p.partingTakenMult * cut(t.partingCut),
+    sidestep: p.sidestep || !!t.sidestep,
+    hazardMult: p.hazardMult * cut(t.hazardCut),
+    ventBonus: p.ventBonus + (t.vent ?? 0),
+    braceHeal: p.braceHeal + (t.braceHeal ?? 0),
+    structureMult: p.structureMult + (t.structure ?? 0),
+    damageTakenMult: p.damageTakenMult * cut(t.toughness),
+    holdfast: p.holdfast || !!t.holdfast,
+    doubleActionHeat: Math.max(p.doubleActionHeat, t.coolAct ?? 0),
+  };
 }
 /** A node in an implant's tree. `cap` marks the end of a branch (legendary only on legendary parts). */
 export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary' }
 
-interface Kind { id: string; name: string; makers: string[]; effect: UpgradeEffect }
+/** An upgrade that can turn up in trees. `slots`: only on implants for these body slots (and much more likely there). */
+interface Kind { id: string; name: string; makers: string[]; slots?: string[]; effect: UpgradeEffect }
 interface Shape { nodes: number; depth: number; leaves: number; rootKids: number; scale: number }
 const D = data as unknown as {
   costs: number[]; winsPerPoint: number; shapes: Record<ItemRarity, Shape>;
@@ -95,12 +137,14 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
   // there are others to pick)
   const used: Record<string, number> = {};
   const choose = (pool: Kind[], avoid: Set<string>, fresh = false) => {
-    const ok = (k: Kind) => !avoid.has(k.id) && !(fresh && used[k.id]);
+    const ok = (k: Kind) => !avoid.has(k.id) && !(fresh && used[k.id]) && (!k.slots || k.slots.includes(item.slot ?? ''));
+    pool = pool.filter(k => !k.slots || k.slots.includes(item.slot ?? ''));
     let fits = pool.filter(k => ok(k) && (k.makers.includes(maker) || k.makers.includes('any')));
     if (!fits.length) fits = pool.filter(ok);
     if (!fits.length) fits = pool.filter(k => !avoid.has(k.id));
     const list = fits.length ? fits : pool;
-    const w = list.map(k => (k.makers.includes(maker) ? 3 : 1) / (1 + 3 * (used[k.id] ?? 0)));
+    // The maker's own upgrades three times as often, and the slot's own six times: what this part is for
+    const w = list.map(k => (k.makers.includes(maker) ? 3 : 1) * (k.slots ? 6 : 1) / (1 + 3 * (used[k.id] ?? 0)));
     let r = roll() * w.reduce((a, b) => a + b, 0);
     for (let k = 0; k < list.length; k++) { r -= w[k]; if (r <= 0) return list[k]; }
     return list[list.length - 1];
@@ -115,7 +159,7 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
     for (let a = p; a !== undefined; a = parent[a]) avoid.add(kindOf[a]);
     // The other side of a fork is never the same upgrade (that would be no choice at all)
     parent.forEach((q, j) => { if (j < i && q === p && p !== undefined) avoid.add(kindOf[j]); });
-    if (moved) avoid.add('stride').add('reflex');
+    if (moved) avoid.add('stride').add('reflex').add('sprinter');
     let k: Kind, cap: UpgradeNode['cap'], m = shape.scale;
     if (i === legendaryAt) { k = choose(D.legendary[kind], avoid); cap = 'legendary'; }
     else if (leaf(i)) { k = choose(D.capstones[kind], avoid, true); cap = 'cap'; m *= 0.6 + 0.4 * (depth[i] / shape.depth); }
@@ -171,6 +215,7 @@ export function effectIn(tree: UpgradeNode[], owned: string[]): UpgradeEffect {
     if (e.steady) out.steady = true;
     if (e.precise) out.precise = true;
     if (e.fx) out.fx = { ...(out.fx ?? {}), ...e.fx };
+    if (e.perk) out.perk = addPerks(out.perk ?? {}, e.perk);
   }
   return out;
 }
@@ -203,5 +248,27 @@ export function effectText(e: UpgradeEffect): string {
     f.hotBonus && `+${pct(f.hotBonus)} damage while you run hot`,
     f.lowBonus && `${f.lowBonus >= 1 ? 'double' : `+${pct(f.lowBonus)}`} damage while you're low`,
     f.reap && 'a takedown vents your heat and guards you',
+    ...perkText(e.perk),
   ].filter(Boolean).join(', ');
+}
+
+/** A slot upgrade's perks in plain words. */
+function perkText(t?: TreePerk): string[] {
+  if (!t) return [];
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  return [
+    t.cooling && `sheds ${t.cooling} more heat a round`,
+    t.finisher && `+${pct(t.finisher)} damage to enemies under 30% health`,
+    t.flank && `flanking hits harder (+${pct(t.flank)})`,
+    t.firstLook && 'your first hit each fight is always full damage',
+    t.partingCut && (t.partingCut >= 1 ? 'no parting blows' : `parting blows hurt ${pct(t.partingCut)} less`),
+    t.sidestep && "the first heavy blow aimed at you each fight misses",
+    t.hazardCut && (t.hazardCut >= 1 ? "hazards can't hurt you" : `hazards hurt ${pct(t.hazardCut)} less`),
+    t.vent && `bracing vents ${t.vent} more heat`,
+    t.braceHeal && `bracing heals ${pct(t.braceHeal)} of your health`,
+    t.structure && `structure bar ${pct(t.structure)} bigger`,
+    t.toughness && `you take ${pct(t.toughness)} less damage`,
+    t.holdfast && 'once per host, a killing blow leaves you on 1 health',
+    t.coolAct && `act twice in a turn at ${t.coolAct} heat or less`,
+  ].filter((x): x is string => !!x);
 }

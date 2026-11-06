@@ -125,13 +125,15 @@ export function Chip({ tone = 'dim', pulse, children, className }: { tone?: Tone
   );
 }
 
-type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'gold'; size?: 'md' | 'lg' | 'sm' };
+type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'gold' | 'strike'; size?: 'md' | 'lg' | 'sm' };
 
 const BTN_VARIANT = {
   primary: 'key key-primary text-[#04131a]',
   gold: 'key key-gold text-[#1a1003]',
   secondary: 'key text-hud-text',
   danger: 'key key-danger text-rose-300',
+  /** Carry out the chosen move: clearly not the same as passing */
+  strike: 'key key-strike text-white',
   ghost: 'bg-transparent text-hud-dim hover:text-hud-text hover:bg-white/[0.05] disabled:text-hud-faint',
 };
 const BTN_SIZE = {

@@ -90,6 +90,24 @@ export function RoomPanel() {
               ))}
             </div>
           )}
+          {allies.met.length > 0 && (
+            // Who rides with this host: change the link here, without waiting for a death
+            <div className="space-y-1.5">
+              <div className="text-xs text-hud-dim">With you: up to {slots}</div>
+              <div className="flex flex-wrap gap-2">
+                {allies.met.map(id => {
+                  const def = allyDef(id); if (!def) return null;
+                  const along = allies.party.includes(id);
+                  const toggle = () => allies.setParty(along ? allies.party.filter(x => x !== id) : [...(allies.party.length >= slots ? allies.party.slice(1) : allies.party), id], slots);
+                  return (
+                    <button key={id} onClick={toggle} aria-pressed={along} className={cx(pill, along && 'key-selected text-white')}>
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: def.color }} />{def.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {!resting ? <button onClick={() => setResting(true)} className={pill}><Glyph name="signal" size={14} className="text-[#5cf2b0]" />Rest</button>
             : (
               <div className="flex flex-wrap items-center gap-2">
@@ -174,11 +192,13 @@ export function RoomPanel() {
                 {way && <Glyph name={way.glyph} flip={way.flip} size={16} className={cx('shrink-0', st === 'open' ? 'text-sys' : 'text-hud-faint')} />}
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="font-display text-[15px] font-semibold text-hud-text">{e.label ?? DIR_LABEL[e.dir] ?? e.dir}</span>
+                    {/* What the way is (its own name, else what lies along it); the arrow shows which way it runs */}
+                    <span className="font-display text-[15px] font-semibold text-hud-text">{e.label ?? e.hint.replace(/^\w/, c => c.toUpperCase())}</span>
+                    {!e.label && (e.dir === 'up' || e.dir === 'down') && <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-hud-dim">{DIR_LABEL[e.dir]}</span>}
                     {familiar && st === 'open' && <span className="h-1 w-1 rounded-full bg-hud-faint" aria-label="been here" />}
                   </span>
                   <span className="block text-[13px] leading-snug text-hud-dim">
-                    {st === 'blocked' ? `${enemy?.name ?? 'Something'} is in the way` : st === 'sealed' ? 'It won’t open. Not yet.' : e.hint}
+                    {st === 'blocked' ? `${enemy?.name ?? 'Something'} is in the way` : st === 'sealed' ? 'It won’t open. Not yet.' : e.label ? e.hint : null}
                   </span>
                 </span>
                 {st === 'open' && <span className="text-lg text-hud-faint">›</span>}

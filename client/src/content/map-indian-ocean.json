@@ -307,6 +307,21 @@
       "name": "Cartel weigh-station",
       "threat": 5,
       "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
+      "look": {
+        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
+      },
+      "arena": [
+        "...E...",
+        ".......",
+        ".~~.~~.",
+        ".~...~.",
+        "...#...",
+        ".~...~.",
+        ".~~.~~.",
+        ".......",
+        "...P..."
+      ],
+      "ally": "bale",
       "exits": [
         {
           "dir": "west",
@@ -323,20 +338,6 @@
           "hint": "floating lanes, traffic",
           "to": "lanes"
         }
-      ],
-      "look": {
-        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
-      },
-      "arena": [
-        "...E...",
-        ".......",
-        ".~~.~~.",
-        ".~...~.",
-        "...#...",
-        ".~...~.",
-        ".~~.~~.",
-        ".......",
-        "...P..."
       ]
     },
     {
@@ -353,7 +354,7 @@
         },
         {
           "dir": "east",
-          "label": "A gangway, east",
+          "label": "A gangway",
           "hint": "a white barge, very clean",
           "to": "barge"
         },
@@ -728,7 +729,6 @@
           "to": "yard"
         }
       ],
-      "ally": "bale",
       "enemy": "Tianxia Compliance Unit",
       "arena": [
         "~.E.~",

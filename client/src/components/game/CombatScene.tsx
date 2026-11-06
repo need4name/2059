@@ -4,7 +4,7 @@ import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/li
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
-import { getReachableTiles } from '@/lib/combat/grid';
+import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -442,17 +442,22 @@ return Fight.dangerTiles(useCombat.getState(), true);
 const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
 ? (() => { const st = useCombat.getState(); const o = st.allyOrigin; const t = Fight.allyReach(st, allyMoveMode, o ?? undefined); if (o) t.add(`${o.row},${o.col}`); return t; })()
 : null;
-const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition && useCombat.getState().orders?.now !== 'hold' && useCombat.getState().allyTurn === null
+const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition && (!useCombat.getState().moveSpent || reflexMoveOpen) && useCombat.getState().orders?.now !== 'hold' && useCombat.getState().allyTurn === null
 ? (reflexMoveOpen
-  ? getReachableTiles(grid.playerPosition, grid, 1, perks.phaseStep)
-  : getReachableTiles(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
+  ? getPlayerReach(grid.playerPosition, grid, Fight.STEP_REACH, perks.phaseStep)
+  : getPlayerReach(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
 : null);
 const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColor ?? '#38d6f0') : null;
-// Move tiles that walk away from an enemy beside you (a parting blow): drawn orange
-const partingTiles = new Set<string>();
+// Move tiles where going there hurts: a parting blow (walking away from an enemy beside you),
+// ending your turn inside an enemy's reach, or a hazard underfoot. Drawn red; the rest blue.
+const hurtTiles = new Set<string>();
 if (moveTiles && allyMoveMode === null && originalPosition) {
   const st = useCombat.getState();
-  moveTiles.forEach(k => { const [row, col] = k.split(',').map(Number); if (Fight.partingFoes(st, originalPosition, { row, col }).length) partingTiles.add(k); });
+  moveTiles.forEach(k => {
+    const [row, col] = k.split(',').map(Number);
+    const t = grid.tiles?.[row]?.[col];
+    if (Fight.partingFoes(st, originalPosition, { row, col }).length || enemyReachableTiles?.has(k) || (t?.type === 'hazard' && (t.hazardDamage ?? 0) > 0 && perks.hazardMult > 0)) hurtTiles.add(k);
+  });
 }
 
 const animate = () => {
@@ -630,14 +635,14 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
-    // Orange: stepping here walks away from an enemy beside you, and it gets a parting blow
-    const parting = partingTiles.has(`${row},${col}`);
-    const markColor = parting ? '#f97316' : moveColor;
-    ctx.strokeStyle = markColor ?? 'rgba(56, 214, 240, 0.85)';
+    // Red: going here hurts (parting blow, an enemy's reach, a hazard). Blue: it's safe
+    const hurts = hurtTiles.has(`${row},${col}`);
+    const markColor = moveColor ?? (hurts ? '#ff5a52' : '#4aa8ff');
+    ctx.strokeStyle = markColor;
     ctx.lineWidth = 2;
     roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
     ctx.stroke();
-    ctx.fillStyle = markColor ?? 'rgba(56, 214, 240, 0.55)';
+    ctx.fillStyle = markColor;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
     ctx.fill();

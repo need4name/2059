@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { AugmentationSlot, augmentKind, type Item } from '../combat/types';
 import { actionForItem } from '../combat/augments';
-import { treeKind, treeFor, blockedIn, costIn, spentIn, effectIn, WINS_PER_POINT, type TreeKind, type UpgradeNode } from '../engine/upgrades';
+import { treeKind, treeFor, blockedIn, costIn, spentIn, effectIn, WINS_PER_POINT, type TreeKind, type UpgradeNode, addPerks, type TreePerk } from '../engine/upgrades';
 import { LoadoutAction } from './useLoadout';
 import { useInventory } from './useInventory';
 
@@ -28,6 +28,8 @@ interface AugmentTreeState {
 
   getAugmentCombatActions: (equippedSlots: AugmentationSlot[]) => LoadoutAction[];
   getTreeStatBonuses: (equippedSlots: AugmentationSlot[]) => { attack: number; defense: number; hp: number; moveRange: number; evasion: number };
+  /** What the slot upgrades taken on fitted implants change about how the host plays. */
+  getTreePerks: (equippedSlots: AugmentationSlot[]) => TreePerk;
 
   resetTrees: () => void;
 }
@@ -104,6 +106,16 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
       moveRange = Math.max(moveRange, e.move ?? 0);
     }
     return { attack, defense, hp, moveRange, evasion };
+  },
+
+  getTreePerks: (equippedSlots) => {
+    let out: TreePerk = {};
+    for (const slot of equippedSlots) {
+      const item = installed(slot);
+      const tree = item && nodesOf(item);
+      if (item && tree) out = addPerks(out, effectIn(tree, get().owned[item.id] ?? []).perk);
+    }
+    return out;
   },
 
   resetTrees: () => set({ owned: {}, availablePoints: 0, wins: 0 }),

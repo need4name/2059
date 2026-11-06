@@ -14,7 +14,7 @@ const HINTS: Partial<Record<HintId, string>> = {
   telegraph: 'Orange is where it lands next.',
   heat: 'Brace to cool down.',
   surge: 'Something in you is ready to break loose.',
-  victory: 'Take one. The rest is scrap.',
+  victory: 'Tap a part, then take it. The rest is scrap.',
 };
 
 /** Watches the game and queues the next hint the player hasn't seen yet. */

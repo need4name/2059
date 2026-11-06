@@ -29,11 +29,23 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
 import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
-import { PLAYER_BASE_MOVE, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
+import { moveTiles, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain';
 
+/** The implant (and its body slot) a move comes from, if any. */
+export function moveSource(a: LoadoutAction): { item: Item; slot: AugmentationSlot } | null {
+  const inv = useInventory.getState();
+  if (!a.key.startsWith('aug_')) return null;
+  const id = a.key.slice(4);
+  for (const sl of AUGMENTATION_SLOTS) { const it = inv.equippedAugmentations[sl]; if (it?.id === id) return { item: it, slot: sl }; }
+  return null;
+}
+
+/** A move's name colour: an implant's or gun's moves take its rarity colour; Brace and firmware keep their own. */
 export function actionColor(a: LoadoutAction) {
+  const src = moveSource(a);
+  if (src) return RARITY_TEXT[src.item.rarity];
   if (a.type === 'brace') return 'text-sys';
   if (a.type === 'special' || a.source === 'class') return 'text-aug';
   if (a.source === 'weapon') return 'text-cred';
@@ -64,6 +76,7 @@ const SOURCE_GROUPS: { source: LoadoutAction['source']; label: string; empty: st
 
 function LoadoutTab() {
   const { slots, setSlot } = useLoadout();
+  const { ownedWeapons, equippedWeapon, equipWeapon } = useInventory();
   const playerClass = useCombat(s => s.playerClass);
   const fwLevel = useFirmware(st => st.level(playerClass));
   const pool = useActionPool();
@@ -117,6 +130,8 @@ function LoadoutTab() {
                       <button key={a.key} onClick={() => toggle(a)} aria-pressed={on}
                         className={cx('relative flex flex-col gap-1 rounded-2xl p-3 text-left transition', on ? 'bg-sys/[0.09] ring-1 ring-sys/40' : 'bg-white/[0.04] hover:bg-white/[0.07]')}>
                         <span className={cx('pr-5 font-display text-[14px] font-semibold leading-tight', actionColor(a))}>{a.name}</span>
+                        {(() => { const src = moveSource(a); return src ? <span className="flex items-center gap-1.5 text-[11px] text-hud-dim"><SlotIcon slot={src.slot} size={12} />{AUGMENTATION_SLOT_NAMES[src.slot]}</span>
+                          : a.source === 'weapon' ? <span className="text-[11px] text-hud-dim">Gun</span> : null; })()}
                         {(a.type === 'attack' || a.type === 'special') && <Footprint action={a} playerClass={playerClass} cell={6} className="my-1" />}
                         <ActionDetail a={a} />
                         <span className={cx('absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold', on ? 'bg-sys text-hud-bg' : 'bg-white/[0.08] text-hud-dim')}>{on ? '✓' : '+'}</span>
@@ -128,6 +143,27 @@ function LoadoutTab() {
           </section>
         );
       })}
+
+      {/* Guns you own: carry one, and its shot joins your moves above */}
+      {ownedWeapons.length > 0 && (
+        <section className="space-y-2">
+          <Label>Your guns</Label>
+          {ownedWeapons.map(w => {
+            const carried = equippedWeapon?.id === w.id;
+            return (
+              <div key={w.id} className={cx('flex items-center gap-3 rounded-2xl p-3', carried ? 'bg-cred/[0.08] ring-1 ring-cred/30' : 'bg-white/[0.04]')}>
+                <Footprint action={w.combatAction} cell={5} className="shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-display text-[14px] font-semibold text-cred">{w.name}</span>
+                  <span className="block truncate text-[11px] text-hud-dim">{w.combatAction.damage} damage · {rangeText(w.combatAction)}</span>
+                </span>
+                {carried ? <span className="text-xs font-semibold text-cred">Carrying</span>
+                  : <Btn size="sm" variant="gold" onClick={() => equipWeapon(w)}>Carry</Btn>}
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <Sheet open={!!replacing} title="Your bar is full" onClose={() => setReplacing(null)}>
         <p className="mb-3 text-sm text-hud-dim">Swap out a move to make room for <span className="font-semibold text-hud-text">{replacing?.name}</span>.</p>
@@ -515,7 +551,7 @@ function StatusTab() {
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
-          <Stat label="Move" value={(() => { const n = PLAYER_BASE_MOVE + perks.moveBonus + (tree.moveRange ?? 0); return `${n} tile${n === 1 ? '' : 's'}`; })()} />
+          <Stat label="Move" value={`${moveTiles(perks.moveBonus + (tree.moveRange ?? 0))} tiles in reach`} />
           <Stat label="Attack" value={stats.physicalAttack} tone="text-rose-300" />
           <Stat label="Disrupt" value={stats.structuralAttack} tone="text-rose-300" />
           <Stat label="Evasion" value={stats.evasion} />

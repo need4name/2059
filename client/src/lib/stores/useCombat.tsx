@@ -15,13 +15,14 @@ import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
-import { generateBattlefield, buildArena, emptyGrid, getReachableTiles, spawnFoePositions, allySpawnPositions } from '../combat/grid';
+import { generateBattlefield, buildArena, emptyGrid, getPlayerReach, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
 import { nextChapter, activeChapter } from '../combat/chapters';
 import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
 import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin } from '../engine/map';
+import { withTreePerks } from '../engine/upgrades';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -159,6 +160,8 @@ setTarget: (index: number) => void;
 setAim: (tile: TilePosition) => boolean;
 /** Reflex loop: after attacking without moving, you may still step 1 tile. */
 reflexMoveOpen: boolean;
+/** The second action of a cool turn: act again from where you stand (no second move). */
+moveSpent: boolean;
 /** Holdfast has saved this host already. */
 holdfastSpent: boolean;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
@@ -207,7 +210,9 @@ function buildPlayer(playerClass: PlayerClass) {
 const linked = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
 // The loaded firmware may act twice in a turn (Courier: while cool, then always)
 const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClass));
-const perks = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
+const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
+// What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
+const perks = withTreePerks(twinned, useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
@@ -219,7 +224,7 @@ treeAttack: treeBonus.attack,
 treeDefense: treeBonus.defense,
 treeHp: treeBonus.hp,
 }, playerClass);
-return { player, moveRange: Fight.PLAYER_BASE_MOVE + perks.moveBonus + (treeBonus.moveRange ?? 0), perks };
+return { player, moveRange: Fight.moveReach(perks.moveBonus + (treeBonus.moveRange ?? 0)), perks };
 }
 
 function freshFightState(grid: CombatGrid) {
@@ -228,7 +233,7 @@ combatLog: [] as CombatLog[],
 playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false,
 introCompleted: true,
-selectedMovement: null, selectedAction: null, aim: null, hasMoved: false,
+selectedMovement: null, selectedAction: null, aim: null, hasMoved: false, moveSpent: false,
 originalPosition: { ...grid.playerPosition },
 inputLocked: false,
 playerHeat: 20, doubleActionReady: false,
@@ -361,7 +366,7 @@ if (apply(cond)) return;
 if (!cond.skipTurn && activeChapter().rules?.flinch && apply(Fight.dreamerFlinch(fightState()))) return;
 const { grid } = get();
 set({
-phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, allyMoveMode: null, allyTurn: null,
+phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, moveSpent: false, allyMoveMode: null, allyTurn: null,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
 });
@@ -448,17 +453,18 @@ const from = get().originalPosition;
 if (from && apply(Fight.partingBlows(fightState(), from, get().farmLevel ?? get().bossLevel))) return;
 if (apply(Fight.applyPlayerHazard(fightState()))) return;
 if (allowDouble && get().doubleActionReady) {
-log('DOUBLE ACTION -- cold efficiency!');
+log('Running cool: one more action, from where you stand');
 set({ doubleActionReady: false });
 later(() => {
 const g = get().grid;
-set({ inputLocked: false, hasMoved: false, selectedMovement: null, selectedAction: null, originalPosition: { ...g.playerPosition } });
+// The move is spent: the second action is taken from here
+set({ inputLocked: false, hasMoved: false, moveSpent: true, selectedMovement: null, selectedAction: null, originalPosition: { ...g.playerPosition } });
 }, 300);
 return;
 }
 // The wind pushes everyone as your turn ends (the red zone already showed where it leaves you)
 if (apply(Fight.windTick(fightState()))) return;
-set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleActionReady: false });
+set({ phase: 'enemy_turn', selectedAction: null, selectedMovement: null, doubleActionReady: false, moveSpent: false });
 later(nextActor, ENEMY_TURN_DELAY);
 };
 
@@ -671,6 +677,7 @@ foes: [],
 target: 0,
 ...Fight.BASE_FIGHT_FLAGS,
 reflexMoveOpen: false,
+moveSpent: false,
 allyMoveMode: null,
 allyTurn: null,
 allyOrigin: null,
@@ -707,7 +714,7 @@ selectedMovement: null,
 selectedAction: null,
 aim: null,
 hasMoved: false,
-playerMoveRange: 1,
+playerMoveRange: Fight.MOVE_BASE_REACH,
 fightId: 0,
 inputLocked: false,
 playerHeat: 20,
@@ -801,13 +808,14 @@ get().undoMove();
 return;
 }
 if (get().orders?.now === 'hold') { log('Hold position: nobody moves this round'); return; }
+if (get().moveSpent && !get().reflexMoveOpen) return; // a cool turn's second action: no second move
 if (playerHeat >= 100 && !get().perks.runaway) {
 log('OVERHEATED -- movement locked');
 return;
 }
 const reflex = get().reflexMoveOpen;
 const from = reflex ? grid.playerPosition : originalPosition;
-const reachable = getReachableTiles(from, { ...grid, playerPosition: from }, reflex ? 1 : playerMoveRange, get().perks.phaseStep);
+const reachable = getPlayerReach(from, { ...grid, playerPosition: from }, reflex ? Fight.STEP_REACH : playerMoveRange, get().perks.phaseStep);
 if (!reachable.has(`${position.row},${position.col}`)) return;
 set({ grid: { ...grid, playerPosition: position }, selectedMovement: position, hasMoved: true });
 useAudio.getState().play('step');

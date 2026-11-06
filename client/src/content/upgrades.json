@@ -24,7 +24,13 @@
       { "id": "snare", "name": "Snare code", "makers": ["IOA", "KIZUNA"], "effect": { "attack": 1, "fx": { "slow": true } } },
       { "id": "edge", "name": "Overclocked edge", "makers": ["any"], "effect": { "dmg": 0.18, "heat": 3 } },
       { "id": "trim", "name": "Heat trim", "makers": ["any"], "effect": { "attack": 1, "heat": -4 } },
-      { "id": "tune", "name": "Fine tuning", "makers": ["any"], "effect": { "dmg": 0.1, "attack": 2 } }
+      { "id": "tune", "name": "Fine tuning", "makers": ["any"], "effect": { "dmg": 0.1, "attack": 2 } },
+      { "id": "flankread", "name": "Flank reader", "makers": ["any"], "slots": ["eyes"], "effect": { "perk": { "flank": 0.25 } } },
+      { "id": "firstlook", "name": "First look", "makers": ["any"], "slots": ["eyes"], "effect": { "attack": 1, "perk": { "firstLook": true } } },
+      { "id": "sprinter", "name": "Sprint start", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "move": 1 } },
+      { "id": "footwork", "name": "Footwork", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "evasion": 2, "perk": { "partingCut": 0.3 } } },
+      { "id": "finisher", "name": "Finisher", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "attack": 1, "perk": { "finisher": 0.15 } } },
+      { "id": "grip", "name": "Grip", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "dmg": 0.06, "perk": { "structure": 0.1 } } }
     ],
     "brace": [
       { "id": "guard", "name": "Shield lattice", "makers": ["HELIX"], "effect": { "guard": 0.12 } },
@@ -42,7 +48,17 @@
       { "id": "stride", "name": "Long stride", "makers": ["IOA", "VOLKOV"], "effect": { "move": 1 } },
       { "id": "balance", "name": "Balance", "makers": ["any"], "effect": { "attack": 2, "defense": 2 } },
       { "id": "grit", "name": "Grit", "makers": ["any"], "effect": { "hp": 6, "defense": 2 } },
-      { "id": "spite", "name": "Spite", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 5, "hp": -4 } }
+      { "id": "spite", "name": "Spite", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 5, "hp": -4 } },
+      { "id": "coldlogic", "name": "Cold logic", "makers": ["any"], "slots": ["brain"], "effect": { "perk": { "cooling": 3 } } },
+      { "id": "focus", "name": "Focus", "makers": ["any"], "slots": ["brain"], "effect": { "attack": 1, "perk": { "finisher": 0.15 } } },
+      { "id": "soundmap", "name": "Sound map", "makers": ["any"], "slots": ["ears"], "effect": { "perk": { "partingCut": 0.3 } } },
+      { "id": "innerear", "name": "Inner ear", "makers": ["any"], "slots": ["ears"], "effect": { "evasion": 2, "perk": { "flank": 0.15 } } },
+      { "id": "filters", "name": "Filters", "makers": ["any"], "slots": ["nose"], "effect": { "perk": { "hazardCut": 0.5 } } },
+      { "id": "scent", "name": "Blood scent", "makers": ["any"], "slots": ["nose"], "effect": { "perk": { "finisher": 0.15 } } },
+      { "id": "deepbreath", "name": "Deep breath", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "vent": 5 } } },
+      { "id": "secondwind", "name": "Second wind", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "braceHeal": 0.04 } } },
+      { "id": "loadpath", "name": "Load path", "makers": ["any"], "slots": ["misc"], "effect": { "perk": { "structure": 0.15 } } },
+      { "id": "shockspine", "name": "Shock spine", "makers": ["any"], "slots": ["misc"], "effect": { "defense": 1, "perk": { "toughness": 0.05 } } }
     ]
   },
   "capstones": {
@@ -55,7 +71,10 @@
       { "id": "ghost", "name": "Ghost protocol", "makers": ["IOA"], "effect": { "attack": 4, "dmg": 0.25, "fx": { "slow": true, "stun": 0.15 } } },
       { "id": "coldread", "name": "Cold read", "makers": ["KIZUNA", "CROWN"], "effect": { "attack": 4, "dmg": 0.25, "steady": true, "fx": { "cool": 8 } } },
       { "id": "signalghost", "name": "Signal ghost", "makers": ["KIZUNA", "IOA"], "effect": { "attack": 4, "dmg": 0.2, "fx": { "slow": true, "haste": true } } },
-      { "id": "fury", "name": "Scrap fury", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.35, "heat": 4 } }
+      { "id": "fury", "name": "Scrap fury", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.35, "heat": 4 } },
+      { "id": "huntereye", "name": "Hunter's eye", "makers": ["any"], "slots": ["eyes"], "effect": { "attack": 4, "dmg": 0.2, "perk": { "finisher": 0.25 } } },
+      { "id": "stepdance", "name": "Step dance", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "attack": 4, "dmg": 0.2, "perk": { "sidestep": true } } },
+      { "id": "closer", "name": "Closer", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "attack": 4, "dmg": 0.25, "perk": { "finisher": 0.2 } } }
     ],
     "brace": [
       { "id": "fortress", "name": "Fortress", "makers": ["HELIX", "PARSU"], "effect": { "guard": 0.3, "defense": 4 } },
@@ -67,7 +86,12 @@
       { "id": "predator", "name": "Predator", "makers": ["VOLKOV", "CBN", "PATCHWORK"], "effect": { "attack": 10 } },
       { "id": "mountain", "name": "Mountain", "makers": ["HELIX", "CROWN", "TIANXIA", "PARSU"], "effect": { "hp": 30, "defense": 5 } },
       { "id": "blur", "name": "Blur", "makers": ["KIZUNA", "IOA"], "effect": { "evasion": 6 } },
-      { "id": "wraith", "name": "Wraith", "makers": ["any"], "effect": { "evasion": 4, "attack": 4 } }
+      { "id": "wraith", "name": "Wraith", "makers": ["any"], "effect": { "evasion": 4, "attack": 4 } },
+      { "id": "clearhead", "name": "Clear head", "makers": ["any"], "slots": ["brain"], "effect": { "perk": { "cooling": 2, "coolAct": 30 } } },
+      { "id": "echosense", "name": "Echo sense", "makers": ["any"], "slots": ["ears"], "effect": { "perk": { "sidestep": true, "partingCut": 0.3 } } },
+      { "id": "sealed", "name": "Sealed", "makers": ["any"], "slots": ["nose"], "effect": { "hp": 10, "perk": { "hazardCut": 1 } } },
+      { "id": "ironlungs", "name": "Iron lungs", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "braceHeal": 0.06, "vent": 6 } } },
+      { "id": "keel", "name": "Keel", "makers": ["any"], "slots": ["misc"], "effect": { "defense": 3, "perk": { "holdfast": true } } }
     ]
   },
   "legendary": {

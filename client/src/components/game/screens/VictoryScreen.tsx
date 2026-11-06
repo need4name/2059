@@ -29,12 +29,18 @@ export function VictoryScreen() {
   const hosts = useCombat(s => s.progression.deathCount) + 1;
   const looks = chapterMap().rooms.filter(r => r.look);
   const chapterAllies = chapterMap().rooms.flatMap(r => (r.ally ? [r.ally] : []));
+  // Salvage: tap a part to pick it, then the button below takes it
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedItem = strip?.bodies.flatMap(b => b.items).find(i => i.id === picked) ?? null;
+  const take = () => { if (picked) { takePart(picked); setPicked(null); } };
 
   return (
     <Screen footer={
       picksLeft > 0 ? (
         <div className="space-y-2">
-          <Btn variant="primary" size="lg" className="w-full" disabled>Take one</Btn>
+          <Btn variant="gold" size="lg" className="w-full truncate" disabled={!pickedItem} onClick={take}>
+            <Glyph name="implant" size={18} />{pickedItem ? `Take ${nameOf(pickedItem)}` : 'Tap a part'}
+          </Btn>
           <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me</button>
         </div>
       ) : ended && onward ? (
@@ -94,7 +100,13 @@ export function VictoryScreen() {
             <div className="flex items-center gap-3">
               <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', picksLeft ? 'bg-cred/15 text-cred' : 'bg-ok/15 text-ok')}><Glyph name="implant" size={20} /></span>
               <div className="min-w-0 flex-1">
-                <div className="font-display text-[16px] font-semibold text-white">{picksLeft ? (picksLeft === 1 ? 'Take one' : `Take ${picksLeft}`) : 'Taken'}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-[16px] font-semibold text-white">Salvage</span>
+                  {/* One dot per part you can take: filled while it's still yours to use */}
+                  <span className="flex gap-1" aria-label={`${picksLeft} left to take`}>
+                    {Array.from({ length: strip.picks }, (_, n) => <span key={n} className={cx('h-2 w-2 rounded-full', n < picksLeft ? 'bg-cred' : 'bg-white/15')} />)}
+                  </span>
+                </div>
                 <p className="text-[13px] leading-snug text-hud-dim">
                   {picksLeft
                     ? <>The rest is scrap: ¤{scrap}</>
@@ -111,8 +123,8 @@ export function VictoryScreen() {
                     const move = actionForItem(item);
                     const parts = partsText(item);
                     return (
-                      <button key={item.id} disabled={taken || gone} onClick={() => takePart(item.id)} aria-pressed={taken}
-                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
+                      <button key={item.id} disabled={taken || gone} onClick={() => setPicked(picked === item.id ? null : item.id)} aria-pressed={picked === item.id || taken}
+                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : picked === item.id ? 'ring-2 ring-cred' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
                           <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
@@ -121,7 +133,11 @@ export function VictoryScreen() {
                           {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
                         </span>
                         {move?.type === 'attack' && <Footprint action={move} cell={5} className="shrink-0" />}
-                        {taken && <Chip tone="sys">Taken</Chip>}
+                        {taken ? <Chip tone="sys">Taken</Chip> : !gone && (
+                          <span className={cx('key flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-bold', picked === item.id ? 'key-gold text-[#1a1003]' : 'text-cred', !picked && 'animate-pulse')} aria-hidden>
+                            {picked === item.id ? '✓' : '+'}
+                          </span>
+                        )}
                       </button>
                     );
                   })}

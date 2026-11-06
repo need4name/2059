@@ -120,7 +120,7 @@ function playerTurn(skill: number) {
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   // The red tiles are honest (enemies hit before they move): a sensible player prefers a safe tile it can still attack from
   const red = F.dangerTiles(s as any);
-  const opts = [g.playerPosition, ...Array.from(G.getReachableTiles(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
+  const opts = [g.playerPosition, ...Array.from(G.getPlayerReach(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   // Only dodge the red when there's a safe tile to fight from; otherwise walk in
   const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
   const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (canAttackSomewhere && red.has(`${pos.row},${pos.col}`)) v -= 20 * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if ((s as any).alarm?.on && F.besideColdPod(s as any, pos)) v += 25 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };

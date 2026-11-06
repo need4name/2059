@@ -19,7 +19,7 @@ import {
 } from '../combat/actions';
 import { canHitTarget, getHitTiles } from '../combat/patterns';
 import { isImpassable, inBounds } from '../combat/grid';
-import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles } from '../combat/grid';
+import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
 import { random } from './rng';
 import { makerOf, type Maker } from '../combat/augments';
@@ -28,6 +28,25 @@ import { NO_PERKS, type Perks } from './playi';
 // ── Tuning ────────────────────────────────────────────────────────────────────
 
 export const PLAYER_BASE_MOVE = 1;
+/**
+ * How far the player can walk, from its movement points. Movement is an area of floor: the base
+ * reaches the eight tiles around you, and each point adds the same amount of floor (MOVE_AREA),
+ * so reach grows like the square root of the points (2 tiles out at 1 point, a full 5x5 at 3).
+ */
+export const MOVE_BASE_REACH = 1.5;
+export const MOVE_AREA = 6.5;
+export const moveReach = (points: number) => Math.sqrt(Math.PI * MOVE_BASE_REACH ** 2 + Math.max(0, points) * MOVE_AREA) / Math.sqrt(Math.PI);
+/** How many tiles that reach covers on open floor (for the Self page). */
+export function moveTiles(points: number) {
+  const r = moveReach(points); let n = 0;
+  for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+    const a = Math.abs(dx), b = Math.abs(dy), d = Math.max(a, b) - Math.min(a, b) + Math.SQRT2 * Math.min(a, b);
+    if ((dx || dy) && d <= r + 1e-9) n++;
+  }
+  return n;
+}
+/** The one-tile step (Reflex loop, and the like): the eight tiles around you. */
+export const STEP_REACH = MOVE_BASE_REACH;
 export const BOSS_MOVE = 2;
 /** Heat every combatant sheds at the start of each round. */
 export const PASSIVE_COOLING = 6;
@@ -1410,7 +1429,7 @@ export function foeWalk(s: FightState, i: number): Step {
   const prey = view.playerPosition;
   const patterns = Array.from(new Set([...foeRoster(foe).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => a.attackPattern ?? 'melee_long')));
   const keyOf = (k: string) => { const [row, col] = k.split(',').map(Number); return { row, col }; };
-  const escape = [prey, ...Array.from(getReachableTiles(prey, { ...view, bossPosition: foe.pos }, PLAYER_BASE_MOVE + s.perks.moveBonus)).map(keyOf)];
+  const escape = [prey, ...Array.from(getPlayerReach(prey, { ...view, bossPosition: foe.pos }, moveReach(s.perks.moveBonus))).map(keyOf)];
   const offBoard = { row: -9, col: -9 };
   const range = BOSS_MOVE + (hasTrait(foe, 'fast') ? 1 : 0);
   const spots = [foe.pos, ...Array.from(getReachableTiles(foe.pos, { ...view, bossPosition: offBoard }, range)).map(keyOf)].filter(p => !same(p, prey));

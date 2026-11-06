@@ -150,10 +150,16 @@ const fxFields = z.object({ knock: z.boolean(), crush: z.boolean(), bleed: z.boo
 const upgradeKind = z.object({
   id: z.string().regex(/^[a-z]+$/), name: z.string().trim().min(1).max(20),
   makers: z.array(z.enum(['HELIX', 'VOLKOV', 'TIANXIA', 'KIZUNA', 'CROWN', 'IOA', 'CBN', 'PARSU', 'PATCHWORK', 'any'])).min(1),
+  slots: z.array(z.enum(['brain', 'eyes', 'ears', 'nose', 'lungs', 'misc', 'left_arm', 'right_arm', 'left_leg', 'right_leg'])).min(1).optional(),
   effect: z.object({
     dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
     attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
     fx: fxFields,
+    perk: z.object({
+      cooling: z.number().int().min(1).max(10), finisher: z.number().gt(0).max(1), flank: z.number().gt(0).max(1), firstLook: z.literal(true),
+      partingCut: z.number().gt(0).max(1), sidestep: z.literal(true), hazardCut: z.number().gt(0).max(1), vent: z.number().int().min(1).max(15),
+      braceHeal: z.number().gt(0).max(0.2), structure: z.number().gt(0).max(0.5), toughness: z.number().gt(0).max(0.2), holdfast: z.literal(true), coolAct: z.number().int().min(16).max(60),
+    }).partial().strict(),
   }).partial().strict().refine(e => Object.keys(e).length > 0, 'an upgrade must do something'),
 }).strict();
 const perTree = z.object({ attack: z.array(upgradeKind).min(1), brace: z.array(upgradeKind).min(1), passive: z.array(upgradeKind).min(1) }).strict();

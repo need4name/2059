@@ -119,6 +119,7 @@ export function AlliesTab() {
   return (
     <div className="space-y-3 px-4 pb-6">
       <Label>With you: up to {slots}</Label>
+      <p className="px-1 text-[13px] text-hud-faint">Change who's with you at a server, or after a host is lost.</p>
       {roster.map(def => <AllyCard key={def.id} def={def} />)}
     </div>
   );
