@@ -1,4 +1,4 @@
-import { activeChapter } from './chapters';
+import { activeChapter, CHAPTERS } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
 import { firmwareAttack } from '../engine/firmware';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
@@ -373,6 +373,18 @@ const e = ENEMY_DATA.enemies[name];
 if (!e) return [];
 return hostsLost >= 5 && e.lateLines?.length ? [...e.lines, ...e.lateLines] : e.lines;
 }
+/**
+ * Enemies worth the signal's notice: every chapter's elites, bosses, set pieces and
+ * first-life fight. Only these leave a first impression in the journal and always
+ * speak as a fight opens; anyone else speaks the first time its kind is met, then rarely.
+ */
+export function isNotable(name: string): boolean {
+if (name === 'Patchwork King') return true;
+return CHAPTERS.some(c => c.cast.elites.includes(name) || c.cast.bosses.includes(name) || c.cast.setPiece === name || c.cast.firstFight === name);
+}
+/** How often an ordinary enemy speaks after its kind's first meeting. */
+export const ORDINARY_LINE_CHANCE = 1 / 6;
+
 /** The signal's first impression of a kind of enemy. */
 export function firstSightOf(name: string): string | null {
 if (name === 'Patchwork King') return ENEMY_DATA.patchworkKing.firstSight;

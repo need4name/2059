@@ -7,7 +7,7 @@ PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
 CLASS_DEFINITIONS, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME,
-getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
+getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines, isNotable, ORDINARY_LINE_CHANCE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
 import { scrapValue } from '../combat/economy';
@@ -628,7 +628,10 @@ set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn
 const lead = foes[0]?.unit;
 if (lead) {
 const host = get().progression.deathCount;
-const lines = isKing ? [] : enemyLines(lead.name, host);
+// Elites, bosses and set pieces always speak; anyone else the first time its kind is met, then rarely
+const firstMeeting = !useJournal.getState().seen.includes(lead.name);
+const speaks = isNotable(lead.name) || firstMeeting || Math.random() < ORDINARY_LINE_CHANCE;
+const lines = isKing || !speaks ? [] : enemyLines(lead.name, host);
 const line = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
 let note: string | null = null;
 for (const f of foes) { const n = useJournal.getState().sight(f.unit.name, host + 1); if (n && !note) note = n.text; }

@@ -66,3 +66,15 @@ test('Courier and Foreman open by going deep, Courier first', () => {
   assert.deepEqual(FW.opensAt(22, ['swift']), ['crowd']);
   assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), []);
 });
+
+test('only elites, bosses and set pieces leave a first impression', async () => {
+  const { isNotable } = await import('../client/src/lib/combat/actions');
+  const { useJournal } = await import('../client/src/lib/stores/useJournal');
+  assert.equal(isNotable('Cartel Enforcer'), true);
+  assert.equal(isNotable('Patchwork King'), true);
+  assert.equal(isNotable('Limbic Cartel Scavenger'), false);
+  useJournal.getState().reset();
+  assert.equal(useJournal.getState().sight('Limbic Cartel Scavenger', 1), null, 'an ordinary enemy leaves no note');
+  assert.ok(useJournal.getState().seen.includes('Limbic Cartel Scavenger'), 'but it counts as met');
+  assert.ok(useJournal.getState().sight('Cartel Enforcer', 1), 'an elite does');
+});

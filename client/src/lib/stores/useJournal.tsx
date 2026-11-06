@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
-import { firstSightOf } from '../combat/actions';
+import { firstSightOf, isNotable } from '../combat/actions';
 
 export interface JournalNote { id: string; text: string; about: string; host: number }
 
@@ -22,7 +22,8 @@ export const useJournal = create<JournalState>()(persist((set, get) => ({
   notes: [],
   sight: (enemy, host) => {
     if (get().seen.includes(enemy)) return null;
-    const text = firstSightOf(enemy);
+    // Only enemies worth noticing (elites, bosses, set pieces) leave an impression
+    const text = isNotable(enemy) ? firstSightOf(enemy) : null;
     set({ seen: [...get().seen, enemy] });
     if (!text) return null;
     const note = { id: `sight:${enemy}`, text, about: enemy, host };

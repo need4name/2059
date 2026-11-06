@@ -5,7 +5,7 @@ import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
 import { blockedIn, closedIn, costIn, depthIn, effectIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
-import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
+import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
@@ -459,6 +459,42 @@ function RunStatsPanel() {
   );
 }
 
+/**
+ * What the signal has noticed, quietly: places looked at, the few enemies worth
+ * remembering, what allies let slip. The newest few of each; the rest on request.
+ */
+function Noticed({ notes }: { notes: { id: string; text: string; about: string; host: number }[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  // Old impressions of ordinary enemies (before only notable ones were noted) stay saved but aren't shown
+  const kept = notes.filter(n => !n.id.startsWith('sight:') || isNotable(n.about));
+  const groups = [
+    { id: 'look', label: 'Places', list: kept.filter(n => n.id.startsWith('look:')) },
+    { id: 'sight', label: 'People', list: kept.filter(n => n.id.startsWith('sight:')) },
+    { id: 'ally', label: 'Allies', list: kept.filter(n => n.id.startsWith('ally:')) },
+  ].filter(g => g.list.length);
+  if (!groups.length) return null;
+  return (
+    <Panel label="Noticed">
+      <div className="space-y-4">
+        {groups.map(g => {
+          const all = open === g.id, list = g.list.slice().reverse();
+          return (
+            <div key={g.id} className="space-y-2">
+              <div className="text-[11px] font-semibold text-hud-faint">{g.label}</div>
+              <ul className="space-y-2">
+                {(all ? list : list.slice(0, 3)).map(n => (
+                  <li key={n.id} className="text-sm italic leading-snug text-hud-text/85">{n.text}</li>
+                ))}
+              </ul>
+              {list.length > 3 && <button onClick={() => setOpen(all ? null : g.id)} className="text-xs font-semibold text-hud-dim hover:text-hud-text">{all ? 'Show fewer' : `Show all ${list.length}`}</button>}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
 function StatusTab() {
   const { playerClass, resetAll, progression, bossLevel } = useCombat();
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
@@ -493,15 +529,7 @@ function StatusTab() {
         })()}
       </Panel>
 
-      {notes.length > 0 && (
-        <Panel label="Noticed">
-          <ul className="space-y-2.5">
-            {notes.slice().reverse().map(n => (
-              <li key={n.id} className="text-sm italic leading-snug text-hud-text/90">{n.text}<span className="ml-1.5 not-italic text-[11px] text-hud-faint">host {n.host}</span></li>
-            ))}
-          </ul>
-        </Panel>
-      )}
+      <Noticed notes={notes} />
 
 {playerClass !== 'none' && (
         <Panel label="Firmware">
