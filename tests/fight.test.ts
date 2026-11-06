@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { tileWeight } from '../client/src/lib/combat/patterns';
 import * as Fight from '../client/src/lib/engine/fight';
 import type { FightState } from '../client/src/lib/engine/fight';
 import { seedRandom, random } from '../client/src/lib/engine/rng';
@@ -873,4 +874,15 @@ test('movement is an area: reach grows slowly with points and comes out round', 
   // Each point adds the same floor, so each extra point adds less reach
   const gain = (p: number) => Fight.moveReach(p + 1) - Fight.moveReach(p);
   assert.ok(gain(4) < gain(1));
+});
+
+test('attack shapes have sweet spots: some tiles land harder than others', () => {
+  const me = { row: 5, col: 5 };
+  const up = (d: number) => ({ row: 5 - d, col: 5 });
+  const w = (p: Parameters<typeof tileWeight>[0], aim: { row: number; col: number }, t: { row: number; col: number }) => tileWeight(p, me, aim, t);
+  assert.ok(w('melee_long', up(2), up(2)) > w('melee_long', up(2), up(1)), 'a reach hits hardest at its tip');
+  assert.ok(w('charge', up(3), up(3)) > w('charge', up(3), up(1)), 'a charge hits hardest at the end of its run');
+  assert.ok(w('aoe', up(3), up(3)) > w('aoe', up(3), { row: 2, col: 6 }), 'a blast hits hardest at its heart');
+  assert.ok(w('sweep_arc', up(1), up(1)) > w('sweep_arc', up(1), { row: 4, col: 6 }), 'a sweep hits hardest in its middle');
+  assert.equal(w('melee', up(1), up(1)), 1, 'a strike is one even hit');
 });

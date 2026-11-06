@@ -272,3 +272,36 @@ grid: CombatGrid
 const pattern = ATTACK_PATTERNS[patternType];
 return pattern.getTargetTiles(attackerPos, targetPos, grid);
 }
+/**
+ * Sweet spots: how hard an attack lands on each tile of its shape (1 = its listed damage).
+ * Every shape has tiles it's best at, so two parts with the same reach still play differently:
+ * a reach hits hardest at its tip, a sweep in its middle, a blast at its centre, a charge at the end
+ * of its run, a shot at 2-3 tiles. `aim` is the tile the attack was aimed at.
+ */
+export function tileWeight(type: AttackPatternType, from: TilePosition, aim: TilePosition, tile: TilePosition): number {
+  const d = cheb(from, tile);
+  const at = (p: TilePosition) => p.row === tile.row && p.col === tile.col;
+  const dir = { row: sign(aim.row - from.row), col: sign(aim.col - from.col) };
+  switch (type) {
+    case 'melee_long': return d === 1 ? 0.85 : 1.15;                  // the tip of the reach
+    case 'diagonal_cross': return d === 1 ? 1.1 : 0.85;
+    case 'cone': {
+      if (d === 1) return 1.2;                                         // the point of the wedge
+      const axis = Math.abs(aim.row - from.row) >= Math.abs(aim.col - from.col) ? { row: sign(aim.row - from.row), col: 0 } : { row: 0, col: sign(aim.col - from.col) };
+      return at({ row: from.row + axis.row * 2, col: from.col + axis.col * 2 }) ? 0.95 : 0.7;
+    }
+    case 'aoe': return at(aim) ? 1.3 : 0.75;                           // the heart of the blast
+    case 'lob': return at(aim) ? 1.2 : 0.8;
+    case 'ranged': return d <= 3 ? 1.1 : 0.85;                         // best at 2-3 tiles
+    case 'bolt': return d <= 2 ? 1.1 : d === 3 ? 1 : 0.85;
+    case 'pierce': return Math.max(0.8, 1.1 - 0.1 * (d - 1));          // weakens through each body
+    case 'longshot': return d >= 4 ? 1.15 : 0.85;                      // a sniper's shot wants distance
+    case 'sweep_arc': return at({ row: from.row + dir.row, col: from.col + dir.col }) ? 1.15 : 0.8;
+    case 'knockback': return d === 1 ? 1.15 : d === 2 ? 1 : 0.85;
+    case 'charge': return d === 1 ? 0.8 : d === 2 ? 1 : 1.2;           // momentum builds down the lane
+    case 'grapple': return d === 1 ? 0.85 : 1.05;
+    case 'beam': return d <= 2 ? 1.1 : d <= 4 ? 1 : 0.8;
+    case 'burst': return tile.row === from.row || tile.col === from.col ? 1 : 0.85;
+    default: return 1;                                                 // strike, lunge, ring: one even hit
+  }
+}

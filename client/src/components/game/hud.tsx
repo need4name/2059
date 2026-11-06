@@ -1,7 +1,7 @@
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 import type { ItemRarity } from '@/lib/combat/types';
 import type { AttackPatternType, AugmentationSlot, CombatAction, PlayerClass } from '@/lib/combat/types';
-import { attackFootprint } from '@/lib/engine/fight';
+import { attackFootprint, attackPatternOf } from '@/lib/engine/fight';
 
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   common: 'text-slate-300',
@@ -252,6 +252,16 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
  * aim only on their own side. The tiles come from the fight engine's own rules
  * (attackFootprint).
  */
+/** Whether a move moves anyone: shoves what it hits (push), drags it in (pull), carries you down the lane (dash), or steps you back (retreat). */
+export function moveKind(action: CombatAction, playerClass: PlayerClass = 'none'): 'push' | 'pull' | 'dash' | 'retreat' | null {
+  const p = attackPatternOf(action, playerClass), fx = action.effects ?? {};
+  if (fx.pull || p === 'grapple') return 'pull';
+  if (fx.knock || p === 'knockback') return 'push';
+  if (fx.dash || p === 'charge') return 'dash';
+  if (fx.retreat) return 'retreat';
+  return null;
+}
+
 export function Footprint({ action, pattern, playerClass = 'none', className, cell = 4 }: { action?: CombatAction; pattern?: AttackPatternType; playerClass?: PlayerClass; className?: string; /** Size of one tile in pixels (bigger on cards, small on fight buttons). */ cell?: number }) {
   const act: CombatAction | null = action ?? (pattern ? { type: 'attack', name: '', description: '', attackPattern: pattern } : null);
   if (!act) return null;
@@ -259,14 +269,30 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
   const { me, tiles } = attackFootprint(act, playerClass, n);
   const at = new Map(tiles.map(t => [`${t.row},${t.col}`, t.mult]));
   const gap = 1, size = n * (cell + gap) - gap;
-  const shade = (m: number) => (m >= 1.25 ? '#ffb43a' : m >= 1.1 ? 'rgba(255,180,58,0.65)' : m >= 0.9 ? 'rgba(255,180,58,0.38)' : 'rgba(255,180,58,0.2)');
+  // How hard it lands there (side, back and the shape's sweet spot together): the stronger, the bolder
+  const shade = (m: number) => `rgba(255,180,58,${Math.max(0.18, Math.min(1, (m - 0.55) / 0.95)).toFixed(2)})`;
+  const moves = moveKind(act, playerClass);
+  const far = Math.max(0, ...tiles.map(t => Math.max(Math.abs(t.row - me.row), Math.abs(t.col - me.col))));
+  const x0 = (c: number) => c * (cell + gap), mid = (k: number) => k * (cell + gap) + cell / 2;
+  // A small arrow in a tile, pointing away from you (a shove) or toward you (a drag)
+  const arrow = (r: number, c: number, toward: boolean) => {
+    const dy = Math.sign(r - me.row) * (toward ? -1 : 1), dx = Math.sign(c - me.col) * (toward ? -1 : 1);
+    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, s = cell * 0.36;
+    const cx = mid(c), cy = mid(r);
+    const pts = [[cx + ux * s, cy + uy * s], [cx - ux * s * 0.6 - uy * s * 0.75, cy - uy * s * 0.6 + ux * s * 0.75], [cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75]];
+    return <polygon key={`a${r}-${c}`} points={pts.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')} fill="#1a0f02" />;
+  };
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className={className} aria-hidden shapeRendering="crispEdges">
       {Array.from({ length: n * n }, (_, k) => {
         const r = Math.floor(k / n), c = k % n, m = at.get(`${r},${c}`);
         const fill = r === me.row && c === me.col ? '#38d6f0' : m !== undefined ? shade(m) : 'rgba(255,255,255,0.07)';
-        return <rect key={k} x={c * (cell + gap)} y={r * (cell + gap)} width={cell} height={cell} rx={1} fill={fill} />;
+        return <rect key={k} x={x0(c)} y={x0(r)} width={cell} height={cell} rx={1} fill={fill} />;
       })}
+      {cell >= 5 && (moves === 'push' || moves === 'pull') && tiles.map(t => arrow(t.row, t.col, moves === 'pull'))}
+      {cell >= 5 && moves === 'dash' && tiles.filter(t => Math.max(Math.abs(t.row - me.row), Math.abs(t.col - me.col)) === far).map(t => (
+        <circle key={`d${t.row}-${t.col}`} cx={mid(t.col)} cy={mid(t.row)} r={cell * 0.22} fill="#38d6f0" />
+      ))}
     </svg>
   );
 }

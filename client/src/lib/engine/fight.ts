@@ -17,7 +17,7 @@ import {
   calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
-import { canHitTarget, getHitTiles } from '../combat/patterns';
+import { canHitTarget, getHitTiles, tileWeight } from '../combat/patterns';
 import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
@@ -947,10 +947,19 @@ export function attackFootprint(action: CombatAction, playerClass: PlayerClass =
       // (only the aim must be on the arm's side; a wide swing can still spill across, as in a real fight)
       if (same(t, me)) continue;
       const range = flat ? 1 : getRangeBand(chebyshev(me, t), action.rangeOptimal!);
-      seen.set(`${t.row},${t.col}`, { row: t.row, col: t.col, mult: (1 + getFlankBonus(me, t)) * range });
+      const mult = (1 + getFlankBonus(me, t)) * range * sweetSpot(action, playerClass, me, aim, t);
+      const k = `${t.row},${t.col}`;
+      // A tile several aims can land on shows its best
+      if ((seen.get(k)?.mult ?? 0) < mult) seen.set(k, { row: t.row, col: t.col, mult });
     }
   }
   return { me, tiles: Array.from(seen.values()) };
+}
+
+/** How hard an attack lands on a tile of its shape (its sweet spot), aimed at `aim`. */
+export function sweetSpot(action: CombatAction, playerClass: PlayerClass, from: TilePosition, aim: TilePosition | null, tile: TilePosition): number {
+  if (!aim || ignoresRange(action, playerClass) || action.type === 'brace') return 1;
+  return tileWeight(attackPatternOf(action, playerClass), from, aim, tile);
 }
 
 /** Every living foe standing on the tiles an aim lands on. */
@@ -1132,9 +1141,11 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
     const quirk = quirkDamage(s, action);
+    // The shape's sweet spot: some tiles of it land harder than others
+    const sweet = sweetSpot(action, playerClass, grid.playerPosition, aim, foe.pos);
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * takenBy(foe),
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * takenBy(foe),
       hasTrait(foe, 'alert') ? 0 : getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,

@@ -6,6 +6,8 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
+import { moveKind } from './hud';
+import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
@@ -409,6 +411,8 @@ resizeObserver.observe(canvas.parentElement);
 let reachableTiles: Set<string> | null = null;
 let currentAttackPattern: AttackPatternType | null = null;
 let aimedTiles: Set<string> | null = null;
+const aimedWeight = new Map<string, number>();
+let aimedMove: ReturnType<typeof moveKind> = null;
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 // Read attack pattern directly from the action - this is the single source of truth.
@@ -423,7 +427,13 @@ currentAttackPattern = (
 // Where it can be aimed (dim), and where the current aim lands (bright)
 const fs = useCombat.getState();
 reachableTiles = new Set(Fight.aimableTiles(fs, selectedAction, playerClass).map(t => `${t.row},${t.col}`));
-if (fs.aim) aimedTiles = new Set(Fight.aimTiles(fs, selectedAction, playerClass, fs.aim).map(t => `${t.row},${t.col}`));
+if (fs.aim) {
+  const tiles = Fight.aimTiles(fs, selectedAction, playerClass, fs.aim);
+  aimedTiles = new Set(tiles.map(t => `${t.row},${t.col}`));
+  // How hard it lands on each of those tiles (side, back and the shape's sweet spot): bolder where it hits harder
+  for (const t of tiles) aimedWeight.set(`${t.row},${t.col}`, (1 + getFlankBonus(grid.playerPosition, t)) * Fight.sweetSpot(selectedAction, playerClass, grid.playerPosition, fs.aim, t));
+  aimedMove = moveKind(selectedAction, playerClass);
+}
 
 }
 
@@ -579,7 +589,25 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.restore();
     roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   }
-  if (tint) { ctx.fillStyle = tint; ctx.fill(); }
+  if (tint) {
+    ctx.fillStyle = tint;
+    if (isAimed && !isHovered) ctx.globalAlpha = Math.max(0.3, Math.min(1, 0.35 + ((aimedWeight.get(`${row},${col}`) ?? 1) - 0.7) * 0.9));
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // A shove or a drag: an arrow on each aimed tile, away from you or toward you
+  if (isAimed && (aimedMove === 'push' || aimedMove === 'pull')) {
+    const away = aimedMove === 'push' ? 1 : -1;
+    const dx = Math.sign(col - grid.playerPosition.col) * away, dy = Math.sign(row - grid.playerPosition.row) * away;
+    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, s = tileW * 0.16;
+    const cx = pos.x + ux * tileW * 0.22, cy = pos.y + uy * tileH * 0.22;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(cx + ux * s, cy + uy * s);
+    ctx.lineTo(cx - ux * s * 0.6 - uy * s * 0.75, cy - uy * s * 0.6 + ux * s * 0.75);
+    ctx.lineTo(cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75);
+    ctx.closePath(); ctx.fill();
+  }
   // Wind: two faint streaks drifting across every tile the way it blows
   if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
     const { dx, dy } = WIND_VEC[windNow.dir];
