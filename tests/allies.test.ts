@@ -262,3 +262,34 @@ test('an ally lets its story slip at levels 3, 6 and 10', async () => {
   assert.equal(storySoFar(def, 9).length, 2);
   assert.deepEqual(storySoFar(def, 10), def.story);
 });
+
+test("an ally's move can be changed, or taken back, until its turn ends", () => {
+  const s = fight([ally('bale', [8, 0])]);
+  const origin = { row: 8, col: 0 };
+  const a = Fight.placeAlly(s, 0, { row: 7, col: 0 }, origin);
+  assert.deepEqual(a.allies[0].pos, { row: 7, col: 0 });
+  assert.equal(a.allies[0].moved, false, 'not settled');
+  const b = Fight.placeAlly(a, 0, { row: 8, col: 1 }, origin);
+  assert.deepEqual(b.allies[0].pos, { row: 8, col: 1 }, 'a second tap moves it again, counted from where it started');
+  assert.deepEqual(Fight.placeAlly(b, 0, origin, origin).allies[0].pos, origin, 'tapping where it started takes the move back');
+  assert.equal(Fight.placeAlly(b, 0, { row: 0, col: 0 }, origin), b, 'out of reach: nothing happens');
+});
+
+test("an ally's attack goes for the enemy it can reach when the target is out of range", () => {
+  const grid = arena([8, 3], [0, 0]);
+  const s = fight([ally('bale', [5, 3])], { grid, foes: [Fight.newFoe(createBoss(10), { row: 0, col: 0 }, 40), Fight.newFoe(createBoss(10), { row: 4, col: 3 }, 40)], target: 0 });
+  const atk = s.allies[0].moves.findIndex(m => m.effect === 'attack');
+  assert.equal(Fight.allyAimFoe(s, 0, atk), 1, 'the one beside it, not the far target');
+  assert.equal(Fight.canAllyUse(s, 0, atk), true);
+  const hit = Fight.resolveAllyMove(s, 0, atk).state;
+  assert.ok(hit.foes[1].unit.currentHp < s.foes[1].unit.currentHp);
+  assert.equal(hit.foes[0].unit.currentHp, s.foes[0].unit.currentHp);
+});
+
+test('allies start beside or behind the player, not between it and the enemy', async () => {
+  const { allySpawnPositions } = await import('../client/src/lib/combat/grid');
+  const grid = arena([5, 3], [0, 3]);
+  const spots = allySpawnPositions(grid, 2, [{ row: 0, col: 3 }]);
+  assert.equal(spots.length, 2);
+  for (const p of spots) assert.ok(p.row >= 5, `ally at row ${p.row} is in front of the player`);
+});

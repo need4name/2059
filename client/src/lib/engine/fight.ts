@@ -1471,16 +1471,28 @@ function allyView(s: FightState, k: number, i = s.target): CombatGrid {
   return { ...g, playerPosition: me, occupied: [...(g.occupied ?? []).filter(p => !same(p, me)), s.grid.playerPosition] };
 }
 
-/** Tiles ally k can move to this round. Empty once it has moved or acted. */
-export function allyReach(s: FightState, k: number): Set<string> {
+/** Tiles ally k can move to this turn, counted from `from` (where its turn started; its spot by default). Empty once it has moved or acted. */
+export function allyReach(s: FightState, k: number, from?: TilePosition): Set<string> {
   const a = s.allies[k];
   if (!a || !allyAlive(a) || a.moved || a.acted || order(s) === 'hold') return new Set();
+  const start = from ?? a.pos;
   const living = s.foes.filter(isAlive);
   const g: CombatGrid = {
-    ...s.grid, playerPosition: a.pos, bossPosition: living[0]?.pos ?? s.grid.bossPosition,
+    ...s.grid, playerPosition: start, bossPosition: living[0]?.pos ?? s.grid.bossPosition,
     occupied: [...living.slice(1).map(f => f.pos), s.grid.playerPosition, ...s.allies.filter((o, n) => n !== k && allyAlive(o)).map(o => o.pos)],
   };
-  return getReachableTiles(a.pos, g, a.move);
+  return getReachableTiles(start, g, a.move);
+}
+
+/**
+ * Put ally k on a tile it can reach from where its turn started (`origin`), or back on
+ * `origin`, without settling it: like the player's own move, it can be changed until
+ * the ally acts or its turn ends. Returns the state unchanged for a tile out of reach.
+ */
+export function placeAlly(s: FightState, k: number, pos: TilePosition, origin: TilePosition): FightState {
+  if (same(pos, origin)) return setAlly(s, k, { pos: origin });
+  if (!allyReach(s, k, origin).has(`${pos.row},${pos.col}`)) return s;
+  return setAlly(s, k, { pos });
 }
 
 /** Move ally k (once a round, before it acts). Returns the state unchanged if it can't go there. */
@@ -1489,12 +1501,21 @@ export function moveAlly(s: FightState, k: number, pos: TilePosition): FightStat
   return setAlly(s, k, { pos, moved: true });
 }
 
-/** Can ally k use move m now (on the current target for attacks)? */
+/** Which foe ally k's attack m goes for: the player's target if it can reach it, else the nearest it can, else -1. */
+export function allyAimFoe(s: FightState, k: number, m: number): number {
+  const a = s.allies[k], move = a?.moves[m];
+  if (!a || !move) return -1;
+  const reaches = (i: number) => isAlive(s.foes[i]) && canHitTarget(a.pos, s.foes[i].pos, move.attackPattern ?? 'melee', allyView(s, k, i));
+  if (s.foes[s.target] && reaches(s.target)) return s.target;
+  return s.foes.map((_, i) => i).filter(reaches).sort((x, y) => chebyshev(a.pos, s.foes[x].pos) - chebyshev(a.pos, s.foes[y].pos))[0] ?? -1;
+}
+
+/** Can ally k use move m now (an attack needs some enemy in its reach)? */
 export function canAllyUse(s: FightState, k: number, m: number): boolean {
   const a = s.allies[k], move = a?.moves[m];
   if (!a || !move || !allyAlive(a) || a.acted || (a.cooldowns[m] ?? 0) > 0) return false;
   const foe = s.foes[s.target];
-  if (move.effect === 'attack') return !!foe && isAlive(foe) && canHitTarget(a.pos, foe.pos, move.attackPattern ?? 'melee', allyView(s, k));
+  if (move.effect === 'attack') return allyAimFoe(s, k, m) >= 0;
   if (move.effect === 'mark') return !!foe && isAlive(foe);
   return true;
 }
@@ -1504,7 +1525,8 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
   const a = s.allies[k], move = a.moves[m];
   const events: FightEvent[] = [];
   let state = setAlly(s, k, { acted: true, cooldowns: a.cooldowns.map((c, n) => (n === m ? move.cooldown ?? 0 : c)) });
-  const i = s.target, foe = s.foes[i];
+  // An attack goes for whoever it can reach (the player's target first); marks go on the player's target
+  const i = move.effect === 'attack' ? Math.max(0, allyAimFoe(s, k, m)) : s.target, foe = s.foes[i];
   if (move.effect === 'attack') {
     const dist = chebyshev(a.pos, foe.pos);
     const dmg = calculateDamage(a.unit, foe.unit, move, foe.defenseBoost, takenBy(foe), hasTrait(foe, 'alert') ? 0 : getFlankBonus(a.pos, foe.pos), dist, false, 0);

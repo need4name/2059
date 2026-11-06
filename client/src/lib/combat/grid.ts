@@ -323,7 +323,13 @@ export function spawnFoePositions(grid: CombatGrid, count: number): TilePosition
 export function allySpawnPositions(grid: CombatGrid, count: number, taken: TilePosition[]): TilePosition[] {
   const out: TilePosition[] = [];
   const reach = stepDistances(grid.playerPosition, grid);
-  const spots = Array.from(reach.entries()).filter(([, d]) => d > 0).sort((a, b) => a[1] - b[1]).map(([k]) => { const [row, col] = k.split(',').map(Number); return { row, col }; });
+  // Beside or behind the player, never out in front: nearest first, and a tile closer to the enemies than
+  // the player stands costs a lot; among equals, the one further from the enemies
+  const foeDist = (p: TilePosition) => (taken.length ? Math.min(...taken.map(f => Math.max(Math.abs(f.row - p.row), Math.abs(f.col - p.col)))) : 0);
+  const mine = foeDist(grid.playerPosition);
+  const score = (p: TilePosition, d: number) => d * 3 + (foeDist(p) < mine ? 10 : 0) - foeDist(p) * 0.5;
+  const spots = Array.from(reach.entries()).filter(([, d]) => d > 0).map(([k, d]) => { const [row, col] = k.split(',').map(Number); return { p: { row, col }, d }; })
+    .sort((a, b) => score(a.p, a.d) - score(b.p, b.d)).map(x => x.p);
   for (const p of spots) {
     if (out.length >= count) break;
     if (tileAt(p, grid)?.type !== 'empty' || samePos(p, grid.bossPosition) || [...taken, ...out].some(o => samePos(o, p))) continue;

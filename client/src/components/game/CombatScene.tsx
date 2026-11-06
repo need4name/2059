@@ -440,7 +440,7 @@ return Fight.dangerTiles(useCombat.getState(), true);
 
 // Tiles the player (or the ally being moved) can still move to this turn
 const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
-? (() => { const t = Fight.allyReach(useCombat.getState(), allyMoveMode); if (originalPosition) t.delete(`${originalPosition.row},${originalPosition.col}`); return t; })()
+? (() => { const st = useCombat.getState(); const o = st.allyOrigin; const t = Fight.allyReach(st, allyMoveMode, o ?? undefined); if (o) t.add(`${o.row},${o.col}`); return t; })()
 : null;
 const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition && useCombat.getState().orders?.now !== 'hold' && useCombat.getState().allyTurn === null
 ? (reflexMoveOpen

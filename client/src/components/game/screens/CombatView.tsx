@@ -197,19 +197,20 @@ function allyMoveDetail(m: AllyMove): string {
  */
 function AllyTurnPanel({ k }: { k: number }) {
   const s = useCombat();
-  const { allies, allyAct, toggleAllyMove, allyMoveMode, endTurn, phase, inputLocked } = s;
+  const { allies, allyAct, moveAlly, allyOrigin, endTurn, phase, inputLocked } = s;
   const a = allies[k];
   if (!a) return null;
   const color = a.unit.spriteColor;
   const live = phase === 'player_turn' && !inputLocked;
-  const canMove = live && !a.moved && !a.acted && Fight.allyReach(useCombat.getState(), k).size > 0;
+  const canMove = live && !a.acted && Fight.allyReach(useCombat.getState(), k, allyOrigin ?? undefined).size > 0;
+  const moved = !!allyOrigin && (a.pos.row !== allyOrigin.row || a.pos.col !== allyOrigin.col);
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2.5 px-1">
         <Portrait id={a.id} size={26} />
         <div className="min-w-0 flex-1">
           <div className="font-display text-[15px] font-semibold" style={{ color }}>{a.unit.name}'s turn</div>
-          <div className="text-[11px] text-hud-dim">{a.acted ? 'Done' : a.moved ? 'Moved. Pick a move, or end the turn.' : canMove ? (allyMoveMode === k ? 'Tap a lit tile to move' : 'Tap it to move it') : 'Pick a move'}</div>
+          <div className="text-[11px] text-hud-dim">{a.acted ? 'Done' : moved ? 'Tap another lit tile to change it, or pick a move' : canMove ? 'Tap a lit tile to move' : 'Pick a move'}</div>
         </div>
         <div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
           <div className="mt-0.5 text-right text-[10px] text-hud-faint">{a.unit.currentHp}/{a.unit.maxHp}</div></div>
@@ -229,7 +230,7 @@ function AllyTurnPanel({ k }: { k: number }) {
         })}
       </div>
       <div className="flex gap-2">
-        {canMove && <Btn className="shrink-0 px-3.5" onClick={() => toggleAllyMove(k)}>{allyMoveMode === k ? 'Stay put' : 'Move'}</Btn>}
+        <Btn className="shrink-0 px-3.5" disabled={!live || !moved} onClick={() => allyOrigin && moveAlly(allyOrigin)}>Undo</Btn>
         <Btn variant={live ? 'primary' : 'secondary'} className="min-w-0 flex-1 truncate" disabled={!live} onClick={endTurn}>
           {live ? `End ${a.unit.name}'s turn` : 'Resolving…'}
         </Btn>

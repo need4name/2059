@@ -169,6 +169,8 @@ dismissIntro: () => void;
 allyMoveMode: number | null;
 /** The ally whose turn it is (the action bar shows its moves), or null. */
 allyTurn: number | null;
+/** Where that ally stood when its turn began: its move can be changed until it acts or the turn ends. */
+allyOrigin: TilePosition | null;
 toggleAllyMove: (ally: number) => void;
 moveAlly: (pos: TilePosition) => void;
 allyAct: (ally: number, move: number) => void;
@@ -487,13 +489,13 @@ set({ actingFoe: null, selectedAction: null, selectedMovement: null, openingTurn
 const start = Fight.startAllyTurn(fightState(), k);
 if (apply(start)) return;
 if (start.skipTurn) { set({ phase: 'enemy_turn', inputLocked: true, allyTurn: null }); later(nextActor, FOE_GAP_DELAY); return; }
-set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyMoveMode: Fight.allyReach(fightState(), k).size ? k : null });
+set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyOrigin: { ...get().allies[k].pos }, allyMoveMode: Fight.allyReach(fightState(), k).size ? k : null });
 };
 
 // Ally k's turn is over (it acted, or the player ended it)
 const endAllyTurn = () => {
 if (get().allyTurn === null) return;
-set({ allyTurn: null, allyMoveMode: null, phase: 'enemy_turn', inputLocked: true });
+set({ allyTurn: null, allyMoveMode: null, allyOrigin: null, phase: 'enemy_turn', inputLocked: true });
 later(nextActor, FOE_GAP_DELAY);
 };
 
@@ -612,7 +614,7 @@ set({
 ...freshFightState(grid),
 playerHeat: perks.startHeat,
 perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast && !get().holdfastSpent,
-reflexMoveOpen: false, allyMoveMode: null, allyTurn: null,
+reflexMoveOpen: false, allyMoveMode: null, allyTurn: null, allyOrigin: null,
 phase: 'player_turn', player, grid,
 playerMoveRange: moveRange,
 farmLevel: farm ? level : null,
@@ -658,6 +660,7 @@ target: 0,
 reflexMoveOpen: false,
 allyMoveMode: null,
 allyTurn: null,
+allyOrigin: null,
 actingFoe: null,
 clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
 hostBestThreat: 0,
@@ -904,12 +907,12 @@ set({ allyMoveMode: Fight.allyReach(fightState(), ally).size ? ally : null });
 },
 
 moveAlly: (pos) => {
-const { phase, inputLocked, allyMoveMode } = get();
-if (phase !== 'player_turn' || inputLocked || allyMoveMode === null || get().allyTurn !== allyMoveMode) return;
+const { phase, inputLocked, allyMoveMode, allyOrigin } = get();
+if (phase !== 'player_turn' || inputLocked || allyMoveMode === null || get().allyTurn !== allyMoveMode || !allyOrigin) return;
+// Like your own move: it can be changed (or taken back by tapping where it started) until the ally acts or its turn ends
 const cur = fightState();
-const next = Fight.moveAlly(cur, allyMoveMode, pos);
+const next = Fight.placeAlly(cur, allyMoveMode, pos, allyOrigin);
 if (next !== cur) save(next);
-set({ allyMoveMode: null });
 },
 
 allyAct: (ally, move) => {

@@ -10,10 +10,10 @@ import { allyDef } from '@/lib/combat/allies';
 // far up it sits (up exits climb, down exits drop; roomHeights in map.ts), halls are bridges and ramps between
 // block tops, and blocks are drawn back to front. Pixel art on a small canvas, scaled up without smoothing.
 
-const U = 3;          // screen pixels per map pixel
+const ZOOMS = [2, 3, 4, 5]; // screen pixels per map pixel, from the +/- buttons
 const TW = 16, TH = 8; // a room's top: a diamond this wide and tall
 const PX = 16, PY = 8; // one grid step east moves this far right and down (north: left and up), leaving room for a hall
-const ZH = 4;         // map pixels per level of height
+const ZH = 5;         // map pixels per level of height
 const BASE = 3;       // how thick a block at the lowest level is
 const C = {
   ground: '#070b10', dot: '#121c26',
@@ -66,6 +66,11 @@ export function SignalMap() {
   const map = useMap();
   const ref = useRef<HTMLCanvasElement>(null);
   const [tall, setTall] = useState(false);
+  // Zoom from the +/- buttons; the painter reads it live
+  const [zoomAt, setZoomAt] = useState(1);
+  const U = ZOOMS[zoomAt];
+  const zoomRef = useRef(U);
+  zoomRef.current = U;
   const met = useAllies(s => s.met);
   const view = mapView(map, met);
   const live = useRef({ view, here: map.room });
@@ -90,7 +95,8 @@ export function SignalMap() {
       last = now;
       // Sized from the frame and scaled up by a whole number, so every map pixel is the same size
       const box = canvas.parentElement!;
-      const w = Math.max(1, Math.ceil(box.clientWidth / U)), h = Math.max(1, Math.ceil(box.clientHeight / U));
+      const Z = zoomRef.current;
+      const w = Math.max(1, Math.ceil(box.clientWidth / Z)), h = Math.max(1, Math.ceil(box.clientHeight / Z));
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       const { view, here } = live.current;
 
@@ -178,8 +184,9 @@ export function SignalMap() {
         }
         const p = iso(r);
         const cx = ox + p.x, top = oy + p.y;
-        const tall = Math.round((r.z - zMin) * ZH) + BASE;
-        if (cx + TW < 0 || cx - TW > w || top > h || top + TH + tall < 0) continue;
+        // A slab at its height, on a thin post down to its shadow on the ground (no solid pillar to hide what's behind)
+        const lift = Math.round((r.z - zMin) * ZH), tall = BASE;
+        if (cx + TW < 0 || cx - TW > w || top > h || top + TH + tall + lift < 0) continue;
         ctx.globalAlpha = fade(r);
         if (!r.seen) {
           // Only glimpsed: a broken outline floating at its height, nothing inside
@@ -190,7 +197,14 @@ export function SignalMap() {
         }
         const mine = r.id === here;
         const [base, lit, shade] = mine ? [C.here, C.hereLit, C.hereShade] : [C.room, C.lit, C.shade];
-        // The block's two sides, down to the ground: lit on the left, in shadow on the right
+        if (lift > 0) {
+          // Its shadow on the ground, and the post holding it up
+          ctx.globalAlpha = fade(r) * 0.5;
+          for (let j = 0; j < TH; j++) if (j % 2 === 1) rect(cx - half(j) + 2, top + lift + j, half(j) * 2 - 4, 1, C.edge);
+          ctx.globalAlpha = fade(r);
+          rect(cx - 1, top + TH / 2 + TW / 4 + tall, 2, Math.max(0, lift - tall - 1), mine ? C.hereShade : C.shade);
+        }
+        // The slab's two sides: lit on the left, in shadow on the right
         for (let i = 0; i < TW / 2; i++) {
           const edgeY = top + TH / 2 + Math.floor(i / 2);
           rect(cx - TW / 2 + i, edgeY, 1, tall, i === 0 ? C.edge : mine ? C.hereShade : C.shade);
@@ -198,8 +212,6 @@ export function SignalMap() {
           if (i > 0) rect(cx + TW / 2 - 1 - i, edgeY, 1, tall, mine ? '#082128' : '#111a23');
         }
         rect(cx - TW / 2 + 1, top + TH / 2 + TW / 4 + tall - 1, TW - 2, 1, C.edge);
-        // Floor bands on tall blocks, one per level, so height can be counted
-        for (let k = ZH + BASE; k < tall; k += ZH) for (let i = 1; i < TW / 2; i++) { px(cx - TW / 2 + i, top + TH / 2 + Math.floor(i / 2) + k, C.edge); px(cx + TW / 2 - 1 - i, top + TH / 2 + Math.floor(i / 2) + k, C.edge); }
         // The top: outline, face, a lit back edge
         diamond(cx, top - 1, C.edge);
         diamond(cx, top + 1, C.edge);
@@ -269,6 +281,13 @@ export function SignalMap() {
           className="pixel-canvas block"
           style={{ transform: `scale(${U})` }}
         />
+        {/* Zoom: in and out a step at a time */}
+        <div className="absolute right-2.5 top-2.5 flex flex-col gap-1.5" onPointerDown={e => e.stopPropagation()}>
+          <button onClick={() => setZoomAt(z => Math.min(ZOOMS.length - 1, z + 1))} disabled={zoomAt >= ZOOMS.length - 1} aria-label="Zoom in"
+            className="key flex h-8 w-8 items-center justify-center rounded-full font-display text-lg font-semibold leading-none text-hud-text disabled:opacity-40">+</button>
+          <button onClick={() => setZoomAt(z => Math.max(0, z - 1))} disabled={zoomAt <= 0} aria-label="Zoom out"
+            className="key flex h-8 w-8 items-center justify-center rounded-full font-display text-lg font-semibold leading-none text-hud-text disabled:opacity-40">−</button>
+        </div>
     </div>
   );
 }
