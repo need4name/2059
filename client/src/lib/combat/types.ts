@@ -78,6 +78,10 @@ export interface ActionEffects {
   cool?: number;
   /** Step a tile back from the enemy after hitting (no parting blow). */
   retreat?: boolean;
+  /** Leap in: land on the tile between you and the enemy you hit. */
+  pounce?: boolean;
+  /** Vault: leap over the enemy you hit to the tile on its far side (set up a hit from behind). */
+  vault?: boolean;
   /** You dash to the far end of the lane. */
   dash?: boolean;
   /** Cheap parts: only the nearest enemy in the shape is hit. */

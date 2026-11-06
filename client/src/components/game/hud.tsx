@@ -253,11 +253,12 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
  * (attackFootprint).
  */
 /** Whether a move moves anyone: shoves what it hits (push), drags it in (pull), carries you down the lane (dash), or steps you back (retreat). */
-export function moveKind(action: CombatAction, playerClass: PlayerClass = 'none'): 'push' | 'pull' | 'dash' | 'retreat' | null {
+export function moveKind(action: CombatAction, playerClass: PlayerClass = 'none'): 'push' | 'pull' | 'dash' | 'retreat' | 'leap' | null {
   const p = attackPatternOf(action, playerClass), fx = action.effects ?? {};
   if (fx.pull || p === 'grapple') return 'pull';
   if (fx.knock || p === 'knockback') return 'push';
   if (fx.dash || p === 'charge') return 'dash';
+  if (fx.pounce || fx.vault) return 'leap';
   if (fx.retreat) return 'retreat';
   return null;
 }
@@ -290,6 +291,9 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
         return <rect key={k} x={x0(c)} y={x0(r)} width={cell} height={cell} rx={1} fill={fill} />;
       })}
       {cell >= 5 && (moves === 'push' || moves === 'pull') && tiles.map(t => arrow(t.row, t.col, moves === 'pull'))}
+      {cell >= 5 && moves === 'leap' && tiles.map(t => (
+        <circle key={`l${t.row}-${t.col}`} cx={mid(t.col)} cy={mid(t.row)} r={cell * 0.28} fill="none" stroke="#38d6f0" strokeWidth={Math.max(0.8, cell * 0.14)} />
+      ))}
       {cell >= 5 && moves === 'dash' && tiles.filter(t => Math.max(Math.abs(t.row - me.row), Math.abs(t.col - me.col)) === far).map(t => (
         <circle key={`d${t.row}-${t.col}`} cx={mid(t.col)} cy={mid(t.row)} r={cell * 0.22} fill="#38d6f0" />
       ))}

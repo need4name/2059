@@ -81,6 +81,8 @@ export function effectsText(action: CombatAction): string | null {
     fx.crush && 'crushing collisions',
     fx.cool && `vents ${fx.cool} heat`,
     fx.retreat && 'you step back after',
+    fx.pounce && 'you leap in beside them',
+    fx.vault && 'you vault over them',
     fx.dash && 'you dash through',
     fx.ignoreCover && 'through cover',
     fx.slow && 'slows them',

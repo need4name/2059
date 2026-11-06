@@ -886,3 +886,14 @@ test('attack shapes have sweet spots: some tiles land harder than others', () =>
   assert.ok(w('sweep_arc', up(1), up(1)) > w('sweep_arc', up(1), { row: 4, col: 6 }), 'a sweep hits hardest in its middle');
   assert.equal(w('melee', up(1), up(1)), 1, 'a strike is one even hit');
 });
+
+test('leg moves that carry you: pounce lands beside them, vault lands behind them', () => {
+  // Player at (5,3), enemy straight up the column at (3,3)
+  const s = fight({ grid: arena([5, 3], [3, 3]) });
+  const base = { type: 'attack', name: 'Leg', description: '', damage: 1, accuracy: 'precise', physicalRatio: 1 } as const;
+  const pounce = Fight.resolvePlayerAttack(s, { ...base, attackPattern: 'lunge', effects: { pounce: true } }, 'none', { row: 3, col: 3 }).state;
+  assert.deepEqual(pounce.grid.playerPosition, { row: 4, col: 3 }, 'pounce: the tile between');
+  const near = fight({ grid: arena([4, 3], [3, 3]) });
+  const vault = Fight.resolvePlayerAttack(near, { ...base, attackPattern: 'melee', effects: { vault: true } }, 'none', { row: 3, col: 3 }).state;
+  assert.deepEqual(vault.grid.playerPosition, { row: 2, col: 3 }, 'vault: over to the far side');
+});

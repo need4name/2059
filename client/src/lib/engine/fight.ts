@@ -67,7 +67,7 @@ export const HEAVY_MIN_PLAYER_HEAT = 45;
  * - An enemy pushed to 100 heat overheats: it takes foeBurnHp of its health, is stunned, and drops to burnoutLeft.
  * - Enemies wind up heavies from their own heat (heavyFrom; Focused from 30), not yours.
  */
-export const HEAT = { hotAt: 61, ventAt: 55, ventDmg: 0.06, burnoutHp: 0.12, burnoutVent: 50, burnoutLeft: 50, foeBurnHp: 0.1, heavyFrom: 45, defaultPush: 4 };
+export const HEAT = { hotAt: 61, ventAt: 55, ventDmg: 0.06, burnoutHp: 0.12, burnoutVent: 50, burnoutLeft: 50, foeBurnHp: 0.1, heavyFrom: 50, defaultPush: 4 };
 /** What a maker's attack does extra when you're hot. Moves with no maker push heat into the target instead. */
 export const HOT_FX: Record<string, ActionEffects> = {
   VOLKOV: { knock: true, crush: true }, TIANXIA: { knock: true }, KIZUNA: { ignoreCover: true }, CROWN: { drain: 0.25 },
@@ -1097,6 +1097,18 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
       if (!bodyAt(state, p)) end = p;
     }
     if (!same(end, me)) { state = { ...state, grid: { ...state.grid, playerPosition: end }, noParting: true }; events.push(say('You dash through')); }
+  }
+  // Pounce: land beside whoever you hit, on the tile between you
+  if (fx.pounce && struck.length && isAlive(state.foes[struck[0]])) {
+    const t = state.foes[struck[0]].pos;
+    const mid = { row: me.row + Math.sign(t.row - me.row), col: me.col + Math.sign(t.col - me.col) };
+    if (!same(mid, t) && free(mid) && tileAt(mid, state.grid)?.type !== 'hazard') { state = { ...state, grid: { ...state.grid, playerPosition: mid }, noParting: true }; events.push(say('You pounce in')); }
+  }
+  // Vault: over whoever you hit, to the tile on its far side
+  if (fx.vault && struck.length && isAlive(state.foes[struck[0]])) {
+    const t = state.foes[struck[0]].pos;
+    const over = { row: t.row + Math.sign(t.row - me.row), col: t.col + Math.sign(t.col - me.col) };
+    if (inBounds(over, state.grid) && free(over) && tileAt(over, state.grid)?.type !== 'hazard') { state = { ...state, grid: { ...state.grid, playerPosition: over }, noParting: true }; events.push(say('You vault over them')); }
   }
   // Hit and run: a step straight back from whoever you hit
   if (fx.retreat && struck.length) {
