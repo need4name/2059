@@ -402,7 +402,7 @@
           "to": "sluices"
         },
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "a canteen in a container",
           "to": "canteen"
         }
@@ -411,13 +411,13 @@
     {
       "id": "canteen",
       "server": "A server bolted under the counter, dripping condensation. A payroll on its screen, and under it, a queue of broadcasts waiting to go.",
-      "at": [3, 14],
+      "at": [1, 14],
       "name": "The canteen",
       "text": "A shipping container with a counter, a kettle and someone selling parts out of a cool box. The kettle never boils; the air's too thin.",
       "market": true,
       "exits": [
         {
-          "dir": "west",
+          "dir": "east",
           "hint": "the dam road",
           "to": "damroad"
         }
@@ -487,7 +487,7 @@
           "to": "airlift"
         },
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "a control room",
           "to": "controlroom"
         }
@@ -495,7 +495,7 @@
     },
     {
       "id": "controlroom",
-      "at": [3, 12],
+      "at": [1, 12],
       "name": "The control room",
       "text": "Screens of weather, a chair for each screen, and nobody in any chair. The screens change on their own.",
       "threat": 14,
@@ -517,7 +517,7 @@
       ],
       "exits": [
         {
-          "dir": "west",
+          "dir": "east",
           "hint": "the cloud chambers",
           "to": "chambers"
         },
@@ -744,6 +744,11 @@
           "dir": "up",
           "hint": "the drone roost",
           "to": "roost"
+        },
+        {
+          "dir": "west",
+          "hint": "a tin lean-to, roped down",
+          "to": "leanto"
         }
       ]
     },
@@ -896,6 +901,20 @@
           "dir": "down",
           "hint": "the uplink",
           "to": "uplink"
+        }
+      ]
+    },
+    {
+      "id": "leanto",
+      "server": "A server under the cot, wrapped in a survival blanket and whining in the thin air. A signed works order hangs off it, and under that, a list of frequencies.",
+      "at": [1, 5],
+      "name": "The lean-to",
+      "text": "A tin lean-to under the antennas, roped down against the wind. Someone sleeps here between shifts and folds the blanket after.",
+      "exits": [
+        {
+          "dir": "east",
+          "hint": "the antenna field",
+          "to": "antennafield"
         }
       ]
     }

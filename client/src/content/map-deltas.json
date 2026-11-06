@@ -129,7 +129,7 @@
           "to": "shallows"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "a light sweeping the water",
           "to": "scanpost"
         }
@@ -194,7 +194,7 @@
           "to": "reeds"
         },
         {
-          "dir": "west",
+          "dir": "south",
           "hint": "a light sweeping the water",
           "to": "scanpost"
         },
@@ -248,12 +248,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "stilt houses",
           "to": "stilts"
         },
         {
-          "dir": "east",
+          "dir": "north",
           "hint": "the ferry",
           "to": "ferry"
         },
@@ -266,7 +266,7 @@
     },
     {
       "id": "mudflats",
-      "at": [0, 2],
+      "at": [0, 3],
       "name": "The mudflats",
       "text": "Grey mud to the horizon, soft enough to swallow a boat. Things stand in it up to the knee, perfectly still, facing the sea.",
       "threat": 6,
@@ -616,12 +616,12 @@
           "to": "recordbarge"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "salt pans, glaring white",
           "to": "saltpans"
         },
         {
-          "dir": "east",
+          "dir": "south",
           "hint": "wrecks piled on wrecks",
           "to": "wrecks"
         }
@@ -629,7 +629,7 @@
     },
     {
       "id": "saltpans",
-      "at": [3, 7],
+      "at": [4, 6],
       "name": "The salt pans",
       "text": "Shallow pans of evaporating water, crusted white. The salt has grown over everything left lying here, and some of it has a shape.",
       "threat": 16,
@@ -648,12 +648,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the checkpoint",
           "to": "checkpoint"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "a lighthouse with no light",
           "to": "lighthouse"
         }
@@ -661,7 +661,7 @@
     },
     {
       "id": "wrecks",
-      "at": [4, 6],
+      "at": [3, 7],
       "name": "The wrecks",
       "text": "Boats sunk on top of boats until the pile breaks the surface. You can walk across it, if you don't look down.",
       "threat": 17,
@@ -682,12 +682,12 @@
       ],
       "exits": [
         {
-          "dir": "west",
+          "dir": "north",
           "hint": "the checkpoint",
           "to": "checkpoint"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "a sluice gate, roaring",
           "to": "sluice"
         }
@@ -695,7 +695,7 @@
     },
     {
       "id": "lighthouse",
-      "at": [6, 7],
+      "at": [5, 6],
       "name": "The dark lighthouse",
       "text": "A lighthouse whose lamp has been taken out and replaced with a lens that looks inward. The stairs are worn in the middle, from somebody climbing them every day.",
       "threat": 18,
@@ -713,12 +713,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the salt pans",
           "to": "saltpans"
         },
         {
-          "dir": "west",
+          "dir": "south",
           "hint": "a ship that breathes",
           "to": "vessel"
         }
@@ -744,7 +744,7 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the wrecks",
           "to": "wrecks"
         },
@@ -774,7 +774,7 @@
       ],
       "exits": [
         {
-          "dir": "east",
+          "dir": "north",
           "hint": "the dark lighthouse",
           "to": "lighthouse"
         },
@@ -872,7 +872,7 @@
           "to": "grave"
         },
         {
-          "dir": "south",
+          "dir": "west",
           "hint": "stacks of paper, dry somehow",
           "to": "archives"
         }
@@ -880,7 +880,7 @@
     },
     {
       "id": "archives",
-      "at": [5, 10],
+      "at": [4, 9],
       "name": "The archives",
       "text": "A warehouse on a hill, the only dry place for miles, full of paper. Every folder has the same thing in it: a scan of a skull, and a little light at the back.",
       "threat": 23,
@@ -902,12 +902,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "east",
           "hint": "the flooded town",
           "to": "floodtown"
         },
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "antennas, singing",
           "to": "antennas"
         }
@@ -915,7 +915,7 @@
     },
     {
       "id": "antennas",
-      "at": [6, 10],
+      "at": [3, 9],
       "name": "The antenna field",
       "text": "Antennas planted in the mud like a crop, singing in the wind. They are all pointed at the same place downstream.",
       "threat": 24,
@@ -933,12 +933,12 @@
       ],
       "exits": [
         {
-          "dir": "west",
+          "dir": "east",
           "hint": "the archives",
           "to": "archives"
         },
         {
-          "dir": "south",
+          "dir": "west",
           "hint": "a gate with no wall",
           "to": "gate"
         }
@@ -946,7 +946,7 @@
     },
     {
       "id": "gate",
-      "at": [6, 11],
+      "at": [2, 9],
       "name": "The gate with no wall",
       "text": "A gate standing on its own in the mud, nothing on either side of it. Walking round it feels like a mistake.",
       "threat": 25,
@@ -963,12 +963,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "east",
           "hint": "the antenna field",
           "to": "antennas"
         },
         {
-          "dir": "south",
+          "dir": "west",
           "hint": "a causeway of bodies",
           "to": "causeway"
         }
@@ -976,7 +976,7 @@
     },
     {
       "id": "causeway",
-      "at": [6, 12],
+      "at": [1, 9],
       "name": "The causeway",
       "text": "A raised road across the water, built from something that gives a little underfoot. Don't think about it.",
       "threat": 26,
@@ -997,12 +997,12 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "east",
           "hint": "the gate",
           "to": "gate"
         },
         {
-          "dir": "south",
+          "dir": "west",
           "hint": "racks of lights",
           "to": "racks"
         }
@@ -1010,7 +1010,7 @@
     },
     {
       "id": "racks",
-      "at": [6, 13],
+      "at": [0, 9],
       "name": "The racks",
       "text": "Racks of small lights in the dark, one for every body that ever passed the checkpoint. A few of them are flickering in time with you.",
       "threat": 28,
@@ -1031,7 +1031,7 @@
       ],
       "exits": [
         {
-          "dir": "north",
+          "dir": "east",
           "hint": "the causeway",
           "to": "causeway"
         },
@@ -1046,7 +1046,7 @@
     },
     {
       "id": "registry",
-      "at": [6, 14],
+      "at": [0, 10],
       "name": "The registry",
       "text": "The light at the end of the channel, where every copy is kept. Something sits at the centre of it with your shape on its screens.",
       "threat": 30,

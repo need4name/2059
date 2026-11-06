@@ -14,7 +14,7 @@
   "rooms": [
     {
       "id": "dock",
-      "at": [1, 0],
+      "at": [0, 0],
       "name": "The body dock",
       "text": "Bodies hang in racks under a tarp, tagged at the ankle and swaying with the sea. One of them is looking out through your eyes.",
       "market": true,
@@ -28,7 +28,7 @@
     },
     {
       "id": "deck",
-      "at": [1, 1],
+      "at": [0, 1],
       "name": "Bleached deck",
       "threat": 1,
       "text": "Crate plates lashed edge to edge, sun-white and sticky with salt. Someone has scratched tally marks into every one.",
@@ -67,7 +67,7 @@
     },
     {
       "id": "bottles",
-      "at": [2, 1],
+      "at": [1, 1],
       "name": "Bottle field",
       "threat": 2,
       "text": "Ten thousand bottles netted into a floor that shifts under every step. Some still have messages in them.",
@@ -81,7 +81,7 @@
           "to": "deck"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "a hull, and pumps thumping",
           "to": "hull"
         }
@@ -101,7 +101,7 @@
     },
     {
       "id": "walkway",
-      "at": [1, 2],
+      "at": [0, 2],
       "name": "Rope walkway",
       "threat": 3,
       "text": "A walkway of drums and rope over open water. The ropes are newer than anything else here.",
@@ -117,7 +117,7 @@
           "to": "stall"
         },
         {
-          "dir": "west",
+          "dir": "east",
           "hint": "tarp shacks, a dog barking",
           "to": "shacks"
         }
@@ -142,7 +142,7 @@
     },
     {
       "id": "shacks",
-      "at": [0, 2],
+      "at": [1, 2],
       "name": "Tarp shacks",
       "threat": 3,
       "text": "Shacks of blue tarp and bottle walls, doors tied shut from the outside. A pot is still warm on a stove.",
@@ -151,7 +151,7 @@
       },
       "exits": [
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "the rope walkway",
           "to": "walkway"
         },
@@ -179,7 +179,7 @@
     {
       "id": "stall",
       "server": "Under the counter, a server lashed to a pallet, warm to the touch. One side carries a shipping firm's contract tag; the other, a fist sprayed in tar.",
-      "at": [1, 3],
+      "at": [0, 4],
       "name": "Grey Lane stall",
       "text": "A lantern-lit stall selling parts from a cool box, no questions asked. The seller doesn't look up when you arrive.",
       "market": true,
@@ -190,7 +190,7 @@
           "to": "walkway"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "scales clanking, men shouting weights",
           "to": "weigh"
         }
@@ -198,13 +198,13 @@
     },
     {
       "id": "hull",
-      "at": [2, 2],
+      "at": [2, 1],
       "name": "Pump-fleet hull",
       "threat": 3,
       "text": "The upturned hull of a fishing boat, its belly painted with a woman's face. Pumps beat inside it like a slow heart.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the bottle field",
           "to": "bottles"
         },
@@ -231,7 +231,7 @@
     },
     {
       "id": "bilge",
-      "at": [0, 3],
+      "at": [1, 3],
       "name": "The bilge",
       "threat": 4,
       "text": "Knee-deep runoff under the raft, glowing faintly green. Something has been dragged through it recently.",
@@ -303,13 +303,13 @@
     },
     {
       "id": "weigh",
-      "at": [1, 4],
+      "at": [2, 4],
       "name": "Cartel weigh-station",
       "threat": 5,
       "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the stall's lanterns",
           "to": "stall"
         },
@@ -341,7 +341,7 @@
     },
     {
       "id": "lanes",
-      "at": [1, 5],
+      "at": [2, 5],
       "name": "Floating lanes",
       "threat": 6,
       "text": "Canals between rafts, crowded with boats made of fridges and doors. Everyone moves aside for you, then stares.",
@@ -352,13 +352,13 @@
           "to": "weigh"
         },
         {
-          "dir": "west",
-          "label": "A gangway, west",
+          "dir": "east",
+          "label": "A gangway, east",
           "hint": "a white barge, very clean",
           "to": "barge"
         },
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "humming, and the smell of ozone",
           "to": "cables"
         },
@@ -389,7 +389,7 @@
     },
     {
       "id": "barge",
-      "at": [0, 5],
+      "at": [3, 5],
       "name": "Surgery barge",
       "threat": 7,
       "text": "A white barge, scrubbed clean, with a row of steel slabs under bright lamps. It is the only quiet place on the water.",
@@ -399,7 +399,7 @@
       },
       "exits": [
         {
-          "dir": "east",
+          "dir": "west",
           "hint": "the lanes",
           "to": "lanes"
         }
@@ -419,13 +419,13 @@
     },
     {
       "id": "cables",
-      "at": [2, 5],
+      "at": [1, 5],
       "name": "Cable garden",
       "threat": 7,
       "text": "Stolen power lines strung overhead like vines, sparking where they touch the water. Lights burn here day and night.",
       "exits": [
         {
-          "dir": "west",
+          "dir": "east",
           "hint": "the lanes",
           "to": "lanes"
         },
@@ -453,7 +453,7 @@
     },
     {
       "id": "nets",
-      "at": [1, 7],
+      "at": [2, 6],
       "name": "Net lofts",
       "threat": 8,
       "text": "Nets hung in layers like curtains, heavy with plastic and the odd bone. Floats knock together in the wind.",
@@ -489,7 +489,7 @@
     },
     {
       "id": "generator",
-      "at": [2, 6],
+      "at": [1, 7],
       "name": "Generator raft",
       "threat": 8,
       "text": "A ship's engine bolted to a raft, feeding half the archipelago. The people tending it are deaf, or have stopped listening.",
@@ -521,7 +521,7 @@
     },
     {
       "id": "approach",
-      "at": [1, 6],
+      "at": [2, 7],
       "name": "Throne steps",
       "threat": 9,
       "text": "Steps built of welded junk, climbing to a chair made of other people's parts. Offerings rot at the bottom.",
@@ -563,7 +563,7 @@
     },
     {
       "id": "throne",
-      "at": [3, 6],
+      "at": [3, 7],
       "name": "The patchwork throne",
       "threat": 10,
       "text": "A throne of limbs and casings, and something sitting in it that wears a crown of grafts. It has been expecting a visitor.",
@@ -575,7 +575,7 @@
           "to": "approach"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "label": "Behind the throne",
           "hint": "a drowned port",
           "to": "port"
@@ -597,13 +597,13 @@
     },
     {
       "id": "port",
-      "at": [3, 7],
+      "at": [4, 7],
       "name": "Drowned port",
       "threat": 11,
       "text": "A container port that sank to its knees, cranes standing up out of the sea. The containers have been turned into streets.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the throne",
           "to": "throne"
         },
@@ -613,7 +613,7 @@
           "to": "cranes"
         },
         {
-          "dir": "west",
+          "dir": "north",
           "hint": "container streets",
           "to": "containers"
         },
@@ -644,13 +644,13 @@
     },
     {
       "id": "containers",
-      "at": [2, 7],
+      "at": [4, 6],
       "name": "Container streets",
       "threat": 12,
       "text": "Rusting boxes stacked into alleys, each painted with a family's name. Most of the names are crossed out.",
       "exits": [
         {
-          "dir": "east",
+          "dir": "south",
           "hint": "the port",
           "to": "port"
         },
@@ -679,7 +679,7 @@
     },
     {
       "id": "hold",
-      "at": [2, 8],
+      "at": [5, 6],
       "name": "Cold hold",
       "threat": 13,
       "text": "A refrigerated container still running, its shelves lined with sealed bags. Each bag is labelled with a weight and a price.",
@@ -712,7 +712,7 @@
     },
     {
       "id": "cranes",
-      "at": [4, 7],
+      "at": [5, 7],
       "name": "Crane yard",
       "threat": 12,
       "text": "Cranes swinging loads over the water with nobody in the cabs. The hooks know where to go.",
@@ -748,7 +748,7 @@
     },
     {
       "id": "yard",
-      "at": [4, 8],
+      "at": [5, 8],
       "name": "Cargo yard",
       "threat": 13,
       "text": "Pallets wrapped in plastic, stacked three storeys high and stamped with inspection seals. The seals are newer than the cargo.",
@@ -784,7 +784,7 @@
     },
     {
       "id": "gantry",
-      "at": [3, 9],
+      "at": [4, 9],
       "name": "IOA gantry",
       "threat": 14,
       "text": "A steel walkway over the port with an authority flag snapping at one end. Below, everyone is queuing to be counted.",
@@ -828,7 +828,7 @@
     },
     {
       "id": "archive",
-      "at": [3, 8],
+      "at": [3, 9],
       "name": "Manifest archive",
       "threat": 17,
       "text": "An office stacked with paper manifests, because paper can't be wiped remotely. A fan turns the pages back and forth.",
@@ -857,7 +857,7 @@
     },
     {
       "id": "checkpoint",
-      "at": [4, 9],
+      "at": [5, 9],
       "name": "IOA checkpoint",
       "threat": 15,
       "text": "A gate of shipping containers with a scanner arch and an officer behind glass. The arch beeps at you before you reach it.",
@@ -897,7 +897,7 @@
     },
     {
       "id": "road",
-      "at": [4, 10],
+      "at": [5, 10],
       "name": "Slag road",
       "threat": 16,
       "text": "A causeway of furnace slag, still warm underfoot, leading into smoke. Barefoot workers walk it without flinching.",
@@ -937,7 +937,7 @@
     {
       "id": "stall2",
       "server": "A server in a rain cover, cabled up the canopy pole. Its screen scrolls two lists side by side: invoices, and names.",
-      "at": [5, 10],
+      "at": [6, 10],
       "name": "Canopy stall",
       "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.",
       "market": true,
@@ -951,7 +951,7 @@
     },
     {
       "id": "smelt",
-      "at": [4, 11],
+      "at": [5, 11],
       "name": "Smelting barge",
       "threat": 18,
       "text": "Plastic melted down in vats and poured into new decking for the rafts. The air tastes of it for days after.",
@@ -984,7 +984,7 @@
     },
     {
       "id": "foundry",
-      "at": [4, 12],
+      "at": [5, 12],
       "name": "Volkov foundry",
       "threat": 20,
       "text": "A foundry where operator limbs are fitted to whoever can pay, or whoever is owed. The fitting chairs face the sea.",
@@ -1017,7 +1017,7 @@
     },
     {
       "id": "reef",
-      "at": [4, 13],
+      "at": [5, 13],
       "name": "Plastic reef",
       "threat": 21,
       "text": "A reef grown from drowned plastic, coral-coloured and sharp. Fish nest in old shoes.",
@@ -1033,7 +1033,7 @@
           "to": "path"
         },
         {
-          "dir": "east",
+          "dir": "south",
           "hint": "a white pontoon",
           "to": "theatrepath"
         }
@@ -1058,7 +1058,7 @@
     },
     {
       "id": "path",
-      "at": [3, 13],
+      "at": [4, 13],
       "name": "Hymn walk",
       "threat": 23,
       "text": "A path lined with pumps set into posts, each one beating at the same slow pace. Someone ahead is singing to them.",
@@ -1069,7 +1069,7 @@
           "to": "reef"
         },
         {
-          "dir": "south",
+          "dir": "west",
           "hint": "a chapel",
           "to": "chapel"
         }
@@ -1091,7 +1091,7 @@
     },
     {
       "id": "chapel",
-      "at": [3, 14],
+      "at": [3, 13],
       "name": "The Mother's chapel",
       "threat": 24,
       "text": "A chapel built inside a whale's ribcage, with a woman at the centre whose heart is a pump the size of a drum. Every pump in the fleet beats in time with hers.",
@@ -1101,7 +1101,7 @@
       },
       "exits": [
         {
-          "dir": "north",
+          "dir": "east",
           "hint": "the hymn walk",
           "to": "path"
         }
@@ -1123,18 +1123,18 @@
     },
     {
       "id": "theatrepath",
-      "at": [5, 13],
+      "at": [5, 14],
       "name": "Clinic pontoon",
       "threat": 22,
       "text": "A pontoon of clean white decking with a queue of people waiting in silence. Nobody in the queue has any eyes.",
       "exits": [
         {
-          "dir": "west",
+          "dir": "north",
           "hint": "the reef",
           "to": "reef"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "an operating theatre",
           "to": "theatre"
         }
@@ -1158,18 +1158,18 @@
     },
     {
       "id": "theatre",
-      "at": [5, 14],
+      "at": [6, 14],
       "name": "CBN theatre",
       "threat": 25,
       "text": "An operating theatre with a gallery of seats, all filled. They applaud when the surgeon looks up.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the pontoon",
           "to": "theatrepath"
         },
         {
-          "dir": "south",
+          "dir": "east",
           "hint": "drifting debris",
           "to": "drift"
         }
@@ -1189,18 +1189,18 @@
     },
     {
       "id": "drift",
-      "at": [5, 15],
+      "at": [7, 14],
       "name": "The drift",
       "threat": 26,
       "text": "The rafts thin out into loose debris, roped together by nobody. The water here is very deep and very still.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "west",
           "hint": "the theatre",
           "to": "theatre"
         },
         {
-          "dir": "south",
+          "dir": "north",
           "hint": "a wake, where something passed",
           "to": "wake"
         }
@@ -1223,13 +1223,13 @@
     },
     {
       "id": "wake",
-      "at": [5, 16],
+      "at": [7, 13],
       "name": "The wake",
       "threat": 28,
       "text": "A long scar across the water where something huge went down. The debris all points the same way.",
       "exits": [
         {
-          "dir": "north",
+          "dir": "south",
           "hint": "the drift",
           "to": "drift"
         },
@@ -1261,7 +1261,7 @@
     },
     {
       "id": "spire",
-      "at": [5, 17],
+      "at": [7, 12],
       "name": "The drowned spire",
       "threat": 30,
       "text": "A tower standing under the sea with its top just breaking the surface, lit from inside. Whatever is down there has been listening for you.",

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMap } from '@/lib/stores/useMap';
-import { mapView, type MapRoom, type RoomMark } from '@/lib/engine/map';
+import { mapView, mapOf, roomHeights, type MapRoom, type RoomMark } from '@/lib/engine/map';
+import type { GlyphName } from '../hud';
 import { useAllies } from '@/lib/stores/useAllies';
 import { allyDef } from '@/lib/combat/allies';
 
@@ -19,6 +20,24 @@ const SIDE = 13;      // a room's top, on the ground, before the turn and squash
 const TW = 14, TH = 9; // roughly how wide and deep a room's top shows (for the camera and culling)
 const ZH = 5;         // map pixels per level of height
 const BASE = 3;       // how thick a block at the lowest level is
+
+/**
+ * Which way the hall from one room to another runs on the drawn map, as one of eight pixel
+ * arrows (`flip`: mirror it for the west-facing ones). The exits list shows it so each way on
+ * matches a hall on the map, whatever the exit is called.
+ */
+export function wayArrow(chapter: string, from: string, to: string): { glyph: GlyphName; flip: boolean } | null {
+  const m = mapOf(chapter), a = m.rooms.find(r => r.id === from), b = m.rooms.find(r => r.id === to);
+  if (!a || !b) return null;
+  const z = roomHeights(m), gx = b.at[0] - a.at[0], gy = b.at[1] - a.at[1];
+  const x = (gx * Math.cos(TILT) - gy * Math.sin(TILT)) * STEP;
+  const y = (gx * Math.sin(TILT) + gy * Math.cos(TILT)) * STEP * SQUASH - ((z[to] ?? 0) - (z[from] ?? 0)) * ZH;
+  const sector = (Math.round(Math.atan2(-y, x) / (Math.PI / 4)) + 8) % 8; // 0 east, 2 north, 4 west, 6 south
+  return ([
+    { glyph: 'way_e', flip: false }, { glyph: 'way_ne', flip: false }, { glyph: 'way_n', flip: false }, { glyph: 'way_ne', flip: true },
+    { glyph: 'way_e', flip: true }, { glyph: 'way_se', flip: true }, { glyph: 'way_s', flip: false }, { glyph: 'way_se', flip: false },
+  ] as const)[sector];
+}
 const C = {
   ground: '#070b10', dot: '#121c26',
   edge: '#03060a', room: '#263646', lit: '#3d566c', shade: '#18232f',
@@ -284,6 +303,13 @@ export function SignalMap() {
       v.addColorStop(1, 'rgba(6,10,15,0.85)');
       ctx.fillStyle = v;
       ctx.fillRect(0, 0, w, h);
+
+      // Which way north is (the grid is turned): a short needle and an N in the corner
+      const nx = 9, ny = 14, tip = proj(0, -0.42);
+      line({ x: nx, y: ny }, { x: nx + tip.x, y: ny + tip.y }, '#6f869b');
+      px(Math.round(nx + tip.x), Math.round(ny + tip.y), '#cfe3ef');
+      const lx = Math.round(nx + tip.x) + 3, ly = Math.round(ny + tip.y) - 3;
+      ['x...x', 'xx..x', 'x.x.x', 'x..xx', 'x...x'].forEach((row, j) => row.split('').forEach((ch, i) => { if (ch === 'x') px(lx + i, ly + j, '#cfe3ef'); }));
     };
     raf = requestAnimationFrame(paint);
     return () => cancelAnimationFrame(raf);

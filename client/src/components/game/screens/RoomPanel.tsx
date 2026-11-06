@@ -17,7 +17,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { allyDef } from '@/lib/combat/allies';
 import { getBossPreview, BOSS_DOSSIERS } from '@/lib/combat/actions';
 import { Glyph, Label, cx } from '../hud';
-import { SignalMap } from './SignalMap';
+import { SignalMap, wayArrow } from './SignalMap';
 
 /** The room the signal is standing in: what's here, and the ways on (SignalMap, at the top, draws where it is). */
 export function RoomPanel() {
@@ -166,10 +166,12 @@ export function RoomPanel() {
           {room.exits.map((e, i) => {
             const st = exitState(map, e);
             const familiar = map.visited.includes(e.to);
+            const way = wayArrow(map.chapter, room.id, e.to);
             return (
               <button key={`${e.dir}-${e.to}`} disabled={st !== 'open'} onClick={() => { setNews(null); map.go(i); useAudio.getState().play('door'); }}
                 className={cx('flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left',
                   st === 'open' ? 'key' : 'bg-white/[0.02] opacity-50')}>
+                {way && <Glyph name={way.glyph} flip={way.flip} size={16} className={cx('shrink-0', st === 'open' ? 'text-sys' : 'text-hud-faint')} />}
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="font-display text-[15px] font-semibold text-hud-text">{e.label ?? DIR_LABEL[e.dir] ?? e.dir}</span>
