@@ -170,7 +170,7 @@ function restIfHurt() {
       const room = MAP.roomById(e.to);
       if (MAP.hasFight(s, room)) return;
       seen.add(e.to); prev.set(e.to, { from: id, exit: k }); queue.push(e.to);
-      if (room.server) goal = e.to;
+      if (MAP.isServer(s, room)) goal = e.to;
     });
   }
   if (!goal) return;

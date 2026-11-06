@@ -170,6 +170,8 @@ description?: string;
 attackPattern?: AttackPatternType;
 /** Signature implants (one per boss or elite): never sold or dropped at random. */
 signature?: boolean;
+/** A boss signature that came off a boss at this threat: it sells for a little less than calling that boss back. */
+bossThreat?: number;
 /** Heads a signature implant can roll. */
 heads?: string[];
 /** Active implants: the head (attack shape) and mods (side effects) this one was built with. */

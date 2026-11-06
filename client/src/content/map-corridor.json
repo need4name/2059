@@ -255,7 +255,6 @@
     },
     {
       "id": "vending",
-      "server": "A server wedged inside a gutted machine, its lights blinking through the glass. One sticker says Contractor. Another says Not for sale.",
       "at": [0, 16],
       "name": "The night machine",
       "text": "A vending machine for the technicians who never come. It sells you parts and wishes you a good shift.",
@@ -337,9 +336,11 @@
     },
     {
       "id": "leadroom",
+      "server": "Under the one chair, a server, its lights blinking out of step with the building's. One label is a contract number; the other is a date that hasn't come yet.",
       "at": [1, 12],
       "name": "The lead's room",
       "text": "An empty room with one chair, facing the door. Whoever sits here has been waiting for you to come through it.",
+      "quiet": "The chair still faces the door, empty. You don't sit in it.",
       "threat": 10,
       "arena": [
         "...E...",
@@ -643,9 +644,11 @@
     },
     {
       "id": "office",
+      "server": "In the empty desk drawer, a server no bigger than a book, still warm. One sticker says Contractor. Another says Not for sale.",
       "at": [2, 4],
       "name": "The signatory's office",
       "text": "An office with nothing on the walls and nothing on the desk. Every rule in the building has the same name at the bottom.",
+      "quiet": "The office is as bare as it was, but the name is gone from the rules.",
       "threat": 20,
       "arena": [
         "...E...",
@@ -1017,11 +1020,6 @@
           "dir": "east",
           "hint": "the signatory's office",
           "to": "office"
-        },
-        {
-          "dir": "west",
-          "hint": "a warm closet of cables",
-          "to": "closet"
         }
       ]
     },
@@ -1084,20 +1082,6 @@
           "dir": "north",
           "hint": "the deep racks",
           "to": "deepracks"
-        }
-      ]
-    },
-    {
-      "id": "closet",
-      "server": "A server racked between the company's own, its lights blinking out of step with theirs. One label is a contract number; the other is a date that hasn't come yet.",
-      "at": [0, 4],
-      "name": "The patch closet",
-      "text": "A closet of patch panels, every cable labelled in two different hands. It's warmer in here than anywhere else in the building.",
-      "exits": [
-        {
-          "dir": "east",
-          "hint": "the listening room",
-          "to": "listening"
         }
       ]
     }

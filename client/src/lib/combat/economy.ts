@@ -21,8 +21,17 @@ export function buyPrice(item: Item): number {
   return Math.round(RARITY_PRICE[item.rarity] * (CONDITION_MULT[item.condition ?? 'pristine'] ?? 1));
 }
 
+/** Calling a beaten boss back costs about this many fights' worth of credits at its threat. */
+export const RECALL_FIGHTS = 3;
+/** Boss implants sell for this share of what calling their boss back costs: farming pays, but no better than fighting. */
+export const BOSS_SELL_SHARE = 0.9;
+/** Credits to call a beaten boss back (a fight at its threat pays 10 + 8 per threat, plus up to the same again). */
+export const recallCost = (threat: number) => Math.round(RECALL_FIGHTS * 1.5 * (10 + 8 * threat));
+
 export function sellPrice(item: Item): number {
-  return Math.max(5, Math.round(buyPrice(item) * SELL_RATE));
+  const base = Math.max(5, Math.round(buyPrice(item) * SELL_RATE));
+  // A boss's own implant: worth a little less than calling the boss back
+  return item.bossThreat ? Math.max(base, Math.round(recallCost(item.bossThreat) * BOSS_SELL_SHARE)) : base;
 }
 
 // Market stock: rarer goods appear as the threat level climbs

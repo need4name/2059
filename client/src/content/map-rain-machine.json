@@ -344,9 +344,11 @@
     },
     {
       "id": "platform",
+      "server": "Bolted under the rail, a server dripping condensation. A payroll on its screen, and under it, a queue of broadcasts waiting to go.",
       "at": [2, 15],
       "name": "The overseer's platform",
       "text": "A platform where the whole mountain can be seen and every worker on it heard. Someone stands at the rail tapping out a beat.",
+      "quiet": "Nobody stands at the rail now. The mountain is quieter for it.",
       "threat": 10,
       "arena": [
         "~~.E.~~",
@@ -410,7 +412,6 @@
     },
     {
       "id": "canteen",
-      "server": "A server bolted under the counter, dripping condensation. A payroll on its screen, and under it, a queue of broadcasts waiting to go.",
       "at": [1, 14],
       "name": "The canteen",
       "text": "A shipping container with a counter, a kettle and someone selling parts out of a cool box. The kettle never boils; the air's too thin.",
@@ -657,9 +658,11 @@
     },
     {
       "id": "stormtower",
+      "server": "In the lee of the tower, a server wrapped in a survival blanket, whining in the thin air. A signed works order hangs off it, and under that, a list of frequencies.",
       "at": [2, 7],
       "name": "The storm tower",
       "text": "A tower breathing cloud in and wind out, the crew fused into its crane arm. You are standing in its breath.",
+      "quiet": "The tower stands still, its crane arm hanging slack. The cloud has drifted off down the valley.",
       "threat": 20,
       "arena": [
         "...E...",
@@ -744,11 +747,6 @@
           "dir": "up",
           "hint": "the drone roost",
           "to": "roost"
-        },
-        {
-          "dir": "west",
-          "hint": "a tin lean-to, roped down",
-          "to": "leanto"
         }
       ]
     },
@@ -901,20 +899,6 @@
           "dir": "down",
           "hint": "the uplink",
           "to": "uplink"
-        }
-      ]
-    },
-    {
-      "id": "leanto",
-      "server": "A server under the cot, wrapped in a survival blanket and whining in the thin air. A signed works order hangs off it, and under that, a list of frequencies.",
-      "at": [1, 5],
-      "name": "The lean-to",
-      "text": "A tin lean-to under the antennas, roped down against the wind. Someone sleeps here between shifts and folds the blanket after.",
-      "exits": [
-        {
-          "dir": "east",
-          "hint": "the antenna field",
-          "to": "antennafield"
         }
       ]
     }

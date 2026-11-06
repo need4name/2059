@@ -178,7 +178,6 @@
     },
     {
       "id": "stall",
-      "server": "Under the counter, a server lashed to a pallet, warm to the touch. One side carries a shipping firm's contract tag; the other, a fist sprayed in tar.",
       "at": [0, 4],
       "name": "Grey Lane stall",
       "text": "A lantern-lit stall selling parts from a cool box, no questions asked. The seller doesn't look up when you arrive.",
@@ -564,10 +563,12 @@
     },
     {
       "id": "throne",
+      "server": "Behind the throne, wired into its limbs, a server still warm to the touch. One side carries a shipping firm's contract tag; the other, a fist sprayed in tar.",
       "at": [3, 7],
       "name": "The patchwork throne",
       "threat": 10,
       "text": "A throne of limbs and casings, and something sitting in it that wears a crown of grafts. It has been expecting a visitor.",
+      "quiet": "An empty throne of limbs and casings, the crown gone from it. The grafts still twitch when you pass.",
       "exits": [
         {
           "dir": "down",
@@ -936,7 +937,6 @@
     },
     {
       "id": "stall2",
-      "server": "A server in a rain cover, cabled up the canopy pole. Its screen scrolls two lists side by side: invoices, and names.",
       "at": [6, 10],
       "name": "Canopy stall",
       "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.",
@@ -984,10 +984,12 @@
     },
     {
       "id": "foundry",
+      "server": "A server hung off a fitting chair, its cable run up into the crane. Its screen scrolls two lists side by side: invoices, and names.",
       "at": [5, 12],
       "name": "Volkov foundry",
       "threat": 20,
       "text": "A foundry where operator limbs are fitted to whoever can pay, or whoever is owed. The fitting chairs face the sea.",
+      "quiet": "The fitting chairs face an empty floor now. The crane hangs still over the place he stood.",
       "exits": [
         {
           "dir": "north",

@@ -11,6 +11,7 @@ import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
 import { eventHere, cantChoose, partToGive } from '@/lib/engine/events';
 import { powerOf } from '@/lib/combat/augments';
+import { recallCost } from '@/lib/combat/economy';
 import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
@@ -108,6 +109,17 @@ export function RoomPanel() {
               </div>
             </div>
           )}
+          {room.threat !== undefined && (() => {
+            // The beaten boss can be called back, for a price, to fight again for its drop
+            const cost = recallCost(room.threat);
+            const who = getBossPreview(room.threat, false, room.enemy).name;
+            return (
+              <button disabled={inv.gold < cost} onClick={() => { if (useInventory.getState().spendGold(cost)) { useMap.getState().recall(); setNews(null); useAudio.getState().play('door'); } }}
+                className={cx(pill, 'key-danger text-rose-300', inv.gold < cost && 'opacity-50')}>
+                Call {who} back · ¤{cost}
+              </button>
+            );
+          })()}
           {!resting ? <button onClick={() => setResting(true)} className={pill}><Glyph name="signal" size={14} className="text-[#5cf2b0]" />Rest</button>
             : (
               <div className="flex flex-wrap items-center gap-2">

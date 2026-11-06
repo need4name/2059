@@ -344,7 +344,8 @@ export function checkContent(): string[] {
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
-      if (r.threat !== undefined && r.server) problems.push(`map ${r.id}: a server room can't hold a fight (a host could wake into it)`);
+      if (r.server && (r.threat === undefined || r.threat % 10 !== 0 || r.id === m.end)) problems.push(`map ${r.id}: a server belongs in a boss room (threat 10 or 20; it wakes once the boss is beaten), not the chapter's end`);
+      if (r.server && !r.quiet) problems.push(`map ${r.id}: a boss room with a server needs quiet text for once the boss is beaten`);
       if (r.threat !== undefined) problems.push(...arenaProblems(r.id, r.arena));
       else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);

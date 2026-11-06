@@ -397,9 +397,12 @@ const level = farmLevel ?? bossLevel;
 const isKing = level === 10 && farmLevel === null && activeChapter().cast.setPiece === 'Patchwork King';
 const firstRun = get().progression.deathCount === 0 && farmLevel === null;
 const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun);
-const direct = loot.items;
+// A boss's own implant is marked with its threat: it sells for a little less than calling the boss back
+const bossRoom = farmLevel === null && !!roomById(useMap.getState().room).server;
+const mark = (it: Item) => (bossRoom && it.signature ? { ...it, bossThreat: level } : it);
+const direct = loot.items.map(mark);
 // Strip the bodies: every beaten enemy's implants, to choose from (two picks with Pick of the wreck)
-const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: f.unit.carried ?? [] })).filter(b => b.items.length);
+const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: (f.unit.carried ?? []).map(mark) })).filter(b => b.items.length);
 const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + strainPicks(useStrain.getState().active), taken: [] } : null;
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());

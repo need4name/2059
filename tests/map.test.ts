@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { sellPrice, recallCost } from '../client/src/lib/combat/economy';
 import * as M from '../client/src/lib/engine/map';
 
 const exitTo = (s: M.MapState, to: string) => M.roomById(s.room).exits.findIndex(e => e.to === to);
@@ -241,28 +242,36 @@ const pathTo = (target: string) => {
   return out;
 };
 
-test('reaching a server lets later hosts wake there; resting brings this host\'s fights back', () => {
+test('a beaten boss stays down, its room becomes a server, and it can be called back', () => {
   const server = M.chapterMap().rooms.find(r => r.server)!;
-  assert.ok(server && server.threat === undefined, 'a server stands in a quiet room');
-  const s = walk(M.newMapState(), ...pathTo(server.id));
-  assert.deepEqual(s.lit, [server.id], 'walking in reaches it');
+  assert.ok(server.threat! % 10 === 0, 'servers sit in boss rooms');
+  // Walk to the boss and beat it
+  let s = walk(M.newMapState(), ...pathTo(server.id));
+  assert.equal(s.room, server.id);
+  assert.deepEqual(s.beaten, [server.id], 'beating it keeps it down');
   assert.deepEqual(M.wakePlaces(s), [M.chapterMap().entry, server.id]);
   assert.equal(M.roomMark(s, server), 'server');
-  // Resting: every won fight comes back, the host stays put, caches and events stay used
-  assert.ok(s.cleared.length > 0);
-  const rested = M.rest({ ...s, taken: ['x'], spent: ['y'] });
+  // A new host finds every other fight full again, but the boss still down
+  const next = M.newHost(s);
+  assert.ok(!M.hasFight(next, server), 'the boss stays dead for later hosts');
+  assert.equal(M.newHost(s, null, server.id).room, server.id, 'a new host can wake at it');
+  // Resting: heal, this host's won fights come back, the boss doesn't; caches and events stay used
+  const rested = M.rest({ ...s, taken: ['x'], spent: ['y'], hurt: 40 });
   assert.deepEqual(rested.cleared, []);
-  assert.equal(rested.room, server.id);
+  assert.equal(rested.hurt, 0);
+  assert.ok(!M.hasFight(rested, server));
   assert.deepEqual([rested.taken, rested.spent], [['x'], ['y']]);
-  // Can't rest somewhere without a server
+  // Calling it back: the fight is on for this host; winning again keeps it beaten
+  const called = M.recall(s);
+  assert.ok(M.hasFight(called, server));
+  assert.ok(!M.hasFight(M.newHost(called), server), 'a call-back only lasts for that host');
+  const won = M.clearRoom(called);
+  assert.ok(!M.hasFight(won, server));
+  assert.deepEqual(won.beaten, [server.id]);
+  // No waking at a boss nobody has beaten, and no resting anywhere else
+  assert.equal(M.newHost(M.newMapState(), null, server.id).room, M.chapterMap().entry);
   const elsewhere = { ...s, room: M.chapterMap().entry };
   assert.equal(M.rest(elsewhere), elsewhere);
-  // A new host can wake at it (and it stays reached), but not in a room nobody reached
-  const woke = M.newHost(s, null, server.id);
-  assert.equal(woke.room, server.id);
-  assert.deepEqual(woke.lit, [server.id]);
-  assert.equal(M.newHost(s, null, 'deck').room, M.chapterMap().entry);
-  assert.equal(M.newHost(M.newMapState(), null, server.id).room, M.chapterMap().entry);
 });
 
 test('health carries between fights: a win gives some back, resting and a new host heal it all', () => {
@@ -275,4 +284,11 @@ test('health carries between fights: a win gives some back, resting and a new ho
   assert.equal(M.healthNow({ ...s, hurt: 500 }, max), 1, 'a host never starts a fight dead');
   assert.equal(M.rest(s).hurt, 0);
   assert.equal(M.newHost(s).hurt, 0);
+});
+
+test('a boss implant sells for a little less than calling its boss back', () => {
+  const crown = { id: 'c', name: 'Crown', type: 'augmentation', rarity: 'legendary', signature: true } as any;
+  assert.ok(sellPrice({ ...crown, bossThreat: 10 }) < recallCost(10));
+  assert.ok(sellPrice({ ...crown, bossThreat: 10 }) >= recallCost(10) * 0.85);
+  assert.ok(sellPrice(crown) < sellPrice({ ...crown, bossThreat: 10 }), 'only a boss-dropped one is worth that');
 });

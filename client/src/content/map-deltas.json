@@ -207,7 +207,6 @@
     },
     {
       "id": "lantern",
-      "server": "A server sealed in a cool box under the lanterns, humming. Someone has scratched a tally of jobs into the lid and crossed half of them out.",
       "at": [3, 1],
       "name": "Lantern barge",
       "text": "A barge hung with lanterns where someone sells parts out of a cold box. They take your money without looking at your face.",
@@ -409,9 +408,11 @@
     },
     {
       "id": "stillwater",
+      "server": "At the far side of the pool, a server sealed in a cool box, humming. Someone has scratched a tally of jobs into the lid and crossed half of them out.",
       "at": [2, 4],
       "name": "Stillwater",
       "text": "A pool so calm it is a mirror, in the middle of the moving river. Something is standing at the far side, already looking at you.",
+      "quiet": "The pool is a mirror again, and nothing stands on the far side. Your reflection takes a moment to follow you.",
       "threat": 10,
       "look": {
         "text": "Your reflection is a moment late. When it catches up, it's smiling.",
@@ -757,9 +758,11 @@
     },
     {
       "id": "vessel",
+      "server": "Up in the ship's ribs, above the waterline, a server still drawing power. A security firm's crest on the casing, and over it, a painted fist.",
       "at": [5, 7],
       "name": "The living ship",
       "text": "A ship in a dock too small for it, its hull rising and falling as if it's breathing. The gangplank is down.",
+      "quiet": "The ship lies still in its dock, its breathing stopped. The gangplank is still down.",
       "threat": 20,
       "arena": [
         "...E...",
@@ -831,7 +834,6 @@
     },
     {
       "id": "clinic",
-      "server": "A server propped on a gurney above the waterline, still drawing power. A security firm's crest on the casing, and over it, a painted fist.",
       "at": [6, 8],
       "name": "The drowned clinic",
       "text": "A clinic on stilts, its beds still made, its trays still laid. Someone has been working here recently, on someone.",

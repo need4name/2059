@@ -12,7 +12,7 @@ import { activeChapter, chapterById } from '../combat/chapters';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
 export interface Look { text: string; goal?: string }
-export interface Room { id: string; /** Where the room is drawn on the map (grid cell). */ at: [number, number]; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; /** A server stands here (what you see of it): reaching it lets later hosts wake here, and a host can rest at it. */ server?: string; /** A room event (content/events.json), there once the fight is won. */ event?: string; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
+export interface Room { id: string; /** Where the room is drawn on the map (grid cell). */ at: [number, number]; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; /** A boss's room: once the boss is beaten it stays down for every host, and this server (what you see of it) wakes up: later hosts can wake here, a host can rest, and the boss can be called back. */ server?: string; /** A room event (content/events.json), there once the fight is won. */ event?: string; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
 /** A choice at the end of the last chapter, and what it leads to. */
 export interface Ending { choice: string; text: string }
 export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; endTitle?: string; endings?: Ending[]; goals: string[]; rooms: Room[] }
@@ -57,19 +57,27 @@ export interface MapState {
   hurt?: number;
   /** Server rooms any host has reached: a new host can wake in one (kept across hosts). */
   lit?: string[];
+  /** Boss rooms beaten (kept across hosts): the boss stays down unless called back. */
+  beaten?: string[];
+  /** Beaten bosses this host has called back to fight again. */
+  recalled?: string[];
 }
 
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, lit: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, lit: [], beaten: [], recalled: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
 export const hasFight = (s: MapState, room = roomById(s.room)) =>
-  room.threat !== undefined && !s.cleared.includes(room.id) && !(s.done && room.id === mapOf(s.chapter).end);
-/** What the room says: the end room reads differently once the chapter is done. */
-export const roomText = (s: MapState, room = roomById(s.room)) => (s.done && room.quiet ? room.quiet : room.text);
+  room.threat !== undefined && !s.cleared.includes(room.id) && !(s.done && room.id === mapOf(s.chapter).end)
+  && !((s.beaten ?? []).includes(room.id) && !(s.recalled ?? []).includes(room.id));
+/** A beaten boss's room, its server awake. */
+export const isServer = (s: MapState, room = roomById(s.room)) => !!room.server && (s.beaten ?? []).includes(room.id);
+/** What the room says: the end room once the chapter is done, and a boss's room once it's beaten (and not called back), read differently. */
+export const roomText = (s: MapState, room = roomById(s.room)) =>
+  (room.quiet && ((s.done && room.id === mapOf(s.chapter).end) || (isServer(s, room) && !hasFight(s, room))) ? room.quiet : room.text);
 /** Is this the fight that ends the chapter? */
 export const isChapterEnd = (s: MapState) => s.room === mapOf(s.chapter).end && !s.done;
 export const finishChapter = (s: MapState): MapState => ({ ...s, done: true });
@@ -89,15 +97,21 @@ export function go(s: MapState, exitIndex: number): MapState {
   if (!exit || exitState(s, exit) !== 'open') return s;
   const lit = s.lit ?? [];
   return { ...s, room: exit.to, cameFrom: room.id, visited: s.visited.includes(exit.to) ? s.visited : [...s.visited, exit.to],
-    lit: roomById(exit.to).server && !lit.includes(exit.to) ? [...lit, exit.to] : lit };
+    lit: isServer(s, roomById(exit.to)) && !lit.includes(exit.to) ? [...lit, exit.to] : lit };
 }
 
 /** Rooms a new host can wake in: the chapter's entry, then every server reached, in the order found. */
-export const wakePlaces = (s: MapState): string[] => [mapOf(s.chapter).entry, ...(s.lit ?? []).filter(id => id !== mapOf(s.chapter).entry)];
+export const wakePlaces = (s: MapState): string[] => {
+  const m = mapOf(s.chapter);
+  return [m.entry, ...(s.lit ?? []).filter(id => id !== m.entry && m.rooms.some(r => r.id === id && r.server) && (s.beaten ?? []).includes(id))];
+};
 /** A server this host can rest at (in this room, and nothing here is fighting you). */
-export const canRest = (s: MapState, room = roomById(s.room)) => !!room.server && !hasFight(s, room);
-/** Rest at the server: every fight this host has won comes back. Caches and events stay used. */
-export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0 } : s);
+export const canRest = (s: MapState, room = roomById(s.room)) => isServer(s, room) && !hasFight(s, room);
+/** Rest at the server: you heal, and every fight this host has won comes back (beaten bosses stay down). Caches and events stay used. */
+export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [] } : s);
+/** Call the beaten boss here back for this host to fight again (for its drop). */
+export const recall = (s: MapState): MapState =>
+  (canRest(s) ? { ...s, recalled: [...(s.recalled ?? []), s.room], cleared: s.cleared.filter(id => id !== s.room) } : s);
 
 /** Share of max health a host gets back after winning a fight (catching its breath). */
 export const WIN_RECOVER = 0.3;
@@ -106,7 +120,13 @@ export const hurtAfterWin = (hp: number, max: number) => Math.max(0, max - hp - 
 /** The health a host starts its next fight on. */
 export const healthNow = (s: MapState, max: number) => Math.max(1, max - (s.hurt ?? 0));
 
-export const clearRoom = (s: MapState): MapState => (s.cleared.includes(s.room) ? s : { ...s, cleared: [...s.cleared, s.room] });
+export const clearRoom = (s: MapState): MapState => {
+  if (s.cleared.includes(s.room)) return s;
+  const next = { ...s, cleared: [...s.cleared, s.room] };
+  // A boss beaten for the first time stays down, and its server wakes (a place to wake, rest and call it back)
+  if (!roomById(s.room).server || (s.beaten ?? []).includes(s.room)) return next;
+  return { ...next, beaten: [...(s.beaten ?? []), s.room], lit: [...(s.lit ?? []).filter(id => id !== s.room), s.room] };
+};
 
 /** Look at the thing in the room. Returns the new state and whether it was a goal found just now. */
 export function look(s: MapState): { state: MapState; found: string | null } {
@@ -124,7 +144,7 @@ export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, tak
 
 /** A new host wakes at the entry (or a server reached before, `at`): fights refill, caches restock, memory and goals stay. */
 export const newHost = (s: MapState, left: Item | null = null, at?: string): MapState => ({
-  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0,
+  ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, recalled: [],
   fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
   corpse: left ? { room: s.room, item: left } : null,
 });
@@ -152,7 +172,7 @@ export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark 
   if (cacheReady(s, room)) return 'cache';
   if (room.event && !(s.spent ?? []).includes(room.id)) return 'event';
   if (room.look && !s.looked.includes(room.id)) return 'look';
-  if (room.server) return 'server';
+  if (isServer(s, room)) return 'server';
   if (room.market) return 'market';
   if (room.threat !== undefined) return 'cleared';
   return null;
