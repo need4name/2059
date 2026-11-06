@@ -9,6 +9,7 @@ import { useInventory as I } from '../client/src/lib/stores/useInventory';
 import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugmentTrees';
 import * as UP from '../client/src/lib/engine/upgrades';
 import { useFirmware as FW } from '../client/src/lib/stores/useFirmware';
+import { useRunStats } from '../client/src/lib/stores/useRunStats';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
@@ -251,6 +252,7 @@ console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
 console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
+if (process.env.STATS) { console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
 console.log(`runs that beat the last boss: ${chaptersDone} of ${runs.length}; stopped at the goals door: ${stuckAtDoor}`);
 
 // Agreed ranges (see the development plan). Bands with few fights are skipped.

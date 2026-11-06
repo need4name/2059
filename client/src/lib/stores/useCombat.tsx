@@ -37,6 +37,8 @@ import { powerOf } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
+import { useRunStats } from './useRunStats';
+import { tally, type Doer } from '../engine/runStats';
 import { firmwareXpFor, levelStep } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
@@ -260,6 +262,9 @@ level: 1, currentXp: 0, xpToNextLevel: getXpForLevel(2), deathCount: 0,
 export const useCombat = create<CombatState>()(
 subscribeWithSelector(persist((set, get) => {
 
+/** Who the next applied step belongs to, for the run's numbers (reset after each step). */
+let doer: Doer = { kind: 'other' };
+
 /** A fight whose first turn waits for its opening line to be dismissed. */
 let heldStart: { fightId: number; begin: () => void } | null = null;
 
@@ -319,7 +324,11 @@ foeDown: 'foeDown', allyDown: 'allyDown', extraAction: 'chain', playerDown: 'def
 // Apply an engine step: save its state, write its log lines, play its sounds.
 // Returns true if the fight ended (and handles the ending).
 const apply = (step: Step): boolean => {
+// The Self page's numbers: what changed, credited to whoever acted (engine/runStats.ts)
+const before = fightState();
 save(step.state);
+useRunStats.getState().add(tally(before, step.state, doer, step.events));
+doer = { kind: 'other' };
 for (const e of step.events) {
 if (e.kind === 'log') log(e.message, e.type);
 else if (e.kind === 'holdfast') set({ holdfastSpent: true });
@@ -376,7 +385,9 @@ if (chapterDone) { useMap.getState().finishChapter(); useStrain.getState().unloc
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ strip });
-useInventory.getState().addGold(strainCredits(loot.gold, useStrain.getState().active));
+const earned = strainCredits(loot.gold, useStrain.getState().active);
+useInventory.getState().addGold(earned);
+useRunStats.getState().add({ fightsWon: 1, credits: earned, ...(farmLevel === null && (level % 10 === 0) ? { bossesKilled: 1 } : farmLevel === null && level % 5 === 0 ? { elitesKilled: 1 } : {}) });
 const xp = getXpFromBoss(level);
 // Allies: the party learns from every win
 const allies = useAllies.getState();
@@ -484,13 +495,14 @@ const s = get();
 set({ actingFoe: i });
 const level = s.farmLevel ?? s.bossLevel;
 const step = Fight.foeTurn(fightState(), i, level);
+doer = { kind: 'foe' };
 if (apply(step)) return;
 const done = () => {
 if (apply(Fight.applyFoeHazard(fightState(), i))) return;
 later(nextActor, typeof Fight.forecast(fightState(), get().clock, 1, i)[0] !== 'number' ? TURN_HANDOFF_DELAY : FOE_GAP_DELAY);
 };
 // Enemies attack first, then walk
-if (step.walkAfter) later(() => { if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
+if (step.walkAfter) later(() => { doer = { kind: 'foe' }; if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
 else done();
 };
 
@@ -510,8 +522,9 @@ usePlayi.getState().rememberBody(AUGMENTATION_SLOTS.map(sl => useInventory.getSt
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
 useAugmentTrees.getState().resetTrees();
-// The strain the player picked takes hold for this host
+// The strain the player picked takes hold for this host; its numbers start from zero
 useStrain.getState().wake();
+useRunStats.getState().newHost();
 
 set({
 phase: 'menu',
@@ -804,6 +817,7 @@ const consumable = useInventory.getState().useConsumable(itemId);
 if (!consumable) return;
 
 const step = Fight.resolveConsumable(fightState(), consumable);
+useRunStats.getState().add({ stimsUsed: 1 });
 apply(step);
 set({ selectedAction: null, selectedMovement: null });
 // Overclock doesn't use up your turn; other stims do.
@@ -821,6 +835,7 @@ const action = selectedAction;
 
 if (action.type === 'brace' || action.type === 'defend') {
 set({ inputLocked: true, selectedAction: null });
+doer = { kind: 'player', move: action.name };
 apply(Fight.resolveBrace(fightState(), action));
 finishPlayerAction(false);
 return;
@@ -833,6 +848,7 @@ return;
 }
 set({ inputLocked: true, selectedAction: null });
 const step = Fight.resolvePlayerAttack(fightState(), action, playerClass, aim);
+doer = { kind: 'player', move: action.name };
 if (apply(step)) return;
 // Chain: a takedown gives you another action straight away
 if (step.events.some(e => e.kind === 'extraAction')) {
@@ -863,6 +879,8 @@ if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || !Fight.canSurge(
 // Scaled from the strongest move on your fight bar
 const best = Math.max(10, ...useLoadout.getState().slots.map(a => (a && a.type !== 'brace' ? a.damage ?? 0 : 0)));
 set({ inputLocked: true, selectedAction: null });
+useRunStats.getState().add({ surges: 1 });
+doer = { kind: 'player', move: 'Signal Surge' };
 if (apply(Fight.resolveSurge(fightState(), best))) return;
 finishPlayerAction(false);
 },
@@ -892,6 +910,7 @@ if (m?.effect === 'attack') log(`${get().allies[ally].unit.name}: out of range. 
 return;
 }
 set({ allyMoveMode: null, inputLocked: true });
+doer = { kind: 'ally' };
 if (apply(Fight.resolveAllyMove(fightState(), ally, move))) return;
 // Acting ends its turn
 later(endAllyTurn, ENEMY_STEP_DELAY);
@@ -922,6 +941,7 @@ if (!st || st.taken.length >= st.picks || st.taken.includes(itemId)) return;
 const item = st.bodies.flatMap(b => b.items).find(i => i.id === itemId);
 if (!item) return;
 useInventory.getState().addItems([item]);
+useRunStats.getState().add({ partsTaken: 1 });
 set({ strip: { ...st, taken: [...st.taken, itemId] } });
 useAudio.getState().play('cache');
 },
@@ -973,6 +993,7 @@ useJournal.getState().reset();
 useMap.getState().reset();
 useStrain.getState().reset();
 useFirmware.getState().reset();
+useRunStats.getState().reset();
 useAllies.getState().reset();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();

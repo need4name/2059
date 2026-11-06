@@ -7,11 +7,13 @@ import { blockedIn, closedIn, costIn, depthIn, effectIn, effectText, nodeIn, WIN
 import { useAudio } from '@/lib/stores/useAudio';
 import { CLASS_DEFINITIONS, createPlayer, getBossPreview } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
+import { useRunStats } from '@/lib/stores/useRunStats';
+import { favouriteMove } from '@/lib/engine/runStats';
 import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
-import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, RARITY_TEXT, cx, type GlyphName } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText, effectsText, nameOf } from '../itemText';
@@ -398,6 +400,65 @@ function FirmwarePanel() {
   );
 }
 
+/** What this host has done, or every host together: fights, kills, damage both ways, favourite move, allies. */
+function RunStatsPanel() {
+  const [which, setWhich] = useState<'host' | 'total'>('host');
+  const stats = useRunStats(st => st[which]);
+  const { progression, hostBestThreat } = useCombat();
+  const hasAllies = useAllies(st => st.met.length > 0);
+  const fav = favouriteMove(stats);
+  const n = (v: number) => v.toLocaleString();
+  const Row = ({ children }: { children: React.ReactNode }) => <div className="grid grid-cols-3 gap-x-4 gap-y-4">{children}</div>;
+  const Head = ({ children }: { children: React.ReactNode }) => <div className="pt-1 text-[11px] font-semibold text-hud-faint">{children}</div>;
+  return (
+    <Panel label={which === 'host' ? `Host ${progression.deathCount + 1}` : 'Every host'}>
+      <div className="space-y-3">
+        <Segmented value={which} onChange={setWhich} options={[{ id: 'host', label: 'This host' }, { id: 'total', label: 'All hosts' }]} />
+        <Row>
+          {which === 'host'
+            ? <><Stat label="Deepest" value={hostBestThreat} /><Stat label="Level" value={progression.level} /><Stat label="Fights won" value={n(stats.fightsWon)} /></>
+            : <><Stat label="Hosts lost" value={progression.deathCount} /><Stat label="Fights won" value={n(stats.fightsWon)} /><Stat label="Credits" value={n(stats.credits)} tone="text-cred" /></>}
+        </Row>
+        <Head>Kills</Head>
+        <Row>
+          <Stat label="Enemies" value={n(stats.enemiesKilled)} tone="text-hostile" />
+          <Stat label="Elites" value={n(stats.elitesKilled)} tone="text-hostile" />
+          <Stat label="Bosses" value={n(stats.bossesKilled)} tone="text-hostile" />
+        </Row>
+        <Head>Damage</Head>
+        <Row>
+          <Stat label="Dealt" value={n(stats.damageDealt)} />
+          <Stat label="Taken" value={n(stats.damageTaken)} />
+          <Stat label="Healed" value={n(stats.healed)} tone="text-ok" />
+          <Stat label="Biggest hit" value={n(stats.biggestHit)} />
+          <Stat label="Critical hits" value={n(stats.crits)} />
+          <Stat label="Surges" value={n(stats.surges)} />
+        </Row>
+        <div className="rounded-2xl bg-white/[0.04] px-3.5 py-3">
+          <div className="text-xs text-hud-dim">Favourite move</div>
+          {fav
+            ? <div className="mt-1 flex items-baseline justify-between gap-3"><span className="font-display text-[17px] font-semibold text-hud-text">{fav.name}</span><span className="shrink-0 text-xs text-hud-dim">{n(fav.uses)} uses · {n(fav.damage)} damage</span></div>
+            : <div className="mt-1 text-sm text-hud-faint">Nothing yet.</div>}
+        </div>
+        {hasAllies && <>
+          <Head>Allies</Head>
+          <Row>
+            <Stat label="Damage dealt" value={n(stats.allyDamageDealt)} />
+            <Stat label="Damage taken" value={n(stats.allyDamageTaken)} />
+            <span />
+          </Row>
+        </>}
+        <Head>Other</Head>
+        <Row>
+          <Stat label="Stims used" value={n(stats.stimsUsed)} />
+          <Stat label="Parts taken" value={n(stats.partsTaken)} />
+          {which === 'host' ? <Stat label="Credits" value={n(stats.credits)} tone="text-cred" /> : <span />}
+        </Row>
+      </div>
+    </Panel>
+  );
+}
+
 function StatusTab() {
   const { playerClass, resetAll, progression, bossLevel } = useCombat();
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
@@ -448,13 +509,7 @@ function StatusTab() {
         </Panel>
       )}
 
-      <Panel label="This run">
-        <div className="grid grid-cols-3 gap-4">
-          <Stat label="Threat" value={bossLevel} />
-          <Stat label="Level" value={progression.level} />
-          <Stat label="Hosts lost" value={progression.deathCount} />
-        </div>
-      </Panel>
+      <RunStatsPanel />
 
       <SavePanel />
 

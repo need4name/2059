@@ -9,11 +9,11 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
-export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain', '2059-firmware'] as const;
+export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-tutorial', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain', '2059-firmware', '2059-stats'] as const;
 
 export interface SaveFile {
   game: '2059';
@@ -89,6 +89,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
   9: (save) => save,
   // 10 -> 11: firmware grows over hosts and joins the save as its own part (older saves start it at level 1)
   10: (save) => save,
+  // 11 -> 12: the Self page's run numbers join the save as their own part (they start from zero)
+  11: (save) => save,
 };
 
 function storage(): Storage | null {
