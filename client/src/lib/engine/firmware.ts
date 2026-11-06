@@ -7,8 +7,8 @@
 import data from '../../content/firmware.json';
 import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
 
-export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects }
-interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[] }
+export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
+interface FirmwareDef { base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death at threat 11+). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
@@ -54,3 +54,22 @@ export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?:
     effects: Object.keys(effects).length ? effects : undefined,
   };
 }
+
+/** What a firmware does for its wearer besides the attack: extra speed, and acting twice ('cool': at 40 heat or less; 'always'). */
+export function firmwarePassives(cls: PlayerClass, level: number): { speed: number; twin: 'cool' | 'always' | null } {
+  const def = FIRMWARE[cls];
+  if (!def) return { speed: 0, twin: null };
+  let speed = def.speed ?? 0, twin: 'cool' | 'always' | null = null;
+  for (const step of def.levels.slice(0, Math.max(0, level - 1))) {
+    speed += step.speed ?? 0;
+    if (step.twin === 'always' || (step.twin === 'cool' && twin !== 'always')) twin = step.twin;
+  }
+  return { speed, twin };
+}
+/** The heat at or below which the wearer acts twice in a turn (100: every turn), or null. */
+export const TWIN_HEAT = { cool: 40, always: 100 };
+
+/** Firmware that opens by going deep (a won room fight at its `unlockAt` threat or deeper), in the order they open. */
+export const DEEP_FIRMWARE = (Object.entries(FIRMWARE) as [PlayerClass, FirmwareDef][]).filter(([, d]) => d.unlockAt !== undefined).sort((a, b) => a[1].unlockAt! - b[1].unlockAt!).map(([cls, d]) => ({ cls, at: d.unlockAt! }));
+/** Firmware a won room fight at this threat opens (that isn't open yet). */
+export const opensAt = (threat: number, open: PlayerClass[]) => DEEP_FIRMWARE.filter(f => threat >= f.at && !open.includes(f.cls)).map(f => f.cls);

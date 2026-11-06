@@ -42,3 +42,27 @@ test('no firmware keeps Strike', () => {
   assert.equal(basicAttack('none', 40, 10), PLAYER_ACTIONS[0]);
   assert.equal(basicAttack('ranged', 40, 5).name, 'Precision Shot');
 });
+
+test('Courier gets quicker, then acts twice while cool, then every turn', () => {
+  assert.deepEqual(FW.firmwarePassives('swift', 1), { speed: 2, twin: null });
+  assert.equal(FW.firmwarePassives('swift', 3).speed, 3);
+  assert.equal(FW.firmwarePassives('swift', 9).twin, 'cool');
+  assert.equal(FW.firmwarePassives('swift', 10).twin, 'always');
+  assert.equal(FW.firmwarePassives('swift', 10).speed, 4);
+  assert.ok(FW.firmwareAttack('swift', 5, 40)!.effects?.retreat, 'hit and run from level 5');
+  assert.deepEqual(FW.firmwarePassives('melee', 10), { speed: 0, twin: null }, 'other firmware stays at its speed');
+});
+
+test('Foreman sweeps, then hits all around, then blasts a square at range', () => {
+  assert.equal(FW.firmwareAttack('crowd', 1, 40)!.attackPattern, 'sweep_arc');
+  assert.equal(FW.firmwareAttack('crowd', 4, 40)!.attackPattern, 'burst');
+  assert.equal(FW.firmwareAttack('crowd', 10, 40)!.attackPattern, 'aoe');
+});
+
+test('Courier and Foreman open by going deep, Courier first', () => {
+  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd']);
+  assert.deepEqual(FW.opensAt(14, []), []);
+  assert.deepEqual(FW.opensAt(15, []), ['swift']);
+  assert.deepEqual(FW.opensAt(22, ['swift']), ['crowd']);
+  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), []);
+});

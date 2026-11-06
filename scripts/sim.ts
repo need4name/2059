@@ -10,6 +10,7 @@ import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugme
 import * as UP from '../client/src/lib/engine/upgrades';
 import { useFirmware as FW } from '../client/src/lib/stores/useFirmware';
 import { useRunStats } from '../client/src/lib/stores/useRunStats';
+import { availableFirmware } from '../client/src/lib/stores/useCombat';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
@@ -222,7 +223,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
       const open = AL.getState().unlocked().sort((x, y) => AL.getState().progress(y).level - AL.getState().progress(x).level || ALLY_ORDER(y) - ALLY_ORDER(x));
       AL.getState().setParty(open, Y.getState().perks().allySlots);
       // A new host keeps the same run seed sequence, so reseed per host for variety
-      C.getState().rebirth(C.getState().classesUnlocked ? (botRandom() < 0.5 ? 'melee' : 'ranged') : undefined);
+      { const open = availableFirmware(); C.getState().rebirth(open.length ? open[Math.floor(botRandom() * open.length)] : undefined); }
       C.getState().setRunSeed(seed * 31 + C.getState().progression.deathCount);
     }
   }
@@ -252,7 +253,7 @@ console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
 console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
-if (process.env.STATS) { console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
+if (process.env.STATS) { console.log('firmware:', JSON.stringify(FW.getState().xp), 'opened by going deep:', JSON.stringify(FW.getState().opened)); console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
 console.log(`runs that beat the last boss: ${chaptersDone} of ${runs.length}; stopped at the goals door: ${stuckAtDoor}`);
 
 // Agreed ranges (see the development plan). Bands with few fights are skipped.

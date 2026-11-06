@@ -82,6 +82,24 @@ ignoreRange: true,
 physicalRatio: 0.80,
 },
 },
+swift: {
+name: 'Courier',
+description: 'IOA limiter-free firmware. Gets there first, gets out first.',
+icon: '',
+baseHp: 105,
+baseAttack: 15,
+baseDefense: 4,
+specialAbility: { name: 'Flicker Jab', description: 'A jab so quick the arm is back before the hit lands.', damage: 1, attackPattern: 'melee', physicalRatio: 0.75 },
+},
+crowd: {
+name: 'Foreman',
+description: 'Tianxia labour firmware. Built to move people.',
+icon: '',
+baseHp: 135,
+baseAttack: 15,
+baseDefense: 7,
+specialAbility: { name: 'Crowd Press', description: 'A shoulder through the crowd.', damage: 1, attackPattern: 'sweep_arc', physicalRatio: 0.7 },
+},
 };
 
 // ── Firmware: the basic attack ───────────────────────────────────────────────

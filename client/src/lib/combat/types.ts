@@ -190,7 +190,8 @@ timestamp: number;
 type: 'info' | 'damage' | 'heal' | 'critical' | 'malfunction';
 }
 
-export type PlayerClass = 'none' | 'melee' | 'ranged';
+/** Firmware: none, Enforcer (melee), Operative (ranged), Courier (swift), Foreman (crowd). */
+export type PlayerClass = 'none' | 'melee' | 'ranged' | 'swift' | 'crowd';
 
 export interface ClassStats {
 name: string;

@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME,
+CLASS_DEFINITIONS, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -39,7 +39,7 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { firmwareXpFor, levelStep } from '../engine/firmware';
+import { firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -60,6 +60,8 @@ levelsGained: number;
 pointsGained: number;
 /** The level the loaded firmware reached in this fight, if it went up. */
 firmwareUp?: number | null;
+/** Firmware this win opened. */
+firmwareFound?: PlayerClass[];
 /** Party members that went up a level. */
 allyLevelUps: string[];
 /** This win finished the chapter (first time only). */
@@ -195,7 +197,10 @@ return (Object.keys(eq) as AugmentationSlot[]).filter(s => eq[s] !== null);
 
 function buildPlayer(playerClass: PlayerClass) {
 // The play-i tree's perks plus what the allies riding with this host bring
-const perks = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
+const linked = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
+// The loaded firmware may act twice in a turn (Courier: while cool, then always)
+const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClass));
+const perks = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
@@ -406,13 +411,16 @@ bossLevel: farmLevel !== null ? bossLevel : level + 1,
 });
 const { levelsGained } = get().gainXp(xp);
 // Upgrade points come from wins: one for every WINS_PER_POINT fights won (engine/upgrades.ts)
+// Going deep opens new firmware (Courier at 15, Foreman at 20): a won room fight at that threat or deeper
+const firmwareFound = farmLevel === null ? opensAt(level, useFirmware.getState().opened) : [];
+for (const cls of firmwareFound) { useFirmware.getState().open(cls); log(`NEW FIRMWARE -- ${CLASS_DEFINITIONS[cls].name}`, 'critical'); }
 // The loaded firmware learns from every room fight won (elites and bosses teach it more)
 const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, firmwareXpFor(level)) : null;
 if (firmwareUp) log(`FIRMWARE -- level ${firmwareUp}: ${levelStep(get().playerClass, firmwareUp)?.text ?? ''}`);
 const pointsBefore = useAugmentTrees.getState().availablePoints;
 if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
 const pointsGained = useAugmentTrees.getState().availablePoints - pointsBefore;
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone, firmwareUp } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone, firmwareUp, firmwareFound } });
 useAudio.getState().playSuccess();
 };
 
@@ -614,7 +622,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: 0, target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
@@ -691,7 +699,7 @@ progression: initialProgression(),
 grid: emptyGrid(),
 
 setPlayerClass: (playerClass) => {
-if (get().classesUnlocked) set({ playerClass });
+if (availableFirmware().includes(playerClass)) set({ playerClass });
 },
 
 startCombat: () => startFight(get().bossLevel, false),
@@ -971,10 +979,11 @@ if (get().phase === 'menu' && !useStrain.getState().active.includes('shut')) set
 completeIntro: () => set({ introCompleted: true }),
 
 rebirth: (newClass) => {
-const { classesUnlocked, playerClass } = get();
-const finalClass: PlayerClass = classesUnlocked
-? (newClass && newClass !== 'none' ? newClass : (playerClass !== 'none' ? playerClass : 'melee'))
-: 'none';
+const { playerClass } = get();
+// Wake with the chosen firmware if it's open (else the last one, else the first open), or none
+const open = availableFirmware();
+const finalClass: PlayerClass = !open.length ? 'none'
+: newClass && open.includes(newClass) ? newClass : open.includes(playerClass) ? playerClass : open[0];
 // The new corpse wakes at the chapter's entry; fights refill, memory stays.
 // The best part the lost host wore stays on its body, where it fell.
 const left = bodyLeftBehind();
@@ -1065,3 +1074,8 @@ progression: s.progression,
 }),
 }))
 );
+
+/** Every firmware a new host can wake with: Enforcer and Operative once a death opened them, then whatever going deep opened. */
+export function availableFirmware(): PlayerClass[] {
+return [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
+}

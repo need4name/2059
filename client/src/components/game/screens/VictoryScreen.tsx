@@ -4,6 +4,7 @@ import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
 import { levelStep } from '@/lib/engine/firmware';
+import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import { scrapValue } from '@/lib/combat/economy';
 import { implantStats, stimInfo, passiveText, nameOf } from '../itemText';
 import { allyDef } from '@/lib/combat/allies';
@@ -146,6 +147,13 @@ export function VictoryScreen() {
             </div>
           </Card>
         )}
+
+        {lastVictory?.firmwareFound?.map(cls => (
+          <Card key={cls} className="space-y-1 p-4">
+            <div className="font-display text-[15px] font-semibold text-aug">New firmware: {CLASS_DEFINITIONS[cls].name}</div>
+            <p className="text-sm text-hud-text/85">{CLASS_DEFINITIONS[cls].description} A new host can wake with it.</p>
+          </Card>
+        ))}
 
         {lastVictory?.firmwareUp && (
           <Card className="space-y-1 p-4">

@@ -8,21 +8,27 @@ import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { playiNode, FALLBACK_ID, FALLBACK_NODE, perksFor } from '@/lib/engine/playi';
 import { useAllies } from '@/lib/stores/useAllies';
+import { availableFirmware } from '@/lib/stores/useCombat';
 import { allyDef } from '@/lib/combat/allies';
 import { dailyDay, dailyRecords, endDaily } from '@/lib/daily';
 
-const CLASS_BLURB: Record<'melee' | 'ranged', string> = {
+const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
   melee: 'Up close. Takes a beating.',
-  ranged: 'Fragile. Locks on from any range.',
+  ranged: 'Fragile. Hits down a line.',
+  swift: 'Quick and light. Acts more often; in time, twice a turn.',
+  crowd: 'Heavy. Hits everyone around it at once.',
 };
 
 export function DefeatScreen() {
   const { boss, playerClass, classesUnlocked, rebirth } = useCombat();
-  const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' ? playerClass : null);
+  // Every firmware opened so far (Enforcer and Operative by a death, the rest by going deep)
+  const choices = availableFirmware();
+  const anyFirmware = choices.length > 0;
+  const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' && choices.includes(playerClass) ? playerClass : null);
   const justUnlocked = classesUnlocked && playerClass === 'none';
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
-  const canReboot = (!classesUnlocked || choice !== null) && (!offer || learned !== null);
+  const canReboot = (!anyFirmware || choice !== null) && (!offer || learned !== null);
   // Allies: who links with the next host (Second link allows two)
   const allies = useAllies();
   const unlocked = allies.unlocked();
@@ -42,12 +48,12 @@ export function DefeatScreen() {
   return (
     <Screen footer={
       <Btn variant="primary" size="lg" className="w-full" disabled={!canReboot} onClick={jump}>
-        {offer && !learned ? 'Choose what stays' : classesUnlocked && !choice ? 'Choose firmware' : 'Wake'}
+        {offer && !learned ? 'Choose what stays' : anyFirmware && !choice ? 'Choose firmware' : 'Wake'}
       </Btn>
     }>
       <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-hostile/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
-        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || classesUnlocked ? 'pt-8' : 'pt-[28vh]')}>
+        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || anyFirmware ? 'pt-8' : 'pt-[28vh]')}>
           <Glyph name="signal" size={30} className="signal-pulse text-sys" />
           <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
@@ -105,16 +111,16 @@ export function DefeatScreen() {
           </div>
         )}
 
-        {classesUnlocked ? (
+        {anyFirmware ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <Label>Firmware</Label>
               {justUnlocked && <Chip tone="cred">New!</Chip>}
             </div>
-            {(['melee', 'ranged'] as const).map(c => {
+            {choices.map(c => {
               const def = CLASS_DEFINITIONS[c];
               const selected = choice === c;
-              const accent = c === 'melee' ? 'cred' : 'sys';
+              const accent = c === 'melee' || c === 'crowd' ? 'cred' : 'sys';
               return (
                 <button
                   key={c}
@@ -126,7 +132,7 @@ export function DefeatScreen() {
                   )}
                 >
                   <span className={cx('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl', selected ? (accent === 'cred' ? 'bg-cred/20 text-cred' : 'bg-sys/20 text-sys') : 'bg-white/[0.06] text-hud-dim')}>
-                    {c === 'melee' ? '⚔' : '⌖'}
+                    <Glyph name={c === 'melee' ? 'arm' : c === 'ranged' ? 'eye' : c === 'swift' ? 'leg' : 'allies'} size={22} />
                   </span>
                   <span className="min-w-0 flex-1 space-y-1.5">
                     <span className="block font-display text-lg font-semibold text-white">{def.name}</span>

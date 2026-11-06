@@ -8,6 +8,9 @@ import { firmwareLevel } from '../engine/firmware';
 // hosts. Only a full save wipe clears it.
 interface FirmwareState {
   xp: Partial<Record<PlayerClass, number>>;
+  /** Firmware opened by going deep (Courier, Foreman); Enforcer and Operative open with a death (classesUnlocked). */
+  opened: PlayerClass[];
+  open: (cls: PlayerClass) => void;
   /** The firmware's level now. */
   level: (cls: PlayerClass) => number;
   /** A won fight teaches the loaded firmware. Returns the level it reached if that went up, else null. */
@@ -17,6 +20,8 @@ interface FirmwareState {
 
 export const useFirmware = create<FirmwareState>()(persist((set, get) => ({
   xp: {},
+  opened: [],
+  open: (cls) => { if (!get().opened.includes(cls)) set({ opened: [...get().opened, cls] }); },
   level: (cls) => firmwareLevel(get().xp[cls] ?? 0).level,
   gain: (cls, n) => {
     if (cls === 'none' || n <= 0) return null;
@@ -25,5 +30,5 @@ export const useFirmware = create<FirmwareState>()(persist((set, get) => ({
     const after = get().level(cls);
     return after > before ? after : null;
   },
-  reset: () => set({ xp: {} }),
-}), { name: '2059-firmware', storage: createJSONStorage(() => saveStorage), version: 1, partialize: (s) => ({ xp: s.xp }) }));
+  reset: () => set({ xp: {}, opened: [] }),
+}), { name: '2059-firmware', storage: createJSONStorage(() => saveStorage), version: 1, partialize: (s) => ({ xp: s.xp, opened: s.opened }) }));

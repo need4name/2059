@@ -165,12 +165,16 @@ const upgradeFile = z.object({
 }).strict();
 const firmwareStep = z.object({
   text: z.string().trim().min(1).max(60), scale: z.number().gt(0).max(1).optional(), heat: z.number().int().min(-10).max(10).optional(),
-  accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean() }).partial().optional(),
+  accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean(), retreat: z.boolean() }).partial().optional(),
+  speed: z.number().int().min(1).max(4).optional(), twin: z.enum(['cool', 'always']).optional(),
 }).strict().refine(st => Object.keys(st).length > 1, 'a level must add something');
+const firmwareDef = z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), unlockAt: z.number().int().min(2).max(30).optional(), speed: z.number().int().min(1).max(4).optional() }).strict();
 const firmwareFile = z.object({
   about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
   xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),
-  firmware: z.object({ melee: z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep) }).strict(), ranged: z.object({ base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep) }).strict() }).strict(),
+  firmware: z.object({ melee: firmwareDef, ranged: firmwareDef, swift: firmwareDef, crowd: firmwareDef }).strict()
+    .refine(f => !f.melee.unlockAt && !f.ranged.unlockAt, 'Enforcer and Operative open with a death, not by going deep')
+    .refine(f => !!f.swift.unlockAt && !!f.crowd.unlockAt, 'Courier and Foreman open by going deep: they need unlockAt'),
 }).strict().refine(f => Object.values(f.firmware).every(fw => fw.levels.length === f.xpToNext.length), 'every firmware needs one step per level (as many as xpToNext)');
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
