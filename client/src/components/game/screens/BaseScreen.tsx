@@ -29,7 +29,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
 import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
-import { moveTiles, attackPatternOf, SPEED, implantDrive } from '@/lib/engine/fight';
+import { moveTiles, attackPatternOf, SPEED, implantDrive, hotText } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain';
 
@@ -63,6 +63,7 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
       <span>{rangeText(a)}</span>
       {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat} heat</span>}
       {effectsText(a) && <span className="text-ok/90">{effectsText(a)}</span>}
+      {(a.type === 'attack' || a.type === 'special') && <span className="text-orange-300/90">Hot: {hotText(a)}</span>}
     </span>
   );
 }
@@ -111,7 +112,7 @@ function LoadoutTab() {
       {/* How to read the little attack pictures */}
       <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] px-3.5 py-2.5 text-[12px] leading-snug text-hud-dim">
         <Footprint pattern="melee" cell={6} className="shrink-0" />
-        <span>You're the blue square. Orange is where the move can hit; brighter hits harder: from the side +15%, from behind +30%.</span>
+        <span>You're the blue square. Orange is where the move can hit; the bolder the tile, the harder it lands (each shape has a sweet spot; from the side +15%, from behind +30%). Arrows: it shoves or drags them. A cyan dot or ring: it carries you.</span>
       </div>
 
       {SOURCE_GROUPS.map(g => {
