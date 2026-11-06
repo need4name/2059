@@ -6,13 +6,14 @@ import { allyDef } from '@/lib/combat/allies';
 
 // The map the signal draws as it goes, at the top of the room card: every room any host has walked into, the
 // doors it has seen but not gone through, what waits in each room found, and where hosts were lost. It is kept
-// across hosts, so each life fills in a little more. Drawn in 2.5D: each room is a block whose height shows how
-// far up it sits (up exits climb, down exits drop; roomHeights in map.ts), halls are bridges and ramps between
-// block tops, and blocks are drawn back to front. Pixel art on a small canvas, scaled up without smoothing.
+// across hosts, so each life fills in a little more. Drawn in 2.5D, seen from the south at a steep angle: north
+// stays straight up the screen and east to the right, each room is a slab whose height shows how far up it sits
+// (up exits climb, down exits drop; roomHeights in map.ts), halls run straight between slab tops (ramps between
+// levels), and slabs are drawn north to south. Pixel art on a small canvas, scaled up without smoothing.
 
 const ZOOMS = [2, 3, 4, 5]; // screen pixels per map pixel, from the +/- buttons
-const TW = 16, TH = 8; // a room's top: a diamond this wide and tall
-const PX = 16, PY = 8; // one grid step east moves this far right and down (north: left and up), leaving room for a hall
+const TW = 14, TH = 9; // a room's top, seen from the south at a steep angle: this wide and this deep
+const PX = 20, PY = 15; // one grid step east moves this far right, one step south this far down (room for a hall)
 const ZH = 5;         // map pixels per level of height
 const BASE = 3;       // how thick a block at the lowest level is
 const C = {
@@ -105,9 +106,9 @@ export function SignalMap() {
       for (const r of view.rooms) if (!firstSeen.current.has(r.id + r.seen)) firstSeen.current.set(r.id + r.seen, now);
       const fade = (r: MapRoom) => Math.min(1, (now - (firstSeen.current!.get(r.id + r.seen) ?? 0)) / 700);
 
-      // Where things land on screen: the grid turned 45 degrees, lifted by height
+      // Where things land on screen: the grid as it is (north up, east right), squashed a little for the steep angle and lifted by height
       const zs = view.rooms.map(r => r.z), zMin = Math.min(0, ...zs);
-      const iso = (r: MapRoom) => ({ x: (r.at[0] - r.at[1]) * PX, y: (r.at[0] + r.at[1]) * PY - (r.z - zMin) * ZH });
+      const iso = (r: MapRoom) => ({ x: r.at[0] * PX, y: r.at[1] * PY - (r.z - zMin) * ZH });
 
       // Camera: follow the host's room, but keep a small map centred
       const pts = view.rooms.map(iso);
@@ -127,14 +128,13 @@ export function SignalMap() {
       const ox = Math.round(w / 2 - cam.current.x), oy = Math.round(h / 2 - cam.current.y);
       const px = (x: number, y: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
       const rect = (x: number, y: number, rw: number, rh: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, rw, rh); };
-      // Half the width of the diamond's row j
-      const half = (j: number) => (j < TH / 2 ? j : TH - 1 - j) * 2 + 2;
-      const diamond = (cx: number, top: number, col: string) => { for (let j = 0; j < TH; j++) rect(cx - half(j), top + j, half(j) * 2, 1, col); };
+      // A rounded rectangle (its corner pixels cut), the shape of a room's top
+      const pad = (x: number, y: number, rw: number, rh: number, col: string) => { rect(x + 1, y, rw - 2, rh, col); rect(x, y + 1, rw, rh - 2, col); };
       // A room's symbol, standing on its top, with a dark outline so it reads on any face. `t` makes it breathe.
       const mark = (kind: RoomMark | 'sealed', cx: number, top: number, tint?: string, t = 0) => {
         const m = MARKS[kind];
         const mw = m.rows[0].length, mh = m.rows.length;
-        const sx = cx - (mw >> 1), sy = top + TH / 2 - mh;
+        const sx = cx - (mw >> 1), sy = top + Math.ceil(TH / 2) - mh + 1;
         const on = (i: number, j: number) => (m.rows[j]?.[i] ?? '.') !== '.';
         const prev = ctx.globalAlpha;
         m.rows.forEach((row, j) => row.split('').forEach((ch, i) => {
@@ -150,32 +150,35 @@ export function SignalMap() {
       // Ground: a faint chart of dots on the lowest level, where rooms could stand
       rect(0, 0, w, h, C.ground);
       for (let gy = -40; gy < 40; gy++) for (let gx = -40; gx < 40; gx++) {
-        const x = ox + (gx - gy) * PX, y = oy + (gx + gy) * PY + TH / 2;
+        const x = ox + gx * PX, y = oy + gy * PY + (TH >> 1);
         if (x >= 0 && y >= 0 && x < w && y < h) px(x, y, C.dot);
       }
 
       const known = new Map(view.rooms.map(r => [r.id, r]));
-      const topCentre = (r: MapRoom) => { const p = iso(r); return [ox + p.x, oy + p.y + TH / 2]; };
+      const topCentre = (r: MapRoom) => { const p = iso(r); return [ox + p.x, oy + p.y + (TH >> 1)]; };
 
-      // A hall, block top to block top: a bridge on the level, a ramp between levels
+      // A hall, slab top to slab top: straight across the level, a ramp between levels
       const hallBetween = (ra: MapRoom, rb: MapRoom) => {
         const [x1, y1] = topCentre(ra), [x2, y2] = topCentre(rb);
         const both = ra.seen && rb.seen;
         ctx.globalAlpha = Math.min(fade(ra), fade(rb));
         const steps = Math.max(1, Math.abs(x2 - x1), Math.abs(y2 - y1));
+        const across = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
         for (let i = 0; i <= steps; i++) {
           const x = Math.round(x1 + ((x2 - x1) * i) / steps), y = Math.round(y1 + ((y2 - y1) * i) / steps);
-          // Not across the far room's top: the hall leaves from its edge
-          if (Math.abs(x - x1) / (TW / 2) + Math.abs(y - y1) / (TH / 2) < 1.1) continue;
-          if (both) { rect(x - 1, y - 1, 3, 1, C.hallLit); rect(x - 1, y, 3, 2, C.hall); rect(x - 1, y + 2, 3, 1, C.edge); }
-          else if (i % 3 === 0) px(x, y, C.glimpse);
+          // Not over the far room's top: the hall leaves from its edge
+          if (Math.abs(x - x1) <= TW / 2 && Math.abs(y - y1) <= TH / 2 + 1) continue;
+          if (both) {
+            if (across) { rect(x, y - 1, 1, 1, C.hallLit); rect(x, y, 1, 2, C.hall); rect(x, y + 2, 1, 1, C.edge); }
+            else { rect(x - 1, y, 1, 1, C.hallLit); rect(x, y, 2, 1, C.hall); rect(x + 2, y, 1, 1, C.edge); }
+          } else if (i % 3 === 0) px(x, y, C.glimpse);
         }
         ctx.globalAlpha = 1;
       };
 
-      // Rooms, back to front (and lower before higher), so nearer and taller blocks cover what's behind. Each hall
-      // is drawn just before the nearer of its two rooms: over the far block, under the near one
-      const order = view.rooms.slice().sort((p, q) => (p.at[0] + p.at[1]) - (q.at[0] + q.at[1]) || p.z - q.z);
+      // Rooms north to south (and lower before higher), so nearer and higher slabs cover what's behind. Each hall
+      // is drawn just before the nearer of its two rooms: over the far slab, under the near one
+      const order = view.rooms.slice().sort((p, q) => p.at[1] - q.at[1] || p.z - q.z || p.at[0] - q.at[0]);
       const rank = new Map(order.map((r, k) => [r.id, k]));
       for (const r of order) {
         for (const [a, b] of view.links) {
@@ -183,14 +186,15 @@ export function SignalMap() {
           if (other && rank.get(other)! < rank.get(r.id)!) hallBetween(known.get(other)!, r);
         }
         const p = iso(r);
-        const cx = ox + p.x, top = oy + p.y;
-        // A slab at its height, on a thin post down to its shadow on the ground (no solid pillar to hide what's behind)
-        const lift = Math.round((r.z - zMin) * ZH), tall = BASE;
-        if (cx + TW < 0 || cx - TW > w || top > h || top + TH + tall + lift < 0) continue;
+        const cx = ox + p.x, top = oy + p.y, left = cx - (TW >> 1);
+        // A slab at its height, on a thin post down to its shadow on the ground
+        const lift = Math.round((r.z - zMin) * ZH);
+        if (left + TW < 0 || left > w || top > h || top + TH + BASE + lift < 0) continue;
         ctx.globalAlpha = fade(r);
         if (!r.seen) {
-          // Only glimpsed: a broken outline floating at its height, nothing inside
-          for (let j = 0; j < TH; j++) if (j % 2 === 0) { px(cx - half(j), top + j, C.glimpse); px(cx + half(j) - 1, top + j, C.glimpse); }
+          // Only glimpsed: a broken outline at its height, nothing inside
+          for (let i = 1; i < TW - 1; i += 2) { px(left + i, top, C.glimpse); px(left + i, top + TH - 1, C.glimpse); }
+          for (let j = 1; j < TH - 1; j += 2) { px(left, top + j, C.glimpse); px(left + TW - 1, top + j, C.glimpse); }
           if (r.sealed) mark('sealed', cx, top);
           ctx.globalAlpha = 1;
           continue;
@@ -200,46 +204,41 @@ export function SignalMap() {
         if (lift > 0) {
           // Its shadow on the ground, and the post holding it up
           ctx.globalAlpha = fade(r) * 0.5;
-          for (let j = 0; j < TH; j++) if (j % 2 === 1) rect(cx - half(j) + 2, top + lift + j, half(j) * 2 - 4, 1, C.edge);
+          for (let j = 1; j < TH - 1; j += 2) rect(left + 2, top + lift + j, TW - 4, 1, C.edge);
           ctx.globalAlpha = fade(r);
-          rect(cx - 1, top + TH / 2 + TW / 4 + tall, 2, Math.max(0, lift - tall - 1), mine ? C.hereShade : C.shade);
+          rect(cx - 1, top + TH + BASE, 2, Math.max(0, lift - BASE), mine ? C.hereShade : C.shade);
         }
-        // The slab's two sides: lit on the left, in shadow on the right
-        for (let i = 0; i < TW / 2; i++) {
-          const edgeY = top + TH / 2 + Math.floor(i / 2);
-          rect(cx - TW / 2 + i, edgeY, 1, tall, i === 0 ? C.edge : mine ? C.hereShade : C.shade);
-          rect(cx + TW / 2 - 1 - i, edgeY, 1, tall, i === 0 ? C.edge : C.edge);
-          if (i > 0) rect(cx + TW / 2 - 1 - i, edgeY, 1, tall, mine ? '#082128' : '#111a23');
-        }
-        rect(cx - TW / 2 + 1, top + TH / 2 + TW / 4 + tall - 1, TW - 2, 1, C.edge);
-        // The top: outline, face, a lit back edge
-        diamond(cx, top - 1, C.edge);
-        diamond(cx, top + 1, C.edge);
-        diamond(cx, top, base);
-        for (let j = 0; j < TH / 2; j++) { px(cx - half(j), top + j, lit); px(cx + half(j) - 1, top + j, lit); }
-        for (let j = TH / 2; j < TH; j++) { px(cx - half(j), top + j, mine ? lit : C.lit); px(cx + half(j) - 1, top + j, shade); }
+        // The slab: a dark outline, its front edge (facing you, south), then the top, lit along its north edge
+        pad(left - 1, top - 1, TW + 2, TH + BASE + 2, C.edge);
+        rect(left, top + TH, TW, BASE, mine ? C.hereShade : C.shade);
+        rect(left, top + TH + BASE - 1, TW, 1, C.edge);
+        pad(left, top, TW, TH, base);
+        rect(left + 1, top, TW - 2, 1, lit);
+        rect(left, top + 1, 1, TH - 2, mine ? lit : C.lit);
+        rect(left + TW - 1, top + 1, 1, TH - 2, shade);
         if (mine) {
           // A slow pulse round the room the signal is in
           ctx.globalAlpha = 0.25 + 0.2 * Math.sin(now / 450);
-          for (let j = -1; j <= TH; j++) { const hw = j < 0 || j >= TH ? 1 : half(j) + 1; px(cx - hw, top + j, C.hereLit); px(cx + hw - 1, top + j, C.hereLit); }
+          ctx.strokeStyle = C.hereLit; ctx.lineWidth = 1;
+          ctx.strokeRect(left - 1.5, top - 1.5, TW + 3, TH + BASE + 3);
           ctx.globalAlpha = fade(r);
         }
         if (r.fell) {
-          // Where a host was lost: a stain on the near corner of the top
-          const sx = cx - 6, sy = top + 3;
-          rect(sx + 1, sy, 3, 1, C.blood); rect(sx, sy + 1, 4, 1, C.blood); rect(sx + 1, sy + 2, 2, 1, C.bloodDark); px(sx + 4, sy + 1, C.bloodDark);
+          // Where a host was lost: a stain on the near left corner of the top
+          const sx = left + 1, sy = top + TH - 3;
+          rect(sx, sy, 3, 1, C.blood); rect(sx, sy + 1, 4, 1, C.blood); rect(sx + 1, sy + 2, 2, 1, C.bloodDark);
         }
         if (r.corpse) {
           // The last host's body, with something still on it: a glint over the stain that comes and goes
-          const gx = cx - 4, gy = top + 3, on = Math.floor(now / 380) % 3 !== 2;
+          const gx = left + 3, gy = top + TH - 3, on = Math.floor(now / 380) % 3 !== 2;
           ctx.globalAlpha = on ? 1 : 0.45;
           px(gx, gy - 1, C.credLit); px(gx - 1, gy, C.credLit); px(gx, gy, '#fff6d0'); px(gx + 1, gy, C.credLit); px(gx, gy + 1, C.credLit);
           ctx.globalAlpha = fade(r);
         }
         if (r.mark && !mine) mark(r.mark, cx, top, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' ? now : 0);
         if (mine) {
-          // The host, standing on the block and bobbing on the spot
-          const hx = cx - 2, hy = top + TH / 2 - HOST.length - (Math.floor(now / 520) % 2);
+          // The host, standing on the slab and bobbing on the spot
+          const hx = cx - 2, hy = top + (TH >> 1) - HOST.length + 2 - (Math.floor(now / 520) % 2);
           HOST.forEach((row, j) => row.split('').forEach((ch, i) => {
             if (ch === '.') return;
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if ((HOST[j + dy]?.[i + dx] ?? '.') === '.') px(hx + i + dx, hy + j + dy, C.out);
