@@ -1497,7 +1497,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
-  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + heatFromSpecial(dmg.specialDamage));
+  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + Math.round(heatFromSpecial(dmg.specialDamage) * (s.perks.specialHeatTakenMult ?? 1)));
 
 
   events.push({ kind: 'hit' });

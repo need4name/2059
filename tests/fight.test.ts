@@ -969,3 +969,59 @@ test("enemy attacks work like yours: sweet spots, and wide shapes hit everyone i
   const after = Fight.foeTurn(s, 0, 1).state;
   if (after.player.currentHp < s.player.currentHp) assert.ok(after.allies[0].unit.currentHp < ally.unit.currentHp, 'the sweep caught the ally too');
 });
+
+test('seven-part implants: lens sets the aim, coupling the damage type, core trades heat for power', async () => {
+  const { rollParts, LENSES, COUPLINGS, CORES } = await import('../client/src/lib/combat/augments');
+  const arm = { id: 'p', name: '[VOLKOV] Test Arm', rarity: 'rare' as const, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '' };
+  for (let k = 0; k < 20; k++) {
+    seedRandom(50 + k);
+    const p = rollParts(arm)!;
+    assert.ok(p.lens! in LENSES && p.coupling! in COUPLINGS && p.core! in CORES, 'every active rolls a lens, a coupling and a core');
+  }
+  const base = { ...arm, parts: { head: 'jab', mods: [], lens: 'stock', coupling: 'servo', core: 'stock' } };
+  const plain = actionForItem(base)!;
+  const arc = actionForItem({ ...base, parts: { ...base.parts, coupling: 'arc' } })!;
+  assert.equal(arc.physicalRatio, COUPLINGS.arc.phys, 'an arc coupling makes it mostly special');
+  assert.equal(actionForItem({ ...base, parts: { ...base.parts, lens: 'clear' } })!.accuracy, 'precise');
+  assert.equal(actionForItem({ ...base, parts: { ...base.parts, lens: 'cracked' } })!.accuracy, 'unreliable');
+  const hot = actionForItem({ ...base, parts: { ...base.parts, core: 'hot' } })!;
+  assert.ok(hot.damage! > plain.damage! && hot.heatGenerated! > plain.heatGenerated!, 'a hot core hits harder and runs hotter');
+  const pump = actionForItem({ ...base, parts: { ...base.parts, core: 'pump' } })!;
+  assert.ok(pump.heatTransfer! > plain.heatTransfer!, 'a heat pump pushes heat into the target');
+  // Implants from before these parts existed keep their maker's old numbers
+  const old = actionForItem({ ...arm, parts: { head: 'jab', mods: [] } })!;
+  assert.equal(old.accuracy, 'precise');
+});
+
+test('passive parts: housing changes structure, regulators and traits change the fight', async () => {
+  const { rollPassiveParts, structureOf, partPerks } = await import('../client/src/lib/combat/augments');
+  const { NO_PERKS } = await import('../client/src/lib/engine/playi');
+  const lung = { id: 'l', name: '[PARSU] Test Lung', rarity: 'legendary' as const, type: 'augmentation' as const, slot: 'lungs' as const, icon: '' };
+  seedRandom(4);
+  const pp = rollPassiveParts(lung)!;
+  assert.ok(pp.housing && pp.regulator && pp.trait, 'a legendary passive always carries a trait');
+  assert.equal(rollPassiveParts({ ...lung, slot: 'right_arm' }), undefined, 'actives have their own parts');
+  const plated = structureOf({ ...lung, passiveParts: { housing: 'plated', regulator: 'stock' } });
+  const light = structureOf({ ...lung, passiveParts: { housing: 'light', regulator: 'stock' } });
+  assert.ok(plated > structureOf(lung) && light < structureOf(lung));
+  const p = partPerks(NO_PERKS, [{ ...lung, passiveParts: { housing: 'stock', regulator: 'sink', trait: 'charged' } }, { ...lung, passiveParts: { housing: 'stock', regulator: 'baffle', trait: 'quick' } }]);
+  assert.equal(p.extraCooling, 1);
+  assert.equal(p.specialHeatTakenMult, 0.5);
+  assert.equal(p.startOverload, 15);
+  assert.equal(p.partSpeed, 1);
+  // A baffle halves the heat special hits put into you
+  seedRandom(3);
+  const s = fight();
+  const raw = Fight.resolveFoeAction(s, 0, hitFor(60, 0), 1).state.playerHeat - s.playerHeat;
+  seedRandom(3);
+  const baffled = Fight.resolveFoeAction({ ...s, perks: { ...s.perks, specialHeatTakenMult: 0.5 } }, 0, hitFor(60, 0), 1).state.playerHeat - s.playerHeat;
+  assert.ok(baffled < raw);
+});
+
+test('tile marks show what else a move does: on the target, and on you', async () => {
+  const { effectMarks } = await import('../client/src/components/game/marks');
+  const m = effectMarks({ ...PLAYER_ACTIONS[0], heatTransfer: 8, effects: { bleed: true, stun: 0.25, drain: 0.25, cool: 8 } });
+  assert.deepEqual(m.target, ['bleed', 'stun', 'heat']);
+  assert.deepEqual(m.self, ['drain', 'cool']);
+  assert.deepEqual(effectMarks({ ...PLAYER_ACTIONS[1] }), { target: [], self: [] }, 'a brace marks nothing here');
+});

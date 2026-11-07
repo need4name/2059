@@ -34,7 +34,7 @@ import { NO_PERKS } from '../engine/playi';
 import { instancedItem, ITEM_POOLS } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
-import { powerOf } from '../combat/augments';
+import { powerOf, partPerks } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
@@ -216,7 +216,9 @@ const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleA
 const classed = withTreePerks(withResonance(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 // Splice: each spliced pair runs the host hotter and thins its structure
 const pairs = playerClass === 'splice' ? Object.values(useInventory.getState().spliced ?? {}).filter(Boolean).length : 0;
-const perks = withSplice(classed, pairs);
+// Passive implant parts: regulators and traits
+const wornNow = AUGMENTATION_SLOTS.flatMap(sl => [useInventory.getState().equippedAugmentations[sl], useInventory.getState().spliced?.[sl] ?? null]);
+const perks = partPerks(withSplice(classed, pairs), wornNow);
 const raw = useInventory.getState().getTotalAugmentationBonuses(perks.activeStatMult);
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
@@ -649,8 +651,8 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: farm ? 0 : (useMap.getState().overload ?? 0), target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

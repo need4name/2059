@@ -1,6 +1,6 @@
 import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
-import { rollParts, normaliseItem } from './augments';
+import { rollParts, rollPassiveParts, normaliseItem } from './augments';
 
 import { random } from '../engine/rng';
 /** Drop tuning (see docs/DESIGN.md). */
@@ -19,6 +19,8 @@ templateId: item.id,
 id: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 // Active implants are built from parts when they drop (head + mods; see augments.ts)
 parts: item.parts ?? rollParts(item),
+// Passive implants: housing, regulator and (rare and better) a trait
+...(item.type === 'augmentation' && !item.parts && !item.passiveParts ? { passiveParts: rollPassiveParts(item) } : {}),
 // Its upgrade tree grows from this (seeded, so a replayed run grows the same trees; engine/upgrades.ts)
 ...(item.type === 'augmentation' ? { treeSeed: item.treeSeed ?? Math.floor(random() * 4294967296) } : {}),
 };

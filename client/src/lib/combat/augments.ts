@@ -75,7 +75,8 @@ const RARITY_STRUCTURE: Record<ItemRarity, number> = { common: 1, uncommon: 1.15
 export function structureOf(item: Item): number {
   if (item.type !== 'augmentation' || !item.slot) return 0;
   const base = SLOT_STRUCTURE[item.slot] * MAKER_STRUCTURE[makerOf(item)] * RARITY_STRUCTURE[item.rarity];
-  return Math.round(base * (CONDITION_MULT[item.condition ?? 'pristine'] ?? 1));
+  const housing = HOUSINGS[item.passiveParts?.housing ?? '']?.structure ?? 1;
+  return Math.round(base * housing * (CONDITION_MULT[item.condition ?? 'pristine'] ?? 1));
 }
 
 // Grafts get rejected, counterfeit firmware burns nerves, operator suites
@@ -231,6 +232,57 @@ export const QUIRKS: Record<string, Mod> = {
   despair: { label: 'Desperate', effects: { lowBonus: 1 } },
   reaper:  { label: 'Reaper', effects: { reap: true } },
 };
+
+// The other parts of an active implant. Frame = its maker (base numbers); Head = the shape;
+// Lens = how it aims (accuracy, and for wide shapes how many it locks: TARGETING);
+// Coupling = how the force reaches them (physical or special); Core = power against heat;
+// Mods = side effects; Quirk = a rare rule (epic and legendary only).
+export interface Lens { label: string; accuracy: AccuracyTier; mult: number; heat: number }
+export const LENSES: Record<string, Lens> = {
+  clear:   { label: 'Clear lens',   accuracy: 'precise',    mult: 1,    heat: 3 },
+  stock:   { label: 'Stock lens',   accuracy: 'variable',   mult: 1,    heat: 0 },
+  cracked: { label: 'Cracked lens', accuracy: 'unreliable', mult: 1.12, heat: 0 },
+};
+export interface Coupling { label: string; phys: number; transfer: number }
+export const COUPLINGS: Record<string, Coupling> = {
+  hydraulic: { label: 'Hydraulic coupling', phys: 0.9,  transfer: 0 },
+  servo:     { label: 'Servo coupling',     phys: 0.7,  transfer: 0 },
+  arc:       { label: 'Arc coupling',       phys: 0.4,  transfer: 0 },
+  thermal:   { label: 'Thermal coupling',   phys: 0.15, transfer: 3 },
+};
+export interface Core { label: string; mult: number; heat: number; transfer: number }
+export const CORES: Record<string, Core> = {
+  cold:  { label: 'Cold core',  mult: 0.9,  heat: -4, transfer: 0 },
+  stock: { label: 'Stock core', mult: 1,    heat: 0,  transfer: 0 },
+  hot:   { label: 'Hot core',   mult: 1.15, heat: 5,  transfer: 0 },
+  pump:  { label: 'Heat pump',  mult: 1,    heat: 2,  transfer: 5 },
+};
+
+// Passive implants are built from parts too: the housing (structure), the regulator (heat)
+// and, on rare and better, a trait. Read by partPerks and getTotalAugmentationBonuses.
+export interface Housing { label: string; structure: number; evasion?: number; spDef?: number }
+export const HOUSINGS: Record<string, Housing> = {
+  light:  { label: 'Light housing',  structure: 0.75, evasion: 2 },
+  stock:  { label: 'Stock housing',  structure: 1 },
+  plated: { label: 'Plated housing', structure: 1.35 },
+  sealed: { label: 'Sealed housing', structure: 1, spDef: 3 },
+};
+export interface Regulator { label: string; cooling?: number; specialHeat?: number; startHeat?: number }
+export const REGULATORS: Record<string, Regulator> = {
+  stock:  { label: 'Stock regulator' },
+  sink:   { label: 'Heat sink',      cooling: 1 },
+  baffle: { label: 'Baffle',         specialHeat: 0.5 },
+  primer: { label: 'Primer',         startHeat: 10 },
+};
+export interface Trait { label: string; hp?: number; speed?: number; overload?: number; hazard?: number }
+export const TRAITS: Record<string, Trait> = {
+  tough:   { label: 'Tough',   hp: 8 },
+  quick:   { label: 'Quick',   speed: 1 },
+  charged: { label: 'Charged', overload: 15 },
+  shod:    { label: 'Shod',    hazard: 0.75 },
+};
+export const TRAIT_CHANCE: Partial<Record<Item['rarity'], number>> = { rare: 0.35, epic: 0.6, legendary: 1 };
+
 export const QUIRK_CHANCE: Partial<Record<Item['rarity'], number>> = { epic: 0.15, legendary: 0.4 };
 
 // What each maker leans toward: its usual heads (picked 60% of the time) and the mods it can carry
@@ -247,6 +299,31 @@ const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string
 };
 
 const pick = <T,>(arr: T[]): T => arr[Math.floor(random() * arr.length)];
+
+// What each maker's other parts lean toward (picked 60% of the time; otherwise any)
+const MAKER_LEAN: Record<Maker, { lens: string; coupling: string; core: string; housing: string; regulator: string }> = {
+  VOLKOV:    { lens: 'clear',   coupling: 'hydraulic', core: 'hot',   housing: 'plated', regulator: 'primer' },
+  TIANXIA:   { lens: 'stock',   coupling: 'hydraulic', core: 'stock', housing: 'plated', regulator: 'sink' },
+  KIZUNA:    { lens: 'clear',   coupling: 'arc',       core: 'cold',  housing: 'light',  regulator: 'baffle' },
+  CROWN:     { lens: 'clear',   coupling: 'arc',       core: 'cold',  housing: 'sealed', regulator: 'sink' },
+  CBN:       { lens: 'stock',   coupling: 'servo',     core: 'hot',   housing: 'light',  regulator: 'primer' },
+  IOA:       { lens: 'cracked', coupling: 'thermal',   core: 'pump',  housing: 'light',  regulator: 'primer' },
+  PARSU:     { lens: 'stock',   coupling: 'hydraulic', core: 'stock', housing: 'plated', regulator: 'baffle' },
+  PATCHWORK: { lens: 'cracked', coupling: 'servo',     core: 'pump',  housing: 'stock',  regulator: 'stock' },
+  HELIX:     { lens: 'stock',   coupling: 'servo',     core: 'cold',  housing: 'sealed', regulator: 'sink' },
+};
+const lean = (maker: Maker, part: keyof typeof MAKER_LEAN[Maker], all: Record<string, unknown>) =>
+  random() < 0.6 ? MAKER_LEAN[maker][part] : pick(Object.keys(all));
+
+/** Roll a passive implant's parts (seeded). */
+export function rollPassiveParts(item: Item): Item['passiveParts'] {
+  if (item.type !== 'augmentation' || !item.slot || augmentKind(item.slot) !== 'passive') return undefined;
+  const maker = makerOf(item);
+  const housing = lean(maker, 'housing', HOUSINGS), regulator = lean(maker, 'regulator', REGULATORS);
+  const tc = TRAIT_CHANCE[item.rarity] ?? 0;
+  const trait = tc && random() < tc ? pick(Object.keys(TRAITS)) : undefined;
+  return trait ? { housing, regulator, trait } : { housing, regulator };
+}
 
 /** Roll the parts for a freshly dropped active implant (seeded, so runs replay). Helix parts are braces and have none. */
 export function rollParts(item: Item): Item['parts'] {
@@ -282,8 +359,14 @@ export function rollParts(item: Item): Item['parts'] {
   }
   // Wide shapes get a targeting part (signature heads always hit everyone in them)
   const targeting = MULTI_HIT.has(HEADS[head].pattern) && !HEADS[head].signature ? rollTargeting(r) : undefined;
-  return targeting ? { head, mods, targeting } : { head, mods };
+  // Lens, coupling and core (rolled last, so older seeds keep their heads and mods)
+  const lens = random() < 0.6 ? lensOf(T[group][maker] ?? T[group].default) : pick(Object.keys(LENSES));
+  const coupling = lean(maker, 'coupling', COUPLINGS), core = random() < 0.5 ? 'stock' : lean(maker, 'core', CORES);
+  return { head, mods, ...(targeting ? { targeting } : {}), lens, coupling, core };
 }
+
+/** The lens a maker's old fixed accuracy matches. */
+const lensOf = (t: Template) => t.accuracy === 'precise' ? 'clear' : t.accuracy === 'unreliable' ? 'cracked' : 'stock';
 
 /** Parts for an implant saved before parts existed: its old maker shape, no mods. */
 function legacyParts(item: Item, group: Group, pattern: AttackPatternType | undefined): NonNullable<Item['parts']> {
@@ -292,8 +375,13 @@ function legacyParts(item: Item, group: Group, pattern: AttackPatternType | unde
   return { head, mods: [] };
 }
 
-/** "Hook head · Bleed, Stun 25%": how the parts read on an item card. */
+/** "Hook head · Clear lens · Arc coupling · Hot core · Bleed": how the parts read on an item card. */
 export function partsText(item: Item): string | null {
+  if (item.type === 'augmentation' && item.slot && augmentKind(item.slot) === 'passive') {
+    const pp = item.passiveParts;
+    if (!pp) return null;
+    return [HOUSINGS[pp.housing]?.label, REGULATORS[pp.regulator]?.label, pp.trait ? `${TRAITS[pp.trait]?.label} trait` : null].filter(Boolean).join(' · ');
+  }
   const group = item.slot ? groupOf(item.slot) : null;
   if (!group || makerOf(item) === 'HELIX') return null;
   const t = T[group][makerOf(item)] ?? T[group].default;
@@ -302,7 +390,29 @@ export function partsText(item: Item): string | null {
   if (!head) return null;
   const mods = parts.mods.map(m => MODS[m]?.label).filter(Boolean); // quirks show on their own line (quirkOf)
   const aim = parts.targeting ? ` · ${TARGETING[parts.targeting].label} targeting (${TARGETING[parts.targeting].rarity})` : '';
-  return `${head.signature ? 'Signature: ' : ''}${head.noun} head${aim}${mods.length ? ` · ${mods.join(', ')}` : ''}`;
+  const more = [LENSES[parts.lens ?? '']?.label, COUPLINGS[parts.coupling ?? '']?.label, CORES[parts.core ?? '']?.label].filter(Boolean).map(x => ` · ${x}`).join('');
+  return `${head.signature ? 'Signature: ' : ''}${head.noun} head${aim}${more}${mods.length ? ` · ${mods.join(', ')}` : ''}`;
+}
+
+/**
+ * What the passive parts of everything worn add to the host's fight rules: regulators
+ * (heat shed a turn, special heat taken, starting heat) and traits (speed, Overload, hazards).
+ * Housing and the Tough trait change stats instead (getTotalAugmentationBonuses).
+ */
+export function partPerks<P extends { extraCooling: number; specialHeatTakenMult: number; startHeat: number; hazardMult: number; startOverload: number; partSpeed: number }>(perks: P, worn: (Item | null | undefined)[]): P {
+  const p = { ...perks };
+  for (const it of worn) {
+    const pp = it?.passiveParts;
+    if (!pp) continue;
+    const reg = REGULATORS[pp.regulator], tr = pp.trait ? TRAITS[pp.trait] : undefined;
+    if (reg?.cooling) p.extraCooling += reg.cooling;
+    if (reg?.specialHeat) p.specialHeatTakenMult *= reg.specialHeat;
+    if (reg?.startHeat) p.startHeat = Math.min(100, p.startHeat + reg.startHeat);
+    if (tr?.speed) p.partSpeed += tr.speed;
+    if (tr?.overload) p.startOverload += tr.overload;
+    if (tr?.hazard) p.hazardMult *= tr.hazard;
+  }
+  return p;
 }
 
 /** The quirk an implant carries, by name, or null: cards show it on its own line, in gold. */
@@ -339,10 +449,14 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
   const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
 
   const aimPart = parts.targeting ? TARGETING[parts.targeting] : null;
-  const damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult * (aimPart?.mult ?? 1) * (1 + (up.dmg ?? 0));
-  // Guaranteed full damage costs extra heat
-  const heat = Math.max(2, t.heat + (t.accuracy === 'precise' ? 3 : 0) + (up.heat ?? 0));
-  let accuracy = t.accuracy ?? 'variable';
+  // Implants from before lens, coupling and core existed read them off their maker's old numbers
+  const lens = LENSES[parts.lens ?? ''] ?? null;
+  const coupling = COUPLINGS[parts.coupling ?? ''] ?? null;
+  const core = CORES[parts.core ?? ''] ?? CORES.stock;
+  const damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult * (aimPart?.mult ?? 1) * (lens?.mult ?? 1) * core.mult * (1 + (up.dmg ?? 0));
+  // Guaranteed full damage costs extra heat (the clear lens)
+  const heat = Math.max(2, t.heat + (lens ? lens.heat : t.accuracy === 'precise' ? 3 : 0) + core.heat + (up.heat ?? 0));
+  let accuracy = lens?.accuracy ?? t.accuracy ?? 'variable';
   if (up.steady) accuracy = accuracy === 'unreliable' ? 'variable' : 'precise';
   if (up.precise) accuracy = 'precise';
   return {
@@ -354,8 +468,8 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     effects: Object.keys(effects).length ? effects : undefined,
     accuracy,
     heatGenerated: heat,
-    heatTransfer: t.transfer ?? 0,
-    physicalRatio: t.phys ?? 0.7,
+    heatTransfer: (t.transfer ?? 0) + (coupling?.transfer ?? 0) + core.transfer,
+    physicalRatio: coupling?.phys ?? t.phys ?? 0.7,
     healing: t.healing ? Math.round(t.healing * RARITY_DAMAGE[item.rarity]) : undefined,
     bypassStructuralDefense: item.passiveEffect === 'bypass_sdef' || undefined,
     side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,

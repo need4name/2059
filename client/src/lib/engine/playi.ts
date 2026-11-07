@@ -103,6 +103,10 @@ export interface Perks {
   implantHeatCut: number;     // heat off implant moves (Wretch's Cool grafts)
   kinship: boolean;           // implant moves' mods count twice (Wretch's Kinship)
   activeStatMult: number;     // active implants' stat bonuses (Wretch's Abomination)
+  // Passive implant parts (partPerks in augments.ts)
+  specialHeatTakenMult: number; // heat you take from special hits (Baffle regulator)
+  startOverload: number;      // Overload added at the start of each fight (Charged trait)
+  partSpeed: number;          // speed from traits (Quick)
 }
 /** Each firmware's Overload ultimate; unclassified hosts get the plain Signal Surge. */
 export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun' | 'resonance';
@@ -119,6 +123,7 @@ export const NO_PERKS: Perks = {
   momentum: 0, hitAndFade: false, redline: false, resonance: false,
   chainVent: 0, reflexReach: 0, overheatSpread: 0, strikeHot: false, implantDamage: 0,
   implantTreeDiscount: 0, implantHeatCut: 0, kinship: false, activeStatMult: 1,
+  specialHeatTakenMult: 1, startOverload: 0, partSpeed: 0,
 };
 
 /** Turns owned node ids (fallback fragments may repeat) into modifiers. */

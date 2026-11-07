@@ -7,6 +7,7 @@ import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
+import { effectMarks, drawMarks } from './marks';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -413,6 +414,10 @@ let currentAttackPattern: AttackPatternType | null = null;
 let aimedTiles: Set<string> | null = null;
 const aimedWeight = new Map<string, number>();
 let aimedMove: ReturnType<typeof moveKind> = null;
+// Who the aim actually hits (the targeting part can cap it), and the marks for what else the move does
+let struckFoes: Set<number> | null = null;
+let aimedMarks: ReturnType<typeof effectMarks> = { target: [], self: [] };
+let aimedAccuracy: string | undefined;
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 // Read attack pattern directly from the action - this is the single source of truth.
@@ -433,6 +438,9 @@ if (fs.aim) {
   // How hard it lands on each of those tiles (side, back and the shape's sweet spot): bolder where it hits harder
   for (const t of tiles) aimedWeight.set(`${t.row},${t.col}`, (1 + getFlankBonus(grid.playerPosition, t)) * Fight.sweetSpot(selectedAction, playerClass, grid.playerPosition, fs.aim, t));
   aimedMove = moveKind(selectedAction, playerClass);
+  struckFoes = new Set(Fight.struckAt(fs, selectedAction, playerClass, fs.aim));
+  aimedMarks = effectMarks(selectedAction);
+  aimedAccuracy = selectedAction.accuracy;
 }
 
 }
@@ -603,6 +611,11 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.lineTo(cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75);
     ctx.closePath(); ctx.fill();
   }
+  // What else the move does: marks along the bottom of each tile it lands on, and on your own tile for what it does for you
+  const markPx = Math.max(1.5, tileW * 0.045);
+  if (isAimed && aimedMarks.target.length) drawMarks(ctx, aimedMarks.target, pos.x, pos.y + tileH * 0.3, markPx);
+  // (yours go over your sprite, after the units, so they aren't hidden behind you)
+  if (isPlayerTile && aimedTiles && aimedMarks.self.length) { const at = { x: pos.x, y: pos.y + tileH * 0.36 }, self = aimedMarks.self; overlay.push(() => drawMarks(ctx, self, at.x, at.y, markPx)); }
   // Wind: two faint streaks drifting across every tile the way it blows
   if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
     const { dx, dy } = WIND_VEC[windNow.dir];
@@ -620,6 +633,16 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (isAimed) {
     ctx.strokeStyle = attackColors.stroke;
     ctx.lineWidth = 2.5;
+    // How it aims: a broken border when the hit can roll low, a second inner line when it always lands in full
+    if (aimedAccuracy === 'unreliable') ctx.setLineDash([Math.max(3, tileW * 0.08), Math.max(3, tileW * 0.06)]);
+    if (aimedAccuracy === 'precise') {
+      ctx.save();
+      const inset = Math.max(4, tileW * 0.1);
+      roundRectPath(ctx, pos.x - tileW / 2 + gap + inset, pos.y - tileH / 2 + gap + inset, tileW - (gap + inset) * 2, tileH - (gap + inset) * 2, radius * 0.6);
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.stroke();
+      ctx.restore();
+      roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
+    }
   } else if (isInAttackRange) {
     // Somewhere else it could be aimed: a faint outline, tap to aim there
     ctx.strokeStyle = attackColors.stroke;
@@ -636,6 +659,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.lineWidth = 0;
   }
   if (ctx.lineWidth) ctx.stroke();
+  ctx.setLineDash([]);
   ctx.globalAlpha = 1;
   if (enemyShoveTiles?.has(`${row},${col}`) && !isAimed) {
     ctx.strokeStyle = '#b07cff';
@@ -893,8 +917,8 @@ overlay.push(() => {
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
 drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444');
 
-// "Hit" over every enemy the current aim lands on
-if (aimedTiles?.has(`${f.pos.row},${f.pos.col}`) && phase === 'player_turn') {
+// "Hit" over every enemy the current aim lands on (only as many as its targeting part locks)
+if ((struckFoes ? struckFoes.has(i) : aimedTiles?.has(`${f.pos.row},${f.pos.col}`)) && phase === 'player_turn') {
 const label = 'Hit';
 ctx.font = '700 13px Manrope, sans-serif';
 ctx.textAlign = 'center';

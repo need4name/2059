@@ -188,7 +188,9 @@ bossThreat?: number;
 heads?: string[];
 /** Active implants: the head (attack shape) and mods (side effects) this one was built with. */
 /** Parts: the head (the shape), mods (side effects) and, for wide shapes, the targeting part (how many in the shape it can hit). */
-parts?: { head: string; mods: string[]; targeting?: Targeting };
+parts?: { head: string; mods: string[]; targeting?: Targeting; lens?: string; coupling?: string; core?: string };
+/** Passive implants: the housing (its structure), regulator (heat) and, on rare and better, a trait. */
+passiveParts?: { housing: string; regulator: string; trait?: string };
 /** What its upgrade tree grows from (set when it drops, from the run's dice). Older implants use their id. */
 treeSeed?: number;
 }

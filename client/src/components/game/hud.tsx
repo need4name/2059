@@ -2,6 +2,7 @@ import type { ReactNode, ButtonHTMLAttributes } from 'react';
 import type { ItemRarity } from '@/lib/combat/types';
 import type { AttackPatternType, AugmentationSlot, CombatAction, PlayerClass } from '@/lib/combat/types';
 import { attackFootprint, attackPatternOf } from '@/lib/engine/fight';
+import { effectMarks, MARKS } from './marks';
 
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   common: 'text-slate-300',
@@ -282,6 +283,13 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
   const { me, tiles } = attackFootprint(act, playerClass, n);
   const at = new Map(tiles.map(t => [`${t.row},${t.col}`, t.mult]));
   const gap = 1, size = n * (cell + gap) - gap;
+  // What else it does, as the board's tile marks, in a strip under the picture (target marks, then yours)
+  const fxMarks = cell >= 4 ? effectMarks(act) : { target: [], self: [] };
+  const allMarks = [...fxMarks.target, ...fxMarks.self];
+  const mpx = Math.max(1, Math.round(cell / 3)), mw = 5 * mpx, mgap = mpx * 2;
+  const stripH = allMarks.length ? mw + 3 : 0;
+  const stripW = allMarks.length * mw + (allMarks.length - 1) * mgap;
+  const width = Math.max(size, stripW);
   // How hard it lands there (side, back and the shape's sweet spot together): the stronger, the bolder
   const [cr, cg, cb] = damageTypeRgb(act.physicalRatio);
   const shade = (m: number) => `rgba(${cr},${cg},${cb},${Math.max(0.18, Math.min(1, (m - 0.55) / 0.95)).toFixed(2)})`;
@@ -297,7 +305,11 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
     return <polygon key={`a${r}-${c}`} points={pts.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')} fill="#1a0f02" />;
   };
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className={className} aria-hidden shapeRendering="crispEdges">
+    <svg viewBox={`0 0 ${width} ${size + stripH}`} width={width} height={size + stripH} className={className} aria-hidden shapeRendering="crispEdges">
+      {allMarks.map((id, k) => MARKS[id].rows.flatMap((row, r) => row.split('').map((ch, c) => ch === '#' ? (
+        <rect key={`m${k}-${r}-${c}`} x={(width - stripW) / 2 + k * (mw + mgap) + c * mpx} y={size + 3 + r * mpx} width={mpx} height={mpx} fill={MARKS[id].color} />
+      ) : null)))}
+      <g transform={`translate(${(width - size) / 2} 0)`}>
       {Array.from({ length: n * n }, (_, k) => {
         const r = Math.floor(k / n), c = k % n, m = at.get(`${r},${c}`);
         const fill = r === me.row && c === me.col ? '#38d6f0' : m !== undefined ? shade(m) : 'rgba(255,255,255,0.07)';
@@ -310,6 +322,7 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
       {cell >= 5 && moves === 'dash' && tiles.filter(t => Math.max(Math.abs(t.row - me.row), Math.abs(t.col - me.col)) === far).map(t => (
         <circle key={`d${t.row}-${t.col}`} cx={mid(t.col)} cy={mid(t.row)} r={cell * 0.22} fill="#38d6f0" />
       ))}
+      </g>
     </svg>
   );
 }

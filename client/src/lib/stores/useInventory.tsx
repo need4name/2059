@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CONDITION_MULT, structureOf, healthCostOf, canSplice } from '../combat/augments';
+import { CONDITION_MULT, structureOf, healthCostOf, canSplice, HOUSINGS, TRAITS } from '../combat/augments';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon, augmentKind } from '../combat/types';
@@ -208,6 +208,13 @@ structuralDefense += add(item.structuralDefenseBonus);
 hp                += add(item.hpBonus);
 evasion           += add(item.evasionBonus);
 structure         += structureOf(item);
+// Passive parts: a light housing dodges better, a sealed one turns special hits, a Tough trait adds health
+const pp = item.passiveParts;
+if (pp) {
+evasion += HOUSINGS[pp.housing]?.evasion ?? 0;
+structuralDefense += HOUSINGS[pp.housing]?.spDef ?? 0;
+hp += pp.trait ? TRAITS[pp.trait]?.hp ?? 0 : 0;
+}
 hpCost            += healthCostOf(item);
 // Passive effects - condition does not suppress manufacturer traits
 if (item.passiveEffect === 'bypass_sdef')      bypassStructuralDefense = true;
