@@ -1142,3 +1142,13 @@ test('implant moves are named by model number: the maker stamps its line, the gr
   assert.match(modelOf(arm('[VOLKOV] Test', 'legendary')), /^VK-(9|10)$/);
   assert.equal(modelOf(arm('[KIZUNA] Test', 'rare')), modelOf(arm('[KIZUNA] Test', 'rare')), 'the same part always carries the same number');
 });
+
+test('every implant shows its model number in its name; its move carries the same one', async () => {
+  const { displayName, modelOf } = await import('../client/src/lib/combat/augments');
+  const lung = { id: 'q', name: '[CROWN] Bellows Lung', rarity: 'rare' as const, type: 'augmentation' as const, slot: 'lungs' as const, icon: '', treeSeed: 3 };
+  assert.equal(displayName(lung), `${modelOf(lung)} Bellows Lung`);
+  assert.match(displayName(lung), /^RX-\d+ Bellows Lung$/);
+  const arm = { ...lung, slot: 'right_arm' as const, name: '[CROWN] Test Arm', parts: { head: 'mend', mods: [], lens: 'stock', coupling: 'servo', core: 'stock', targeting: 'focused' as const } };
+  assert.ok(actionForItem(arm)!.name.startsWith(modelOf(arm)), 'the move and its implant share a number');
+  assert.equal(displayName({ name: '[CROWN] Bio-Stim', type: 'consumable' }), 'Bio-Stim', 'stims have no model number');
+});

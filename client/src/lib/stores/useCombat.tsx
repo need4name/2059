@@ -34,7 +34,7 @@ import { NO_PERKS } from '../engine/playi';
 import { instancedItem, ITEM_POOLS } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
-import { powerOf, partPerks } from '../combat/augments';
+import { powerOf, partPerks, displayName } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
 import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
@@ -782,7 +782,7 @@ if (out.implant) {
 const rarity = out.implant === 'better' ? gradeUp(part?.rarity ?? 'common') : out.implant;
 const pool = ITEM_POOLS[rarity];
 const t = pool[Math.floor(random() * pool.length)];
-if (t) { const it = instancedItem(t); useInventory.getState().addItems([it]); got.push(it.name); }
+if (t) { const it = instancedItem(t); useInventory.getState().addItems([it]); got.push(displayName(it)); }
 }
 for (let n = 0; n < (out.stims ?? 0); n++) {
 const stims = ITEMS_2059.filter(i => i.type === 'consumable' && i.consumableEffect && i.consumableEffect !== 'overclock');

@@ -316,6 +316,11 @@ const MODEL: Record<Maker, (tier: number, h: number) => string> = {
   PARSU:     (t, h) => `PS-${t + 1}.${h % 10}`,
   PATCHWORK: (t, h) => `MK-${t + 1 + (h % 3)}`,
 };
+/** An item's name as the player sees it: no bracketed maker stamp, and an implant led by its model number ("RX-2 Cortex Lattice"). */
+export function displayName(item: Pick<Item, 'name'> & Partial<Item>): string {
+  const base = item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '');
+  return item.type === 'augmentation' && !item.signature ? `${modelOf(item as Item)} ${base}` : base;
+}
 export function modelOf(item: Item): string {
   const h = hashSeed(String(item.treeSeed ?? item.id));
   return MODEL[makerOf(item)](RARITY_INDEX[item.rarity] ?? 0, h);

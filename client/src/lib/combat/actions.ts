@@ -4,7 +4,7 @@ import { firmwareAttack } from '../engine/firmware';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
-import { MIN_PLAYER_HP, actionForItem } from './augments';
+import { MIN_PLAYER_HP, actionForItem, modelOf } from './augments';
 
 import { random } from '../engine/rng';
 // ── Range falloff ─────────────────────────────────────────────────────────────
@@ -503,7 +503,7 @@ const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef
 // He wears the Patchwork Crown (epic, or legendary a third of the time) over his frame's own implants
 const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'legendary' : 'epic');
 const carried = [...(crown ? [crown] : []), ...(base.carried ?? [])].slice(0, 3);
-return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24', carried, implants: carried.map(i => i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()), implantSlots: carried.flatMap(i => (i.slot ? [i.slot] : [])),
+return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24', carried, implants: carried.map(i => `${i.signature ? '' : `${modelOf(i)} `}${i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()}`), implantSlots: carried.flatMap(i => (i.slot ? [i.slot] : [])),
 maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
 physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
 physicalDefense: pDef, structuralDefense: sDef };
@@ -545,7 +545,7 @@ const slots = carried.flatMap(i => (i.slot ? [i.slot] : []));
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
 const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
 return { ...base, carried, moves, implantSlots: slots,
-implants: carried.map(i => i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()),
+implants: carried.map(i => `${i.signature ? '' : `${modelOf(i)} `}${i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()}`),
 traits: slots.map(sl => TRAIT_OF_SLOT[sl]).filter((t, n, all) => t && all.indexOf(t) === n),
 maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
 physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),

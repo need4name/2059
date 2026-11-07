@@ -1,4 +1,5 @@
 import type { Item, CombatAction } from '@/lib/combat/types';
+import { displayName } from '../../lib/combat/augments';
 
 const STIM_TEXT: Record<NonNullable<Item['consumableEffect']>, { label: string; effect: string; icon: string }> = {
   bio_stim: { label: 'Bio-Stim', effect: 'Restore 60% HP', icon: '💉' },
@@ -174,4 +175,5 @@ export function statusText(action: CombatAction): string | null {
 }
 
 /** An item's name as shown: without the bracketed maker stamp. */
-export const nameOf = (item: { name: string }) => item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '');
+/** An item's name as shown (see displayName). */
+export const nameOf = displayName;
