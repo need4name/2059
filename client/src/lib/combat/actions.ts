@@ -100,6 +100,15 @@ baseAttack: 15,
 baseDefense: 7,
 specialAbility: { name: 'Crowd Press', description: 'A shoulder through the crowd.', damage: 1, attackPattern: 'sweep_arc', physicalRatio: 0.7 },
 },
+splice: {
+name: 'Splice',
+description: 'Patchwork graft firmware. Two parts in one socket.',
+icon: '',
+baseHp: 95,
+baseAttack: 12,
+baseDefense: 5,
+specialAbility: { name: 'Graft Whip', description: 'A lash of grafted cable.', damage: 1, attackPattern: 'melee_long', physicalRatio: 0.7 },
+},
 };
 
 // ── Firmware: the basic attack ───────────────────────────────────────────────

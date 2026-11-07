@@ -364,3 +364,19 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     ...(parts.targeting === 'focused' ? { focused: true } : {}),
   };
 }
+
+/**
+ * Splice: makers whose parts take to each other in one socket (the same maker always does; Patchwork takes
+ * to anyone). A spliced pair is two implants in one passive slot.
+ */
+export const SPLICE_KIN: Record<Maker, Maker[]> = {
+  HELIX: ['CROWN', 'PARSU'], CROWN: ['HELIX', 'KIZUNA', 'TIANXIA'], PARSU: ['HELIX', 'VOLKOV', 'TIANXIA'], VOLKOV: ['PARSU', 'IOA'],
+  IOA: ['VOLKOV', 'KIZUNA', 'CBN'], KIZUNA: ['IOA', 'CROWN'], TIANXIA: ['PARSU', 'CROWN'], CBN: ['PATCHWORK', 'IOA'], PATCHWORK: [],
+};
+/** Can `extra` be spliced into the slot `main` sits in? Passive slots only, same slot, makers that take to each other. */
+export function canSplice(main: Item, extra: Item): boolean {
+  if (main.type !== 'augmentation' || extra.type !== 'augmentation' || !main.slot || main.slot !== extra.slot || main.id === extra.id) return false;
+  if (augmentKind(main.slot) !== 'passive') return false;
+  const a = makerOf(main), b = makerOf(extra);
+  return a === b || a === 'PATCHWORK' || b === 'PATCHWORK' || SPLICE_KIN[a].includes(b);
+}

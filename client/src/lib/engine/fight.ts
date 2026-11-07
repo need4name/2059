@@ -669,9 +669,9 @@ const gainOverload = (s: FightState, amount: number): FightState => ({ ...s, ove
 const SURGE: CombatAction = { type: 'special', name: 'Signal Surge', description: '', damage: 0, accuracy: 'precise', physicalRatio: 0.5 };
 
 /** How far each ultimate reaches (Blink needs no one in reach: it's for you). */
-export const SURGE_REACH: Record<SurgeKind, number> = { blast: OVERLOAD.reach, piledriver: 2, overwatch: 6, blink: 99, overrun: 3 };
+export const SURGE_REACH: Record<SurgeKind, number> = { blast: OVERLOAD.reach, piledriver: 2, overwatch: 6, blink: 99, overrun: 3, resonance: 3 };
 /** Each ultimate's name, for the button. */
-export const SURGE_NAME: Record<SurgeKind, string> = { blast: 'Signal Surge', piledriver: 'Piledriver', overwatch: 'Overwatch', blink: 'Blink', overrun: 'Overrun' };
+export const SURGE_NAME: Record<SurgeKind, string> = { blast: 'Signal Surge', piledriver: 'Piledriver', overwatch: 'Overwatch', blink: 'Blink', overrun: 'Overrun', resonance: 'Resonance' };
 export const surgeTargets = (s: FightState) => livingFoes(s).filter(x => !x.f.swimming && chebyshev(x.f.pos, s.grid.playerPosition) <= SURGE_REACH[s.perks.surgeKind ?? 'blast']).map(x => x.i);
 export const canSurge = (s: FightState) => s.overload >= OVERLOAD.full && surgeTargets(s).length > 0;
 
@@ -686,7 +686,8 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
     return { state: { ...state, playerHasted: 2 }, events };
   }
   // How hard: Piledriver twice your best move, Overwatch 1.2x a shot each, Overrun 0.8x, the plain surge 1.5x
-  const mult = kind === 'piledriver' ? 2 : kind === 'overwatch' ? 1.2 : kind === 'overrun' ? 0.8 : OVERLOAD.mult;
+  // Resonance (Splice): 0.6x for every spliced pair worn (at least one, up to three)
+  const mult = kind === 'piledriver' ? 2 : kind === 'overwatch' ? 1.2 : kind === 'overrun' ? 0.8 : kind === 'resonance' ? 0.6 * Math.max(1, Math.min(3, s.perks.splicedNow ?? 0)) : OVERLOAD.mult;
   const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * mult)) };
   const targets = surgeTargets(s);
   for (const i of targets) {

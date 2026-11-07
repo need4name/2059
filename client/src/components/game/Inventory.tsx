@@ -6,7 +6,11 @@ import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } f
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
 import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, nameOf } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
-import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf } from '@/lib/combat/augments';
+import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf, canSplice } from '@/lib/combat/augments';
+import { useCombat } from '@/lib/stores/useCombat';
+import { useFirmware } from '@/lib/stores/useFirmware';
+import { withClass } from '@/lib/engine/firmware';
+import { NO_PERKS } from '@/lib/engine/playi';
 import { DRIVE } from '@/lib/engine/fight';
 import { getRarityColor } from '@/lib/combat/loot';
 
@@ -196,7 +200,15 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
 }
 
 export function Inventory() {
-  const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses } = useInventory();
+  const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses, spliced, spliceIn, unsplice } = useInventory();
+  // Splice firmware: passive slots can hold a second, compatible implant
+  const splicing = useCombat(st => st.playerClass === 'splice');
+  const spliceLevel = useFirmware(st => st.level('splice'));
+  useFirmware(st => st.forks); // the limit follows the forks taken
+  const pairLimit = withClass(NO_PERKS, 'splice', spliceLevel).splicePairs;
+  const pairsNow = Object.values(spliced ?? {}).filter(Boolean).length;
+  const canSpliceIn = (item: Item) => splicing && !!item.slot && !!equippedAugmentations[item.slot] && canSplice(equippedAugmentations[item.slot]!, item)
+    && (pairsNow < pairLimit || !!spliced?.[item.slot]);
   const { getTreeStatBonuses } = useAugmentTrees();
   const [filter, setFilter] = useState<AugmentationSlot | null>(null);
 
@@ -230,8 +242,15 @@ export function Inventory() {
         <div className="space-y-2">
           <Label>Installed in {AUGMENTATION_SLOT_NAMES[filter].toLowerCase()}</Label>
           <ImplantRow startOpen item={equippedAugmentations[filter]!} action={<Btn size="sm" variant="danger" onClick={() => unequipAugmentation(filter)}>Remove</Btn>} />
+          {spliced?.[filter] && (
+            <>
+              <Label>Spliced beside it</Label>
+              <ImplantRow item={spliced[filter]!} action={<Btn size="sm" variant="danger" onClick={() => unsplice(filter)}>Take out</Btn>} />
+            </>
+          )}
         </div>
       )}
+      {splicing && <p className="px-1 text-xs text-hud-dim">Spliced pairs: {pairsNow} of {pairLimit}</p>}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -248,7 +267,12 @@ export function Inventory() {
               <ImplantRow
                 key={item.id}
                 item={item}
-                action={<Btn size="sm" variant="primary" onClick={() => install(item)}>{item.slot && equippedAugmentations[item.slot] ? 'Swap' : 'Install'}</Btn>}
+                action={
+                  <span className="flex flex-col gap-1.5">
+                    <Btn size="sm" variant="primary" onClick={() => install(item)}>{item.slot && equippedAugmentations[item.slot] ? 'Swap' : 'Install'}</Btn>
+                    {canSpliceIn(item) && <Btn size="sm" variant="gold" onClick={() => spliceIn(item)}>Splice</Btn>}
+                  </span>
+                }
               />
             ))}
           </div>

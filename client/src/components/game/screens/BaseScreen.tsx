@@ -204,7 +204,7 @@ function treeLayout(nodes: UpgradeNode[]) {
 const ROW = 84; // px between rows of the tree
 
 /** One implant's tree (its own, grown from the part): tap a node to see it; a fork takes one side only. */
-function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
+function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; item: Item; spliced?: boolean }) {
   const { owned: all, availablePoints, take } = useAugmentTrees();
   const nodes = nodesOf(item)!;
   const owned = all[item.id] ?? [];
@@ -274,7 +274,7 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
           {node.cap && <span className="text-xs font-semibold text-cred">{node.cap === 'legendary' ? 'Legendary capstone' : 'Capstone'}</span>}
         </div>
         <p className="text-sm text-hud-text/85">{effectText(node.effect)}</p>
-        {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
+        {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus, spliced); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'points' && <Btn className="w-full" variant="secondary" disabled>Needs {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
         {why === 'fork' && <p className="text-sm text-hud-faint">You took {taken(focus)?.name} instead.</p>}
@@ -285,14 +285,19 @@ function UpgradeTree({ slot, item }: { slot: AugmentationSlot; item: Item }) {
 }
 
 function UpgradesTab() {
-  const { equippedAugmentations } = useInventory();
+  const { equippedAugmentations, spliced } = useInventory();
   const { owned, availablePoints, wins } = useAugmentTrees();
-  const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] && nodesOf(equippedAugmentations[s]!));
-  const firstWaiting = equipped.find(s => upgradeWaiting(equippedAugmentations[s]!, owned, availablePoints));
-  const [picked, setPicked] = useState<AugmentationSlot | null>(null);
-  const slot = picked && equipped.includes(picked) ? picked : (firstWaiting ?? equipped[0]);
+  // Every implant that grows a tree: the fitted ones, and any spliced in beside them
+  const entries = AUGMENTATION_SLOTS.flatMap(s => [
+    ...(equippedAugmentations[s] && nodesOf(equippedAugmentations[s]!) ? [{ key: s as string, s, item: equippedAugmentations[s]!, spliced: false }] : []),
+    ...(spliced[s] && nodesOf(spliced[s]!) ? [{ key: `${s}+`, s, item: spliced[s]!, spliced: true }] : []),
+  ]);
+  const firstWaiting = entries.find(e => upgradeWaiting(e.item, owned, availablePoints));
+  const [picked, setPicked] = useState<string | null>(null);
+  const entry = entries.find(e => e.key === picked) ?? firstWaiting ?? entries[0];
+  const slot = entry?.s;
 
-  if (!slot) {
+  if (!entry || !slot) {
     return <Card raised className="px-4 py-10 text-center text-sm text-hud-dim">Nothing to grow yet.</Card>;
   }
   const toGo = WINS_PER_POINT - wins;
@@ -304,22 +309,21 @@ function UpgradesTab() {
         <span className="font-display text-2xl font-semibold text-cred">{availablePoints}</span>
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
-        {equipped.map(s => {
-          const item = equippedAugmentations[s]!;
+        {entries.map(({ key, s, item, spliced: sp }) => {
           const n = (owned[item.id] ?? []).length;
           const waiting = upgradeWaiting(item, owned, availablePoints);
           return (
-            <button key={s} onClick={() => setPicked(s)} aria-pressed={s === slot}
-              className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', s === slot && 'key-selected')}>
+            <button key={key} onClick={() => setPicked(key)} aria-pressed={key === entry.key}
+              className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', key === entry.key && 'key-selected')}>
               {(() => { const mv = actionForItem(item); return mv?.type === 'attack' ? <Footprint action={mv} cell={3} /> : <SlotIcon slot={s} size={20} className="text-sys/80" />; })()}
-              <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}</span>
+              <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}{sp ? ' +' : ''}</span>
               <span className="flex gap-1">{Array.from({ length: Math.max(...nodesOf(item)!.map(x => depthIn(nodesOf(item)!, x.id))) + 1 }, (_, t) => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t < n ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
             </button>
           );
         })}
       </div>
-      <UpgradeTree key={equippedAugmentations[slot]!.id} slot={slot} item={equippedAugmentations[slot]!} />
+      <UpgradeTree key={entry.item.id} slot={slot} item={entry.item} spliced={entry.spliced} />
       <p className="px-1 text-xs text-hud-faint">Selling an implant or giving it away gives its points back.</p>
     </div>
   );

@@ -10,7 +10,7 @@ import type { Perks, SurgeKind } from './playi';
 
 export interface FirmwareStep { perk?: FirmwareIdentity['perks']; hp?: number; text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
 /** A firmware's class: its own rule, heat style and Overload ultimate. */
-export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number } }
+export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number; splicePairs?: number; spliceHeatCut?: number } }
 /** A level: one step, or a fork of two the player picks between. */
 export type FirmwareLevel = FirmwareStep | { choose: [FirmwareStep, FirmwareStep] };
 interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
@@ -32,7 +32,7 @@ export function stepsTo(cls: PlayerClass, level: number): FirmwareStep[] {
   return (FIRMWARE[cls]?.levels ?? []).slice(0, Math.max(0, level - 1)).map((l, k) => ('choose' in l ? l.choose[forkChoice(cls, k + 2)] : l));
 }
 /** Whose firmware each is (sets what its attack does extra when you're hot). */
-export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA' };
+export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA', splice: 'PATCHWORK' };
 export const FIRMWARE_XP = D.xp;
 export const XP_TO_NEXT = D.xpToNext;
 /** The highest level a firmware reaches. */
@@ -123,7 +123,22 @@ export function withClass(p: Perks, cls: PlayerClass, level = 1): Perks {
     heatGenBonus: p.heatGenBonus + (k.heatGenBonus ?? 0),
     ventMult: p.ventMult * (k.ventMult ?? 1),
     transferBonus: p.transferBonus + (k.transferBonus ?? 0),
+    splicePairs: p.splicePairs + (k.splicePairs ?? 0),
+    spliceHeatCut: p.spliceHeatCut + (k.spliceHeatCut ?? 0),
     surgeKind: id.surge,
     maxHpBonus: p.maxHpBonus + hp,
+  };
+}
+
+/** Splice: what each spliced pair costs (heat every turn, before any Tolerance or Symbiote cut; a share off the structure bar). */
+export const SPLICE = { heatPerPair: 2, structureCut: 0.1 };
+/** The host's perks with the cost of the spliced pairs it wears (Splice only; any other firmware wears none). */
+export function withSplice(p: Perks, pairs: number): Perks {
+  if (pairs <= 0) return p;
+  return {
+    ...p,
+    splicedNow: pairs,
+    extraCooling: p.extraCooling - pairs * Math.max(0, SPLICE.heatPerPair - p.spliceHeatCut),
+    structureMult: p.structureMult * Math.max(0.3, 1 - SPLICE.structureCut * pairs),
   };
 }

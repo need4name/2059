@@ -39,7 +39,7 @@ const actionFields = {
   bypassStructuralDefense: z.boolean().optional(),
   attackPattern: pattern.optional(),
   ignoreRange: z.boolean().optional(),
-  effects: z.object({ knock: z.boolean().optional(), pull: z.boolean().optional(), bleed: z.boolean().optional(), stun: z.number().gt(0).max(1).optional(), slow: z.boolean().optional() }).strict().optional(),
+  effects: z.object({ knock: z.boolean().optional(), pull: z.boolean().optional(), bleed: z.boolean().optional(), stun: z.number().gt(0).max(1).optional(), slow: z.boolean().optional(), drain: z.number().gt(0).max(1).optional() }).strict().optional(),
 };
 const action = z.object(actionFields).strict().refine(a => a.type !== 'attack' || (a.damage ?? 0) > 0, 'an attack needs damage');
 
@@ -169,7 +169,7 @@ const upgradeFile = z.object({
   shapes: z.object({ common: shape, uncommon: shape, rare: shape, epic: shape, legendary: shape }).strict(),
   kinds: perTree, capstones: perTree, legendary: perTree,
 }).strict();
-const classPerks = z.object({ chain: z.literal(true), heatGenBonus: z.number().int().min(1).max(10), ventMult: z.number().gt(1).max(3), coolAct: z.number().int().min(16).max(60), extraCooling: z.number().int().min(1).max(10), reflexMove: z.literal(true), transferBonus: z.number().int().min(1).max(20) }).partial().strict();
+const classPerks = z.object({ chain: z.literal(true), heatGenBonus: z.number().int().min(1).max(10), ventMult: z.number().gt(1).max(3), coolAct: z.number().int().min(16).max(60), extraCooling: z.number().int().min(1).max(10), reflexMove: z.literal(true), transferBonus: z.number().int().min(1).max(20), splicePairs: z.number().int().min(1).max(5), spliceHeatCut: z.number().int().min(1).max(2) }).partial().strict();
 const oneStep = z.object({
   text: z.string().trim().min(1).max(60), scale: z.number().gt(0).max(1).optional(), heat: z.number().int().min(-10).max(10).optional(),
   accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean(), retreat: z.boolean(), vault: z.boolean(), pounce: z.boolean() }).partial().optional(),
@@ -179,16 +179,16 @@ const oneStep = z.object({
 // A level is one step, or a fork of two the player picks between
 const firmwareStep = z.union([oneStep, z.object({ choose: z.tuple([oneStep, oneStep]) }).strict()]);
 const identity = z.object({
-  rule: text, heat: text, ultimate: text, surge: z.enum(['piledriver', 'overwatch', 'blink', 'overrun']),
+  rule: text, heat: text, ultimate: text, surge: z.enum(['piledriver', 'overwatch', 'blink', 'overrun', 'resonance']),
   perks: classPerks,
 }).strict();
 const firmwareDef = z.object({ identity, base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), unlockAt: z.number().int().min(2).max(30).optional(), speed: z.number().int().min(1).max(4).optional() }).strict();
 const firmwareFile = z.object({
   about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
   xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),
-  firmware: z.object({ melee: firmwareDef, ranged: firmwareDef, swift: firmwareDef, crowd: firmwareDef }).strict()
+  firmware: z.object({ melee: firmwareDef, ranged: firmwareDef, swift: firmwareDef, crowd: firmwareDef, splice: firmwareDef }).strict()
     .refine(f => !f.melee.unlockAt && !f.ranged.unlockAt, 'Enforcer and Operative open with a death, not by going deep')
-    .refine(f => !!f.swift.unlockAt && !!f.crowd.unlockAt, 'Courier and Foreman open by going deep: they need unlockAt'),
+    .refine(f => !!f.swift.unlockAt && !!f.crowd.unlockAt && !!f.splice.unlockAt, 'Courier, Foreman and Splice open by going deep: they need unlockAt'),
 }).strict().refine(f => Object.values(f.firmware).every(fw => fw.levels.length === f.xpToNext.length), 'every firmware needs one step per level (as many as xpToNext)');
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 

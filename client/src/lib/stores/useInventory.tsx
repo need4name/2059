@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CONDITION_MULT, structureOf, healthCostOf } from '../combat/augments';
+import { CONDITION_MULT, structureOf, healthCostOf, canSplice } from '../combat/augments';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon } from '../combat/types';
@@ -13,8 +13,16 @@ gold: number;
 equippedAugmentations: EquippedAugmentations;
 ownedWeapons: Weapon[];
 equippedWeapon: Weapon | null;
+/** Splice firmware: a second implant spliced into a passive slot, beside the one fitted there. */
+spliced: Partial<Record<AugmentationSlot, Item | null>>;
 
 addItems: (newItems: Item[]) => void;
+/** Splice a spare implant into its slot beside the fitted one (the caller checks the firmware and the pair limit). */
+spliceIn: (item: Item) => void;
+/** Take a spliced implant back out into the bag. */
+unsplice: (slot: AugmentationSlot) => void;
+/** Take every spliced implant back out (another firmware loaded). */
+unspliceAll: () => void;
 addGold: (amount: number) => void;
 spendGold: (amount: number) => boolean;
 removeItem: (itemId: string) => void;
@@ -44,6 +52,26 @@ gold: 0,
 equippedAugmentations: createEmptyAugmentations(),
 ownedWeapons: [],
 equippedWeapon: null,
+spliced: {},
+
+spliceIn: (item: Item) => {
+const s = get();
+const slot = item.slot as AugmentationSlot | undefined;
+const main = slot ? s.equippedAugmentations[slot] : null;
+if (!slot || !main || !canSplice(main, item) || !s.items.some(i => i.id === item.id)) return;
+const old = s.spliced[slot];
+set({ spliced: { ...s.spliced, [slot]: item }, items: [...s.items.filter(i => i.id !== item.id), ...(old ? [old] : [])] });
+},
+unsplice: (slot: AugmentationSlot) => {
+const s = get(), it = s.spliced[slot];
+if (!it) return;
+set({ spliced: { ...s.spliced, [slot]: null }, items: [...s.items, it] });
+},
+unspliceAll: () => {
+const s = get();
+const out = Object.values(s.spliced).filter((i): i is Item => !!i);
+if (out.length) set({ spliced: {}, items: [...s.items, ...out] });
+},
 
 addItems: (newItems: Item[]) => {
 set((state) => ({
@@ -82,6 +110,7 @@ gold: 0,
 equippedAugmentations: createEmptyAugmentations(),
 ownedWeapons: [],
 equippedWeapon: null,
+spliced: {},
 });
 },
 
@@ -99,6 +128,10 @@ const newItems = state.items.filter(i => i.id !== item.id);
 if (currentEquipped) {
 newItems.push(currentEquipped);
 }
+// A spliced partner that doesn't take to the new part comes out too
+const partner = state.spliced?.[slot];
+const keep = partner && canSplice(item, partner);
+if (partner && !keep) newItems.push(partner);
 
 return {
 equippedAugmentations: {
@@ -106,6 +139,7 @@ equippedAugmentations: {
 [slot]: item,
 },
 items: newItems,
+spliced: { ...state.spliced, [slot]: keep ? partner : null },
 };
 });
 
@@ -116,12 +150,15 @@ set((state) => {
 const equipped = state.equippedAugmentations[slot];
 if (!equipped) return state;
 
+// Its spliced partner comes out with it
+const partner = state.spliced?.[slot];
 return {
 equippedAugmentations: {
 ...state.equippedAugmentations,
 [slot]: null,
 },
-items: [...state.items, equipped],
+items: [...state.items, equipped, ...(partner ? [partner] : [])],
+spliced: { ...state.spliced, [slot]: null },
 };
 });
 
@@ -156,8 +193,9 @@ let hasKizuna = false;
 let structure = 0;
 let hpCost = 0;
 
-for (const slot of AUGMENTATION_SLOTS) {
-const item = state.equippedAugmentations[slot];
+// Fitted implants, and any spliced in beside them (Splice): both count
+const worn = AUGMENTATION_SLOTS.flatMap(sl => [state.equippedAugmentations[sl], state.spliced?.[sl] ?? null]);
+for (const item of worn) {
 if (item) {
 // Worn parts work at reduced strength; a part never subtracts stats
 const m = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
@@ -229,6 +267,6 @@ set({ equippedWeapon: weapon });
 // A save with missing body slots (older or hand-edited) still loads: fill the gaps with empty slots
 merge: (persisted, current) => {
 const p = (persisted ?? {}) as Partial<InventoryState>;
-return { ...current, ...p, equippedAugmentations: { ...createEmptyAugmentations(), ...(p.equippedAugmentations ?? {}) } };
+return { ...current, ...p, spliced: p.spliced ?? {}, equippedAugmentations: { ...createEmptyAugmentations(), ...(p.equippedAugmentations ?? {}) } };
 },
 }));

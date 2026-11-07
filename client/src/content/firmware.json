@@ -69,6 +69,23 @@
         { "text": "A 20% chance to stun", "fx": {"stun": 0.2} },
         { "choose": [{"text": "Overrun: a blast on a 3x3 square up to three away", "pattern": "aoe", "scale": 0.2}, {"text": "Pressure: hits push 10 more heat, hit harder", "perk": {"transferBonus": 10}, "scale": 0.15}] }
       ]
+    },
+    "splice": {
+      "identity": {"rule": "Each passive slot can hold a second, compatible implant: both count, and both upgrade trees grow. Up to 2 pairs.", "heat": "Runs warm from the strain: each spliced pair adds 2 heat a turn and takes 10% off your structure.", "ultimate": "Resonance: everything within 3 tiles takes 0.6 times your best move for every spliced pair (up to 3).", "surge": "resonance", "perks": {"splicePairs": 2}},
+      "unlockAt": 25,
+      "scale": 0.8,
+      "base": {"type": "attack", "name": "Graft Whip", "description": "Patchwork graft firmware: a lash of grafted cable that drinks a little. Reaches two tiles in a line.", "damage": 10, "heatGenerated": 12, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee_long", "effects": {"drain": 0.1}},
+      "levels": [
+        { "text": "Hits harder", "scale": 0.1 },
+        { "text": "Drinks deeper: heals 15% of the damage", "fx": {"drain": 0.15} },
+        { "choose": [{"text": "Tolerance: each pair costs 1 less heat a turn", "perk": {"spliceHeatCut": 1}}, {"text": "Overgrowth: one more pair (3)", "perk": {"splicePairs": 1}}] },
+        { "text": "Hits harder", "scale": 0.15 },
+        { "text": "Runs cooler", "heat": -2 },
+        { "choose": [{"text": "Graft hunger: heals 25% of the damage, hits harder", "fx": {"drain": 0.25}, "scale": 0.1}, {"text": "Thorns: +25 max health", "hp": 25}] },
+        { "text": "Hits harder", "scale": 0.15 },
+        { "text": "Hits harder", "scale": 0.15 },
+        { "choose": [{"text": "Chimera: two more pairs", "perk": {"splicePairs": 2}}, {"text": "Symbiote: pairs cost no heat", "perk": {"spliceHeatCut": 2}}] }
+      ]
     }
   }
 }

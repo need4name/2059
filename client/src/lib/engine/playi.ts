@@ -86,9 +86,12 @@ export interface Perks {
   ventMult: number;           // multiplies venting bursts (Enforcer)
   transferBonus: number;      // extra heat pushed into whoever you hit (Foreman)
   surgeKind: SurgeKind;       // what Overload does when it goes off
+  splicePairs: number;        // how many passive slots can hold a spliced pair (Splice)
+  spliceHeatCut: number;      // heat a turn taken off each spliced pair's cost (Splice)
+  splicedNow: number;         // spliced pairs the host is wearing (set when the host is built)
 }
 /** Each firmware's Overload ultimate; unclassified hosts get the plain Signal Surge. */
-export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun';
+export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun' | 'resonance';
 
 export const NO_PERKS: Perks = {
   moveBonus: 0, reflexMove: false, hazardMult: 1, sidestep: false, phaseStep: false,
@@ -98,7 +101,7 @@ export const NO_PERKS: Perks = {
   maxHpBonus: 0, startBioStims: 0, priceMult: 1, holdfast: false, damageTakenMult: 1,
   allyHpMult: 1, allyXpMult: 1, coordinated: false, allySlots: 1,
   braceHeal: 0, partingTakenMult: 1, collisionMult: 1, noFlinch: false, windproof: false,
-  heatGenBonus: 0, ventMult: 1, transferBonus: 0, surgeKind: 'blast',
+  heatGenBonus: 0, ventMult: 1, transferBonus: 0, surgeKind: 'blast', splicePairs: 0, spliceHeatCut: 0, splicedNow: 0,
 };
 
 /** Turns owned node ids (fallback fragments may repeat) into modifiers. */

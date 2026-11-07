@@ -40,7 +40,7 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { withClass, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
+import { withClass, withSplice, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -213,7 +213,10 @@ const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClas
 const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 // What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
 // The firmware's class rules (Enforcer chains takedowns, Operative acts twice cool, ...), then the slot upgrades
-const perks = withTreePerks(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+const classed = withTreePerks(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+// Splice: each spliced pair runs the host hotter and thins its structure
+const pairs = playerClass === 'splice' ? Object.values(useInventory.getState().spliced ?? {}).filter(Boolean).length : 0;
+const perks = withSplice(classed, pairs);
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
@@ -730,7 +733,10 @@ progression: initialProgression(),
 grid: emptyGrid(),
 
 setPlayerClass: (playerClass) => {
-if (availableFirmware().includes(playerClass)) set({ playerClass });
+if (!availableFirmware().includes(playerClass)) return;
+// Only Splice holds spliced pairs: any other firmware takes them back out
+if (playerClass !== 'splice') useInventory.getState().unspliceAll();
+set({ playerClass });
 },
 
 startCombat: () => startFight(get().bossLevel, false),
@@ -1124,7 +1130,7 @@ return { hp: healthNow(useMap.getState(), max), max };
 export const ALL_FIRMWARE_OPEN = true;
 
 export function availableFirmware(): PlayerClass[] {
-if (ALL_FIRMWARE_OPEN) return ['melee', 'ranged', 'swift', 'crowd'];
+if (ALL_FIRMWARE_OPEN) return ['melee', 'ranged', 'swift', 'crowd', 'splice'];
 const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
 return all.filter((c, k) => all.indexOf(c) === k);
 }

@@ -19,7 +19,8 @@ interface AugmentTreeState {
   wins: number;
 
   /** Take a node on the implant in this slot. */
-  take: (slot: AugmentationSlot, node: string) => boolean;
+  /** Take a node on the implant fitted in a slot (or the one spliced in beside it). */
+  take: (slot: AugmentationSlot, node: string, spliced?: boolean) => boolean;
   /** A fight won: count it toward the next point. */
   winFight: () => void;
   addPoints: (n: number) => void;
@@ -35,6 +36,8 @@ interface AugmentTreeState {
 }
 
 const installed = (slot: AugmentationSlot) => useInventory.getState().equippedAugmentations[slot];
+/** The implant fitted in a slot and any spliced in beside it (Splice): both grow their trees. */
+const wornIn = (slot: AugmentationSlot) => [installed(slot), useInventory.getState().spliced?.[slot] ?? null];
 
 /** Which tree an implant grows. */
 export function treeOf(item: Item): TreeKind | null {
@@ -54,8 +57,8 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
   availablePoints: 0,
   wins: 0,
 
-  take: (slot, node) => {
-    const item = installed(slot);
+  take: (slot, node, spliced = false) => {
+    const item = spliced ? useInventory.getState().spliced?.[slot] ?? null : installed(slot);
     const tree = item && nodesOf(item);
     if (!item || !tree) return false;
     const mine = get().owned[item.id] ?? [];
@@ -97,8 +100,7 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
   // Stats from every installed implant's tree. Movement doesn't stack across implants: the best one counts.
   getTreeStatBonuses: (equippedSlots) => {
     let attack = 0, defense = 0, hp = 0, moveRange = 0, evasion = 0;
-    for (const slot of equippedSlots) {
-      const item = installed(slot);
+    for (const slot of equippedSlots) for (const item of wornIn(slot)) {
       const tree = item && nodesOf(item);
       if (!item || !tree) continue;
       const e = effectIn(tree, get().owned[item.id] ?? []);
@@ -110,8 +112,7 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
 
   getTreePerks: (equippedSlots) => {
     let out: TreePerk = {};
-    for (const slot of equippedSlots) {
-      const item = installed(slot);
+    for (const slot of equippedSlots) for (const item of wornIn(slot)) {
       const tree = item && nodesOf(item);
       if (item && tree) out = addPerks(out, effectIn(tree, get().owned[item.id] ?? []).perk);
     }

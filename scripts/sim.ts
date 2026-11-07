@@ -9,6 +9,8 @@ import { useInventory as I } from '../client/src/lib/stores/useInventory';
 import { useAugmentTrees as T, nodesOf } from '../client/src/lib/stores/useAugmentTrees';
 import * as UP from '../client/src/lib/engine/upgrades';
 import { useFirmware as FW } from '../client/src/lib/stores/useFirmware';
+import * as FWE from '../client/src/lib/engine/firmware';
+import { NO_PERKS } from '../client/src/lib/engine/playi';
 import { useRunStats } from '../client/src/lib/stores/useRunStats';
 import { availableFirmware, hostHealth } from '../client/src/lib/stores/useCombat';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
@@ -36,6 +38,16 @@ function betweenFights() {
   for (const it of I.getState().items.filter((i: any) => i.type === 'augmentation')) {
     const eq = I.getState().equippedAugmentations[it.slot!];
     if (!eq || value(it) > value(eq)) { I.getState().equipAugmentation(it); }
+  }
+  // Splice: splice the best compatible spare into each passive slot, up to the pair limit
+  if (C.getState().playerClass === 'splice') {
+    const limit = FWE.withClass(NO_PERKS, 'splice', FW.getState().level('splice')).splicePairs;
+    for (const slot of ['brain', 'ears', 'nose', 'lungs', 'misc'] as const) {
+      const inv = I.getState(), main = inv.equippedAugmentations[slot];
+      if (!main || inv.spliced[slot] || Object.values(inv.spliced).filter(Boolean).length >= limit) continue;
+      const best = inv.items.filter((x: any) => x.slot === slot && A2.canSplice(main, x)).sort((a: any, b: any) => value(b) - value(a))[0];
+      if (best) I.getState().spliceIn(best);
+    }
   }
   // Spare implants go to allies riding along, best fit first
   for (const id of AL.getState().party) {

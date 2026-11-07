@@ -60,12 +60,13 @@ test('Foreman sweeps, then hits all around, then blasts a square at range', () =
   assert.equal(FW.firmwareAttack('crowd', 10, 40)!.attackPattern, 'aoe');
 });
 
-test('Courier and Foreman open by going deep, Courier first', () => {
-  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd']);
+test('Courier, Foreman and Splice open by going deep, Courier first', () => {
+  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd', 'splice']);
   assert.deepEqual(FW.opensAt(14, []), []);
   assert.deepEqual(FW.opensAt(15, []), ['swift']);
   assert.deepEqual(FW.opensAt(22, ['swift']), ['crowd']);
-  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), []);
+  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), ['splice']);
+  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd', 'splice']), []);
 });
 
 test('only elites, bosses and set pieces leave a first impression', async () => {
@@ -93,4 +94,39 @@ test('firmware forks: levels 4, 7 and 10 offer two sides; the one taken shapes t
   assert.equal(FW.withClass(NO_PERKS, 'melee', 7).maxHpBonus, 30);
   assert.equal(FW.withClass(NO_PERKS, 'melee', 6).maxHpBonus, 0, 'not before the level is reached');
   FW.setForkChoices({});
+});
+
+test('Splice: compatible pairs in passive slots, both count, each pair costs heat and structure', async () => {
+  const { canSplice, makerOf } = await import('../client/src/lib/combat/augments');
+  const { ITEMS_2059 } = await import('../client/src/lib/combat/items2059');
+  const { useInventory } = await import('../client/src/lib/stores/useInventory');
+  const passives = ITEMS_2059.filter(i => i.type === 'augmentation' && i.slot === 'brain' && !i.signature);
+  const helix = passives.find(i => makerOf(i) === 'KIZUNA')!;
+  const crown = passives.find(i => makerOf(i) === 'CROWN')!;
+  const volkov = passives.find(i => makerOf(i) === 'VOLKOV')!;
+  assert.ok(canSplice(helix, { ...crown, id: 'c2' }), 'Kizuna and Crown take to each other');
+  assert.ok(!canSplice(helix, { ...volkov, id: 'v2' }), 'Kizuna and Volkov do not');
+  const arm = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm')!;
+  assert.ok(!canSplice(arm, { ...arm, id: 'a2' }), 'active slots never splice');
+  // Both count
+  const inv = useInventory.getState();
+  inv.clearInventory();
+  const main = { ...helix, id: 'm1' }, extra = { ...crown, id: 'e1' };
+  inv.addItems([main, extra]);
+  useInventory.getState().equipAugmentation(main);
+  const before = useInventory.getState().getTotalAugmentationBonuses();
+  useInventory.getState().spliceIn(useInventory.getState().items.find(i => i.id === 'e1')!);
+  const after = useInventory.getState().getTotalAugmentationBonuses();
+  assert.ok(after.hp + after.physicalDefense + after.physicalAttack > before.hp + before.physicalDefense + before.physicalAttack, 'the spliced part adds its stats');
+  // Taking the main part out brings its partner out too
+  useInventory.getState().unequipAugmentation('brain');
+  assert.equal(useInventory.getState().spliced.brain, null);
+  assert.equal(useInventory.getState().items.length, 2);
+  useInventory.getState().clearInventory();
+  // Cost: 2 heat a turn and 10% structure per pair; Tolerance and Symbiote cut the heat
+  const two = FW.withSplice(FW.withClass(NO_PERKS, 'splice', 1), 2);
+  assert.equal(two.extraCooling, -4);
+  assert.ok(Math.abs(two.structureMult - 0.8) < 1e-9);
+  assert.equal(two.splicedNow, 2);
+  assert.equal(FW.withClass(NO_PERKS, 'splice', 1).splicePairs, 2, 'two pairs to start');
 });
