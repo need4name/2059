@@ -116,7 +116,7 @@ function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot 
               <span className="truncate">{SHORT_NAME[sp.slot]}</span>
               <span className={cx('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', kind === 'active' ? 'bg-ok' : 'bg-white/25')} title={kind === 'active' ? 'Active: gives a combat move' : 'Passive: always-on stats'} />
             </span>
-            <span className={cx('mt-0.5 block truncate text-[11px] font-semibold leading-tight', eq ? RARITY_TEXT[eq.rarity] : 'text-hud-faint')}>
+            <span className={cx('mt-0.5 line-clamp-2 break-words text-[11px] font-semibold leading-tight', eq ? RARITY_TEXT[eq.rarity] : 'text-hud-faint')}>
               {eq ? nameOf(eq) : 'Empty'}
             </span>
             {eq && <UpgradeDots item={eq} className="mt-1" />}
@@ -159,7 +159,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
             <SlotIcon slot={item.slot} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2"><span className={cx('min-w-0 truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span><UpgradeDots item={item} className="shrink-0" /></span>
+            <span className="flex items-center gap-2"><span className={cx('min-w-0 break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span><UpgradeDots item={item} className="shrink-0" /></span>
             <span className="flex items-center gap-1.5 text-xs text-hud-dim">
               <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', kind === 'active' ? 'bg-ok/10 text-ok' : 'bg-white/[0.06] text-hud-dim')}>{kind === 'active' ? 'Active' : 'Passive'}</span>
               {DRIVE[makerOf(item)] !== 0 && <span className={cx('shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold', DRIVE[makerOf(item)] > 0 ? 'bg-amber-300/10 text-amber-200' : 'bg-white/[0.06] text-hud-dim')}>{DRIVE[makerOf(item)] > 0 ? '+' : ''}{DRIVE[makerOf(item)]} speed</span>}

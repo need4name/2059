@@ -127,7 +127,7 @@ export function VictoryScreen() {
                         className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : picked === item.id ? 'ring-2 ring-cred' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
-                          <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
+                          <span className={cx('block break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
                           <span className="block truncate text-xs text-hud-dim">{item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · {implantStats(item)}{item.condition && item.condition !== 'pristine' ? ` · ${item.condition}` : ''}</span>
                           {parts && <span className="block truncate text-[11px] text-ok/90">{move?.name ? `${move.name}: ` : ''}{parts}</span>}
                           {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
@@ -203,7 +203,7 @@ export function VictoryScreen() {
                       <SlotIcon slot={isStim ? 'stim' : item.slot} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
+                      <div className={cx('break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
                       <div className="text-xs text-hud-dim">
                         {isStim ? stim!.effect : `${item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · ${implantStats(item)}`}
                       </div>

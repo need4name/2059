@@ -318,7 +318,8 @@ const MODEL: Record<Maker, (tier: number, h: number) => string> = {
 };
 /** An item's name as the player sees it: no bracketed maker stamp, and an implant led by its model number ("RX-2 Cortex Lattice"). */
 export function displayName(item: Pick<Item, 'name'> & Partial<Item>): string {
-  const base = item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '');
+  // No maker stamp, and no (L) or (R): the slot already says which side
+  const base = item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '').replace(/\s*\([LR]\)\s*$/, '');
   return item.type === 'augmentation' && !item.signature ? `${modelOf(item as Item)} ${base}` : base;
 }
 export function modelOf(item: Item): string {

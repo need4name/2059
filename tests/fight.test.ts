@@ -1151,4 +1151,5 @@ test('every implant shows its model number in its name; its move carries the sam
   const arm = { ...lung, slot: 'right_arm' as const, name: '[CROWN] Test Arm', parts: { head: 'mend', mods: [], lens: 'stock', coupling: 'servo', core: 'stock', targeting: 'focused' as const } };
   assert.ok(actionForItem(arm)!.name.startsWith(modelOf(arm)), 'the move and its implant share a number');
   assert.equal(displayName({ name: '[CROWN] Bio-Stim', type: 'consumable' }), 'Bio-Stim', 'stims have no model number');
+  assert.ok(!displayName({ ...lung, name: '[CROWN] Grip Arm (L)' }).includes('(L)'), 'no side tag: the slot says it');
 });

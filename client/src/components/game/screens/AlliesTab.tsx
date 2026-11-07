@@ -59,7 +59,7 @@ function AllyCard({ def }: { def: AllyDef }) {
               <div className="text-[11px] font-semibold text-hud-dim">{SLOT_TEXT[slot].title}</div>
               {it ? (
                 <>
-                  <div className={cx('truncate text-[13px] font-semibold', RARITY_TEXT[it.rarity])}>{nameOf(it)}</div>
+                  <div className={cx('break-words text-[13px] font-semibold leading-tight', RARITY_TEXT[it.rarity])}>{nameOf(it)}</div>
                   <div className="text-[11px] text-hud-dim">{statLine(it, fitsAlly(def, it) ? AFFINITY.stats : 1)}</div>
                 </>
               ) : <div className="text-[12px] leading-snug text-hud-dim">{SLOT_TEXT[slot].empty}</div>}
@@ -100,7 +100,7 @@ function Picker({ def, slot, done }: { def: AllyDef; slot: AllySlot; done: () =>
         return (
           <button key={it.id} onClick={() => { allies.giveImplant(def.id, it); done(); }} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] p-3 text-left hover:bg-white/[0.08]">
             <div className="min-w-0 flex-1">
-              <div className={cx('truncate text-[13px] font-semibold', RARITY_TEXT[it.rarity])}>{nameOf(it)}</div>
+              <div className={cx('break-words text-[13px] font-semibold leading-tight', RARITY_TEXT[it.rarity])}>{nameOf(it)}</div>
               <div className="text-[11px] text-hud-dim">{statLine(it, fit ? AFFINITY.stats : 1)}{installed ? ' · worn' : ''}</div>
             </div>
             {fit && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ok shadow-[0_0_8px_rgba(74,210,149,0.9)]" aria-label="suits them" />}

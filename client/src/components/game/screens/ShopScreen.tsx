@@ -51,7 +51,7 @@ function ItemRow({ item, price, action }: { item: Item; price: number; action: R
         <SlotIcon slot={isStim ? 'stim' : item.slot} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className={cx('truncate text-sm font-semibold', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
+        <div className={cx('break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{isStim ? stim!.label : nameOf(item)}</div>
         <div className="text-xs text-hud-dim">
           {isStim ? stim!.effect : `${item.slot ? AUGMENTATION_SLOT_NAMES[item.slot] : ''} · ${implantStats(item)}`}
         </div>
