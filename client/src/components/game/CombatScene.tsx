@@ -133,7 +133,7 @@ const WIND_VEC: Record<string, { dx: number; dy: number }> = { north: { dx: 0, d
 
 export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
-const { player, boss, phase, grid, playerClass, combatLog, selectedAction, aim, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned } = useCombat();
+const { player, boss, phase, grid, playerClass, combatLog, selectedAction, aim, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned, allyTurn, allyPicked } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
 const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
@@ -462,6 +462,9 @@ let aimedMove: ReturnType<typeof moveKind> = null;
 let struckFoes: Set<number> | null = null;
 let aimedAccuracy: string | undefined;
 let aimedAim: TilePosition | null = null;
+const hitPreview = new Map<number, { min: number; max: number }>();
+// Where the previewed attack comes from: you, or the ally whose turn it is
+let attackFrom: TilePosition = grid.playerPosition;
 // A defensive move's preview: what each one it covers gets back (shares of their bars), the outline of its guard, where it steps you
 type Gain = { now: number; later: number; sNow: number; sLater: number };
 const defendGain = new Map<string, Gain>();       // 'player' or 'ally:k'
@@ -485,8 +488,28 @@ if (selectedAction?.defend && phase === 'player_turn') {
   if (d.reach && (d.targets === 'focused' || d.targets === 'split2')) defendPick = new Set(Fight.defendCandidates(fs, selectedAction).map(w => { const p = w.kind === 'player' ? fs.grid.playerPosition : fs.allies[w.k].pos; return `${p.row},${p.col}`; }));
   defendStepTo = Fight.defendStep(fs, selectedAction);
 }
+// An ally's turn, with a move picked: the same previews from its tile
+if (allyTurn !== null && allyPicked !== null && phase === 'player_turn') {
+  const fs = useCombat.getState(), al = fs.allies[allyTurn], mv = al?.moves[allyPicked];
+  if (al && mv?.effect === 'attack') {
+    attackFrom = al.pos;
+    struckFoes = new Set(Fight.allyStruck(fs, allyTurn, allyPicked));
+    for (const i of Array.from(struckFoes)) { const e = Fight.estimateAllyHit(fs, allyTurn, allyPicked, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax }); }
+    aimedMove = moveKind(mv);
+    aimedTiles = new Set(Array.from(struckFoes).map(i => `${fs.foes[i].pos.row},${fs.foes[i].pos.col}`));
+  } else if (al && mv?.effect === 'defend' && mv.defend) {
+    const { who, mult } = Fight.allyDefendTargets(fs, allyTurn, allyPicked);
+    const a = Fight.defendAmounts(fs, mv, mult), turns = mv.defend.turns ?? 0;
+    const guard = a.physCut > 0 && a.specialCut > 0 ? '#ffffff' : a.physCut > 0 ? '#ffb43a' : a.specialCut > 0 ? '#a78bfa' : mv.defend.counter || mv.defend.anchor ? '#ffffff' : null;
+    for (const w of who) {
+      const c = w.kind === 'player' ? fs.player : fs.allies[w.k].unit, bar = c.maxStructuralHp > 0;
+      defendGain.set(w.kind === 'ally' ? `ally:${w.k}` : 'player', { now: a.heal + (bar ? 0 : a.repair * 0.5), later: (a.healOver + (bar ? 0 : a.repairOver * 0.5)) * turns, sNow: bar ? a.repair : 0, sLater: bar ? a.repairOver * turns : 0 });
+      const p = w.kind === 'player' ? fs.grid.playerPosition : fs.allies[w.k].pos;
+      if (guard) guardOutline.set(`${p.row},${p.col}`, { color: guard, dashed: !a.physCut && !a.specialCut });
+    }
+  }
+}
 // Into the Breach's preview: how much of each struck enemy's health this hit will take (no crits)
-const hitPreview = new Map<number, { min: number; max: number }>();
 // Is a tile somewhere a shoved body can't go (off the board, cover, a wall, someone standing there)?
 const blockedAt = (r: number, c: number) => r < 0 || c < 0 || r >= grid.rows || c >= grid.cols
   || ['obstacle', 'void'].includes(grid.tiles?.[r]?.[c]?.type ?? '')
@@ -1029,7 +1052,7 @@ if (pv && f.unit.maxHp > 0) {
 if (pv !== undefined || (struckFoes?.has(i) && phase === 'player_turn')) {
   if (aimedMove === 'push' || aimedMove === 'pull') {
     const away = aimedMove === 'push' ? 1 : -1;
-    const dx = Math.sign(f.pos.col - grid.playerPosition.col) * away, dy = Math.sign(f.pos.row - grid.playerPosition.row) * away;
+    const dx = Math.sign(f.pos.col - attackFrom.col) * away, dy = Math.sign(f.pos.row - attackFrom.row) * away;
     const c = gridToScreen(f.pos.row, f.pos.col, width, height);
     if (dx || dy) drawMoveArrow(ctx, c.x, c.y, dx, dy, tileW, tileH, now, '#ffffff', aimedMove === 'push' && blockedAt(f.pos.row + dy, f.pos.col + dx));
   }

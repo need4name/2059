@@ -3,12 +3,13 @@
 // body and moves for the fight engine, and answers unlocks and levelling.
 
 import data from '../../content/allies.json';
-import type { Character, CombatAction, Item } from './types';
+import type { Character, CombatAction, Item, ItemRarity, AugmentationSlot, DefendSpec, ActionEffects } from './types';
 import { BOSS_SCALING, ENEMY_GROWTH, ENEMY_TUNING, scaleBossAction } from './actions';
-import { actionForItem, makerOf, type Maker } from './augments';
+import { actionForItem, makerOf, normaliseItem, structureOf, HOUSINGS, TRAITS, type Maker } from './augments';
+import { hashSeed } from '../engine/rng';
 import type { Perks } from '../engine/playi';
 
-export type AllyEffect = 'attack' | 'taunt' | 'heal' | 'mark' | 'guard';
+export type AllyEffect = 'attack' | 'taunt' | 'heal' | 'mark' | 'guard' | 'defend';
 
 /** An ally's move. Moves never change; only their numbers grow with level. */
 export interface AllyMove extends CombatAction {
@@ -36,6 +37,27 @@ export interface AllyDef {
   story: string[];
   /** How often it takes its own turn (SPEED.base, 10, is average). */
   speed: number;
+  /** Its preset kit: an active implant (its attack) and a passive one, from fixed parts (never rolled). */
+  kit: { active: KitPart; passive: KitPart };
+}
+interface KitPart { slot: AugmentationSlot; name: string; parts?: Item['parts']; passiveParts?: Item['passiveParts']; stats: Partial<Pick<Item, 'attackBonus' | 'defenseBonus' | 'hpBonus' | 'structuralAttackBonus' | 'structuralDefenseBonus' | 'evasionBonus'>> }
+
+/** The grade of an ally's kit at a level: it grows with the ally (common at 1-2 up to legendary at 10). */
+export function kitRarity(level: number): ItemRarity {
+  return level >= 10 ? 'legendary' : level >= 7 ? 'epic' : level >= 5 ? 'rare' : level >= 3 ? 'uncommon' : 'common';
+}
+/** An ally's two preset implants at a level, as items (fixed parts; their stats brought to the grade's power). */
+export function kitItems(def: AllyDef, level: number): Item[] {
+  const maker = def.maker.toUpperCase();
+  const rarity = kitRarity(level);
+  return (['active', 'passive'] as const).map(k => {
+    const part = def.kit[k];
+    return normaliseItem({
+      id: `kit-${def.id}-${k}`, name: `[${maker}] ${part.name}`, rarity, type: 'augmentation', slot: part.slot, icon: '',
+      treeSeed: hashSeed(`${def.id}-${k}`), ...part.stats,
+      ...(part.parts ? { parts: part.parts } : {}), ...(part.passiveParts ? { passiveParts: part.passiveParts } : {}),
+    } as Item);
+  });
 }
 
 /** The ally levels at which each story line comes out. */
@@ -43,7 +65,7 @@ export const ALLY_STORY_AT = [3, 6, 10];
 /** The story lines an ally has let slip by this level. */
 export const storySoFar = (def: AllyDef, level: number) => def.story.filter((_, k) => level >= ALLY_STORY_AT[k]);
 
-/** The two implants an ally wears: a limb (its attack) and one other (stats only). */
+/** The two implants you give an ally on top of its kit: any one active (`limb`: an extra move) and any one passive (`other`: stats). */
 export interface AllyGear { limb?: Item; other?: Item }
 export type AllySlot = keyof AllyGear;
 
@@ -84,15 +106,18 @@ export function withLinks(perks: Perks, party: string[]): Perks {
   return p;
 }
 
-/** Which ally slot an implant goes in: a damaging active implant is a limb, anything else the other slot. */
+/** Which ally slot an implant goes in: any active implant is its extra move (limb), any passive its stats (other). */
 export function allySlotFor(item: Item): AllySlot | null {
   if (item.type !== 'augmentation' || !item.slot) return null;
-  return (actionForItem(item)?.damage ?? 0) > 0 ? 'limb' : 'other';
+  return ACTIVE_ALLY.includes(item.slot) ? 'limb' : 'other';
 }
+const ACTIVE_ALLY: string[] = ['left_arm', 'right_arm', 'left_leg', 'right_leg', 'eyes'];
 
 export const fitsAlly = (def: AllyDef, item: Item) => def.affinity.includes(makerOf(item));
+/** Its structure bar against an enemy's of the same unlock level: the bar its implants give, grown with the level it was built for. */
+export const ALLY_STRUCTURE = { perLevel: 0.1 };
 
-/** The ally's body at a level, built like a regular enemy of its unlock level, plus its implants' stats. */
+/** The ally's body at a level, built like a regular enemy of its unlock level, plus its kit's and your implants' stats and structure. */
 export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear = {}): Character {
   const L = def.unlockLevel, S = BOSS_SCALING;
   const lv = Math.pow(ALLY_LEVEL_GROWTH, level - 1);
@@ -101,41 +126,63 @@ export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear
   const hp = Math.round((S.hpBase + L * S.hpPerLevel + L * L * S.hpQuadratic) * gHp * def.hp * lv * hpMult * ALLY_TUNING.hp);
   const atk = (def.attack + (L - 1) * S.atkPerLevel) * gAtk * lv * ALLY_TUNING.atk;
   const dfn = (def.defense + (L - 1) * S.defPerLevel) * lv;
-  const b = { hp: 0, pa: 0, sa: 0, pd: 0, sd: 0 };
-  for (const it of [gear.limb, gear.other]) {
-    if (!it) continue;
-    const m = fitsAlly(def, it) ? AFFINITY.stats : 1;
+  const b = { hp: 0, pa: 0, sa: 0, pd: 0, sd: 0, ev: 0, st: 0 };
+  const worn = [...kitItems(def, level).map(it => ({ it, m: 1 })), ...[gear.limb, gear.other].filter((x): x is Item => !!x).map(it => ({ it, m: fitsAlly(def, it) ? AFFINITY.stats : 1 }))];
+  for (const { it, m } of worn) {
     b.hp += (it.hpBonus ?? 0) * m; b.pa += (it.attackBonus ?? 0) * m; b.sa += (it.structuralAttackBonus ?? 0) * m;
-    b.pd += (it.defenseBonus ?? 0) * m; b.sd += (it.structuralDefenseBonus ?? 0) * m;
+    b.pd += (it.defenseBonus ?? 0) * m; b.sd += (it.structuralDefenseBonus ?? 0) * m; b.ev += (it.evasionBonus ?? 0) * m;
+    // Passive parts: a light housing dodges, a sealed one turns special hits, a Tough trait adds health
+    const pp = it.passiveParts;
+    if (pp) { b.ev += HOUSINGS[pp.housing]?.evasion ?? 0; b.sd += HOUSINGS[pp.housing]?.spDef ?? 0; b.hp += pp.trait ? TRAITS[pp.trait]?.hp ?? 0 : 0; }
+    b.st += structureOf(it);
   }
   const maxHp = hp + Math.round(b.hp);
+  const structure = Math.round(b.st * (1 + ALLY_STRUCTURE.perLevel * L));
   return {
     id: `ally_${def.id}`, name: def.name,
     maxHp, currentHp: maxHp,
-    // No structure bar: hits land on the body (half the structural part spills over)
-    maxStructuralHp: 0, currentStructuralHp: 0,
+    // A structure bar from the implants it wears, like yours: physical hits wear it first
+    maxStructuralHp: structure, currentStructuralHp: structure,
     physicalAttack: Math.round(atk * 0.6 + b.pa), structuralAttack: Math.round(atk * 0.4 + b.sa),
     physicalDefense: Math.round(dfn * 0.5 + b.pd), structuralDefense: Math.round(dfn * 0.5 + b.sd),
-    evasion: 0, spriteColor: def.color,
+    evasion: Math.round(b.ev), spriteColor: def.color,
   };
 }
 
-/** The ally's moves at a level: damage scales like an enemy's of its unlock level. A limb implant replaces its first attack. */
+/** Side effects an ally's attack keeps: what it does to them (moving yourself, haste and venting are the player's). */
+const ALLY_FX: (keyof ActionEffects)[] = ['knock', 'pull', 'bleed', 'stun', 'slow', 'ignite', 'crush', 'drain', 'ignoreCover'];
+
+/** An implant's move as an ally uses it: an attack scaled like the ally's own moves (no heat), or a defensive move. */
+function allyMoveFrom(def: AllyDef, action: CombatAction, source: Item, own: boolean): AllyMove {
+  if (action.type === 'defend' && action.defend) {
+    return { type: 'defend', effect: 'defend', name: action.name, description: `${action.description}`, defend: { ...action.defend, step: undefined, haste: undefined, overload: undefined, needs: undefined } as DefendSpec, heatGenerated: 0, heatTransfer: 0, cooldown: 1 };
+  }
+  const fx: ActionEffects = {};
+  for (const k of ALLY_FX) if (action.effects?.[k] !== undefined) (fx as Record<string, unknown>)[k] = action.effects[k];
+  return {
+    type: 'attack', effect: 'attack', name: action.name, description: action.description,
+    damage: Math.round((scaleBossAction(action, def.unlockLevel).damage ?? 0) * ALLY_TUNING.atk * (!own && fitsAlly(def, source) ? AFFINITY.damage : 1)),
+    accuracy: action.accuracy, physicalRatio: action.physicalRatio, attackPattern: action.attackPattern ?? 'melee',
+    ...(Object.keys(fx).length ? { effects: fx } : {}),
+    ...(action.maxTargets ? { maxTargets: action.maxTargets } : {}), ...(action.focused ? { focused: true } : {}),
+    heatGenerated: 0, heatTransfer: action.heatTransfer ?? 0,
+  };
+}
+
+/**
+ * The ally's moves at a level: its kit's active implant is its attack (growing with the kit's grade),
+ * its own support move stays (numbers grow with its level), and an active implant you give it adds a third move.
+ */
 export function allyMoves(def: AllyDef, level: number, gear: AllyGear = {}): AllyMove[] {
   const lv = Math.pow(ALLY_LEVEL_GROWTH, level - 1);
-  const limb = gear.limb ? actionForItem(gear.limb) : null;
+  const [kitActive] = kitItems(def, level);
+  const kitMove = actionForItem(kitActive);
   const first = def.moves.findIndex(m => m.effect === 'attack');
-  return def.moves.map((m, n) => {
-    if (limb && n === first && limb.damage) {
-      return {
-        type: 'attack', effect: 'attack', name: limb.name, description: `${gear.limb!.name}, worn by ${def.name}`,
-        // Scaled like the ally's own moves, so a better implant out-hits its built-in attack
-        damage: Math.round((scaleBossAction(limb, def.unlockLevel).damage ?? 0) * lv * ALLY_TUNING.atk * (fitsAlly(def, gear.limb!) ? AFFINITY.damage : 1)),
-        accuracy: limb.accuracy, physicalRatio: limb.physicalRatio, attackPattern: limb.attackPattern ?? 'melee',
-        heatGenerated: 0, heatTransfer: 0,
-      };
-    }
+  const own = def.moves.map((m, n) => {
+    if (kitMove && n === first) return { ...allyMoveFrom(def, kitMove, kitActive, true), name: m.name, description: m.description };
     const scaled = scaleBossAction(m, def.unlockLevel);
     return { ...m, ...(scaled.damage ? { damage: Math.round(scaled.damage * lv * ALLY_TUNING.atk) } : {}), heatGenerated: 0, heatTransfer: 0 };
   });
+  const given = gear.limb ? actionForItem(gear.limb) : null;
+  return given && (given.damage || given.defend) ? [...own, allyMoveFrom(def, given, gear.limb!, false)] : own;
 }

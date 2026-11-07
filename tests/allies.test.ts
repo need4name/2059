@@ -37,10 +37,11 @@ test('the roster unlocks in order and later allies are stronger at level 1', () 
   assert.ok(atk('breaker') > atk('bale'));
 });
 
-test('ally levels add 8% each, and Handshake adds 25% health', () => {
+test('allies toughen as they level, their kit grades up, and Handshake adds 25% health', () => {
   const def = allyDef('bale')!;
   const l1 = allyUnit(def, 1), l5 = allyUnit(def, 5);
-  assert.ok(Math.abs(l5.maxHp / l1.maxHp - Math.pow(1.08, 4)) < 0.02);
+  assert.ok(l5.maxHp > l1.maxHp * 1.3, 'the body toughens');
+  assert.ok(l5.maxStructuralHp > l1.maxStructuralHp, 'a better-grade kit, a bigger structure bar');
   assert.ok(allyUnit(def, 1, 1.25).maxHp > l1.maxHp * 1.2);
   assert.ok(allyMoves(def, 5)[0].damage! > allyMoves(def, 1)[0].damage!);
 });
@@ -101,7 +102,7 @@ test("a stunned ally loses its own turn; an ally's mark lasts until the player's
 });
 
 test('a hit on an ally hurts the ally, not the player; a knockout does not end the fight', () => {
-  const s = fight([{ ...ally('bale', [3, 3]), unit: { ...ally('bale', [3, 3]).unit, currentHp: 5 } }]);
+  const s = fight([{ ...ally('bale', [3, 3]), unit: { ...ally('bale', [3, 3]).unit, currentHp: 5, currentStructuralHp: 0 } }]);
   seedRandom(1);
   const step = Fight.resolveFoeAction(s, 0, blow, 10);
   assert.equal(step.state.player.currentHp, s.player.currentHp);
@@ -187,16 +188,17 @@ test('the ally store: meeting, party size, levelling to the cap', () => {
 
 const implant = (over: Partial<Item>): Item => ({ id: `i${Math.random()}`, name: '[VOLKOV] Test Arm', rarity: 'rare', type: 'augmentation', slot: 'right_arm', icon: '', ...over });
 
-test('ally gear: a limb replaces the first attack; affinity makers count for more', () => {
+test('ally gear: an active implant adds a third move; affinity makers count for more', () => {
   const bale = allyDef('bale')!;
-  const limb = implant({ name: '[VOLKOV] Test Arm', parts: { head: 'fist', mods: [] } });
+  const limb = implant({ name: '[VOLKOV] Test Arm', parts: { head: 'jab', mods: [] } });
   const fitLimb = { ...limb, name: '[TIANXIA] Test Arm' };
   const plain = allyMoves(bale, 1, { limb });
-  assert.equal(plain[0].effect, 'attack');
-  assert.notEqual(plain[0].name, bale.moves[0].name, 'the limb implant is its attack now');
+  assert.equal(plain.length, 3, 'its own two moves, and one from your implant');
+  assert.equal(plain[0].name, bale.moves[0].name, 'its kit attack keeps its name');
   assert.equal(plain[1].name, bale.moves[1].name, 'support move kept');
+  assert.equal(plain[2].effect, 'attack');
   const fit = allyMoves(bale, 1, { limb: fitLimb });
-  assert.ok(fit[0].damage! > plain[0].damage!, 'Tianxia limb hits harder on Bale');
+  assert.ok(fit[2].damage! > plain[2].damage!, 'Tianxia limb hits harder on Bale');
   const other = implant({ name: '[PARSU] Test Lung', slot: 'lungs', attackBonus: 10, hpBonus: 20 });
   const off = implant({ name: '[CROWN] Test Lung', slot: 'lungs', attackBonus: 10, hpBonus: 20 });
   const base = allyUnit(bale, 1);
@@ -298,4 +300,29 @@ test('allies start beside or behind the player, not between it and the enemy', a
   const spots = allySpawnPositions(grid, 2, [{ row: 0, col: 3 }]);
   assert.equal(spots.length, 2);
   for (const p of spots) assert.ok(p.row >= 5, `ally at row ${p.row} is in front of the player`);
+});
+
+test('every ally has a preset kit built from parts: its attack gets the parts, the same for everyone', () => {
+  const bale = allyDef('bale')!, matron = allyDef('matron')!;
+  const a = allyMoves(bale, 1), b = allyMoves(bale, 1);
+  assert.deepEqual(a, b, 'never rolled');
+  assert.ok(a[0].effects?.knock, "Bale's kit arm knocks back");
+  assert.ok((allyMoves(matron, 1)[0].physicalRatio ?? 1) < 0.5, "Matron's kit couples special");
+  assert.ok(allyMoves(bale, 10)[0].damage! > allyMoves(bale, 1)[0].damage!, 'the kit grades up with the ally');
+  assert.ok(allyUnit(bale, 1).maxStructuralHp > 0, 'a structure bar from its kit');
+  for (const m of allyMoves(bale, 5)) assert.equal(m.heatGenerated ?? 0, 0, 'allies never run hot');
+});
+
+test("an ally's wide kit attack can hit several, and a defensive implant you give it covers you", () => {
+  const tally = allyDef('tally')!;
+  const s0 = fight([ally('tally', [4, 3])], { grid: arena([6, 3], [3, 3]) });
+  const s = { ...s0, foes: [s0.foes[0], { ...s0.foes[0], pos: { row: 3, col: 4 } }] };
+  const hits = Fight.allyStruck(s, 0, 0);
+  assert.ok(hits.length >= 1 && hits.length <= 2, `Split 2 hook: ${hits.length}`);
+  const mend = implant({ name: '[CROWN] Test Arm', parts: { head: 'mend', mods: [], lens: 'stock', coupling: 'servo', core: 'hot', targeting: 'focused' } });
+  const moves = allyMoves(tally, 1, { limb: mend });
+  assert.equal(moves[2].effect, 'defend');
+  const hurt = fight([{ ...ally('tally', [5, 3]), moves, cooldowns: [0, 0, 0] }], { player: { ...createPlayer(), currentHp: 30 } });
+  const healed = Fight.resolveAllyMove(hurt, 0, 2).state;
+  assert.ok(healed.player.currentHp > 30, 'the most hurt in reach (you) gets it');
 });

@@ -184,6 +184,7 @@ function allyMoveDetail(m: AllyMove): string {
     case 'heal': return `Heal you ${Math.round((m.amount ?? 0) * 100)}%`;
     case 'mark': return `Your hits +${Math.round((m.amount ?? 0) * 100)}%`;
     case 'guard': return `You +${m.defenseBoost ?? 0} guard`;
+    case 'defend': return defendSummary(m) ?? 'Cover';
   }
 }
 
@@ -193,7 +194,7 @@ function allyMoveDetail(m: AllyMove): string {
  */
 function AllyTurnPanel({ k }: { k: number }) {
   const s = useCombat();
-  const { allies, allyAct, moveAlly, allyOrigin, endTurn, phase, inputLocked } = s;
+  const { allies, allyAct, moveAlly, allyOrigin, endTurn, phase, inputLocked, allyPicked, pickAllyMove } = s;
   const a = allies[k];
   if (!a) return null;
   const color = a.unit.spriteColor;
@@ -210,15 +211,15 @@ function AllyTurnPanel({ k }: { k: number }) {
         <div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
           <div className="mt-0.5 text-right text-[10px] text-hud-faint">{a.unit.currentHp}/{a.unit.maxHp}</div></div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className={cx('grid gap-2', a.moves.length > 2 ? 'grid-cols-3' : 'grid-cols-2')}>
         {a.moves.map((m, n) => {
           const cd = a.cooldowns[n] ?? 0;
           const usable = live && Fight.canAllyUse(useCombat.getState(), k, n);
           const reason = cd > 0 ? `Ready in ${cd}` : m.effect === 'attack' && !usable ? 'Out of reach: move closer' : allyMoveDetail(m);
           return (
-            <button key={m.name} onClick={() => allyAct(k, n)} disabled={!usable}
-              className={cx('key flex min-h-[64px] flex-col items-start justify-center gap-0.5 rounded-2xl px-3 py-2 text-left', !usable && 'opacity-50')}>
-              <span className="w-full truncate font-display text-[14px] font-semibold" style={{ color: usable ? color : undefined }}>{m.name}</span>
+            <button key={`${m.name}-${n}`} onClick={() => pickAllyMove(n)} disabled={!usable} aria-pressed={allyPicked === n}
+              className={cx('flex min-h-[64px] flex-col items-start justify-center gap-0.5 rounded-2xl px-3 py-2 text-left', allyPicked === n ? 'key key-selected' : 'key', !usable && 'opacity-50')}>
+              <span className="line-clamp-2 w-full font-display text-[14px] font-semibold leading-tight" style={{ color: usable ? color : undefined }}>{m.name}</span>
               <span className="w-full truncate text-[11px] text-hud-dim">{reason}</span>
             </button>
           );
@@ -226,9 +227,19 @@ function AllyTurnPanel({ k }: { k: number }) {
       </div>
       <div className="flex gap-2">
         <Btn className="shrink-0 px-3.5" disabled={!live || !moved} onClick={() => allyOrigin && moveAlly(allyOrigin)}>Undo</Btn>
-        <Btn variant={live ? 'primary' : 'secondary'} className="min-w-0 flex-1 truncate" disabled={!live} onClick={endTurn}>
-          {live ? `End ${a.unit.name}'s turn` : 'Resolving…'}
-        </Btn>
+        {/* Pick a move to see what it does on the board, then Execute; or end its turn */}
+        {live && allyPicked !== null ? (
+          <Btn variant="strike" className="min-w-0 flex-1" onClick={() => allyAct(k, allyPicked)}>
+            <span className="flex min-w-0 flex-col items-center leading-tight">
+              <span>Execute</span>
+              {statusText(a.moves[allyPicked]) && <span className="max-w-full truncate font-body text-[11px] font-medium opacity-85">{statusText(a.moves[allyPicked])}</span>}
+            </span>
+          </Btn>
+        ) : (
+          <Btn variant={live ? 'primary' : 'secondary'} className="min-w-0 flex-1 truncate" disabled={!live} onClick={endTurn}>
+            {live ? `End ${a.unit.name}'s turn` : 'Resolving…'}
+          </Btn>
+        )}
       </div>
     </div>
   );

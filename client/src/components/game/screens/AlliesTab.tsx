@@ -2,21 +2,21 @@ import { useState } from 'react';
 import { useAllies } from '@/lib/stores/useAllies';
 import { useInventory } from '@/lib/stores/useInventory';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { ALLIES, AFFINITY, allyMoves, allySlotFor, fitsAlly, storySoFar, type AllyDef, type AllySlot } from '@/lib/combat/allies';
+import { ALLIES, AFFINITY, allyMoves, allySlotFor, fitsAlly, kitItems, storySoFar, type AllyDef, type AllySlot } from '@/lib/combat/allies';
 import { AUGMENTATION_SLOTS, type Item } from '@/lib/combat/types';
 import { nameOf } from '../itemText';
 import { Card, Btn, Label, Sheet, Footprint, RARITY_TEXT, cx } from '../hud';
 
 const SLOT_TEXT: Record<AllySlot, { title: string; empty: string }> = {
-  limb: { title: 'Limb', empty: 'Empty' },
-  other: { title: 'Other', empty: 'Empty' },
+  limb: { title: 'Active', empty: 'Empty' },
+  other: { title: 'Passive', empty: 'Empty' },
 };
 
 function statLine(item: Item, mult = 1) {
   const bits: string[] = [];
   const add = (v: number | undefined, word: string) => { if (v) bits.push(`+${Math.round(v * mult)} ${word}`); };
-  add(item.attackBonus, 'attack'); add(item.structuralAttackBonus, 'struct atk');
-  add(item.defenseBonus, 'defence'); add(item.structuralDefenseBonus, 'struct def'); add(item.hpBonus, 'health');
+  add(item.attackBonus, 'attack'); add(item.structuralAttackBonus, 'Sp. Atk');
+  add(item.defenseBonus, 'defence'); add(item.structuralDefenseBonus, 'Sp. Def'); add(item.hpBonus, 'health');
   return bits.join(' · ') || 'No stats';
 }
 
@@ -26,7 +26,8 @@ function AllyCard({ def }: { def: AllyDef }) {
   const gear = allies.gear[def.id] ?? {};
   const along = allies.party.includes(def.id);
   const [picking, setPicking] = useState<AllySlot | null>(null);
-  const attack = allyMoves(def, level, gear).find(m => m.effect === 'attack');
+  const moves = allyMoves(def, level, gear);
+  const kit = kitItems(def, level);
 
   return (
     <Card className="space-y-3 p-4">
@@ -51,6 +52,17 @@ function AllyCard({ def }: { def: AllyDef }) {
         </div>
       )}
 
+      {/* Its own preset implants, then the two you give it */}
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold text-hud-dim">Its own</div>
+        {kit.map(it => (
+          <div key={it.id} className="flex items-baseline justify-between gap-3">
+            <span className={cx('min-w-0 break-words text-[13px] font-semibold leading-tight', RARITY_TEXT[it.rarity])}>{nameOf(it)}</span>
+            <span className="shrink-0 text-[11px] text-hud-dim">{statLine(it)}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 gap-2">
         {(['limb', 'other'] as AllySlot[]).map(slot => {
           const it = gear[slot];
@@ -68,12 +80,14 @@ function AllyCard({ def }: { def: AllyDef }) {
         })}
       </div>
 
-      {attack && (
-        <div className="flex items-center gap-3 text-xs text-hud-dim">
-          <Footprint pattern={attack.attackPattern} className="shrink-0" />
-          <span className="text-hud-text">{attack.name}</span>
-        </div>
-      )}
+      <div className="space-y-1.5">
+        {moves.map((m, n) => (
+          <div key={`${m.name}-${n}`} className="flex items-center gap-3 text-xs text-hud-dim">
+            {m.effect === 'attack' ? <Footprint action={m} className="shrink-0" /> : <span className="h-[34px] w-[34px] shrink-0" />}
+            <span className="text-hud-text">{m.name}</span>
+          </div>
+        ))}
+      </div>
 
       <Sheet open={picking !== null} title={`${def.name}: ${picking ? SLOT_TEXT[picking].title.toLowerCase() : ''}`} onClose={() => setPicking(null)}>
         {picking && <Picker def={def} slot={picking} done={() => setPicking(null)} />}

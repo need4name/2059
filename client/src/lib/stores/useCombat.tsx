@@ -176,6 +176,10 @@ dismissIntro: () => void;
 allyMoveMode: number | null;
 /** The ally whose turn it is (the action bar shows its moves), or null. */
 allyTurn: number | null;
+/** The move picked on an ally's turn (shown on the board until Execute), or null. */
+allyPicked: number | null;
+/** Pick (or unpick) an ally's move: the board shows what it will do. */
+pickAllyMove: (move: number | null) => void;
 /** Where that ally stood when its turn began: its move can be changed until it acts or the turn ends. */
 allyOrigin: TilePosition | null;
 toggleAllyMove: (ally: number) => void;
@@ -374,6 +378,7 @@ if (!cond.skipTurn && activeChapter().rules?.flinch && apply(Fight.dreamerFlinch
 const { grid } = get();
 set({
 phase: 'player_turn', inputLocked: cond.skipTurn, hasMoved: false, moveSpent: false, allyMoveMode: null, allyTurn: null,
+allyPicked: null,
 selectedMovement: null, selectedAction: null,
 originalPosition: { ...grid.playerPosition },
 });
@@ -516,13 +521,13 @@ set({ actingFoe: null, selectedAction: null, selectedMovement: null, openingTurn
 const start = Fight.startAllyTurn(fightState(), k);
 if (apply(start)) return;
 if (start.skipTurn) { set({ phase: 'enemy_turn', inputLocked: true, allyTurn: null }); later(nextActor, FOE_GAP_DELAY); return; }
-set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyOrigin: { ...get().allies[k].pos }, allyMoveMode: Fight.allyReach(fightState(), k).size ? k : null });
+set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyPicked: null, allyOrigin: { ...get().allies[k].pos }, allyMoveMode: Fight.allyReach(fightState(), k).size ? k : null });
 };
 
 // Ally k's turn is over (it acted, or the player ended it)
 const endAllyTurn = () => {
 if (get().allyTurn === null) return;
-set({ allyTurn: null, allyMoveMode: null, allyOrigin: null, phase: 'enemy_turn', inputLocked: true });
+set({ allyTurn: null, allyPicked: null, allyMoveMode: null, allyOrigin: null, phase: 'enemy_turn', inputLocked: true });
 later(nextActor, FOE_GAP_DELAY);
 };
 
@@ -643,7 +648,7 @@ set({
 ...freshFightState(grid),
 playerHeat: perks.startHeat,
 perks, firstStrikeUsed: false, sidestepReady: perks.sidestep, holdfastReady: perks.holdfast && !get().holdfastSpent,
-reflexMoveOpen: false, allyMoveMode: null, allyTurn: null, allyOrigin: null,
+reflexMoveOpen: false, allyMoveMode: null, allyTurn: null, allyPicked: null, allyOrigin: null,
 phase: 'player_turn', player, grid,
 playerMoveRange: moveRange,
 farmLevel: farm ? level : null,
@@ -690,6 +695,7 @@ reflexMoveOpen: false,
 moveSpent: false,
 allyMoveMode: null,
 allyTurn: null,
+allyPicked: null,
 allyOrigin: null,
 actingFoe: null,
 clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
@@ -961,6 +967,13 @@ const next = Fight.placeAlly(cur, allyMoveMode, pos, allyOrigin);
 if (next !== cur) save(next);
 },
 
+pickAllyMove: (move) => {
+const k = get().allyTurn;
+if (k === null || get().phase !== 'player_turn' || get().inputLocked) return;
+if (move !== null && !Fight.canAllyUse(fightState(), k, move)) return;
+set({ allyPicked: get().allyPicked === move ? null : move });
+},
+
 allyAct: (ally, move) => {
 const { phase, inputLocked, reflexMoveOpen } = get();
 if (phase !== 'player_turn' || inputLocked || reflexMoveOpen || get().allyTurn !== ally) return;
@@ -969,7 +982,7 @@ const m = get().allies[ally]?.moves[move];
 if (m?.effect === 'attack') log(`${get().allies[ally].unit.name}: out of range. Move closer.`);
 return;
 }
-set({ allyMoveMode: null, inputLocked: true });
+set({ allyMoveMode: null, inputLocked: true, allyPicked: null });
 doer = { kind: 'ally' };
 if (apply(Fight.resolveAllyMove(fightState(), ally, move))) return;
 // Acting ends its turn

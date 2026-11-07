@@ -2,92 +2,594 @@
   "about": "Allies: other minds in metal the signal can link with, met in rooms on the map. One joins each host (two with Second link). unlockLevel sets their strength: stats are relative to a regular enemy of that level (match it to the threat where they are met); moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you. `speed` is how often it takes its own turn (10 is average, like an unhurried host). `story` is three lines the ally lets slip at levels 3, 6 and 10 (ALLY_STORY_AT): they show on the Allies page and go into the journal.",
   "allies": [
     {
-      "id": "bale", "speed": 8, "name": "Bale", "maker": "Tianxia", "role": "Tank", "unlockLevel": 10, "color": "#f59e0b",
+      "id": "bale",
+      "speed": 8,
+      "name": "Bale",
+      "maker": "Tianxia",
+      "role": "Tank",
+      "unlockLevel": 10,
+      "color": "#f59e0b",
       "blurb": "A dock-loader frame. Whoever was copied into it still says sorry when it bumps into things.",
-      "hp": 1.5, "attack": 8, "defense": 8, "move": 2,
-      "affinity": ["TIANXIA", "PARSU"], "link": "Load-bearing: your structure bar is 10% bigger.",
-      "story": ["Bale stacks the empty crates the way someone once taught it: corners square, labels out.", "It says sorry to a crate it dropped. Then, quieter, to someone who isn't there.", "\"I had hands that ached at the end of a shift,\" Bale says. \"I miss that. Is that strange?\""],
+      "hp": 1.5,
+      "attack": 8,
+      "defense": 8,
+      "move": 2,
+      "affinity": [
+        "TIANXIA",
+        "PARSU"
+      ],
+      "link": "Load-bearing: your structure bar is 10% bigger.",
+      "story": [
+        "Bale stacks the empty crates the way someone once taught it: corners square, labels out.",
+        "It says sorry to a crate it dropped. Then, quieter, to someone who isn't there.",
+        "\"I had hands that ached at the end of a shift,\" Bale says. \"I miss that. Is that strange?\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Shoulder Check", "description": "A heavy shove at close range", "damage": 12, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "melee" },
-        { "type": "defend", "effect": "taunt", "name": "Draw Fire", "description": "Every enemy within 3 tiles of Bale aims at Bale until your next turn. Bale guards +10", "defenseBoost": 10, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Shoulder Check",
+          "description": "A heavy shove at close range",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "defend",
+          "effect": "taunt",
+          "name": "Draw Fire",
+          "description": "Every enemy within 3 tiles of Bale aims at Bale until your next turn. Bale guards +10",
+          "defenseBoost": 10,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "right_arm",
+          "name": "Shoulder Rig",
+          "parts": {
+            "head": "jab",
+            "mods": [
+              "knock"
+            ],
+            "lens": "stock",
+            "coupling": "hydraulic",
+            "core": "stock"
+          },
+          "stats": {
+            "attackBonus": 2,
+            "defenseBonus": 3
+          }
+        },
+        "passive": {
+          "slot": "misc",
+          "name": "Load Spine",
+          "passiveParts": {
+            "housing": "plated",
+            "regulator": "sink"
+          },
+          "stats": {
+            "defenseBonus": 3,
+            "hpBonus": 12
+          }
+        }
+      }
     },
     {
-      "id": "matron", "speed": 10, "name": "Matron", "maker": "Crown", "role": "Healer", "unlockLevel": 15, "color": "#f472b6",
+      "id": "matron",
+      "speed": 10,
+      "name": "Matron",
+      "maker": "Crown",
+      "role": "Healer",
+      "unlockLevel": 15,
+      "color": "#f472b6",
       "blurb": "A private-ward nurse unit. She was a real nurse once. She doesn't talk about which one.",
-      "hp": 0.9, "attack": 6, "defense": 4, "move": 2,
-      "affinity": ["CROWN"], "link": "Bedside manner: every brace also heals 5% of your health.",
-      "story": ["Matron checks your pulse at every stop. Your host doesn't have the kind of pulse she's listening for.", "She hums while she works. The song is older than the ward she was built for.", "\"There were two of us on nights,\" she says. \"I only remember being one of them.\""],
+      "hp": 0.9,
+      "attack": 6,
+      "defense": 4,
+      "move": 2,
+      "affinity": [
+        "CROWN"
+      ],
+      "link": "Bedside manner: every brace also heals 5% of your health.",
+      "story": [
+        "Matron checks your pulse at every stop. Your host doesn't have the kind of pulse she's listening for.",
+        "She hums while she works. The song is older than the ward she was built for.",
+        "\"There were two of us on nights,\" she says. \"I only remember being one of them.\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Suture Dart", "description": "A light shot from range", "damage": 8, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "ranged" },
-        { "type": "defend", "effect": "heal", "name": "Field Mend", "description": "Heals you for 25% of your max health, from anywhere", "amount": 0.25, "cooldown": 3 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Suture Dart",
+          "description": "A light shot from range",
+          "damage": 8,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "defend",
+          "effect": "heal",
+          "name": "Field Mend",
+          "description": "Heals you for 25% of your max health, from anywhere",
+          "amount": 0.25,
+          "cooldown": 3
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "eyes",
+          "name": "Suture Optic",
+          "parts": {
+            "head": "bolt",
+            "mods": [
+              "drain"
+            ],
+            "lens": "clear",
+            "coupling": "arc",
+            "core": "stock"
+          },
+          "stats": {
+            "structuralAttackBonus": 3
+          }
+        },
+        "passive": {
+          "slot": "lungs",
+          "name": "Clinic Lungs",
+          "passiveParts": {
+            "housing": "sealed",
+            "regulator": "baffle"
+          },
+          "stats": {
+            "structuralDefenseBonus": 3,
+            "hpBonus": 8
+          }
+        }
+      }
     },
     {
-      "id": "ghostline", "speed": 12, "name": "Ghostline", "maker": "Kizuna", "role": "Spotter", "unlockLevel": 20, "color": "#a78bfa",
+      "id": "ghostline",
+      "speed": 12,
+      "name": "Ghostline",
+      "maker": "Kizuna",
+      "role": "Spotter",
+      "unlockLevel": 20,
+      "color": "#a78bfa",
       "blurb": "A military sensor shell. Its mind was a soldier's, sold in a lot of forty.",
-      "hp": 0.8, "attack": 10, "defense": 3, "move": 2,
-      "affinity": ["KIZUNA", "IOA"], "link": "Spotter: your first attack each fight always lands in full.",
-      "story": ["Ghostline counts the exits in every room, under its breath.", "It answers to a number if you say one out loud. Never the same number twice.", "\"There were forty of us in the lot,\" it says. \"I wonder who got the rest.\""],
+      "hp": 0.8,
+      "attack": 10,
+      "defense": 3,
+      "move": 2,
+      "affinity": [
+        "KIZUNA",
+        "IOA"
+      ],
+      "link": "Spotter: your first attack each fight always lands in full.",
+      "story": [
+        "Ghostline counts the exits in every room, under its breath.",
+        "It answers to a number if you say one out loud. Never the same number twice.",
+        "\"There were forty of us in the lot,\" it says. \"I wonder who got the rest.\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Signal Bleed", "description": "A ranged hit that cooks circuits", "damage": 12, "accuracy": "variable", "physicalRatio": 0.2, "attackPattern": "ranged" },
-        { "type": "defend", "effect": "mark", "name": "Paint Target", "description": "Your hits on the target do 35% more until your next turn. Any range", "amount": 0.35, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Signal Bleed",
+          "description": "A ranged hit that cooks circuits",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.2,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "defend",
+          "effect": "mark",
+          "name": "Paint Target",
+          "description": "Your hits on the target do 35% more until your next turn. Any range",
+          "amount": 0.35,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "eyes",
+          "name": "Signal Lance",
+          "parts": {
+            "head": "lance",
+            "mods": [
+              "cover"
+            ],
+            "lens": "clear",
+            "coupling": "arc",
+            "core": "cold"
+          },
+          "stats": {
+            "structuralAttackBonus": 4
+          }
+        },
+        "passive": {
+          "slot": "ears",
+          "name": "Quiet Ears",
+          "passiveParts": {
+            "housing": "light",
+            "regulator": "baffle"
+          },
+          "stats": {
+            "evasionBonus": 2
+          }
+        }
+      }
     },
     {
-      "id": "ward", "speed": 9, "name": "Ward", "maker": "Helix", "role": "Shield", "unlockLevel": 25, "color": "#38bdf8",
+      "id": "ward",
+      "speed": 9,
+      "name": "Ward",
+      "maker": "Helix",
+      "role": "Shield",
+      "unlockLevel": 25,
+      "color": "#38bdf8",
       "blurb": "A Helix continuity guard that walked off its post. Still won't carry a gun.",
-      "hp": 1.3, "attack": 6, "defense": 10, "move": 2,
-      "affinity": ["HELIX"], "link": "Cover me: parting blows do half damage to you.",
-      "story": ["Ward stands at every door until you're through it. It doesn't seem to choose to.", "At dawn it still says its post number. Nobody answers.", "\"They told me what I was guarding,\" Ward says. \"I stopped believing them. That was the whole of it.\""],
+      "hp": 1.3,
+      "attack": 6,
+      "defense": 10,
+      "move": 2,
+      "affinity": [
+        "HELIX"
+      ],
+      "link": "Cover me: parting blows do half damage to you.",
+      "story": [
+        "Ward stands at every door until you're through it. It doesn't seem to choose to.",
+        "At dawn it still says its post number. Nobody answers.",
+        "\"They told me what I was guarding,\" Ward says. \"I stopped believing them. That was the whole of it.\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Shock Baton", "description": "A stun-stick jab", "damage": 10, "accuracy": "variable", "physicalRatio": 0.5, "attackPattern": "melee" },
-        { "type": "defend", "effect": "guard", "name": "Aegis Field", "description": "You guard +14 against the next hit, from anywhere", "defenseBoost": 14, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Shock Baton",
+          "description": "A stun-stick jab",
+          "damage": 10,
+          "accuracy": "variable",
+          "physicalRatio": 0.5,
+          "attackPattern": "melee"
+        },
+        {
+          "type": "defend",
+          "effect": "guard",
+          "name": "Aegis Field",
+          "description": "You guard +14 against the next hit, from anywhere",
+          "defenseBoost": 14,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "right_arm",
+          "name": "Shock Baton",
+          "parts": {
+            "head": "jab",
+            "mods": [
+              "stun"
+            ],
+            "lens": "stock",
+            "coupling": "servo",
+            "core": "stock"
+          },
+          "stats": {
+            "defenseBonus": 3
+          }
+        },
+        "passive": {
+          "slot": "misc",
+          "name": "Housing Spine",
+          "passiveParts": {
+            "housing": "sealed",
+            "regulator": "sink"
+          },
+          "stats": {
+            "defenseBonus": 2,
+            "structuralDefenseBonus": 2,
+            "hpBonus": 8
+          }
+        }
+      }
     },
     {
-      "id": "breaker", "speed": 11, "name": "Breaker", "maker": "Volkov", "role": "Damage", "unlockLevel": 30, "color": "#ef4444",
+      "id": "breaker",
+      "speed": 11,
+      "name": "Breaker",
+      "maker": "Volkov",
+      "role": "Damage",
+      "unlockLevel": 30,
+      "color": "#ef4444",
       "blurb": "Operator limbs on a cheap torso. The mind inside asks for one thing: something to hit.",
-      "hp": 1.0, "attack": 14, "defense": 5, "move": 2,
-      "affinity": ["VOLKOV", "CBN"], "link": "Follow-through: enemies you knock into things take 50% more collision damage.",
-      "story": ["Breaker flexes its hands between fights, as if checking they're still on.", "Once, it asks you what its name was before. You don't know. Neither does it.", "\"When I'm hitting something, it goes quiet in here,\" Breaker says, and taps its head."],
+      "hp": 1.0,
+      "attack": 14,
+      "defense": 5,
+      "move": 2,
+      "affinity": [
+        "VOLKOV",
+        "CBN"
+      ],
+      "link": "Follow-through: enemies you knock into things take 50% more collision damage.",
+      "story": [
+        "Breaker flexes its hands between fights, as if checking they're still on.",
+        "Once, it asks you what its name was before. You don't know. Neither does it.",
+        "\"When I'm hitting something, it goes quiet in here,\" Breaker says, and taps its head."
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Hydraulic Drive", "description": "A piston punch with reach", "damage": 18, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee_long" },
-        { "type": "attack", "effect": "attack", "name": "Breach", "description": "A charging blow. Needs a run-up", "damage": 32, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "charge", "cooldown": 3 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Hydraulic Drive",
+          "description": "A piston punch with reach",
+          "damage": 18,
+          "accuracy": "variable",
+          "physicalRatio": 0.7,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Breach",
+          "description": "A charging blow. Needs a run-up",
+          "damage": 32,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "attackPattern": "charge",
+          "cooldown": 3
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "right_arm",
+          "name": "Drive Arm",
+          "parts": {
+            "head": "reach",
+            "mods": [
+              "crush"
+            ],
+            "lens": "stock",
+            "coupling": "hydraulic",
+            "core": "hot"
+          },
+          "stats": {
+            "attackBonus": 4
+          }
+        },
+        "passive": {
+          "slot": "brain",
+          "name": "Operator Stub",
+          "passiveParts": {
+            "housing": "plated",
+            "regulator": "primer"
+          },
+          "stats": {
+            "attackBonus": 2,
+            "hpBonus": 6
+          }
+        }
+      }
     },
     {
-      "id": "tally", "speed": 11, "name": "Tally", "maker": "IOA", "role": "Decoy", "unlockLevel": 8, "color": "#7dd3fc",
+      "id": "tally",
+      "speed": 11,
+      "name": "Tally",
+      "maker": "IOA",
+      "role": "Decoy",
+      "unlockLevel": 8,
+      "color": "#7dd3fc",
       "blurb": "Scanned at the checkpoint so many times there are several of them. This one isn't sure it was the first.",
-      "hp": 1.0, "attack": 9, "defense": 6, "move": 3,
-      "affinity": ["IOA", "KIZUNA"], "link": "Which one is real: the first heavy aimed at you each fight misses.",
-      "story": ["Tally flinches at every scanner arch, then laughs at itself.", "It keeps a count scratched into its forearm, in neat rows. It won't say of what.", "\"If there are several of me,\" Tally says, \"one of us chose to come with you. I'd like it to be me.\""],
+      "hp": 1.0,
+      "attack": 9,
+      "defense": 6,
+      "move": 3,
+      "affinity": [
+        "IOA",
+        "KIZUNA"
+      ],
+      "link": "Which one is real: the first heavy aimed at you each fight misses.",
+      "story": [
+        "Tally flinches at every scanner arch, then laughs at itself.",
+        "It keeps a count scratched into its forearm, in neat rows. It won't say of what.",
+        "\"If there are several of me,\" Tally says, \"one of us chose to come with you. I'd like it to be me.\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Borrowed Swing", "description": "Somebody else's swing, from somebody else's arm", "damage": 14, "accuracy": "variable", "physicalRatio": 0.6, "attackPattern": "melee_long" },
-        { "type": "defend", "effect": "taunt", "name": "Not Me, Them", "description": "Every enemy within 3 tiles of Tally aims at Tally until your next turn. Tally guards +8", "defenseBoost": 8, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Borrowed Swing",
+          "description": "Somebody else's swing, from somebody else's arm",
+          "damage": 14,
+          "accuracy": "variable",
+          "physicalRatio": 0.6,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "defend",
+          "effect": "taunt",
+          "name": "Not Me, Them",
+          "description": "Every enemy within 3 tiles of Tally aims at Tally until your next turn. Tally guards +8",
+          "defenseBoost": 8,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "right_arm",
+          "name": "Borrowed Arm",
+          "parts": {
+            "head": "hook",
+            "mods": [],
+            "lens": "cracked",
+            "coupling": "thermal",
+            "core": "stock",
+            "targeting": "split2"
+          },
+          "stats": {
+            "attackBonus": 2,
+            "structuralAttackBonus": 2
+          }
+        },
+        "passive": {
+          "slot": "brain",
+          "name": "Grey Stub",
+          "passiveParts": {
+            "housing": "light",
+            "regulator": "primer"
+          },
+          "stats": {
+            "evasionBonus": 2
+          }
+        }
+      }
     },
     {
-      "id": "ninety", "speed": 10, "name": "Ninety", "maker": "Helix", "role": "Insomniac", "unlockLevel": 8, "color": "#facc15",
+      "id": "ninety",
+      "speed": 10,
+      "name": "Ninety",
+      "maker": "Helix",
+      "role": "Insomniac",
+      "unlockLevel": 8,
+      "color": "#facc15",
       "blurb": "Woke up mid-sentence and has lived years in a few months. Calls the signal the thing in the walls.",
-      "hp": 1.1, "attack": 8, "defense": 6, "move": 2,
-      "affinity": ["HELIX", "CROWN"], "link": "Lucid: the sleeper inside your host never flinches.",
-      "story": ["Ninety finishes a sentence it started before you met. You weren't meant to follow it.", "\"You're the thing in the walls,\" it says, kindly. \"Mine just talks back.\"", "It tells you what year it thinks it is. It's wrong. You don't correct it."],
+      "hp": 1.1,
+      "attack": 8,
+      "defense": 6,
+      "move": 2,
+      "affinity": [
+        "HELIX",
+        "CROWN"
+      ],
+      "link": "Lucid: the sleeper inside your host never flinches.",
+      "story": [
+        "Ninety finishes a sentence it started before you met. You weren't meant to follow it.",
+        "\"You're the thing in the walls,\" it says, kindly. \"Mine just talks back.\"",
+        "It tells you what year it thinks it is. It's wrong. You don't correct it."
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Restraint Strap", "description": "A strap torn off a pod, swung hard", "damage": 13, "accuracy": "variable", "physicalRatio": 0.65, "attackPattern": "melee_long" },
-        { "type": "defend", "effect": "mark", "name": "I've Dreamt This", "description": "Your hits on the target do 30% more until your next turn. Any range", "amount": 0.3, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Restraint Strap",
+          "description": "A strap torn off a pod, swung hard",
+          "damage": 13,
+          "accuracy": "variable",
+          "physicalRatio": 0.65,
+          "attackPattern": "melee_long"
+        },
+        {
+          "type": "defend",
+          "effect": "mark",
+          "name": "I've Dreamt This",
+          "description": "Your hits on the target do 30% more until your next turn. Any range",
+          "amount": 0.3,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "right_arm",
+          "name": "Restraint Arm",
+          "parts": {
+            "head": "grapple",
+            "mods": [],
+            "lens": "stock",
+            "coupling": "servo",
+            "core": "stock"
+          },
+          "stats": {
+            "attackBonus": 2,
+            "defenseBonus": 2
+          }
+        },
+        "passive": {
+          "slot": "misc",
+          "name": "Night Spine",
+          "passiveParts": {
+            "housing": "plated",
+            "regulator": "sink"
+          },
+          "stats": {
+            "defenseBonus": 3,
+            "hpBonus": 8
+          }
+        }
+      }
     },
     {
-      "id": "dust", "speed": 10, "name": "Dust", "maker": "Tianxia", "role": "Scout", "unlockLevel": 9, "color": "#fbbf24",
+      "id": "dust",
+      "speed": 10,
+      "name": "Dust",
+      "maker": "Tianxia",
+      "role": "Scout",
+      "unlockLevel": 9,
+      "color": "#fbbf24",
       "blurb": "A farmer from the dry valley who knows when the drones will fly, and hasn't seen rain fall on their own land in years.",
-      "hp": 1.0, "attack": 9, "defense": 5, "move": 3,
-      "affinity": ["TIANXIA", "PARSU"], "link": "Reads the wind: it never pushes you.",
-      "story": ["Dust looks at the sky before every door, out of habit.", "It keeps seeds in a sealed pouch. They'd need rain, it says, and laughs.", "\"If it ever rains on my land again,\" Dust says, \"I want to be there, in whatever body I've got.\""],
+      "hp": 1.0,
+      "attack": 9,
+      "defense": 5,
+      "move": 3,
+      "affinity": [
+        "TIANXIA",
+        "PARSU"
+      ],
+      "link": "Reads the wind: it never pushes you.",
+      "story": [
+        "Dust looks at the sky before every door, out of habit.",
+        "It keeps seeds in a sealed pouch. They'd need rain, it says, and laughs.",
+        "\"If it ever rains on my land again,\" Dust says, \"I want to be there, in whatever body I've got.\""
+      ],
       "moves": [
-        { "type": "attack", "effect": "attack", "name": "Sling", "description": "A stone from the valley, thrown hard", "damage": 12, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "ranged" },
-        { "type": "defend", "effect": "guard", "name": "Windbreak", "description": "You guard +12 against the next hit, from anywhere", "defenseBoost": 12, "cooldown": 2 }
-      ]
+        {
+          "type": "attack",
+          "effect": "attack",
+          "name": "Sling",
+          "description": "A stone from the valley, thrown hard",
+          "damage": 12,
+          "accuracy": "variable",
+          "physicalRatio": 0.8,
+          "attackPattern": "ranged"
+        },
+        {
+          "type": "defend",
+          "effect": "guard",
+          "name": "Windbreak",
+          "description": "You guard +12 against the next hit, from anywhere",
+          "defenseBoost": 12,
+          "cooldown": 2
+        }
+      ],
+      "kit": {
+        "active": {
+          "slot": "eyes",
+          "name": "Sling Sight",
+          "parts": {
+            "head": "bolt",
+            "mods": [],
+            "lens": "stock",
+            "coupling": "hydraulic",
+            "core": "stock"
+          },
+          "stats": {
+            "attackBonus": 3
+          }
+        },
+        "passive": {
+          "slot": "nose",
+          "name": "Dust Filter",
+          "passiveParts": {
+            "housing": "light",
+            "regulator": "sink",
+            "trait": "quick"
+          },
+          "stats": {
+            "evasionBonus": 2
+          }
+        }
+      }
     }
   ]
 }

@@ -52,6 +52,7 @@ const allyMove = z.object({
   .refine(m => m.effect !== 'attack' || ((m.damage ?? 0) > 0 && !!m.attackPattern), 'an attack move needs damage and a pattern')
   .refine(m => !['heal', 'mark'].includes(m.effect) || (m.amount ?? 0) > 0, 'heal and mark moves need an amount')
   .refine(m => !['taunt', 'guard'].includes(m.effect) || (m.defenseBoost ?? 0) > 0, 'taunt and guard moves need a defenseBoost');
+const kitStats = z.object({ attackBonus: z.number().int().min(1).max(10), defenseBonus: z.number().int().min(1).max(10), hpBonus: z.number().int().min(1).max(30), structuralAttackBonus: z.number().int().min(1).max(10), structuralDefenseBonus: z.number().int().min(1).max(10), evasionBonus: z.number().int().min(1).max(5) }).partial().strict();
 const ally = z.object({
   id: z.string().regex(/^[a-z]+$/), name: text, maker: text, role: text,
   unlockLevel: z.number().int().min(1).max(200), color: z.string().regex(/^#[0-9a-f]{6}$/i), blurb: text,
@@ -62,6 +63,19 @@ const ally = z.object({
   story: z.array(z.string().trim().min(1).max(160)).length(3),
   speed: z.number().int().min(6).max(14),
   moves: z.array(allyMove).length(2),
+  // Its preset kit: an active implant (its attack) and a passive one, built from fixed parts, never rolled
+  kit: z.object({
+    active: z.object({
+      slot: z.enum(['left_arm', 'right_arm', 'left_leg', 'right_leg', 'eyes']), name: text,
+      parts: z.object({ head: z.string(), mods: z.array(z.string()), lens: z.enum(['clear', 'stock', 'cracked']), coupling: z.enum(['hydraulic', 'servo', 'arc', 'thermal']), core: z.enum(['cold', 'stock', 'hot', 'pump']), targeting: z.enum(['focused', 'split2', 'split3', 'wide']).optional() }).strict(),
+      stats: kitStats,
+    }).strict(),
+    passive: z.object({
+      slot: z.enum(['brain', 'ears', 'nose', 'lungs', 'misc']), name: text,
+      passiveParts: z.object({ housing: z.enum(['light', 'stock', 'plated', 'sealed']), regulator: z.enum(['stock', 'sink', 'baffle', 'primer']), trait: z.enum(['tough', 'quick', 'charged', 'shod']).optional() }).strict(),
+      stats: kitStats,
+    }).strict(),
+  }).strict(),
 }).strict();
 // Art names the board can draw (lib/rendering/board.ts)
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
@@ -385,6 +399,11 @@ export function checkContent(): string[] {
     while (queue.length) { const at = queue.shift(); const r = m.rooms.find(x => x.id === at)!; for (const e of r.exits) if (!seen.has(e.to) && ids.has(e.to)) { seen.add(e.to); queue.push(e.to); } }
     for (const r of m.rooms) if (!seen.has(r.id)) problems.push(`map ${r.id}: can't be reached from the entry`);
   }
+  }
+  // An ally's kit must use real heads and mods (its attack is built from them)
+  for (const a of (allies as { allies: { id: string; kit: { active: { parts: { head: string; mods: string[] } } } }[] }).allies) {
+    if (!(a.kit.active.parts.head in HEADS)) problems.push(`allies.json ${a.id}: kit head "${a.kit.active.parts.head}" isn't an attack head`);
+    for (const m of a.kit.active.parts.mods) if (!(m in MODS) && !(m in QUIRKS)) problems.push(`allies.json ${a.id}: kit mod "${m}" isn't a mod`);
   }
   for (const id of (allies as { allies: { id: string }[] }).allies.map(a => a.id)) if (allyRooms[id] !== 1) problems.push(`maps: ally "${id}" should wait in exactly one room across all chapters (found ${allyRooms[id] ?? 0})`);
 
