@@ -1,7 +1,7 @@
 import type { UpgradeEffect } from '../engine/upgrades';
 import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects, Targeting, DefendKind, DefendSpec } from './types';
 import { MULTI_HIT } from './patterns';
-import { random } from '../engine/rng';
+import { random, hashSeed } from '../engine/rng';
 import { augmentKind } from './types';
 
 // ── Makers ────────────────────────────────────────────────────────────────────
@@ -300,6 +300,27 @@ const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string
 
 const pick = <T,>(arr: T[]): T => arr[Math.floor(random() * arr.length)];
 
+/**
+ * A part's model number, the way each maker stamps its line: "RX-2", "VK-9", "TX-340", "KZ-7A".
+ * The grade goes up with quality, and the rest comes from the part itself, so a part always
+ * carries the same number. Moves are named by it: "RX-2 Counter", "VK-9 Drive".
+ */
+const MODEL: Record<Maker, (tier: number, h: number) => string> = {
+  VOLKOV:    (t, h) => `VK-${1 + t * 2 + (h % 2)}`,
+  KIZUNA:    (t, h) => `KZ-${1 + t * 2 + (h % 2)}${'ABCD'[h % 4]}`,
+  TIANXIA:   (t, h) => `TX-${(t + 1) * 100 + (h % 5) * 10}`,
+  CROWN:     (t, h) => `RX-${1 + t * 2 + (h % 2)}`,
+  HELIX:     (t, h) => `HX-${(t + 1) * 10 + (h % 2) * 5}`,
+  CBN:       (t, h) => `CB-${10 + t * 3 + (h % 3)}`,
+  IOA:       (t, h) => `IO-${(t + 1) * 11}${t >= 3 ? 'X' : ''}`,
+  PARSU:     (t, h) => `PS-${t + 1}.${h % 10}`,
+  PATCHWORK: (t, h) => `MK-${t + 1 + (h % 3)}`,
+};
+export function modelOf(item: Item): string {
+  const h = hashSeed(String(item.treeSeed ?? item.id));
+  return MODEL[makerOf(item)](RARITY_INDEX[item.rarity] ?? 0, h);
+}
+
 // What each maker's other parts lean toward (picked 60% of the time; otherwise any)
 const MAKER_LEAN: Record<Maker, { lens: string; coupling: string; core: string; housing: string; regulator: string }> = {
   VOLKOV:    { lens: 'clear',   coupling: 'hydraulic', core: 'hot',   housing: 'plated', regulator: 'primer' },
@@ -460,7 +481,7 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
   const effects: ActionEffects = { ...(head.effects ?? {}) };
   for (const m of parts.mods) Object.assign(effects, (MODS[m] ?? QUIRKS[m])?.effects ?? {});
   if (up.fx) Object.assign(effects, up.fx);
-  const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
+  const name = head.signature ? head.noun : `${modelOf(item)} ${head.noun}`;
 
   const aimPart = parts.targeting ? TARGETING[parts.targeting] : null;
   // Implants from before lens, coupling and core existed read them off their maker's old numbers
@@ -628,7 +649,7 @@ function defendAction(item: Item, parts: NonNullable<Item['parts']>, h: DefHead,
   const round = (x?: number) => (x ? Math.round(x * 100) / 100 : undefined);
   for (const k of ['heal', 'healOver', 'repair', 'repairOver', 'physCut', 'specialCut'] as const) d[k] = round(d[k]);
   return {
-    type: 'defend', name: `${MAKER_PARTS[maker].word} ${h.noun}`, description: h.flavour,
+    type: 'defend', name: `${modelOf(item)} ${h.noun}`, description: h.flavour,
     heatGenerated: heat + (up.heat ?? 0), defend: d, maker, fromImplant: true,
     side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,
   };

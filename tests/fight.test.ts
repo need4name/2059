@@ -1133,3 +1133,12 @@ test('a heal that reaches allies covers whoever you pick, or both', () => {
   const me = Fight.resolveDefend({ ...s, player: { ...s.player, currentHp: 50 } }, mend('focused'), s.grid.playerPosition).state;
   assert.ok(me.player.currentHp > 50 && me.allies[0].unit.currentHp === 30, 'tapping yourself covers you');
 });
+
+test('implant moves are named by model number: the maker stamps its line, the grade rises with quality', async () => {
+  const { modelOf } = await import('../client/src/lib/combat/augments');
+  const arm = (name: string, rarity: any, treeSeed = 7) => ({ id: 'm', name, rarity, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '', treeSeed, parts: { head: 'counter', mods: [], lens: 'stock', coupling: 'servo', core: 'stock' } });
+  assert.match(modelOf(arm('[CROWN] Test', 'common')), /^RX-[12]$/);
+  assert.match(actionForItem(arm('[CROWN] Test', 'common'))!.name, /^RX-\d+ Counter$/);
+  assert.match(modelOf(arm('[VOLKOV] Test', 'legendary')), /^VK-(9|10)$/);
+  assert.equal(modelOf(arm('[KIZUNA] Test', 'rare')), modelOf(arm('[KIZUNA] Test', 'rare')), 'the same part always carries the same number');
+});

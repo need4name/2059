@@ -158,7 +158,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
         selected ? 'key key-selected' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale')}
     >
-      <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
+      <span className={`line-clamp-2 w-full font-display text-[13px] font-semibold leading-tight ${tone}`}>{action.name}</span>
       {isAttack ? (
         <span className="flex items-center gap-1 text-[10px] text-hud-faint">
           <Footprint action={action} playerClass={s.playerClass} />
