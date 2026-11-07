@@ -8,7 +8,6 @@ import * as Fight from '@/lib/engine/fight';
  * the numbers behind it. Everything else the player finds out by playing.
  */
 const HINTS: Partial<Record<HintId, string>> = {
-  move: 'Tap a lit tile to move.',
   attack: 'Pick a move, tap where it lands, then Execute.',
   enemy_reach: 'Red is where they will strike.',
   telegraph: 'Orange is where it lands next.',
@@ -25,6 +24,9 @@ export function useTutorialTriggers() {
 
   useEffect(() => { if (c.phase === 'enemy_turn') enemyActed.current = true; }, [c.phase]);
   useEffect(() => { enemyActed.current = false; }, [c.fightId]);
+  // A fight's hint never follows you out of the fight
+  const inFight = c.phase === 'player_turn' || c.phase === 'enemy_turn' || c.phase === 'victory';
+  useEffect(() => { if (!inFight && t.active) t.dismiss(); }, [inFight, t.active]);
 
   useEffect(() => {
     if (!t.enabled || t.active || c.fightIntro) return;
@@ -32,8 +34,7 @@ export function useTutorialTriggers() {
     const myTurn = c.phase === 'player_turn' && !c.inputLocked;
     const candidates: [HintId, boolean][] = [
       ['telegraph', myTurn && c.foes.some(f => !!f.pendingAction)],
-      ['move', myTurn && !c.hasMoved],
-      ['attack', myTurn && !!t.seen.move],
+      ['attack', myTurn],
       ['enemy_reach', myTurn && enemyActed.current],
       ['heat', myTurn && c.playerHeat >= 35],
       ['surge', myTurn && Fight.canSurge(c)],

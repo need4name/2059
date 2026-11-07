@@ -185,7 +185,7 @@ function allyMoveDetail(m: AllyMove): string {
 }
 
 /**
- * An ally's own turn: its moves take the place of yours. Tap a lit tile to move it
+ * An ally's own turn: its moves take the place of yours. A lit tile moves it
  * (once, before it acts), then use one of its moves; acting ends its turn.
  */
 function AllyTurnPanel({ k }: { k: number }) {
@@ -195,7 +195,6 @@ function AllyTurnPanel({ k }: { k: number }) {
   if (!a) return null;
   const color = a.unit.spriteColor;
   const live = phase === 'player_turn' && !inputLocked;
-  const canMove = live && !a.acted && Fight.allyReach(useCombat.getState(), k, allyOrigin ?? undefined).size > 0;
   const moved = !!allyOrigin && (a.pos.row !== allyOrigin.row || a.pos.col !== allyOrigin.col);
   return (
     <div className="space-y-2">
@@ -203,7 +202,7 @@ function AllyTurnPanel({ k }: { k: number }) {
         <Portrait id={a.id} size={26} />
         <div className="min-w-0 flex-1">
           <div className="font-display text-[15px] font-semibold" style={{ color }}>{a.unit.name}'s turn</div>
-          <div className="text-[11px] text-hud-dim">{a.acted ? 'Done' : moved ? 'Tap another lit tile to change it, or pick a move' : canMove ? 'Tap a lit tile to move' : 'Pick a move'}</div>
+          {a.acted && <div className="text-[11px] text-hud-dim">Done</div>}
         </div>
         <div className="w-24"><div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${(a.unit.currentHp / a.unit.maxHp) * 100}%`, background: color }} /></div>
           <div className="mt-0.5 text-right text-[10px] text-hud-faint">{a.unit.currentHp}/{a.unit.maxHp}</div></div>
