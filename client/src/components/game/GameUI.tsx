@@ -7,7 +7,6 @@ import { dailyDay } from '@/lib/daily';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { useLoadoutSync } from './useActionPool';
-import { TutorialHint, useTutorialTriggers } from './Tutorial';
 
 // Test tools load only in development builds, so players never download them
 const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel }))) : () => null;
@@ -17,7 +16,6 @@ export function GameUI() {
   const phase = useCombat(s => s.phase);
   const [showDebug, setShowDebug] = useState(false);
   useLoadoutSync();
-  useTutorialTriggers();
 
   let screen;
   switch (phase) {
@@ -32,7 +30,6 @@ export function GameUI() {
   return (
     <>
       {screen}
-      <TutorialHint />
       {/* Test tools, only in development builds */}
       {import.meta.env.DEV && phase === 'menu' && (
         <>

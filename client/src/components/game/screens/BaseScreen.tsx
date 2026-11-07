@@ -12,7 +12,6 @@ import { favouriteMove } from '@/lib/engine/runStats';
 import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, firmwarePassives, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
-import { useTutorial } from '@/lib/stores/useTutorial';
 import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
@@ -563,7 +562,6 @@ function StatusTab() {
   const { getTotalAugmentationBonuses, equippedAugmentations } = useInventory();
   const { getTreeStatBonuses } = useAugmentTrees();
   const { isMuted, toggleMute } = useAudio();
-  const hints = useTutorial();
   const [confirmReset, setConfirmReset] = useState(false);
   const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const tree = getTreeStatBonuses(equipped);
@@ -616,8 +614,7 @@ function StatusTab() {
       <SavePanel />
 
       <div className="grid grid-cols-2 gap-2 pt-1">
-        <Btn onClick={toggleMute}>{isMuted ? 'Sound off' : 'Sound on'}</Btn>
-        <Btn onClick={hints.enabled ? hints.skipAll : hints.restart}>{hints.enabled ? 'Hints on' : 'Hints off'}</Btn>
+        <Btn className="col-span-2" onClick={toggleMute}>{isMuted ? 'Sound off' : 'Sound on'}</Btn>
         <Btn className="col-span-2" variant="danger" onClick={() => setConfirmReset(true)}>Wipe save</Btn>
       </div>
 

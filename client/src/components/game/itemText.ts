@@ -143,34 +143,32 @@ export function defendText(action: CombatAction): string | null {
  * and heat push all show on the tiles instead.
  */
 export function statusText(action: CombatAction): string | null {
+  // Just what it does, never how much: the numbers are on the cards, for building a moveset between fights
   const d = action.defend;
   if (d) {
-    // Heals show on the bars, guards as an outline, steps as an arrow: the rest in words
     const out = [
-      d.counter && `${pc(d.counter.chance)} chance to send ${pc(d.counter.share)} back`,
+      d.counter && 'counters',
       d.counterStun && 'stuns',
       d.anchor && "can't be shoved",
       d.cleanse && 'stops bleeding and burning',
-      d.overload && `+${d.overload} Overload`,
+      d.overload && 'charges Overload',
       d.haste && 'you act sooner',
-      d.roll && 'can land weak or strong',
     ].filter(Boolean);
     return out.length ? out.join(' · ') : null;
   }
   const fx = action.effects ?? {};
   const out = [
     fx.bleed && 'bleeds',
-    fx.stun && `${Math.round(fx.stun * 100)}% stun`,
+    fx.stun && 'can stun',
     fx.slow && 'slows them',
     fx.ignite && 'sets them alight',
     fx.crush && 'crushing collisions',
-    fx.drain && `heals you ${Math.round(fx.drain * 100)}% of damage`,
-    action.healing && `heals you ${action.healing}`,
-    fx.cool && `vents ${fx.cool} heat`,
-    fx.haste && 'hastes you',
-    fx.hotBonus && `+${Math.round(fx.hotBonus * 100)}% while hot`,
-    fx.lowBonus && `+${Math.round(fx.lowBonus * 100)}% while low on health`,
-    fx.reap && 'a takedown vents your heat and guards you',
+    (fx.drain || action.healing) && 'heals you',
+    fx.cool && 'vents heat',
+    fx.haste && 'you act sooner',
+    fx.hotBonus && 'harder while hot',
+    fx.lowBonus && 'harder while low',
+    fx.reap && 'takedowns vent and guard',
   ].filter(Boolean);
   return out.length ? out.join(' · ') : null;
 }

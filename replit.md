@@ -19,7 +19,6 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 - **Upgrades:** progress is stored per implant id, so only installed implants can be upgraded. Points: 1 per level-up plus 1 per new threat cleared.
 - **Damage:** the player's flat attack stat counts at 60% (`PLAYER_STAT_WEIGHT`). Item stats are normalised to a power band per rarity (`normaliseItem`).
 - **First run:** while `deathCount === 0`, threat 3 is a Cartel Enforcer built to kill, so new players die on the 2nd/3rd enemy and see every mechanic.
-- **Tutorial:** `Tutorial.tsx` + `useTutorial` show one-time hint cards; skippable, replayable from Status.
 - **Arenas:** portrait grids from 7x9 growing to 9x13 by threat 12; player starts at the bottom, enemy at the top. `lib/combat/grid.ts` builds battlefields (void tiles are impassable and not drawn, and the generator guarantees a path to the boss). It also handles pathfinding for boss movement and player move range.
 - **Hazards:** a combatant standing on a hazard at the end of its turn takes its damage. Bosses route around hazards.
 - **Heavy attacks:** telegraphed one turn ahead; the orange tiles show where it lands. Stepping out dodges it.

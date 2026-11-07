@@ -70,3 +70,11 @@ test('a version 3 save upgrades: its map is in chapter one', () => {
   assert.equal(part.state.room, 'deck');
   assert.equal(part.version, 2);
 });
+
+test('a save from before hints were removed loses the hints part and keeps the rest', () => {
+  mem.set(SAVE_KEY, JSON.stringify({ game: '2059', version: 14, savedAt: '', parts: { '2059-tutorial': '{"state":{"enabled":true}}', '2059-combat': '{"state":{"bossLevel":3},"version":1}' } }));
+  const save = readSave();
+  assert.equal(save.version, SAVE_VERSION);
+  assert.equal(save.parts['2059-tutorial'], undefined);
+  assert.ok(save.parts['2059-combat']);
+});
