@@ -110,12 +110,6 @@ function LoadoutTab() {
         ))}
       </div>
 
-      {/* How to read the little attack pictures */}
-      <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] px-3.5 py-2.5 text-[12px] leading-snug text-hud-dim">
-        <Footprint pattern="melee" cell={6} className="shrink-0" />
-        <span>You're the blue square. Orange is where the move can hit; the bolder the tile, the harder it lands (each shape has a sweet spot; from the side +15%, from behind +30%). Arrows: it shoves or drags them. A cyan dot or ring: it carries you.</span>
-      </div>
-
       {SOURCE_GROUPS.map(g => {
         const moves = pool.filter(a => a.source === g.source);
         if (!moves.length && !g.empty) return null;
