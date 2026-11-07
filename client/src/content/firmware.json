@@ -86,6 +86,23 @@
         { "text": "Hits harder", "scale": 0.15 },
         { "choose": [{"text": "Chimera: two more pairs", "perk": {"splicePairs": 2}}, {"text": "Symbiote: pairs cost no heat", "perk": {"spliceHeatCut": 2}}] }
       ]
+    },
+    "wretch": {
+      "identity": {"rule": "No rule of its own: implant moves hit 35% harder, implant upgrades cost a point less, and a fifth move slot. Implants' health costs hit it 50% harder.", "heat": "Whatever its implants make it: their makers' hot effects are all it has.", "ultimate": "None of its own: the plain Signal Surge.", "surge": "blast", "perks": {"implantDamage": 0.35, "implantTreeDiscount": 1, "extraSlots": 1, "healthCostScale": 1.5}},
+      "unlockAt": 22,
+      "scale": 0.7,
+      "base": {"type": "attack", "name": "Strike", "description": "A plain blow. One tile next to you.", "damage": 10, "heatGenerated": 11, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee"},
+      "levels": [
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "choose": [{"text": "Tolerance: implants' health costs back to normal", "perk": {"healthCostScale": 0.67}}, {"text": "Overdrive grafts: implant moves hit 15% harder", "perk": {"implantDamage": 0.15}}] },
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "choose": [{"text": "Sixth slot: one more move slot", "perk": {"extraSlots": 1}}, {"text": "Cool grafts: implant moves cost 3 less heat", "perk": {"implantHeatCut": 3}}] },
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "text": "Implant moves hit 5% harder", "perk": {"implantDamage": 0.05} },
+        { "choose": [{"text": "Kinship: implant mods count twice", "perk": {"kinship": true}}, {"text": "Abomination: active implants give 50% more stats", "perk": {"activeStatMult": 1.5}}] }
+      ]
     }
   }
 }

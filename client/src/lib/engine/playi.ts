@@ -89,6 +89,20 @@ export interface Perks {
   splicePairs: number;        // how many passive slots can hold a spliced pair (Splice)
   spliceHeatCut: number;      // heat a turn taken off each spliced pair's cost (Splice)
   splicedNow: number;         // spliced pairs the host is wearing (set when the host is built)
+  momentum: number;           // Overload added by each takedown
+  hitAndFade: boolean;        // while warm (36-60), an attack lets you step a tile after
+  redline: boolean;           // once a fight, starting a turn at 86+ heat gives a second action
+  resonance: boolean;         // Firmware resonance: the loaded firmware's own rule grows stronger
+  // What resonance (and the Wretch) turn on
+  chainVent: number;          // a chained takedown also vents this much heat (Enforcer)
+  reflexReach: number;        // reach of the step after attacking (Courier: 2 tiles)
+  overheatSpread: number;     // an enemy that overheats pushes this much heat into everyone beside it (Foreman)
+  strikeHot: boolean;         // Strike gains a hot effect: sets them alight (Unclassified)
+  implantDamage: number;      // extra damage on implant moves (Wretch)
+  implantTreeDiscount: number; // points off each active implant upgrade node (Wretch; never below 1)
+  implantHeatCut: number;     // heat off implant moves (Wretch's Cool grafts)
+  kinship: boolean;           // implant moves' mods count twice (Wretch's Kinship)
+  activeStatMult: number;     // active implants' stat bonuses (Wretch's Abomination)
 }
 /** Each firmware's Overload ultimate; unclassified hosts get the plain Signal Surge. */
 export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun' | 'resonance';
@@ -102,22 +116,25 @@ export const NO_PERKS: Perks = {
   allyHpMult: 1, allyXpMult: 1, coordinated: false, allySlots: 1,
   braceHeal: 0, partingTakenMult: 1, collisionMult: 1, noFlinch: false, windproof: false,
   heatGenBonus: 0, ventMult: 1, transferBonus: 0, surgeKind: 'blast', splicePairs: 0, spliceHeatCut: 0, splicedNow: 0,
+  momentum: 0, hitAndFade: false, redline: false, resonance: false,
+  chainVent: 0, reflexReach: 0, overheatSpread: 0, strikeHot: false, implantDamage: 0,
+  implantTreeDiscount: 0, implantHeatCut: 0, kinship: false, activeStatMult: 1,
 };
 
 /** Turns owned node ids (fallback fragments may repeat) into modifiers. */
-export function perksFor(owned: readonly string[]): Perks {
+export function perksFor(owned: readonly string[], setPoint: 0 | 50 = 0): Perks {
   const p: Perks = { ...NO_PERKS };
   for (const id of owned) {
     switch (id) {
       case 'move_1': case 'move_3': p.moveBonus += 1; break;
-      case 'move_2a': p.reflexMove = true; break;
+      case 'move_2a': p.hitAndFade = true; break;
       case 'move_2b': p.hazardMult = 0.5; break;
       case 'move_4': p.sidestep = true; break;
       case 'move_5': p.phaseStep = true; break;
       case 'heat_1': p.extraCooling += 3; break;
-      case 'heat_2a': p.startHeat = 0; break;
+      case 'heat_2a': p.startHeat = setPoint; break;
       case 'heat_2b': p.hotTakenMult = 0.4; break;
-      case 'heat_3': p.doubleActionHeat = 25; break;
+      case 'heat_3': p.redline = true; break;
       case 'heat_4': p.ventBonus += 10; break;
       case 'heat_5': p.runaway = true; break;
       case 'combat_1': p.damageMult *= 1.1; break;
@@ -125,7 +142,8 @@ export function perksFor(owned: readonly string[]): Perks {
       case 'combat_2b': p.flankMult = 1.5; break;
       case 'combat_3': p.firstStrikePrecise = true; break;
       case 'combat_4': p.finisherBonus = 0.25; break;
-      case 'combat_5': p.chain = true; break;
+      case 'combat_5': p.momentum = 20; break;
+      case 'combat_3b': p.resonance = true; break;
       case 'graft_1': p.healthCostMult = 0.5; break;
       case 'graft_2a': p.structureMult = 1.25; break;
       case 'graft_2b': p.startImplant = true; break;

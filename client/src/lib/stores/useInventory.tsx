@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { CONDITION_MULT, structureOf, healthCostOf, canSplice } from '../combat/augments';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
-import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon } from '../combat/types';
+import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon, augmentKind } from '../combat/types';
 
 // Equipped augmentations for each body slot
 export type EquippedAugmentations = Record<AugmentationSlot, Item | null>;
@@ -30,7 +30,7 @@ clearInventory: () => void;
 equipAugmentation: (item: Item) => void;
 unequipAugmentation: (slot: AugmentationSlot) => void;
 useConsumable: (itemId: string) => Item | null;
-getTotalAugmentationBonuses: () => { physicalAttack: number; structuralAttack: number; physicalDefense: number; structuralDefense: number; hp: number; evasion: number; structure: number; hpCost: number; bypassStructuralDefense: boolean; hasKizuna: boolean; treeAttack: number; treeDefense: number; treeHp: number };
+getTotalAugmentationBonuses: (activeStatMult?: number) => { physicalAttack: number; structuralAttack: number; physicalDefense: number; structuralDefense: number; hp: number; evasion: number; structure: number; hpCost: number; bypassStructuralDefense: boolean; hasKizuna: boolean; treeAttack: number; treeDefense: number; treeHp: number };
 buyWeapon: (weapon: Weapon) => boolean;
 upgradeWeapon: (tier1Id: string, tier2Weapon: Weapon) => boolean;
 sellWeapon: (weaponId: string) => void;
@@ -179,7 +179,7 @@ return state;
 return consumable;
 },
 
-getTotalAugmentationBonuses: () => {
+getTotalAugmentationBonuses: (activeStatMult = 1) => {
 const state = get();
 let physicalAttack   = 0;
 let structuralAttack = 0;
@@ -198,7 +198,8 @@ const worn = AUGMENTATION_SLOTS.flatMap(sl => [state.equippedAugmentations[sl], 
 for (const item of worn) {
 if (item) {
 // Worn parts work at reduced strength; a part never subtracts stats
-const m = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
+// (the Wretch's Abomination: active implants give more)
+const m = (CONDITION_MULT[item.condition ?? 'pristine'] ?? 1) * (item.slot && augmentKind(item.slot) === 'active' ? activeStatMult : 1);
 const add = (n?: number) => (n && n > 0 ? Math.round(n * m) : 0);
 physicalAttack    += add(item.attackBonus);
 structuralAttack  += add(item.structuralAttackBonus);

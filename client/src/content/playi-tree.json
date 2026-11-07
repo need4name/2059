@@ -2,24 +2,24 @@
   "about": "The play-i tree: what the signal learns across hosts. Hidden from the player; after each death they are offered 2 random nodes whose requirements are met. requires = any one of the listed nodes.",
   "branches": [
     { "id": "move", "name": "Locomotion", "theme": "How far and how freely the signal can drive a body" },
-    { "id": "heat", "name": "Processing", "theme": "Running hotter, cooling faster, acting twice" },
+    { "id": "heat", "name": "Processing", "theme": "Cold, warm or hot: setting the heat you fight at" },
     { "id": "combat", "name": "Subroutines", "theme": "Hitting harder, cleaner, more often" },
     { "id": "graft", "name": "Grafting", "theme": "Getting more from implants, for less" },
     { "id": "signal", "name": "Signal", "theme": "Staying alive and carrying more into each host" },
     { "id": "network", "name": "Network", "theme": "Working with allies (offered once the first ally is unlocked)" }
   ],
   "nodes": [
-    { "id": "move_1", "branch": "move", "tier": 1, "name": "Gait calibration", "effect": "+1 movement (1 to 2 tiles)", "requires": [] },
-    { "id": "move_2a", "branch": "move", "tier": 2, "name": "Reflex loop", "effect": "After attacking, you can still move 1 tile if you haven't moved", "requires": ["move_1"] },
+    { "id": "move_1", "branch": "move", "tier": 1, "name": "Gait calibration", "effect": "+1 movement point (from the 8 tiles around you to 12)", "requires": [] },
+    { "id": "move_2a", "branch": "move", "tier": 2, "name": "Hit and fade", "effect": "While warm (36 to 60 heat), your attack lets you step a tile afterwards", "requires": ["move_1"] },
     { "id": "move_2b", "branch": "move", "tier": 2, "name": "Sure footing", "effect": "Hazards deal half damage to you", "requires": ["move_1"] },
-    { "id": "move_3", "branch": "move", "tier": 3, "name": "Long stride", "effect": "+1 movement (2 to 3 tiles)", "requires": ["move_2a", "move_2b"] },
+    { "id": "move_3", "branch": "move", "tier": 3, "name": "Long stride", "effect": "+1 movement point (12 tiles in reach to 20)", "requires": ["move_2a", "move_2b"] },
     { "id": "move_4", "branch": "move", "tier": 4, "name": "Sidestep", "effect": "The first heavy attack aimed at you each fight misses", "requires": ["move_3"] },
     { "id": "move_5", "branch": "move", "tier": 5, "name": "Phase step", "effect": "Move through enemies and obstacles", "requires": ["move_4"], "capstone": true },
 
     { "id": "heat_1", "branch": "heat", "tier": 1, "name": "Heat sink", "effect": "Shed 3 more heat each round (6 to 9)", "requires": [] },
-    { "id": "heat_2a", "branch": "heat", "tier": 2, "name": "Cold start", "effect": "Start each fight at 0 heat instead of 20", "requires": ["heat_1"] },
-    { "id": "heat_2b", "branch": "heat", "tier": 2, "name": "Thermal tolerance", "effect": "Take less extra damage when hot (hot x1.25 to x1.10, critical x1.75 to x1.30)", "requires": ["heat_1"] },
-    { "id": "heat_3", "branch": "heat", "tier": 3, "name": "Overclocked core", "effect": "Act twice at 25 heat or below (was 15)", "requires": ["heat_2a", "heat_2b"] },
+    { "id": "heat_2a", "branch": "heat", "tier": 2, "name": "Set point", "effect": "Start each fight at 0 heat (cold) or 50 (warm) instead of 20: you choose when you take it", "requires": ["heat_1"] },
+    { "id": "heat_2b", "branch": "heat", "tier": 2, "name": "Thermal tolerance", "effect": "Take less extra damage when hot (hot x1.15 to x1.06, critical x1.40 to x1.16)", "requires": ["heat_1"] },
+    { "id": "heat_3", "branch": "heat", "tier": 3, "name": "Redline", "effect": "Once a fight, start a turn at 86 heat or more and you act twice", "requires": ["heat_2a", "heat_2b"] },
     { "id": "heat_4", "branch": "heat", "tier": 4, "name": "Vent", "effect": "Brace cools 10 more", "requires": ["heat_3"] },
     { "id": "heat_5", "branch": "heat", "tier": 5, "name": "Runaway", "effect": "Burning out at 100 heat no longer costs you a turn, and critical heat crits 45% of the time (was 30%)", "requires": ["heat_4"], "capstone": true },
 
@@ -27,8 +27,9 @@
     { "id": "combat_2a", "branch": "combat", "tier": 2, "name": "Fifth slot", "effect": "A fifth action slot on your fight bar", "requires": ["combat_1"] },
     { "id": "combat_2b", "branch": "combat", "tier": 2, "name": "Flank logic", "effect": "Flanking bonuses +50% (behind 30% to 45%, side 15% to 22%)", "requires": ["combat_1"] },
     { "id": "combat_3", "branch": "combat", "tier": 3, "name": "Clean first strike", "effect": "Your first attack each fight is precise", "requires": ["combat_2a", "combat_2b"] },
+    { "id": "combat_3b", "branch": "combat", "tier": 3, "name": "Firmware resonance", "effect": "Your firmware's own rule grows stronger (each firmware its own way)", "requires": ["combat_2a", "combat_2b"] },
     { "id": "combat_4", "branch": "combat", "tier": 4, "name": "Finisher", "effect": "+25% damage against enemies under 30% health", "requires": ["combat_3"] },
-    { "id": "combat_5", "branch": "combat", "tier": 5, "name": "Chain", "effect": "Taking down an enemy gives you another action", "requires": ["combat_4"], "capstone": true },
+    { "id": "combat_5", "branch": "combat", "tier": 5, "name": "Momentum", "effect": "Each takedown adds 20 to Overload", "requires": ["combat_4"], "capstone": true },
 
     { "id": "graft_1", "branch": "graft", "tier": 1, "name": "Clean interface", "effect": "Implant health costs are halved", "requires": [] },
     { "id": "graft_2a", "branch": "graft", "tier": 2, "name": "Reinforced housings", "effect": "+25% structure", "requires": ["graft_1"] },

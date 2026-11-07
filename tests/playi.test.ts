@@ -65,10 +65,15 @@ function fight(owned: string[], over: Partial<FightState> = {}): FightState {
 }
 const blow = (damage: number): CombatAction => ({ type: 'attack', name: 'Blow', description: '', damage, physicalRatio: 1, accuracy: 'precise', attackPattern: 'melee' });
 
-test('Heat sink sheds more heat; Overclocked core acts twice when warmer', () => {
+test('Heat sink sheds more heat; Redline acts twice once a fight from 86 heat; Set point sets the starting heat', () => {
   assert.equal(Fight.startPlayerTurn(fight(['heat_1'], { playerHeat: 30 })).playerHeat, 30 - Fight.PASSIVE_COOLING - 3);
-  assert.equal(Fight.startPlayerTurn(fight([], { playerHeat: 30 })).doubleActionReady, false);
-  assert.equal(Fight.startPlayerTurn(fight(['heat_3'], { playerHeat: 30 })).doubleActionReady, true);
+  assert.equal(Fight.startPlayerTurn(fight([], { playerHeat: 98 })).doubleActionReady, false);
+  const hot = Fight.startPlayerTurn(fight(['heat_3'], { playerHeat: 98 }));
+  assert.equal(hot.doubleActionReady, true, 'Redline: a turn started at 86+');
+  assert.equal(Fight.startPlayerTurn({ ...hot, playerHeat: 98 }).doubleActionReady, false, 'once a fight');
+  assert.equal(Fight.startPlayerTurn(fight(['heat_3'], { playerHeat: 50 })).doubleActionReady, false);
+  assert.equal(perksFor(['heat_2a'], 50).startHeat, 50);
+  assert.equal(perksFor(['heat_2a'], 0).startHeat, 0);
 });
 
 test('Holdfast survives one killing blow per host', () => {
@@ -92,12 +97,13 @@ test('Sidestep makes the first heavy miss even when you stay in it', () => {
   assert.equal(again.connects, true);
 });
 
-test('Chain: taking down one of several enemies earns another action', () => {
+test('Momentum: a takedown feeds Overload (and no longer gives another action: that is the Enforcer\'s)', () => {
   const base = fight(['combat_5']);
-  const s = { ...base, foes: [{ ...base.foes[0], unit: { ...base.foes[0].unit, currentHp: 1 } }, Fight.newFoe(createBoss(3), { row: 0, col: 0 }, 40)] };
+  const s = { ...base, overload: 0, foes: [{ ...base.foes[0], unit: { ...base.foes[0].unit, currentHp: 1 } }, Fight.newFoe(createBoss(3), { row: 0, col: 0 }, 40)] };
   seedRandom(2);
   const step = Fight.resolvePlayerAttack(s, { ...PLAYER_ACTIONS[0], accuracy: 'precise' });
-  assert.ok(step.events.some(e => e.kind === 'extraAction'));
+  assert.ok(step.state.overload >= 20);
+  assert.ok(!step.events.some(e => e.kind === 'extraAction'));
 });
 
 test('Targeting adds 10% damage', () => {

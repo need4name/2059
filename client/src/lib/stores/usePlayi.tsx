@@ -14,6 +14,9 @@ interface PlayiState {
   makeOffer: (hasAlly: boolean) => void;
   pick: (id: string) => boolean;
   perks: () => Perks;
+  /** Set point (heat_2a): the heat each fight starts at, cold (0) or warm (50), chosen when the node is taken. */
+  setPoint: 0 | 50;
+  chooseSetPoint: (v: 0 | 50) => void;
   /** The implants the last host was wearing when the signal left it (the Echo wears them). */
   lastBody: Item[];
   rememberBody: (items: Item[]) => void;
@@ -38,11 +41,13 @@ export const usePlayi = create<PlayiState>()(persist((set, get) => ({
     return true;
   },
 
-  perks: () => perksFor(get().owned),
+  perks: () => perksFor(get().owned, get().setPoint ?? 0),
+  setPoint: 0,
+  chooseSetPoint: (v) => set({ setPoint: v }),
 
   rememberBody: (items) => set({ lastBody: items }),
 
-  reset: () => set({ owned: [], offer: null, lastBody: [] }),
+  reset: () => set({ owned: [], offer: null, lastBody: [], setPoint: 0 }),
 }), {
   name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 2,
   // Version 2 remembers the last body's implants

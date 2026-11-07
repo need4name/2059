@@ -65,7 +65,7 @@ export function withTreePerks(p: Perks, t: TreePerk): Perks {
   };
 }
 /** A node in an implant's tree. `cap` marks the end of a branch (legendary only on legendary parts). */
-export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary' }
+export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary'; /** Which tree it's on (active implants' trees are attack or brace). */ kind?: TreeKind }
 
 /** An upgrade that can turn up in trees. `slots`: only on implants for these body slots (and much more likely there). */
 interface Kind { id: string; name: string; makers: string[]; slots?: string[]; effect: UpgradeEffect }
@@ -167,7 +167,7 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
     if (k.effect.move) moved = true;
     used[k.id] = (used[k.id] ?? 0) + 1;
     kindOf[i] = k.id;
-    return { id: `n${i}`, ...(p !== undefined ? { parent: `n${p}` } : {}), name: k.name, effect: scaled(k.effect, m), ...(cap ? { cap } : {}) };
+    return { id: `n${i}`, ...(p !== undefined ? { parent: `n${p}` } : {}), name: k.name, effect: scaled(k.effect, m), ...(cap ? { cap } : {}), kind };
   });
   cache.set(key, nodes);
   return nodes;
@@ -180,7 +180,14 @@ export function depthIn(tree: UpgradeNode[], id: string): number {
   while (n?.parent) { d++; n = nodeIn(tree, n.parent); }
   return d;
 }
-export const costIn = (tree: UpgradeNode[], id: string) => COSTS[Math.min(COSTS.length - 1, depthIn(tree, id))];
+/** Points off tree nodes for the host's firmware: Unclassified off every node, the Wretch off active implants' (never below 1). Set by the combat store. */
+let discount = { all: 0, active: 0 };
+export const setTreeDiscount = (d: { all: number; active: number }) => { discount = d; };
+export const costIn = (tree: UpgradeNode[], id: string) => {
+  const base = COSTS[Math.min(COSTS.length - 1, depthIn(tree, id))];
+  const off = discount.all + (nodeIn(tree, id)?.kind !== 'passive' ? discount.active : 0);
+  return Math.max(1, base - off);
+};
 /** Points sunk into an implant's tree (what selling it gives back). */
 export const spentIn = (tree: UpgradeNode[], owned: string[]) => owned.reduce((n, id) => n + (nodeIn(tree, id) ? costIn(tree, id) : 0), 0);
 

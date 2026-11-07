@@ -409,8 +409,6 @@ function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
   const id = identityOf(playerClass);
   const { forks, setFork } = useFirmware();
-  const map = useMap();
-  const atServer = canRest(map);
   const xp = useFirmware(st => st.xp[playerClass] ?? 0);
   const { level, into, need } = firmwareLevel(xp);
   const att = firmwareAttack(playerClass, level);
@@ -437,8 +435,8 @@ function FirmwarePanel() {
         {steps.map((st, k) => {
           const lv = k + 2, got = level >= lv;
           const options = 'choose' in st ? st.choose : null;
-          // A fork: pick a side before you reach it; once taken, change it only at a server
-          const canChange = !got || atServer;
+          // A fork: chosen on the death screen for this host's whole life (shown here, not changed)
+          const canChange = false;
           return (
             <li key={k} className={cx('flex gap-2 text-[13px]', got ? 'text-hud-text' : lv === level + 1 ? 'text-hud-dim' : 'text-hud-faint')}>
               <span className={cx('w-12 shrink-0 font-semibold', got ? 'text-aug' : '')}>Lv {lv}</span>

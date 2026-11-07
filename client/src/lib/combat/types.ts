@@ -61,6 +61,8 @@ maker?: string;
 maxTargets?: number;
 /** A focused part: one target, and no tile of the shape lands below full strength. */
 focused?: boolean;
+/** A move that comes from an implant (the Wretch makes these hit harder). */
+fromImplant?: boolean;
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
 effects?: ActionEffects;
 }
@@ -204,7 +206,7 @@ type: 'info' | 'damage' | 'heal' | 'critical' | 'malfunction';
 }
 
 /** Firmware: none, Enforcer (melee), Operative (ranged), Courier (swift), Foreman (crowd). */
-export type PlayerClass = 'none' | 'melee' | 'ranged' | 'swift' | 'crowd' | 'splice';
+export type PlayerClass = 'none' | 'melee' | 'ranged' | 'swift' | 'crowd' | 'splice' | 'wretch';
 
 export interface ClassStats {
 name: string;

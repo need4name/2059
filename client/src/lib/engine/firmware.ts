@@ -10,7 +10,7 @@ import type { Perks, SurgeKind } from './playi';
 
 export interface FirmwareStep { perk?: FirmwareIdentity['perks']; hp?: number; text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
 /** A firmware's class: its own rule, heat style and Overload ultimate. */
-export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number; splicePairs?: number; spliceHeatCut?: number } }
+export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number; splicePairs?: number; spliceHeatCut?: number; implantDamage?: number; implantTreeDiscount?: number; extraSlots?: number; healthCostScale?: number; implantHeatCut?: number; kinship?: boolean; activeStatMult?: number } }
 /** A level: one step, or a fork of two the player picks between. */
 export type FirmwareLevel = FirmwareStep | { choose: [FirmwareStep, FirmwareStep] };
 interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
@@ -33,6 +33,7 @@ export function stepsTo(cls: PlayerClass, level: number): FirmwareStep[] {
 }
 /** Whose firmware each is (sets what its attack does extra when you're hot). */
 export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA', splice: 'PATCHWORK' };
+// (the Wretch has no maker of its own: its Strike stays plain; its implants carry theirs)
 export const FIRMWARE_XP = D.xp;
 export const XP_TO_NEXT = D.xpToNext;
 /** The highest level a firmware reaches. */
@@ -110,7 +111,7 @@ export function withClass(p: Perks, cls: PlayerClass, level = 1): Perks {
     for (const [key, v] of Object.entries(st.perk ?? {}) as [keyof FirmwareIdentity['perks'], number | boolean][]) {
       if (typeof v === 'boolean') (k as Record<string, unknown>)[key] = v;
       else if (key === 'coolAct') k.coolAct = Math.max(k.coolAct ?? 0, v);
-      else if (key === 'ventMult') k.ventMult = (k.ventMult ?? 1) * v;
+      else if (key === 'ventMult' || key === 'healthCostScale' || key === 'activeStatMult') (k as Record<string, number>)[key] = ((k as Record<string, number>)[key] ?? 1) * v;
       else (k as Record<string, number>)[key] = ((k as Record<string, number>)[key] ?? 0) + v;
     }
   }
@@ -127,6 +128,14 @@ export function withClass(p: Perks, cls: PlayerClass, level = 1): Perks {
     spliceHeatCut: p.spliceHeatCut + (k.spliceHeatCut ?? 0),
     surgeKind: id.surge,
     maxHpBonus: p.maxHpBonus + hp,
+    // The Wretch: implants hit harder, grow cheaper, cost it more health
+    implantDamage: p.implantDamage + (k.implantDamage ?? 0),
+    implantTreeDiscount: p.implantTreeDiscount + (k.implantTreeDiscount ?? 0),
+    extraSlots: p.extraSlots + (k.extraSlots ?? 0),
+    healthCostMult: p.healthCostMult * (k.healthCostScale ?? 1),
+    implantHeatCut: p.implantHeatCut + (k.implantHeatCut ?? 0),
+    kinship: p.kinship || !!k.kinship,
+    activeStatMult: p.activeStatMult * (k.activeStatMult ?? 1),
   };
 }
 
@@ -141,4 +150,19 @@ export function withSplice(p: Perks, pairs: number): Perks {
     extraCooling: p.extraCooling - pairs * Math.max(0, SPLICE.heatPerPair - p.spliceHeatCut),
     structureMult: p.structureMult * Math.max(0.3, 1 - SPLICE.structureCut * pairs),
   };
+}
+
+/** Firmware resonance (play-i node): each firmware's own rule grows stronger, its own way. */
+export function withResonance(p: Perks, cls: PlayerClass): Perks {
+  if (!p.resonance) return p;
+  switch (cls) {
+    case 'melee': return { ...p, chainVent: p.chainVent + 15 };                                                    // takedowns chain and vent
+    case 'ranged': return { ...p, doubleActionHeat: p.doubleActionHeat > 0 ? p.doubleActionHeat + 10 : 0 };       // act twice up to 35
+    case 'swift': return { ...p, reflexReach: Math.max(p.reflexReach, 2.05) };                                    // the free step is 2 tiles
+    case 'crowd': return { ...p, overheatSpread: p.overheatSpread + 20 };                                         // overheating spreads
+    case 'splice': return { ...p, splicePairs: p.splicePairs + 1 };                                                // one more pair
+    case 'wretch': return { ...p, implantDamage: p.implantDamage + 0.1 };                                         // implants hit harder still
+    case 'none': return { ...p, strikeHot: true };                                                                 // a hot Strike sets them alight
+    default: return p;
+  }
 }

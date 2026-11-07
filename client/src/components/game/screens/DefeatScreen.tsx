@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
-import { firmwareAttack, identityOf } from '@/lib/engine/firmware';
+import { firmwareAttack, identityOf, levelOptions } from '@/lib/engine/firmware';
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
@@ -15,6 +15,7 @@ import { useMap } from '@/lib/stores/useMap';
 import { wakePlaces, roomById } from '@/lib/engine/map';
 
 const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
+  none: 'No firmware: Strike and a clean slate. Upgrade trees cost a point less.',
   melee: 'Up close. Takes a beating.',
   ranged: 'Fragile. Hits down a line.',
   swift: 'Quick and light. Acts more often; in time, twice a turn.',
@@ -23,12 +24,14 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 
 export function DefeatScreen() {
   const { boss, playerClass, justOpened, rebirth } = useCombat();
+  const { forks, setFork } = useFirmware();
   // Every firmware opened so far (Enforcer and Operative by a death, the rest by going deep)
   const choices = availableFirmware();
   const anyFirmware = choices.length > 0;
   const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' && choices.includes(playerClass) ? playerClass : null);
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
+  const [setPoint, setSetPoint] = useState<0 | 50>(0);
   // Where the next host wakes: the chapter's entry, or a server some host reached
   const places = wakePlaces(useMap());
   const [wakeAt, setWakeAt] = useState(places[0]);
@@ -45,6 +48,7 @@ export function DefeatScreen() {
   const toggleAlly = (id: string) => setTeam(t => t.includes(id) ? t.filter(x => x !== id) : [...(t.length >= slots ? t.slice(1) : t), id]);
   const jump = () => {
     if (offer && learned) pick(learned);
+    if (learned === 'heat_2a') usePlayi.getState().chooseSetPoint(setPoint);
     allies.setParty(team.slice(0, slots), slots);
     rebirth(choice ?? undefined, wakeAt);
   };
@@ -135,7 +139,7 @@ export function DefeatScreen() {
                   )}
                 >
                   <span className={cx('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl', selected ? (accent === 'cred' ? 'bg-cred/20 text-cred' : 'bg-sys/20 text-sys') : 'bg-white/[0.06] text-hud-dim')}>
-                    <Glyph name={c === 'melee' ? 'arm' : c === 'ranged' ? 'eye' : c === 'swift' ? 'leg' : c === 'splice' ? 'implant' : 'allies'} size={22} />
+                    <Glyph name={c === 'melee' ? 'arm' : c === 'ranged' ? 'eye' : c === 'swift' ? 'leg' : c === 'splice' ? 'implant' : c === 'wretch' ? 'spine' : c === 'none' ? 'signal' : 'allies'} size={22} />
                   </span>
                   <span className="min-w-0 flex-1 space-y-1.5">
                     <span className="flex items-center gap-2"><span className="font-display text-lg font-semibold text-white">{def.name}</span>{justOpened.includes(c) && <Chip tone="cred">New</Chip>}</span>
@@ -155,6 +159,41 @@ export function DefeatScreen() {
             })}
           </div>
         ) : null}
+
+        {learned === 'heat_2a' && (
+          // Set point: the heat every fight starts at, chosen now
+          <div className="flex gap-2">
+            {([[0, 'Cold: start at 0'], [50, 'Warm: start at 50']] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setSetPoint(v)} aria-pressed={setPoint === v}
+                className={cx('key flex-1 rounded-2xl px-3 py-2.5 text-[13px] font-semibold', setPoint === v ? 'key-selected text-white' : 'text-hud-text')}>{label}</button>
+            ))}
+          </div>
+        )}
+
+        {choice && choice !== 'none' && [4, 7, 10].some(lv => levelOptions(choice, lv)) && (
+          // The chosen firmware's forks: set now, and they hold for the whole of the next host's life
+          <div className="space-y-2.5">
+            <Label>{CLASS_DEFINITIONS[choice].name}: forks</Label>
+            {[4, 7, 10].map(lv => {
+              const opts = levelOptions(choice, lv);
+              if (!opts) return null;
+              const taken = forks[choice]?.[lv] ?? 0;
+              return (
+                <div key={lv} className="flex items-start gap-2">
+                  <span className="w-12 shrink-0 pt-2 text-xs font-semibold text-aug">Lv {lv}</span>
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                    {opts.map((o, side) => (
+                      <button key={side} onClick={() => setFork(choice, lv, side as 0 | 1)} aria-pressed={taken === side}
+                        className={cx('key rounded-2xl px-3 py-2 text-left text-[12.5px] leading-snug', taken === side ? 'key-selected text-white' : 'text-hud-dim')}>
+                        {o.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {places.length > 1 && (
           <div className="space-y-2.5">

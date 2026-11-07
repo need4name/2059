@@ -362,6 +362,7 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     maker,
     ...(aimPart && aimPart.max ? { maxTargets: aimPart.max } : {}),
     ...(parts.targeting === 'focused' ? { focused: true } : {}),
+    fromImplant: true,
   };
 }
 

@@ -75,9 +75,9 @@ export const HOT_FX: Record<string, ActionEffects> = {
   CBN: { bleed: true }, IOA: { stun: 0.25 }, PARSU: { crush: true, knock: true }, PATCHWORK: { ignite: true },
 };
 /** An attack as it lands at this heat: hot, it gains its maker's effect (or extra heat pushed). */
-export function hotAction(action: CombatAction, heat: number): CombatAction {
+export function hotAction(action: CombatAction, heat: number, strikeHot = false): CombatAction {
   if (heat < HEAT.hotAt || action.type === 'brace' || action.type === 'defend') return action;
-  const fx = action.maker ? HOT_FX[action.maker] : undefined;
+  const fx = action.maker ? HOT_FX[action.maker] : strikeHot ? HOT_FX.PATCHWORK : undefined;
   if (!fx) return { ...action, heatTransfer: (action.heatTransfer ?? 0) + HEAT.defaultPush };
   return { ...action, effects: { ...(action.effects ?? {}), ...fx } };
 }
@@ -171,6 +171,8 @@ export interface FightState {
   perks: Perks;
   /** Clean first strike: has this fight's first attack happened yet? */
   firstStrikeUsed: boolean;
+  /** Redline (play-i): the once-a-fight second action at 86+ heat has been used. */
+  redlineUsed?: boolean;
   /** Sidestep: the next heavy aimed at you misses. */
   sidestepReady: boolean;
   /** Holdfast: survive one killing blow this host. */
@@ -249,7 +251,7 @@ export function foeRoster(f: Foe): CombatAction[] {
 
 /** A fight state with no play-i perks, for tests and set pieces. */
 export const BASE_FIGHT_FLAGS = {
-  perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false,
+  perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
   playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
@@ -648,11 +650,14 @@ function afterFoeChanges(s: FightState, events: FightEvent[]): FightState {
 /** Start of the player's turn: everyone cools off; a cool player acts twice. */
 export function startPlayerTurn(s: FightState): FightState {
   const playerHeat = clampHeat(s.playerHeat - PASSIVE_COOLING - s.perks.extraCooling);
+  // Redline: once a fight, a turn started at 86+ heat gets a second action
+  const redline = s.perks.redline && !s.redlineUsed && playerHeat >= 86;
   return {
     ...s,
     playerHeat,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
-    doubleActionReady: s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat,
+    doubleActionReady: (s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat) || redline,
+    redlineUsed: s.redlineUsed || redline,
     noParting: false,
   };
 }
@@ -893,7 +898,16 @@ function foeOverheat(s: FightState, i: number, events: FightEvent[]): FightState
   const hp = Math.max(0, f.unit.currentHp - dmg);
   events.push(say(`${f.unit.name} OVERHEATS -- -${dmg}, stunned`, 'critical'));
   if (hp <= 0) { events.push(say(`${f.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
-  return setFoe(s, i, { unit: { ...f.unit, currentHp: hp }, heat: HEAT.burnoutLeft, stunned: hp > 0, chargingHeavy: false, pendingAction: null, pendingTiles: null });
+  let state = setFoe(s, i, { unit: { ...f.unit, currentHp: hp }, heat: HEAT.burnoutLeft, stunned: hp > 0, chargingHeavy: false, pendingAction: null, pendingTiles: null });
+  // Resonant Foreman: the heat spills onto everyone beside it, and can set them off in turn
+  if (s.perks.overheatSpread) {
+    for (const { f: o, i: k } of livingFoes(state)) {
+      if (k === i || chebyshev(o.pos, f.pos) !== 1) continue;
+      state = setFoe(state, k, { heat: clampHeat(o.heat + s.perks.overheatSpread) });
+      if (state.foes[k].heat >= 100) state = foeOverheat(state, k, events);
+    }
+  }
+  return state;
 }
 
 // ── Player actions ───────────────────────────────────────────────────────────
@@ -1165,7 +1179,12 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   const { player, grid, playerHeat } = s;
   const heatMult = getHeatMultipliers(playerHeat);
   // Hot: the move gains its maker's extra effect
-  const hot = hotAction(action, playerHeat);
+  let hot = hotAction(action, playerHeat, s.perks.strikeHot);
+  // Kinship (Wretch): an implant move's mods count twice
+  if (s.perks.kinship && action.fromImplant && hot.effects) {
+    const fx = hot.effects;
+    hot = { ...hot, effects: { ...fx, ...(fx.stun ? { stun: Math.min(0.9, fx.stun * 2) } : {}), ...(fx.drain ? { drain: Math.min(1, fx.drain * 2) } : {}), ...(fx.cool ? { cool: fx.cool * 2 } : {}) } };
+  }
   if (hot !== action) events0.push(say(`HOT -- ${action.name}: ${hotText(action)}`, 'critical'));
 
   // Kizuna cold start: the first strike while cool is precise. Overclock is too.
@@ -1197,7 +1216,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const sweet = sweetSpot(action, playerClass, grid.playerPosition, aim, foe.pos);
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * takenBy(foe),
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
       hasTrait(foe, 'alert') ? 0 : getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
@@ -1231,7 +1250,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
     firstStrikeUsed: true,
-    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (action.effects?.cool ?? 0)),
+    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (hot.effects?.cool ?? 0) - (action.fromImplant ? s.perks.implantHeatCut : 0)),
   };
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };
@@ -1243,10 +1262,14 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     state = { ...state, playerHeat: 0, playerDefenseBoost: Math.max(state.playerDefenseBoost, QUIRK.reapGuard) };
     events.push(say('REAPER -- heat vented, guard up', 'critical'));
   }
-  // Chain: a takedown earns another action, unless that was the last enemy
-  if (s.perks.chain && events.some(e => e.kind === 'foeDown') && !events.some(e => e.kind === 'allFoesDown')) {
+  // Momentum: every takedown feeds Overload
+  const kills = events.filter(e => e.kind === 'foeDown').length;
+  if (kills && s.perks.momentum) state = gainOverload(state, s.perks.momentum * kills);
+  // Chain: a takedown earns another action, unless that was the last enemy (resonant: it also vents)
+  if (s.perks.chain && kills && !events.some(e => e.kind === 'allFoesDown')) {
     events.push(say('CHAIN -- takedown, act again', 'critical'));
     events.push({ kind: 'extraAction' });
+    if (s.perks.chainVent) state = { ...state, playerHeat: clampHeat(state.playerHeat - s.perks.chainVent) };
   }
   return { state, events };
 }

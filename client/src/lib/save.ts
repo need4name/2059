@@ -9,7 +9,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -93,6 +93,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
   11: (save) => save,
   // 12 -> 13: firmware forks (none taken: the first side) and Splice's spliced pairs (none); the stores fill both in
   12: (save) => save,
+  // 13 -> 14: the play-i tree's Set point (cold or warm start; older saves start cold) and the Wretch firmware; the stores fill both in
+  13: (save) => save,
 };
 
 function storage(): Storage | null {

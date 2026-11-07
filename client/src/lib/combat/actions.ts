@@ -109,6 +109,15 @@ baseAttack: 12,
 baseDefense: 5,
 specialAbility: { name: 'Graft Whip', description: 'A lash of grafted cable.', damage: 1, attackPattern: 'melee_long', physicalRatio: 0.7 },
 },
+wretch: {
+name: 'Wretch',
+description: 'No firmware to speak of: a body that takes to whatever is bolted on.',
+icon: '',
+baseHp: 80,
+baseAttack: 10,
+baseDefense: 3,
+specialAbility: { name: 'Strike', description: 'A plain blow.', damage: 1, attackPattern: 'melee', physicalRatio: 0.7 },
+},
 };
 
 // ── Firmware: the basic attack ───────────────────────────────────────────────
@@ -440,7 +449,7 @@ export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
-export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.034 };
+export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */

@@ -1,9 +1,10 @@
+import { withClass } from '@/lib/engine/firmware';
 import { useEffect, useMemo, useRef } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction, BASE_SLOT_COUNT } from '@/lib/stores/useLoadout';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { perksFor } from '@/lib/engine/playi';
+import { NO_PERKS, perksFor } from '@/lib/engine/playi';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
@@ -42,7 +43,11 @@ export function useLoadoutSync() {
   const pool = useActionPool();
   const phase = useCombat(s => s.phase);
   const { slots, setSlots } = useLoadout();
-  const slotCount = BASE_SLOT_COUNT + usePlayi(st => perksFor(st.owned).extraSlots);
+  const cls = useCombat(s => s.playerClass);
+  const fwLv = useFirmware(st => st.level(cls));
+  useFirmware(st => st.forks);
+  // The play-i tree's Fifth slot, and the Wretch's own slots
+  const slotCount = BASE_SLOT_COUNT + usePlayi(st => perksFor(st.owned).extraSlots) + withClass(NO_PERKS, cls, fwLv).extraSlots;
   // Moves that were already available last time; only genuinely new ones auto-fill,
   // so a slot you cleared on purpose stays empty
   const knownKeys = useRef<string[] | null>(null);

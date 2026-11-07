@@ -149,7 +149,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   const foePos = target?.pos ?? grid.bossPosition;
   const est = isAttack && action.damage ? estimateDamage(player, boss, action, {
     defenseBoost: target?.defenseBoost ?? 0,
-    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(playerHeat).dealt) * Fight.sweetSpot(action, s.playerClass, grid.playerPosition, aim, foePos),
+    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(playerHeat).dealt) * Fight.sweetSpot(action, s.playerClass, grid.playerPosition, aim, foePos) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
     flankBonus: getFlankBonus(grid.playerPosition, foePos),
     tileDistance: chebyshev(grid.playerPosition, foePos),
     isMalfunctioning: s.playerMalfunctioning,

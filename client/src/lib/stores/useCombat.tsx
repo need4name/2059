@@ -22,7 +22,7 @@ import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
 import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin } from '../engine/map';
-import { withTreePerks } from '../engine/upgrades';
+import { withTreePerks, setTreeDiscount } from '../engine/upgrades';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees } from './useAugmentTrees';
 
@@ -40,7 +40,7 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { withClass, withSplice, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
+import { withClass, withSplice, withResonance, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 // Dying on this level or higher (while unclassified) unlocks class choice for good
@@ -213,11 +213,11 @@ const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClas
 const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 // What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
 // The firmware's class rules (Enforcer chains takedowns, Operative acts twice cool, ...), then the slot upgrades
-const classed = withTreePerks(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+const classed = withTreePerks(withResonance(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 // Splice: each spliced pair runs the host hotter and thins its structure
 const pairs = playerClass === 'splice' ? Object.values(useInventory.getState().spliced ?? {}).filter(Boolean).length : 0;
 const perks = withSplice(classed, pairs);
-const raw = useInventory.getState().getTotalAugmentationBonuses();
+const raw = useInventory.getState().getTotalAugmentationBonuses(perks.activeStatMult);
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };
 const treeBonus = useAugmentTrees.getState().getTreeStatBonuses(equippedSlotList());
@@ -825,7 +825,7 @@ return;
 }
 const reflex = get().reflexMoveOpen;
 const from = reflex ? grid.playerPosition : originalPosition;
-const reachable = getPlayerReach(from, { ...grid, playerPosition: from }, reflex ? Fight.STEP_REACH : playerMoveRange, get().perks.phaseStep);
+const reachable = getPlayerReach(from, { ...grid, playerPosition: from }, reflex ? Math.max(Fight.STEP_REACH, get().perks.reflexReach) : playerMoveRange, get().perks.phaseStep);
 if (!reachable.has(`${position.row},${position.col}`)) return;
 set({ grid: { ...grid, playerPosition: position }, selectedMovement: position, hasMoved: true });
 useAudio.getState().play('step');
@@ -876,6 +876,7 @@ finishPlayerAction(false);
 executePlayerTurn: () => {
 if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { playerClass, selectedAction, phase, inputLocked } = get();
+const heatBefore = get().playerHeat;
 if (!selectedAction || phase !== 'player_turn' || inputLocked) return;
 const action = selectedAction;
 
@@ -902,7 +903,9 @@ later(() => { const g = get().grid; set({ inputLocked: false, hasMoved: false, s
 return;
 }
 // Reflex loop: attacked without moving? Step one tile, or pass
-if (get().perks.reflexMove && !get().hasMoved) {
+// (Hit and fade: an attack made while warm, 36-60, opens the step too, moved or not)
+const fade = get().perks.hitAndFade && heatBefore >= 36 && heatBefore <= 60;
+if ((get().perks.reflexMove && !get().hasMoved) || fade) {
 log('REFLEX LOOP -- step 1 tile, or pass');
 set({ reflexMoveOpen: true, inputLocked: false });
 return;
@@ -1126,11 +1129,17 @@ const max = buildPlayer(useCombat.getState().playerClass).player.maxHp;
 return { hp: healthNow(useMap.getState(), max), max };
 }
 
+// Upgrade-tree discounts follow the loaded firmware: Unclassified's trees cost a point less everywhere,
+// the Wretch's active implants' a point less (never below 1)
+const syncTreeDiscount = (cls: PlayerClass) => setTreeDiscount({ all: cls === 'none' ? 1 : 0, active: withClass(NO_PERKS, cls, useFirmware.getState().level(cls)).implantTreeDiscount });
+useCombat.subscribe((s, prev) => { if (s.playerClass !== prev.playerClass) syncTreeDiscount(s.playerClass); });
+syncTreeDiscount(useCombat.getState().playerClass);
+
 /** Testing: every firmware is open from the start, so each class can be tried. Turn off to use the unlock rules. */
 export const ALL_FIRMWARE_OPEN = true;
 
 export function availableFirmware(): PlayerClass[] {
-if (ALL_FIRMWARE_OPEN) return ['melee', 'ranged', 'swift', 'crowd', 'splice'];
+if (ALL_FIRMWARE_OPEN) return ['none', 'melee', 'ranged', 'swift', 'crowd', 'splice', 'wretch'];
 const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
 return all.filter((c, k) => all.indexOf(c) === k);
 }

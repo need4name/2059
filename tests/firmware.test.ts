@@ -60,13 +60,13 @@ test('Foreman sweeps, then hits all around, then blasts a square at range', () =
   assert.equal(FW.firmwareAttack('crowd', 10, 40)!.attackPattern, 'aoe');
 });
 
-test('Courier, Foreman and Splice open by going deep, Courier first', () => {
-  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd', 'splice']);
+test('Courier, Foreman, Wretch and Splice open by going deep, Courier first', () => {
+  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd', 'wretch', 'splice']);
   assert.deepEqual(FW.opensAt(14, []), []);
   assert.deepEqual(FW.opensAt(15, []), ['swift']);
-  assert.deepEqual(FW.opensAt(22, ['swift']), ['crowd']);
-  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), ['splice']);
-  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd', 'splice']), []);
+  assert.deepEqual(FW.opensAt(21, ['swift']), ['crowd']);
+  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), ['wretch', 'splice']);
+  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd', 'wretch', 'splice']), []);
 });
 
 test('only elites, bosses and set pieces leave a first impression', async () => {
@@ -129,4 +129,25 @@ test('Splice: compatible pairs in passive slots, both count, each pair costs hea
   assert.ok(Math.abs(two.structureMult - 0.8) < 1e-9);
   assert.equal(two.splicedNow, 2);
   assert.equal(FW.withClass(NO_PERKS, 'splice', 1).splicePairs, 2, 'two pairs to start');
+});
+
+test('the Wretch: weak, but implant moves hit harder, cost less to grow, and a fifth slot', async () => {
+  const w = FW.withClass(NO_PERKS, 'wretch', 1);
+  assert.ok(w.implantDamage >= 0.35);
+  assert.equal(w.implantTreeDiscount, 1);
+  assert.equal(w.extraSlots, 1);
+  assert.ok(w.healthCostMult > 1, 'implants cost it more health');
+  // Its forks: Tolerance brings health costs back to normal; Kinship doubles mods
+  FW.setForkChoices({ wretch: { 4: 0, 10: 0 } });
+  assert.ok(Math.abs(FW.withClass(NO_PERKS, 'wretch', 10).healthCostMult - 1) < 0.02);
+  assert.equal(FW.withClass(NO_PERKS, 'wretch', 10).kinship, true);
+  FW.setForkChoices({});
+  // Resonance: every firmware's rule grows its own way
+  const res = { ...NO_PERKS, resonance: true };
+  assert.equal(FW.withResonance(res, 'melee').chainVent, 15);
+  assert.equal(FW.withResonance({ ...res, doubleActionHeat: 25 }, 'ranged').doubleActionHeat, 35);
+  assert.ok(FW.withResonance(res, 'swift').reflexReach >= 2);
+  assert.equal(FW.withResonance(res, 'crowd').overheatSpread, 20);
+  assert.equal(FW.withResonance(res, 'none').strikeHot, true);
+  assert.equal(FW.withResonance({ ...NO_PERKS }, 'melee').chainVent, 0, 'only with the node');
 });

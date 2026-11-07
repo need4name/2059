@@ -261,7 +261,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
       const open = AL.getState().unlocked().sort((x, y) => AL.getState().progress(y).level - AL.getState().progress(x).level || ALLY_ORDER(y) - ALLY_ORDER(x));
       AL.getState().setParty(open, Y.getState().perks().allySlots);
       // A new host keeps the same run seed sequence, so reseed per host for variety
-      { const open = availableFirmware(); C.getState().rebirth(open.length ? open[Math.floor(botRandom() * open.length)] : undefined); }
+      { const open = availableFirmware().filter(c => c !== 'none'); C.getState().rebirth(open.length ? open[Math.floor(botRandom() * open.length)] : undefined); }
       C.getState().setRunSeed(seed * 31 + C.getState().progression.deathCount);
     }
   }

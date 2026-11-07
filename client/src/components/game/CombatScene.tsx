@@ -456,7 +456,7 @@ const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLock
 : null;
 const moveTiles = allyTiles ?? (phase === 'player_turn' && !inputLocked && !reachableTiles && originalPosition && (!useCombat.getState().moveSpent || reflexMoveOpen) && useCombat.getState().orders?.now !== 'hold' && useCombat.getState().allyTurn === null
 ? (reflexMoveOpen
-  ? getPlayerReach(grid.playerPosition, grid, Fight.STEP_REACH, perks.phaseStep)
+  ? getPlayerReach(grid.playerPosition, grid, Math.max(Fight.STEP_REACH, perks.reflexReach ?? 0), perks.phaseStep)
   : getPlayerReach(originalPosition, { ...grid, playerPosition: originalPosition }, playerMoveRange, perks.phaseStep))
 : null);
 const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColor ?? '#38d6f0') : null;
