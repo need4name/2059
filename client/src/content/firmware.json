@@ -6,7 +6,7 @@
     "melee": {
       "identity": {"rule": "A takedown gives you another action.", "heat": "Runs hot fast: +3 heat on every hit, and venting bursts hit 50% harder.", "ultimate": "Piledriver: twice your best move on everyone within 2 tiles, and knocks them back.", "surge": "piledriver", "perks": {"chain": true, "heatGenBonus": 3, "ventMult": 1.5}},
       "scale": 1.15,
-      "base": {"type": "attack", "name": "Hydraulic Slam", "description": "Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.", "damage": 14, "heatGenerated": 15, "heatTransfer": 5, "accuracy": "variable", "physicalRatio": 0.6, "attackPattern": "melee_long"},
+      "base": {"type": "attack", "name": "Hydraulic Slam", "description": "Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.", "damage": 14, "heatGenerated": 15, "heatTransfer": 5, "accuracy": "variable", "physicalRatio": 0.9, "attackPattern": "melee_long"},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Knocks them back", "fx": {"knock": true} },
@@ -22,7 +22,7 @@
     "ranged": {
       "identity": {"rule": "Acts twice in a turn while you start it cool (25 heat or less).", "heat": "Runs cold: sheds 3 more heat every turn.", "ultimate": "Overwatch: a free precise shot at every enemy within 6 tiles.", "surge": "overwatch", "perks": {"coolAct": 25, "extraCooling": 3}},
       "scale": 1.0,
-      "base": {"type": "attack", "name": "Precision Shot", "description": "Kizuna targeting firmware: a shot down a straight line of four tiles.", "damage": 12, "heatGenerated": 14, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.8, "attackPattern": "bolt"},
+      "base": {"type": "attack", "name": "Precision Shot", "description": "Kizuna targeting firmware: a shot down a straight line of four tiles.", "damage": 12, "heatGenerated": 14, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.3, "attackPattern": "bolt"},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Runs cooler", "heat": -2 },
@@ -39,7 +39,6 @@
       "identity": {"rule": "A free step after every attack you make without moving first.", "heat": "Runs warm and keeps moving.", "ultimate": "Blink: vent all your heat and act again at once, hasted.", "surge": "blink", "perks": {"reflexMove": true}},
       "unlockAt": 15,
       "scale": 0.95,
-      "speed": 2,
       "base": {"type": "attack", "name": "Flicker Jab", "description": "IOA limiter-free firmware: a jab so quick the arm is back before the hit lands. One tile next to you.", "damage": 8, "heatGenerated": 8, "heatTransfer": 2, "accuracy": "variable", "physicalRatio": 0.75, "attackPattern": "melee"},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
@@ -74,7 +73,7 @@
       "identity": {"rule": "Each passive slot can hold a second, compatible implant: both count, and both upgrade trees grow. Up to 2 pairs.", "heat": "Runs warm from the strain: each spliced pair adds 2 heat a turn and takes 10% off your structure.", "ultimate": "Resonance: everything within 3 tiles takes 0.6 times your best move for every spliced pair (up to 3).", "surge": "resonance", "perks": {"splicePairs": 2}},
       "unlockAt": 25,
       "scale": 0.8,
-      "base": {"type": "attack", "name": "Graft Whip", "description": "Patchwork graft firmware: a lash of grafted cable that drinks a little. Reaches two tiles in a line.", "damage": 10, "heatGenerated": 12, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee_long", "effects": {"drain": 0.1}},
+      "base": {"type": "attack", "name": "Graft Whip", "description": "Patchwork graft firmware: a lash of grafted cable that drinks a little. Reaches two tiles in a line.", "damage": 10, "heatGenerated": 12, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.5, "attackPattern": "melee_long", "effects": {"drain": 0.1}},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Drinks deeper: heals 15% of the damage", "fx": {"drain": 0.15} },

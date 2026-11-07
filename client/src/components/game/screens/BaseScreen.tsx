@@ -9,11 +9,11 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/li
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
-import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
+import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, firmwarePassives, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
-import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, type GlyphName } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText, effectsText, nameOf } from '../itemText';
@@ -59,6 +59,7 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
   return (
     <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-hud-dim">
       {a.damage ? <span>{a.damage} base damage</span> : null}
+      {(a.type === 'attack' || a.type === 'special') && <span className="font-semibold" style={{ color: `rgb(${damageTypeRgb(a.physicalRatio).join(',')})` }}>{damageTypeText(a.physicalRatio)}</span>}
       {a.defenseBoost ? <span>+{a.defenseBoost} guard</span> : null}
       {a.healing ? <span>+{a.healing} HP</span> : null}
       <span>{rangeText(a)}</span>
@@ -567,6 +568,7 @@ function StatusTab() {
   const tree = getTreeStatBonuses(equipped);
   const stats = createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeHp: tree.hp }, playerClass);
   const cls = CLASS_DEFINITIONS[playerClass];
+  const fwLevelNow = useFirmware(st => st.level(playerClass));
   const perks = usePlayi(s => s.perks)();
   const notes = useJournal(s => s.notes);
 
@@ -577,13 +579,25 @@ function StatusTab() {
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
           <Stat label="Move" value={`${moveTiles(perks.moveBonus + (tree.moveRange ?? 0))} tiles in reach`} />
-          <Stat label="Attack" value={stats.physicalAttack} tone="text-rose-300" />
-          <Stat label="Disrupt" value={stats.structuralAttack} tone="text-rose-300" />
+          <Stat label="Attack" value={stats.physicalAttack} tone="text-amber-200" />
+          <Stat label="Sp. Atk" value={stats.structuralAttack} tone="text-violet-300" />
           <Stat label="Evasion" value={stats.evasion} />
-          <Stat label="Armour" value={stats.physicalDefense} tone="text-sky-300" />
-          <Stat label="Shielding" value={stats.structuralDefense} tone="text-sky-300" />
-          <Stat label="Speed" value={Math.round((SPEED.base + implantDrive(equipped.map(sl => equippedAugmentations[sl]!))) * 10) / 10} tone="text-amber-200" />
+          <Stat label="Defence" value={stats.physicalDefense} tone="text-amber-200" />
+          <Stat label="Sp. Def" value={stats.structuralDefense} tone="text-violet-300" />
+          {(() => {
+            const base = cls?.baseSpeed ?? SPEED.base;
+            const imp = Math.round(implantDrive(equipped.map(sl => equippedAugmentations[sl]!)) * 10) / 10;
+            const fw = firmwarePassives(playerClass, fwLevelNow).speed;
+            return <Stat label="Speed" value={Math.round((base + imp + fw) * 10) / 10} tone="text-sky-300" />;
+          })()}
         </div>
+        {(() => {
+          const base = cls?.baseSpeed ?? SPEED.base;
+          const imp = Math.round(implantDrive(equipped.map(sl => equippedAugmentations[sl]!)) * 10) / 10;
+          const fw = firmwarePassives(playerClass, fwLevelNow).speed;
+          const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+          return <p className="mt-4 text-xs text-hud-dim">Speed {Math.round((base + imp + fw) * 10) / 10}: {base} base {sign(imp)} implants{fw ? ` ${sign(fw)} firmware` : ''}</p>;
+        })()}
         {equipped.length > 0 && (() => {
           const cost = equipped.reduce((n, sl) => n + healthCostOf(equippedAugmentations[sl]!), 0);
           return cost > 0 ? <p className="mt-4 text-xs text-hostile">−{cost} health to your implants</p> : null;

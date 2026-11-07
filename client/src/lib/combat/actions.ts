@@ -43,6 +43,10 @@ icon: '🚶',
 baseHp: 120,
 baseAttack: 14,
 baseDefense: 5,
+baseSpAtk: 12,
+baseSpDef: 5,
+baseStructure: 30,
+baseSpeed: 10,
 specialAbility: {
 name: 'Brute Strike',
 description: 'Unaugmented force. 150% damage.',
@@ -58,6 +62,10 @@ icon: '⚔️',
 baseHp: 150,
 baseAttack: 17,
 baseDefense: 9,
+baseSpAtk: 8,
+baseSpDef: 5,
+baseStructure: 40,
+baseSpeed: 8,
 specialAbility: {
 name: 'Hydraulic Slam',
 description: 'Full-frame impact. 200% damage.',
@@ -71,8 +79,12 @@ name: 'Operative',
 description: 'Kizuna targeting firmware. Precision at distance.',
 icon: '🎯',
 baseHp: 110,
-baseAttack: 20,
+baseAttack: 12,
 baseDefense: 4,
+baseSpAtk: 20,
+baseSpDef: 7,
+baseStructure: 25,
+baseSpeed: 11,
 specialAbility: {
 name: 'Precision Shot',
 description: 'Optical lock. 180% damage from any range.',
@@ -89,6 +101,10 @@ icon: '',
 baseHp: 105,
 baseAttack: 15,
 baseDefense: 4,
+baseSpAtk: 12,
+baseSpDef: 5,
+baseStructure: 25,
+baseSpeed: 13,
 specialAbility: { name: 'Flicker Jab', description: 'A jab so quick the arm is back before the hit lands.', damage: 1, attackPattern: 'melee', physicalRatio: 0.75 },
 },
 crowd: {
@@ -98,6 +114,10 @@ icon: '',
 baseHp: 135,
 baseAttack: 15,
 baseDefense: 7,
+baseSpAtk: 12,
+baseSpDef: 8,
+baseStructure: 45,
+baseSpeed: 9,
 specialAbility: { name: 'Crowd Press', description: 'A shoulder through the crowd.', damage: 1, attackPattern: 'sweep_arc', physicalRatio: 0.7 },
 },
 splice: {
@@ -105,8 +125,12 @@ name: 'Splice',
 description: 'Patchwork graft firmware. Two parts in one socket.',
 icon: '',
 baseHp: 95,
-baseAttack: 12,
+baseAttack: 10,
 baseDefense: 5,
+baseSpAtk: 14,
+baseSpDef: 9,
+baseStructure: 20,
+baseSpeed: 10,
 specialAbility: { name: 'Graft Whip', description: 'A lash of grafted cable.', damage: 1, attackPattern: 'melee_long', physicalRatio: 0.7 },
 },
 wretch: {
@@ -116,6 +140,10 @@ icon: '',
 baseHp: 80,
 baseAttack: 10,
 baseDefense: 3,
+baseSpAtk: 10,
+baseSpDef: 3,
+baseStructure: 15,
+baseSpeed: 10,
 specialAbility: { name: 'Strike', description: 'A plain blow.', damage: 1, attackPattern: 'melee', physicalRatio: 0.7 },
 },
 };
@@ -191,8 +219,12 @@ return { ...action, damage: Math.round(action.damage * (1 + BOSS_SCALING.moveDam
 
 export interface DamageResult {
 damage: number;
+/** Damage that reached health (special, plus physical structure didn't soak). */
 bioDamage: number;
+/** Physical damage soaked by the structure bar. */
 structuralDamage: number;
+/** The special part of the hit (it heats the target). */
+specialDamage: number;
 isCrit: boolean;
 isFlank: boolean;
 }
@@ -210,35 +242,34 @@ playerHeat: number = 0,
 bypassStructuralDefense: boolean = false,
 criticalCrit: number = 0.30,
 ): DamageResult {
-// physicalRatio controls the nature of the attack: 1.0 = pure physical, 0.0 = pure structural
+// Two kinds of damage. Physical (Attack vs Defence) is soaked by structure first, like
+// armour; special (Sp. Atk vs Sp. Def, kept in the structural* fields) goes past
+// structure to health and heats the target. physicalRatio is the physical share.
 const physRatio = action.physicalRatio ?? 0.7;
 const strRatio  = 1 - physRatio;
 
-// Base damage per channel: action.damage scaled by ratio, then attacker stat applied
+// Each stat counts for its share of the mix (STAT_MIX lifts a split move so it draws on both)
 const w = statWeight(attacker);
-const basePhys = Math.floor((action.damage || 0) * physRatio + attacker.physicalAttack * w);
-const baseStr  = Math.floor((action.damage || 0) * strRatio  + attacker.structuralAttack * w);
+const basePhys = Math.floor(((action.damage || 0) + attacker.physicalAttack * w * STAT_MIX) * physRatio);
+const baseStr  = Math.floor(((action.damage || 0) + attacker.structuralAttack * w * STAT_MIX) * strRatio);
 
-// Defense per channel (Brace defenseBoost feeds physical only)
-// bypassStructuralDefense (CBN): structural channel ignores defender S-DEF entirely
+// Brace defenseBoost feeds Defence; bypassStructuralDefense (CBN) makes special ignore Sp. Def
 const totalPhysDef = defender.physicalDefense  + defenseBoost;
 const totalStrDef  = (bypassStructuralDefense || action.bypassStructuralDefense) ? 0 : defender.structuralDefense;
 
-let physDamage = Math.max(2, Math.floor(mitigate(basePhys, totalPhysDef)));
+let physDamage = physRatio > 0 ? Math.max(2, Math.floor(mitigate(basePhys, totalPhysDef))) : 0;
 let strDamage  = Math.max(0, Math.floor(mitigate(baseStr, totalStrDef)));
 
-// Flanking bonus applies to both channels
 const isFlank = flankBonus > 0;
 if (isFlank) {
 physDamage = Math.floor(physDamage * (1 + flankBonus));
 strDamage  = Math.floor(strDamage  * (1 + flankBonus));
 }
 
-// Heat multiplier
 physDamage = Math.floor(physDamage * heatMultiplier);
 strDamage  = Math.floor(strDamage  * heatMultiplier);
 
-// Crit roll - chance derived from player heat phase, amplifies both channels
+// Crit roll - chance derived from player heat phase, amplifies both kinds
 const CRIT_CHANCES: Record<string, number> = { cool: 0, warm: 0.08, hot: 0.18, critical: criticalCrit };
 const critChance = CRIT_CHANCES[getHeatPhase(playerHeat)] ?? 0;
 const isCrit = action.type === 'attack' && random() < critChance;
@@ -247,7 +278,6 @@ physDamage = Math.floor(physDamage * 1.75);
 strDamage  = Math.floor(strDamage  * 1.75);
 }
 
-// Range falloff
 if (action.rangeOptimal) {
 const rangeMult = getRangeBand(tileDistance, action.rangeOptimal);
 physDamage = Math.floor(physDamage * rangeMult);
@@ -261,12 +291,21 @@ const tier = isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
 let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
 const variance = lo + random() * (hi - lo);
-physDamage = Math.max(3, Math.floor(physDamage * variance)); // floor 3 prevents brick-wall fights
-strDamage  = Math.max(0, Math.floor(strDamage  * variance));
+physDamage = Math.floor(physDamage * variance);
+strDamage  = Math.floor(strDamage  * variance);
+// At least 3 in all, so fights never brick-wall
+if (physDamage + strDamage < 3) { if (physRatio > 0) physDamage = 3 - strDamage; else strDamage = 3; }
 
-const totalDamage = physDamage + strDamage;
-return { damage: totalDamage, bioDamage: physDamage, structuralDamage: strDamage, isCrit, isFlank };
+const soaked = Math.min(physDamage, Math.max(0, defender.currentStructuralHp));
+const toHealth = physDamage - soaked + strDamage;
+return { damage: physDamage + strDamage, bioDamage: toHealth, structuralDamage: soaked, specialDamage: strDamage, isCrit, isFlank };
 }
+
+/** Special damage heats whoever takes it: a degree per 3 damage, at most 15 a hit. */
+export const SPECIAL_HEAT = { per: 3, cap: 15 };
+export const heatFromSpecial = (special: number) => Math.min(SPECIAL_HEAT.cap, Math.max(0, Math.floor(special / SPECIAL_HEAT.per)));
+/** How hard a stat counts toward its share of a move's mix. */
+export const STAT_MIX = 1.7;
 
 // The player's flat attack stat counts at 60% so the move you pick still matters
 // once you're loaded with implants. Enemy stats are tuned for full weight.
@@ -283,22 +322,20 @@ opts: { defenseBoost?: number; heatMultiplier?: number; flankBonus?: number; til
 ): { min: number; max: number } {
 const physRatio = action.physicalRatio ?? 0.7;
 const w = statWeight(attacker);
-const basePhys = Math.floor((action.damage || 0) * physRatio + attacker.physicalAttack * w);
-const baseStr  = Math.floor((action.damage || 0) * (1 - physRatio) + attacker.structuralAttack * w);
+const basePhys = Math.floor(((action.damage || 0) + attacker.physicalAttack * w * STAT_MIX) * physRatio);
+const baseStr  = Math.floor(((action.damage || 0) + attacker.structuralAttack * w * STAT_MIX) * (1 - physRatio));
 const strDef = (opts.bypassStructuralDefense || action.bypassStructuralDefense) ? 0 : defender.structuralDefense;
-let phys = Math.max(2, Math.floor(mitigate(basePhys, defender.physicalDefense + (opts.defenseBoost ?? 0))));
+let phys = physRatio > 0 ? Math.max(2, Math.floor(mitigate(basePhys, defender.physicalDefense + (opts.defenseBoost ?? 0)))) : 0;
 let str  = Math.max(0, Math.floor(mitigate(baseStr, strDef)));
 const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
 * (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
 phys = Math.floor(phys * mult); str = Math.floor(str * mult);
 const tier = opts.isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
 const [lo, hi] = ACCURACY_RANGE[tier];
-const roll = (v: number) => Math.floor(phys * v);
-return {
-min: Math.max(3, roll(lo)) + Math.floor(str * lo),
-max: Math.max(3, roll(hi)) + Math.floor(str * hi),
-};
+const at = (v: number) => Math.max(3, Math.floor(phys * v) + Math.floor(str * v));
+return { min: at(lo), max: at(hi) };
 }
+
 
 // ── Player creation ───────────────────────────────────────────────────────────
 
@@ -337,15 +374,15 @@ const treePDef = Math.floor((augmentationBonuses?.treeDefense || 0) * 0.7);
 const treeSDef = Math.ceil ((augmentationBonuses?.treeDefense || 0) * 0.3);
 const treeHp   = augmentationBonuses?.treeHp || 0;
 
-// Class base: split baseAttack 70/30 phys/structural, baseDefense 70/30 phys/structural
+// The class's own stat line: Attack / Defence (physical) and Sp. Atk / Sp. Def (special)
 const maxHp = Math.max(MIN_PLAYER_HP, classStats.baseHp + augHp + treeHp - (augmentationBonuses?.hpCost || 0));
-const basePAtk = Math.floor(classStats.baseAttack  * 0.7);
-const baseSAtk = Math.ceil (classStats.baseAttack  * 0.3);
-const basePDef = Math.floor(classStats.baseDefense * 0.7);
-const baseSDef = Math.ceil (classStats.baseDefense * 0.3);
-// Structure is the implants themselves: no implants, no bar. Upgrades harden it a little.
+const basePAtk = classStats.baseAttack;
+const baseSAtk = classStats.baseSpAtk;
+const basePDef = classStats.baseDefense;
+const baseSDef = classStats.baseSpDef;
+// Every body has a structure bar of its own; implants and upgrades add to it
 const augStructure = augmentationBonuses?.structure || 0;
-const maxStructuralHp = augStructure > 0 ? augStructure + treePDef + treeSDef : 0;
+const maxStructuralHp = classStats.baseStructure + augStructure + treePDef + treeSDef;
 
 return {
 id: 'player',
@@ -442,7 +479,7 @@ return types[idx % types.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 1.4, atk: 1.4 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 1.8, atk: 2.1 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };

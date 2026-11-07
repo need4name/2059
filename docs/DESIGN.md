@@ -64,7 +64,7 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 - **Burning:** ending a turn on a fuel fire sets you (or an enemy) burning for 2 turns: 4% of max health each turn (at least 3), at the start of that unit's turn. A flame and circling stars show over units that are burning or stunned.
 - **Overload:** a meter (0–100, `OVERLOAD`) that fills as blows are traded and as you run hot: 25 × (damage you deal ÷ the target's max health) per hit, 40 × (damage you take ÷ your max health), and +10 for each turn you end Hot (+16 Critical). **It carries from fight to fight** for the same host (`overload` in the map state, like health; resting keeps it), and a new host starts empty. When full and an enemy is within 3 tiles, **Signal Surge** replaces the meter: every enemy within 3 tiles takes 1.5× the strongest move on your fight bar (precise), your heat vents to 0, and it uses your turn. It comes about once every three fights. (Each firmware's own Overload ultimate is for the firmware conversation.)
 - **Speed and the turn clock** (`SPEED`, `DRIVE`, `startClock`, `nextUp`, `spendTurn`, `forecast` in fight.ts): turns come off a clock, not in rounds, so faster bodies act more often. After each turn a body waits `ROUND × 10 ÷ speed` (ROUND = 100): speed 10 acts once per 100, speed 13 every 77, speed 6 every 167. So a speed-13 enemy gets about four turns to a speed-10 host's three, and a slowed host (6) can see a hasted enemy act twice in a row. Ties go to the player, then enemies in their order, then allies. **Allies take their own turns** on the same clock at their own speed (`speed` in allies.json: Bale 8, Ward 9, Matron, Ninety and Dust 10, Breaker and Tally 11, Ghostline 12; actors `ally0`, `ally1`).
-  - Speed = 10 + the average drive of the body's implants: Volkov +3; IOA and Kizuna +2; Tianxia, CBN and Crown +1; Patchwork 0; PARSU −1; Helix −2. No implants means 0. Enemies use the implants they carry, and Fast adds +1. At 85 heat or more, −2.
+  - Speed = the class's base speed (Unclassified 10, Enforcer 8, Operative 11, Courier 13, Foreman 9, Splice 10, Wretch 10) + the average drive of the body's implants + firmware levels: Volkov +3; IOA and Kizuna +2; Tianxia, CBN and Crown +1; Patchwork 0; PARSU −1; Helix −2. No implants means 0. Enemies use the implants they carry, and Fast adds +1. At 85 heat or more, −2.
   - **Slowed** (−4) and **Hasted** (+4) last 2 rounds of clock time. A turn's wait is set by the speed the body has as that turn ends, so a Rush haste speeds up your very next turn. They come from the Sap mod (slows everyone you hit; Kizuna, PARSU, Patchwork) and the Rush mod (hastes you when you hit; Volkov, IOA, Patchwork), and from the Cadre's Storm Liturgy, the Warden's Shock Baton and the Listener's Static Cross, which slow you. Stun still costs a whole turn.
   - Everything that works "per round" (tides, the alarm, orders, Slowed and Hasted counting down) ticks once every 100 of clock time. Everything that works "per turn" (cooling, burning, bleeding, wind) happens on that body's own turns, so a fast host also cools more often.
   - Everyone's first turn comes half a wait in, so anything faster than you opens the fight ("They move first"). Your opening turn skips the start-of-turn cooling, as before.
@@ -72,7 +72,7 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 - **Enemy side effects** (`effects` on a move in `enemies.json`: knock, pull, bleed, stun chance): the Boarder's Crane Hook and the Enforcer's Collector's Hook are grapples that drag you to them; the Cadre's Rib-Graft Ram, the Volkov Operator's Hydraulic Drive and the Fitter's Piston Drive knock you back (into cover, hazards or the sea); the Ghost-MIL's Signal Bleed is a long shot across the board that makes you bleed, and the Raider's Catheter Blade bleeds too; the Surgeon's Sedative Dart is a bolt with a 25% stun, Tianxia's Neural Disrupt 20%, the Unregistered Operator's Vestibular Strike 30%; IOA's Transit Denial and the Listener's Carrier Wave pierce; the Listener's Undertow drags everyone it hits toward it. Bleeding on you works like an enemy's: 5% of max health (at least 3) at the start of your next 2 turns. Being dragged stops at bodies, cover and water.
 - **Purple-edged red tiles** are where an enemy's hit also drags or shoves you.
 - **Signature heavies:** Scavenger charge, Boarder cone, Cadre blast, Ghost-MIL X-burst, Raider ring, Surgeon strike (a grab), IOA knockback, Tianxia beam, Warden knockback, Volkov charge, Enforcer ring, Unregistered beam.
-- **Attack pictures** (`Footprint` in `hud.tsx`, from `attackFootprint` in `fight.ts`): every attack card shows a 7x7 board with you in the middle: every tile the move can hit, brighter where it lands harder on an enemy standing there (from the side +15%, from behind +30%: the flank bonus; the enemy is below you on the board). Arm moves aim only on their own side, as in a fight (a wide swing can still spill across). The range band in the damage line is only used by moves with a `rangeOptimal`, and no move has one today.
+- **Attack pictures** (`Footprint` in `hud.tsx`, from `attackFootprint` in `fight.ts`): every attack card shows a 7x7 board with you in the middle: every tile the move can hit, coloured by its damage type (amber physical, violet special, blended between, the same as the aimed tiles on the board), brighter where it lands harder on an enemy standing there (from the side +15%, from behind +30%: the flank bonus; the enemy is below you on the board). Arm moves aim only on their own side, as in a fight (a wide swing can still spill across). The range band in the damage line is only used by moves with a `rangeOptimal`, and no move has one today.
 - **The red zone is a promise:** it shows every tile each enemy's normal attacks (and its close-quarters strike) can hit from where it stands. Because enemies attack before they move, ending your turn outside the red means no normal attack can reach you this enemy turn (other enemies don't count as cover here, since they may move first). Heavies show only as their locked orange tiles.
 - **Grades:** enemies show how upgraded they are: Raw (threat 1–4), Grafted (5–9), Augmented (10–19), Chromed (20–29), Ascended (30+). The target card shows the grade and how many implants they carry (1 up to threat 5, 2 up to 10, then 3); in a fight the HUD names the implants, and each glows on the sprite in the grade's colour.
 - **Implant traits:** each implant an enemy carries gives a trait by body slot (`ENEMY_TRAITS` in `actions.ts`): eyes **Sighted** (gains an optic shot at 80% of its usual hit if it has no gun), legs **Fast** (+1 movement), arms **Armed** (+10% damage), lungs **Enduring** (heals 2% of max health at the start of its turn; 1% for a boss, so a long boss fight can't stall; `ENDURING` in `fight.ts`), brain **Focused** (heavies from 30 heat instead of 45), ears **Alert** (no flanking bonus against it), nose **Filtered** (hazards don't hurt it), spine **Braced** (takes 10% less damage). The fight HUD names the target's traits.
@@ -88,20 +88,27 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 
 **Where:** `calculateDamage` and `estimateDamage` in `client/src/lib/combat/actions.ts`.
 
-Every hit has two parts: **bio** (to health) and **structural** (to the implant bar). `physicalRatio` splits a move's damage between them (default 70% bio).
+**Two kinds of damage, two bars.** Every move is a mix of **physical** (fists, blades, rams, kicks, bullets) and **special** (lasers, neural, EMP, thermal): `physicalRatio` is the physical share. Physical uses the attacker's **Attack** against the target's **Defence**; special uses **Sp. Atk** against **Sp. Def** (stored in the `structuralAttack` / `structuralDefense` fields). Each stat counts only for its share of the mix (×`STAT_MIX` 1.7, so a 50/50 move still draws well on both).
+
+- **Structure soaks physical damage first**, like armour: the physical share comes off the structure bar until it's empty, and only what gets through reaches health. At zero structure, implants **malfunction** (see accuracy).
+- **Special damage goes past structure, straight to health**, cut by Sp. Def, and **heats the target**: one degree for every 3 special damage, at most 15 (`heatFromSpecial`), so special builds feed overheating and burnout.
+- Enemies work the same way, with their own structure bars and both stat pairs.
+- Every class has a structure bar of its own before implants (`baseStructure`); implants and upgrades add to it.
 
 ```
-bio base        = move damage × physicalRatio       + attack stat × weight
-structural base = move damage × (1 − physicalRatio) + disrupt stat × weight
-after defence   = base × 40 ÷ (40 + defence)          (bio at least 2)
-× flank bonus × heat multiplier × crit (×1.75) × range band
-× accuracy roll                                        (bio at least 3)
+physical = (move damage + Attack × weight × 1.7) × physical share, cut by Defence (+ guard)
+special  = (move damage + Sp. Atk × weight × 1.7) × special share, cut by Sp. Def
+cut      = × 40 ÷ (40 + defence)
+× side or back bonus × heat multiplier × crit (×1.75) × sweet spot × accuracy roll   (at least 3 in all)
+physical → structure first, the rest to health;  special → health, and +heat
 ```
 
-- **Stat weight:** the player's attack and disrupt stats count at **60%**; enemy stats count in full.
-- **Defence:** 40 defence halves damage. Brace adds its guard to bio defence for the next enemy hit.
-- **CBN grafts** (`bypass_sdef`) make your structural damage ignore the enemy's shielding.
-- **No implants:** you have no structure bar, so half of any structural damage you take lands on your health instead.
+- **Stat weight:** the player's stats count at **60%**; enemy stats count in full.
+- **Defence:** 40 defence halves damage. Brace adds its guard to Defence for the next enemy hit.
+- **CBN grafts** (`bypass_sdef`) make your special damage ignore the enemy's Sp. Def.
+- **Colours:** moves show their mix as a colour (amber physical, violet special, blended) on their cards, attack pictures and the aimed tiles on the board, and as words ("Physical", "70% physical", "Special").
+
+**Stat lines** (`CLASS_DEFINITIONS`; health / structure / Attack / Defence / Sp. Atk / Sp. Def / Speed): Unclassified 120 / 30 / 14 / 5 / 12 / 5 / 10; Enforcer 150 / 40 / 17 / 9 / 8 / 5 / 8; Operative 110 / 25 / 12 / 4 / 20 / 7 / 11; Courier 105 / 25 / 15 / 4 / 12 / 5 / 13; Foreman 135 / 45 / 15 / 7 / 12 / 8 / 9; Splice 95 / 20 / 10 / 5 / 14 / 9 / 10; Wretch 80 / 15 / 10 / 3 / 10 / 3 / 10. The Self page shows all seven and where speed comes from ("Speed 13: 13 base +1 implants +2 firmware"); the death screen shows each class's line. Firmware attacks have their own mix: Hydraulic Slam 90% physical, Precision Shot 30% physical (mostly special), Graft Whip half and half, the rest 70–75% physical.
 
 ### Accuracy (share of the rolled damage that lands)
 
@@ -115,10 +122,10 @@ after defence   = base × 40 ÷ (40 + defence)          (bio at least 2)
 Enemy evasion lowers the bottom of the range by 1.5% per point (up to 30%), except for precise hits.
 
 ### Worked example
-Strike (10 damage, 70% bio, variable) from a player with 12 attack and 5 disrupt, at warm heat, against an enemy with 6 armour and 4 shielding, face on:
+Strike (10 damage, 70% physical, variable) from a player with 12 Attack and 5 Sp. Atk, at warm heat, against an enemy with 6 Defence and 4 Sp. Def, face on:
 
-- Bio: 7 + 12 × 0.6 = 14.2 → 14; × 40/46 = 12; × 1.1 warm = 13; rolled 70–95% → **9 to 12**
-- Structural: 3 + 5 × 0.6 = 6; × 40/44 = 5; × 1.1 = 5; rolled → **3 to 4**
+- Physical: (10 + 12 × 0.6 × 1.7) × 0.7 = 15.6 → 15; × 40/46 = 13; × 1.1 warm = 14; rolled 70–95% → **9 to 13**, off its structure first
+- Special: (10 + 5 × 0.6 × 1.7) × 0.3 = 4.5 → 4; × 40/44 = 3; × 1.1 = 3; rolled → **2**, to health (too little to heat it)
 
 ---
 
@@ -223,7 +230,7 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 - **Levels come in sectors of 10.** The 5th level of each sector is an **elite** (×1.3 health, ×0.95 attack; Cartel Enforcer, CBN Extraction Surgeon, Unregistered Operator in turn). The 10th is a **boss** (×1.15 health, ×0.95 attack): **The Fitter** at threat 20 (the Volkov foundry: Armed, a whole-row Press Line heavy, and at half health it bolts on a leg and becomes Fast) and **The Listener** at 30 (the drowned spire: Sighted, Focused and Alert, an Undertow ring heavy, and at half health it becomes Enduring). Bosses carry innate traits on top of their implants and turn once below half health (`traits` and `enrage` in `enemies.json`). Regular rooms name their enemy on the map (`enemy` in the map file), so each place has its own people; anything not named walks the regular rotation.
 - Threat 10 is the **Patchwork King**, built from a level-10 frame with his own ×1.5 health, ×1.3 attack, ×1.25 defence and three scripted phases.
 - Enemies carry 1–3 random common or uncommon implants.
-- **First life only:** threat 3 is the **Cartel Enforcer** (×1.4 health, ×1.4 attack). It waits on the walkway and ends most first runs, but a careful player can beat it (the bot wins about 30% of the time).
+- **First life only:** threat 3 is the **Cartel Enforcer** (×1.8 health, ×2.1 attack). It waits on the walkway and ends most first runs, but a careful player can beat it (the bot wins about 30% of the time).
 - Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 9 after 5 hosts lost and 18–20 after 10.
 
 ### Drops: strip them for parts
@@ -258,7 +265,7 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - When the host dies, the signal jumps to a new body at threat 1, in the chapter's entry or at a beaten boss's server (see Servers and beaten bosses). Implants, credits, weapons, loadout extras and upgrades are lost. The host count, the class unlock, the play-i tree and allies are kept.
 - The first host death after 5 enemies have been beaten (by all hosts together, `ENFORCER_KILLS`) permanently opens the Enforcer firmware. Dying at threat 11 or higher permanently opens the Operative (and the Enforcer, if it isn't open yet). The firmware choice after that death tags what just opened as New.
 - **Firmware is the host's class** (`identity` in `content/firmware.json`; `withClass`, `identityOf` in `engine/firmware.ts`; perks `chain`, `reflexMove`, `doubleActionHeat`, `extraCooling`, `heatGenBonus`, `ventMult`, `transferBonus`, `surgeKind`). Each firmware has its own rule, its own heat style and its own Overload ultimate, shown on the Self page and the firmware choice after a death:
-  - **Stat spreads** (`CLASS_DEFINITIONS` in `actions.ts`, health / attack / defence): Unclassified 120 / 14 / 5; Wretch 80 / 10 / 3; Enforcer 150 / 17 / 9; Operative 110 / 20 / 4; Courier 105 / 15 / 4 (+2 speed); Foreman 135 / 15 / 7; Splice 95 / 12 / 5. Implants, trees and forks build on top, so any class can be pushed toward tougher or harder-hitting.
+  - **Stat lines:** see Damage (each class has health, structure, Attack, Defence, Sp. Atk, Sp. Def and Speed). Implants, trees and forks build on top, so any class can be pushed toward tougher or harder-hitting.
   - **Forks** (`choose` in a firmware's levels; `levelOptions`, `stepsTo`, `setForkChoices`; `forks` in `useFirmware`): levels 4, 7 and 10 offer two sides. They're chosen on the death screen, under the firmware picked for the next host, and hold for that host's whole life (the Self page shows them; respecs are for later). A fork can change the attack (shape, damage, effects), add speed, add a class perk (`perk`) or add max health (`hp`). Enforcer: Breaker (crush) or Vent engine (bursts ×1.5); Stun lock (25% stun) or Bulk (+30 health); Piledriver (hits far harder, 35% stun) or Earthshaker (hits all eight tiles round you). Operative: Optical lock (always full damage) or Run and gun (step back after the shot); Through the line (pierce) or Long eye (a shot that wants 4+ tiles); Clean line (far harder, through cover) or Deep cold (act twice up to 40 heat, sheds 2 more). Courier: Hit and run or Vault; Quicker (+2 speed) or Bleeder; Overclocked (act twice every turn) or Blur (+1 speed, far harder). Foreman: Clear the floor (all eight tiles) or Long shove (a shoving line of three); Stoker (+6 heat pushed) or Crusher (crush, 20% stun); Overrun (3x3 blast) or Pressure (+10 heat pushed, harder).
   - **Enforcer** (melee, Volkov): a takedown gives another action. Runs hot fast (+3 heat on every hit) and its venting bursts hit 50% harder. Ultimate **Piledriver**: twice your best move on everyone within 2 tiles, knocking them back.
   - **Operative** (ranged, Kizuna): acts twice in a turn started at 25 heat or less. Runs cold (sheds 3 more heat a turn). Ultimate **Overwatch**: a precise shot (1.2× your best move) at every enemy within 6 tiles.
@@ -287,7 +294,7 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - Each ally has two fixed moves and moves 2 tiles. Effects: **attack** (goes for your target if it can reach it, else the nearest enemy it can: `allyAimFoe`), **taunt** (every enemy within 3 tiles of the ally, `TAUNT_RANGE`, aims at it until its next turn; ally guards up), **heal** (a share of your max health, any range), **mark** (your hits on the target do more until your turn ends), **guard** (you guard up until the ally's next turn). Support moves have cooldowns of 2–3 of the ally's turns. What allies set up for you (a mark, Coordinated) is spent when your turn ends (`endPlayerTurn`).
 - In your turn you can move the ally once (tap it, or its name, then a lit tile) and use one of its moves, before or after your own move. The turn ends when you execute.
 - Enemies go for whoever is nearest, the player winning ties, unless an ally is drawing fire. A heavy wound up at an ally can be dodged by moving that ally.
-- Allies have no structure bar: half the structural part of a hit spills onto their health. A knocked-out ally sits out the rest of that fight only. Allies don't take hazard damage. Every fight starts them at full health.
+- Allies have no structure bar: physical and special hits both go straight to their health. A knocked-out ally sits out the rest of that fight only. Allies don't take hazard damage. Every fight starts them at full health.
 - Stats: built like a regular enemy of the unlock level (health × the ally's `hp`, attack and defence from its base plus the level scaling), then × 0.55 health and × 0.75 attack (`ALLY_TUNING`), plus their implants. Move damage scales like an enemy move of the unlock level.
 - Levels: +8% health, attack, defence and move damage a level, up to 10. Each win gives the party 1 XP (2 with Shared memory); level n to n + 1 takes n + 1 XP. Levels survive death, so an early ally can be raised for the late game.
 - **Allies start beside or behind you** (`allySpawnPositions`): the nearest open tiles, never one closer to the enemies than you stand if another will do.

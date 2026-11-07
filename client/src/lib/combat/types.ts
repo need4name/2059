@@ -215,6 +215,12 @@ icon: string;
 baseHp: number;
 baseAttack: number;
 baseDefense: number;
+/** Special attack and defence (lasers, neural, EMP, thermal): stored in structuralAttack / structuralDefense. */
+baseSpAtk: number;
+baseSpDef: number;
+/** The body's own structure bar before implants. */
+baseStructure: number;
+baseSpeed: number;
 specialAbility: {
 name: string;
 description: string;

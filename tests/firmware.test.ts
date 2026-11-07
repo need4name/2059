@@ -45,11 +45,11 @@ test('no firmware keeps Strike', () => {
 });
 
 test('Courier gets quicker, then acts twice while cool, then every turn', () => {
-  assert.deepEqual(FW.firmwarePassives('swift', 1), { speed: 2, twin: null });
-  assert.equal(FW.firmwarePassives('swift', 3).speed, 3);
+  assert.deepEqual(FW.firmwarePassives('swift', 1), { speed: 0, twin: null }, 'its base speed (13) covers the head start');
+  assert.equal(FW.firmwarePassives('swift', 3).speed, 1);
   assert.equal(FW.firmwarePassives('swift', 9).twin, 'cool');
   assert.equal(FW.firmwarePassives('swift', 10).twin, 'always');
-  assert.equal(FW.firmwarePassives('swift', 10).speed, 5, 'the Quicker fork (the default side) adds 2');
+  assert.equal(FW.firmwarePassives('swift', 10).speed, 3, 'the Quicker fork (the default side) adds 2');
   assert.ok(FW.firmwareAttack('swift', 5, 40)!.effects?.retreat, 'hit and run from level 5');
   assert.deepEqual(FW.firmwarePassives('melee', 10), { speed: 0, twin: null }, 'other firmware stays at its speed');
 });

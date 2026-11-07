@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { random, seedRandom, mixSeed } from '../client/src/lib/engine/rng';
-import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, createPatchworkKing, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT } from '../client/src/lib/combat/actions';
+import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, createPatchworkKing, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT, STAT_MIX, CLASS_DEFINITIONS } from '../client/src/lib/combat/actions';
 import { powerOf, structureOf, healthCostOf, actionForItem, makerOf, CONDITION_MULT, MIN_PLAYER_HP } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 import { generateLoot, generatePatchworkKingLoot, rollCarried } from '../client/src/lib/combat/loot';
@@ -37,10 +37,10 @@ test('accuracy ranges stay ordered and malfunction is the harshest', () => {
 
 test('player attack stat counts at its weight in damage previews', () => {
   const boss = { ...createBoss(1), physicalDefense: 0, structuralDefense: 0 };
-  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const };
+  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, physicalRatio: 1 };
   const weak = estimateDamage({ ...createPlayer(), physicalAttack: 0, structuralAttack: 0 }, boss, strike);
   const strong = estimateDamage({ ...createPlayer(), physicalAttack: 20, structuralAttack: 0 }, boss, strike);
-  assert.equal(strong.max - weak.max, Math.floor(20 * PLAYER_STAT_WEIGHT));
+  assert.equal(strong.max - weak.max, Math.floor(20 * PLAYER_STAT_WEIGHT * STAT_MIX));
 });
 
 test('every implant has a slot, a known maker and a valid rarity', () => {
@@ -90,8 +90,11 @@ test('max health never drops below the floor', () => {
   assert.equal(p.maxHp, MIN_PLAYER_HP);
 });
 
-test('no implants means no structure bar', () => {
-  assert.equal(createPlayer().maxStructuralHp, 0);
+test('every class has a structure bar of its own before implants', () => {
+  for (const cls of Object.keys(CLASS_DEFINITIONS) as (keyof typeof CLASS_DEFINITIONS)[]) {
+    assert.equal(createPlayer(undefined, cls).maxStructuralHp, CLASS_DEFINITIONS[cls].baseStructure);
+    assert.ok(CLASS_DEFINITIONS[cls].baseStructure > 0);
+  }
 });
 
 test('first life: the first enemy carries an active implant, the second a passive one', () => {

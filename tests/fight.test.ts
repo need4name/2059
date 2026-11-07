@@ -80,7 +80,7 @@ test('out-of-range attacks are caught before they resolve', () => {
   assert.equal(Fight.canPlayerHit(fight(), PLAYER_ACTIONS[0], 'none'), true);
 });
 
-test('with no implants, structural hits spill onto health at half strength', () => {
+test('special hits reach health without breaking anything', () => {
   seedRandom(2);
   const bare = fight({ player: createPlayer() });
   const step = Fight.resolveFoeAction(bare, 0, hitFor(30, 0), 1);
@@ -88,12 +88,17 @@ test('with no implants, structural hits spill onto health at half strength', () 
   assert.equal(step.state.playerMalfunctioning, false, 'no implants, no malfunction');
 });
 
-test('implants absorb structural hits and malfunction at zero', () => {
+test('structure soaks physical hits first and malfunctions at zero; special goes to health and heats', () => {
   seedRandom(3);
   const s = fight({ player: withImplants() });
-  const step = Fight.resolveFoeAction(s, 0, hitFor(60, 0), 1);
-  assert.equal(step.state.player.currentStructuralHp, 0);
-  assert.equal(step.state.playerMalfunctioning, true);
+  const hard = Fight.resolveFoeAction(s, 0, hitFor(60, 1), 1);
+  assert.equal(hard.state.player.currentStructuralHp, 0, 'physical wears the structure bar down first');
+  assert.equal(hard.state.playerMalfunctioning, true);
+  assert.ok(hard.state.player.currentHp < s.player.currentHp, 'what structure cannot soak reaches health');
+  const hot = Fight.resolveFoeAction(s, 0, hitFor(60, 0), 1);
+  assert.equal(hot.state.player.currentStructuralHp, 10, 'special goes past structure');
+  assert.ok(hot.state.player.currentHp < s.player.currentHp);
+  assert.ok(hot.state.playerHeat > s.playerHeat, 'special damage heats the target');
 });
 
 test('stepping out of a telegraphed heavy dodges it', () => {

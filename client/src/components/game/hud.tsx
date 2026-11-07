@@ -252,6 +252,18 @@ export function Page({ open, title, back = 'Back', onClose, children }: { open: 
  * aim only on their own side. The tiles come from the fight engine's own rules
  * (attackFootprint).
  */
+/** A move's damage type as a colour: amber when physical (wears structure), violet when special (goes to health and heats), blended between. */
+export function damageTypeRgb(physicalRatio = 0.7): [number, number, number] {
+  const t = Math.max(0, Math.min(1, physicalRatio));
+  const mix = (a: number, b: number) => Math.round(b + (a - b) * t);
+  return [mix(255, 167), mix(180, 139), mix(58, 250)];
+}
+/** A move's damage type in words. */
+export function damageTypeText(physicalRatio = 0.7): string {
+  const t = Math.round(Math.max(0, Math.min(1, physicalRatio)) * 100);
+  return t >= 100 ? 'Physical' : t <= 0 ? 'Special' : t >= 50 ? `${t}% physical` : `${100 - t}% special`;
+}
+
 /** Whether a move moves anyone: shoves what it hits (push), drags it in (pull), carries you down the lane (dash), or steps you back (retreat). */
 export function moveKind(action: CombatAction, playerClass: PlayerClass = 'none'): 'push' | 'pull' | 'dash' | 'retreat' | 'leap' | null {
   const p = attackPatternOf(action, playerClass), fx = action.effects ?? {};
@@ -271,7 +283,8 @@ export function Footprint({ action, pattern, playerClass = 'none', className, ce
   const at = new Map(tiles.map(t => [`${t.row},${t.col}`, t.mult]));
   const gap = 1, size = n * (cell + gap) - gap;
   // How hard it lands there (side, back and the shape's sweet spot together): the stronger, the bolder
-  const shade = (m: number) => `rgba(255,180,58,${Math.max(0.18, Math.min(1, (m - 0.55) / 0.95)).toFixed(2)})`;
+  const [cr, cg, cb] = damageTypeRgb(act.physicalRatio);
+  const shade = (m: number) => `rgba(${cr},${cg},${cb},${Math.max(0.18, Math.min(1, (m - 0.55) / 0.95)).toFixed(2)})`;
   const moves = moveKind(act, playerClass);
   const far = Math.max(0, ...tiles.map(t => Math.max(Math.abs(t.row - me.row), Math.abs(t.col - me.col))));
   const x0 = (c: number) => c * (cell + gap), mid = (k: number) => k * (cell + gap) + cell / 2;

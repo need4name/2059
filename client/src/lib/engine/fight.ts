@@ -14,7 +14,7 @@
 import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
-  calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
+  calculateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
@@ -701,7 +701,7 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
-    events.push(say(`${foe.unit.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage'));
+    events.push(say(`${foe.unit.name}: ${dmg.bioDamage} to health / ${dmg.structuralDamage} to structure`, 'damage'));
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
   }
   // Piledriver and Overrun shove everyone hit; Overrun pumps heat into them too (they may overheat)
@@ -1225,7 +1225,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     dealtTotal += foe.unit.currentHp - hp;
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
-    const heat = clampHeat(foe.heat + heatPush);
+    const heat = clampHeat(foe.heat + heatPush + heatFromSpecial(dmg.specialDamage));
     state = setFoe(state, i, {
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
       malfunctioning: structure <= 0, defenseBoost: 0, heat,
@@ -1236,7 +1236,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (heatPush !== 0) events.push(say(`${foe.unit.name} heat: ${heatPush > 0 ? '+' : ''}${heatPush} (${heat})`));
     if (hp > 0 && heat >= 100) state = foeOverheat(state, i, events);
-    events.push(say(`${who}${dmg.isCrit ? 'CRITICAL! ' : ''}Dealt ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural${dmg.isFlank ? ' [FLANK]' : ''}`, dmg.isCrit ? 'critical' : 'damage'));
+    events.push(say(`${who}${dmg.isCrit ? 'CRITICAL! ' : ''}Dealt ${dmg.bioDamage} to health / ${dmg.structuralDamage} to structure${dmg.isFlank ? ' [FLANK]' : ''}`, dmg.isCrit ? 'critical' : 'damage'));
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
   }
 
@@ -1497,13 +1497,13 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
-  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0));
+  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + heatFromSpecial(dmg.specialDamage));
 
 
   events.push({ kind: 'hit' });
   events.push(say(spill
     ? `${foe.unit.name} -- ${action.name}: ${dmg.bioDamage + spill} damage (no implants to absorb it)`
-    : `${foe.unit.name} -- ${action.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural`, 'damage'));
+    : `${foe.unit.name} -- ${action.name}: ${dmg.bioDamage} to health / ${dmg.structuralDamage} to structure`, 'damage'));
   if (breaks) events.push(say('MALFUNCTION', 'malfunction'));
   if (hp <= 0) events.push({ kind: 'playerDown' });
 
@@ -1780,7 +1780,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
     state = { ...state, allyHitFoes: [...state.allyHitFoes, i] };
     events.push({ kind: 'hit' });
-    events.push(say(`${a.unit.name} -- ${move.name}: ${dmg.bioDamage} bio / ${dmg.structuralDamage} structural${dmg.isFlank ? ' [FLANK]' : ''}`, 'damage'));
+    events.push(say(`${a.unit.name} -- ${move.name}: ${dmg.bioDamage} to health / ${dmg.structuralDamage} to structure${dmg.isFlank ? ' [FLANK]' : ''}`, 'damage'));
     if (foe.unit.currentStructuralHp > 0 && structure <= 0) events.push(say(`${foe.unit.name}: MALFUNCTION`, 'malfunction'));
     if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); }
     state = afterFoeChanges(state, events);

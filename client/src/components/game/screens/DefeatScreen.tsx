@@ -145,10 +145,10 @@ export function DefeatScreen() {
                     <span className="flex items-center gap-2"><span className="font-display text-lg font-semibold text-white">{def.name}</span>{justOpened.includes(c) && <Chip tone="cred">New</Chip>}</span>
                     <span className="block text-sm text-hud-dim">{identityOf(c)?.rule ?? CLASS_BLURB[c]}</span>
                     {identityOf(c) && <span className="block text-xs text-orange-300/90">{identityOf(c)!.heat}</span>}
-                    <span className="flex gap-2 text-xs font-semibold">
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseHp} HP</span>
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseAttack} ATK</span>
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseDefense} DEF</span>
+                    <span className="flex flex-wrap gap-1.5 text-xs font-semibold">
+                      {([[def.baseHp, 'Health'], [def.baseStructure, 'Structure'], [def.baseAttack, 'Atk'], [def.baseDefense, 'Def'], [def.baseSpAtk, 'Sp. Atk'], [def.baseSpDef, 'Sp. Def'], [def.baseSpeed, 'Speed']] as const).map(([v, l]) => (
+                        <span key={l} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{v} {l}</span>
+                      ))}
                     </span>
                     {(() => { const lv = useFirmware.getState().level(c); const att = firmwareAttack(c, lv); return att && att.name !== 'Strike' && (
                       <span className="flex items-center gap-2 text-xs text-aug"><Footprint action={att} className="shrink-0" /><span>Level {lv}. Strike becomes {att.name}: {att.description}</span></span>

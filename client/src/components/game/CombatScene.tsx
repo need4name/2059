@@ -6,7 +6,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
-import { moveKind } from './hud';
+import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -554,18 +554,10 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   // Check if tile is in enemy's attack range (danger zone for player)
   const isInEnemyRange = enemyReachableTiles ? enemyReachableTiles.has(`${row},${col}`) : false;
 
-  // Attack pattern color palette - vivid and pattern-coded
-  // Sweep/melee: amber-orange  Diagonal: teal  Charge/lunge: purple  Ranged/line: red
+  // Aimed tiles take the move's damage type: amber physical, violet special, blended between
   const getAttackColor = (): { fill: string; stroke: string } => {
-    if (!currentAttackPattern) return { fill: '#c04030', stroke: '#ff5040' };
-    const p = currentAttackPattern;
-    if (p === 'melee' || p === 'aoe' || p === 'sweep_arc')
-      return { fill: 'rgba(214,138,24,0.55)', stroke: '#ffb43a' };  // amber
-    if (p === 'diagonal_cross')
-      return { fill: 'rgba(16,140,140,0.55)', stroke: '#3ff2e6' };  // teal
-    if (p === 'lunge' || p === 'charge' || p === 'knockback')
-      return { fill: 'rgba(120,50,190,0.55)', stroke: '#d070ff' };  // purple
-    return { fill: 'rgba(170,40,40,0.55)', stroke: '#ff6060' };     // red (ranged/line)
+    const [r, g, b] = damageTypeRgb(selectedAction?.physicalRatio);
+    return { fill: `rgba(${Math.round(r * 0.8)},${Math.round(g * 0.75)},${Math.round(b * 0.6)},0.55)`, stroke: `rgb(${r},${g},${b})` };
   };
   const attackColors = getAttackColor();
 
