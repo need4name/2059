@@ -39,24 +39,38 @@ return targetable;
 }
 
 // Rounded rectangle path for the softer tile look
-/** An arrow that slides from a tile's middle toward (dx, dy) and fades, over and over: this will move that way. */
-function drawMoveArrow(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, dy: number, tileW: number, tileH: number, now: number, color: string) {
+/**
+ * Who moves, the way Into the Breach shows it: a bold arrow sitting on the edge between a unit's
+ * tile and the tile it will go to, nudging that way. If something is in the way (the board's
+ * edge, cover, another body), a short bar stops the arrow there: it will slam into it instead.
+ */
+function drawMoveArrow(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, dy: number, tileW: number, tileH: number, now: number, color: string, blocked = false) {
   const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-  const t = (now / 900) % 1, s = tileW * 0.16;
-  for (const k of [0, 0.5]) {
-    const u = (t + k) % 1;
-    const cx = x + ux * tileW * (u * 0.45 - 0.05), cy = y + uy * tileH * (u * 0.45 - 0.05);
-    ctx.globalAlpha = Math.sin(u * Math.PI) * 0.95;
-    ctx.fillStyle = color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-    ctx.lineWidth = 1.5;
+  const nudge = (Math.sin(now / 220) * 0.5 + 0.5) * tileW * 0.06;
+  const s = tileW * 0.2;
+  const cx = x + ux * (tileW * 0.42 + nudge), cy = y + uy * (tileH * 0.42 + nudge);
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx + ux * s, cy + uy * s);
+  ctx.lineTo(cx - ux * s * 0.5 - uy * s * 0.8, cy - uy * s * 0.5 + ux * s * 0.8);
+  ctx.lineTo(cx - ux * s * 0.15, cy - uy * s * 0.15);
+  ctx.lineTo(cx - ux * s * 0.5 + uy * s * 0.8, cy - uy * s * 0.5 - ux * s * 0.8);
+  ctx.closePath();
+  ctx.lineWidth = Math.max(2, tileW * 0.05);
+  ctx.strokeStyle = 'rgba(4,7,12,0.9)';
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fill();
+  if (blocked) {
+    const bx = cx + ux * s * 1.35, by = cy + uy * s * 1.35, w = s * 0.9;
     ctx.beginPath();
-    ctx.moveTo(cx + ux * s, cy + uy * s);
-    ctx.lineTo(cx - ux * s * 0.6 - uy * s * 0.75, cy - uy * s * 0.6 + ux * s * 0.75);
-    ctx.lineTo(cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.moveTo(bx - uy * w, by + ux * w); ctx.lineTo(bx + uy * w, by - ux * w);
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(5, tileW * 0.09); ctx.strokeStyle = 'rgba(4,7,12,0.9)'; ctx.stroke();
+    ctx.lineWidth = Math.max(3, tileW * 0.055); ctx.strokeStyle = '#ff9a3c'; ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -437,6 +451,13 @@ let aimedMove: ReturnType<typeof moveKind> = null;
 let struckFoes: Set<number> | null = null;
 let aimedAccuracy: string | undefined;
 let aimedAim: TilePosition | null = null;
+// Into the Breach's preview: how much of each struck enemy's health this hit will take (no crits)
+const hitPreview = new Map<number, { min: number; max: number }>();
+// Is a tile somewhere a shoved body can't go (off the board, cover, a wall, someone standing there)?
+const blockedAt = (r: number, c: number) => r < 0 || c < 0 || r >= grid.rows || c >= grid.cols
+  || ['obstacle', 'void'].includes(grid.tiles?.[r]?.[c]?.type ?? '')
+  || living.some(x => x.f.pos.row === r && x.f.pos.col === c)
+  || (grid.playerPosition.row === r && grid.playerPosition.col === c);
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 // Read attack pattern directly from the action - this is the single source of truth.
@@ -460,6 +481,7 @@ if (fs.aim) {
   struckFoes = new Set(Fight.struckAt(fs, selectedAction, playerClass, fs.aim));
   aimedAccuracy = selectedAction.accuracy;
   aimedAim = fs.aim;
+  for (const i of Array.from(struckFoes)) { const e = Fight.estimateHit(fs, selectedAction, playerClass, fs.aim, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax }); }
 }
 
 }
@@ -617,19 +639,12 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // Who moves: on each enemy tile it lands on, an arrow sliding the way it will be shoved (away) or dragged (toward you)
-  if (isAimed && (aimedMove === 'push' || aimedMove === 'pull') && living.some(x => x.f.pos.row === row && x.f.pos.col === col)) {
-    const away = aimedMove === 'push' ? 1 : -1;
-    const dx = Math.sign(col - grid.playerPosition.col) * away, dy = Math.sign(row - grid.playerPosition.row) * away;
-    const at = { x: pos.x, y: pos.y };
-    overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, 'rgba(255,255,255,0.92)'));
-  }
   // ...and on your own tile when the move carries you: a dash or leap toward the aim, a step back away from it
   if (isPlayerTile && aimedTiles && aimedAim && (aimedMove === 'dash' || aimedMove === 'leap' || aimedMove === 'retreat')) {
     const away = aimedMove === 'retreat' ? -1 : 1;
     const dx = Math.sign(aimedAim.col - col) * away, dy = Math.sign(aimedAim.row - row) * away;
     const at = { x: pos.x, y: pos.y };
-    if (dx || dy) overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, '#38d6f0'));
+    if (dx || dy) overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, '#38d6f0', blockedAt(row + dy, col + dx)));
   }
   // Wind: two faint streaks drifting across every tile the way it blows
   if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
@@ -931,6 +946,27 @@ ctx.restore();
 overlay.push(() => {
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
 drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444');
+// The health this hit will take flashes on the bar: bright for what it will surely take, faint for what it might
+const pv = phase === 'player_turn' ? hitPreview.get(i) : undefined;
+if (pv && f.unit.maxHp > 0) {
+  const hp = f.unit.currentHp, x0 = fp.x - barW / 2, at = (v: number) => x0 + barW * Math.max(0, Math.min(1, v / f.unit.maxHp));
+  const blink = 0.5 + 0.5 * Math.sin(now / 160);
+  ctx.save();
+  ctx.fillStyle = `rgba(255,255,255,${0.25 + 0.2 * blink})`;
+  ctx.fillRect(at(hp - pv.max), barY, at(hp - pv.min) - at(hp - pv.max), 5);
+  ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.4 * blink})`;
+  ctx.fillRect(at(hp - pv.min), barY, at(hp) - at(hp - pv.min), 5);
+  ctx.restore();
+}
+// A shove or a drag: the arrow on the edge it will cross, stopped by a bar if something's in the way
+if (pv !== undefined || (struckFoes?.has(i) && phase === 'player_turn')) {
+  if (aimedMove === 'push' || aimedMove === 'pull') {
+    const away = aimedMove === 'push' ? 1 : -1;
+    const dx = Math.sign(f.pos.col - grid.playerPosition.col) * away, dy = Math.sign(f.pos.row - grid.playerPosition.row) * away;
+    const c = gridToScreen(f.pos.row, f.pos.col, width, height);
+    if (dx || dy) drawMoveArrow(ctx, c.x, c.y, dx, dy, tileW, tileH, now, '#ffffff', aimedMove === 'push' && blockedAt(f.pos.row + dy, f.pos.col + dx));
+  }
+}
 
 // "Hit" over every enemy the current aim lands on (only as many as its targeting part locks)
 if ((struckFoes ? struckFoes.has(i) : aimedTiles?.has(`${f.pos.row},${f.pos.col}`)) && phase === 'player_turn') {
@@ -940,8 +976,9 @@ ctx.textAlign = 'center';
 ctx.fillStyle = '#22c55e';
 ctx.strokeStyle = '#000';
 ctx.lineWidth = 3;
-ctx.strokeText(label, fp.x, fp.y - tileH * 0.8);
-ctx.fillText(label, fp.x, fp.y - tileH * 0.8);
+const ly = Math.max(14, fp.y - tileH * 0.8); // never above the board's top
+ctx.strokeText(label, fp.x, ly);
+ctx.fillText(label, fp.x, ly);
 }
 });
 }

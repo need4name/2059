@@ -319,7 +319,7 @@ attacker: Character,
 defender: Character,
 action: CombatAction,
 opts: { defenseBoost?: number; heatMultiplier?: number; flankBonus?: number; tileDistance?: number; isMalfunctioning?: boolean; bypassStructuralDefense?: boolean } = {},
-): { min: number; max: number } {
+): { min: number; max: number; healthMin: number; healthMax: number } {
 const physRatio = action.physicalRatio ?? 0.7;
 const w = statWeight(attacker);
 const basePhys = Math.floor(((action.damage || 0) + attacker.physicalAttack * w * STAT_MIX) * physRatio);
@@ -333,7 +333,9 @@ phys = Math.floor(phys * mult); str = Math.floor(str * mult);
 const tier = opts.isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
 const [lo, hi] = ACCURACY_RANGE[tier];
 const at = (v: number) => Math.max(3, Math.floor(phys * v) + Math.floor(str * v));
-return { min: at(lo), max: at(hi) };
+// What reaches health: physical past whatever structure is left, plus all the special
+const toHealth = (v: number) => { const p = Math.floor(phys * v), sp = Math.floor(str * v); return Math.max(0, p - Math.min(p, Math.max(0, defender.currentStructuralHp))) + sp; };
+return { min: at(lo), max: at(hi), healthMin: toHealth(lo), healthMax: toHealth(hi) };
 }
 
 

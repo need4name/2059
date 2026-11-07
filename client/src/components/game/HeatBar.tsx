@@ -28,13 +28,13 @@ const isHot      = heatPhase === 'hot' || isCritical;
 
 return (
 
-<div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-1 pointer-events-none select-none">
+<div className="flex flex-col items-center gap-1 pointer-events-none select-none">
 
 {/* Bar container */}
 
   <div
     className={`well relative w-4 rounded-full overflow-hidden ${isCritical ? 'animate-pulse' : ''}`}
-    style={{ height: '140px' }}
+    style={{ height: '120px' }}
   >
     {/* Band dividers: cool / warm at 35, warm / hot at 60, hot / critical at 85 */}
     <div className="absolute left-0 right-0 border-t border-slate-600/40" style={{ bottom: '35%' }} />

@@ -14,7 +14,7 @@
 import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
-  calculateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
+  calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
 import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
@@ -1026,6 +1026,20 @@ export function struckAt(s: FightState, action: CombatAction, playerClass: Playe
     return hit.slice().sort((a, b) => w(b) - w(a) || d(a) - d(b)).slice(0, cap);
   }
   return hit;
+}
+
+/** What a player attack aimed at `aim` is expected to do to foe `i` (no crits): the numbers on the move buttons and the preview on its health bar. */
+export function estimateHit(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition | null, i: number) {
+  const foe = s.foes[i];
+  if (!foe || !action.damage) return null;
+  return estimateDamage(s.player, foe.unit, action, {
+    defenseBoost: foe.defenseBoost ?? 0,
+    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(s.playerHeat).dealt) * sweetSpot(action, playerClass, s.grid.playerPosition, aim, foe.pos) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
+    flankBonus: getFlankBonus(s.grid.playerPosition, foe.pos),
+    tileDistance: chebyshev(s.grid.playerPosition, foe.pos),
+    isMalfunctioning: s.playerMalfunctioning,
+    bypassStructuralDefense: s.player.bypassStructuralDefense,
+  });
 }
 
 /** Every tile the attack can be aimed at from where the player stands. */

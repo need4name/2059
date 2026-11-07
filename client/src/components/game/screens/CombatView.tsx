@@ -4,9 +4,8 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
-import { estimateDamage, ENEMY_TRAITS } from '@/lib/combat/actions';
-import { chebyshev } from '@/lib/combat/grid';
-import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
+import { ENEMY_TRAITS } from '@/lib/combat/actions';
+import { getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
 import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx } from '../hud';
@@ -144,17 +143,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   const aim = isAttack ? (selected && s.aim ? s.aim : Fight.bestAim(s, action, s.playerClass)) : null;
   const struck = aim ? Fight.struckAt(s, action, s.playerClass, aim) : [];
   const inRange = !isAttack || struck.length > 0;
-  const target = s.foes[struck[0] ?? s.target];
-  const boss = target?.unit ?? s.boss;
-  const foePos = target?.pos ?? grid.bossPosition;
-  const est = isAttack && action.damage ? estimateDamage(player, boss, action, {
-    defenseBoost: target?.defenseBoost ?? 0,
-    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(playerHeat).dealt) * Fight.sweetSpot(action, s.playerClass, grid.playerPosition, aim, foePos) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
-    flankBonus: getFlankBonus(grid.playerPosition, foePos),
-    tileDistance: chebyshev(grid.playerPosition, foePos),
-    isMalfunctioning: s.playerMalfunctioning,
-    bypassStructuralDefense: player.bypassStructuralDefense,
-  }) : null;
+  const est = isAttack && action.damage ? Fight.estimateHit(s, action, s.playerClass, aim, struck[0] ?? s.target) : null;
   const crit = action.type === 'attack' ? CRIT_PCT[getHeatPhase(playerHeat)] : 0;
   const heat = action.heatGenerated ?? 0;
   const tone = actionColor(action);
@@ -243,18 +232,6 @@ function AllyTurnPanel({ k }: { k: number }) {
   );
 }
 
-/** The selected move's status effects, in words: only what the tiles can't show. */
-function MoveLine() {
-  const a = useCombat(s => s.selectedAction);
-  const text = a && (a.type === 'attack' || a.type === 'special') ? statusText(a) : null;
-  if (!a || !text) return null;
-  return (
-    <p className="mb-2 px-1 text-[11px] leading-snug text-hud-dim">
-      <span className="font-semibold text-hud-text">{a.name}</span> · <span className="text-ok/90">{text}</span>
-    </p>
-  );
-}
-
 /** Overload: fills as blows are traded; when full, one Signal Surge. */
 function OverloadBar() {
   const s = useCombat();
@@ -339,10 +316,10 @@ function TurnStrip() {
     );
   };
   return (
-    <div className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-1 ring-1 ring-white/10" aria-label="Turn order">
+    <div className="pointer-events-none flex flex-col items-center gap-1 rounded-full bg-black/45 px-1 py-1.5 ring-1 ring-white/10" aria-label="Turn order">
       {face(acting, 'now', true)}
-      <span className="px-0.5 text-[10px] font-semibold text-hud-dim">then</span>
-      {ahead.map((a, n) => face(a, `n${n}`, false))}
+      <span className="h-px w-3 bg-white/20" />
+      {ahead.slice(0, 4).map((a, n) => face(a, `n${n}`, false))}
     </div>
   );
 }
@@ -355,12 +332,12 @@ function ActionBar() {
   const [confirmExit, setConfirmExit] = useState(false);
   const stims = items.filter(i => i.type === 'consumable');
   const myTurn = phase === 'player_turn' && !inputLocked;
+  const status = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special') ? statusText(selectedAction) : null;
 
   return (
     <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
       {allyTurn !== null ? <AllyTurnPanel k={allyTurn} /> : <>
       <OverloadBar />
-      <MoveLine />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="well flex min-h-[64px] items-center justify-center rounded-2xl text-[11px] text-hud-faint">Empty</div>
@@ -379,7 +356,13 @@ function ActionBar() {
           disabled={!myTurn}
           onClick={endTurn}
         >
-          {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? `Execute · ${selectedAction.name}` : 'Pass turn'}
+          {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? (
+            // Its status effects ride in the button, under its name (the button never changes height)
+            <span className="flex min-w-0 flex-col items-center leading-tight">
+              <span className="max-w-full truncate">Execute · {selectedAction.name}</span>
+              {status && <span className="max-w-full truncate font-body text-[11px] font-medium opacity-85">{status}</span>}
+            </span>
+          ) : 'Pass turn'}
         </Btn>
       </div>
       </>}
@@ -460,8 +443,11 @@ export function CombatView() {
       <div className="relative min-h-0 flex-1">
         <CombatScene />
         <div className="pointer-events-none absolute inset-0 mx-auto max-w-[var(--col)] [&>*]:pointer-events-auto">
-          <HeatBar />
-          <TurnStrip />
+          {/* The left rail: who acts next, then your heat, clear of the board */}
+          <div className="pointer-events-none absolute left-2 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-3">
+            <TurnStrip />
+            <HeatBar />
+          </div>
         </div>
       </div>
       <div className="mx-auto w-full max-w-[var(--col)]"><ActionBar /></div>
