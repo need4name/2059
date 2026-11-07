@@ -73,6 +73,17 @@ function drawMoveArrow(ctx: CanvasRenderingContext2D, x: number, y: number, dx: 
   ctx.restore();
 }
 
+/** What a defensive move will give back, flashing in green on the empty part of a bar: bright for now, faint for what drips in later. */
+function drawGainFlash(ctx: CanvasRenderingContext2D, cx: number, y: number, w: number, h: number, cur: number, now: number, later: number, now_ms: number) {
+  if (now <= 0 && later <= 0) return;
+  const x0 = cx - w / 2, at = (f: number) => x0 + w * Math.max(0, Math.min(1, f));
+  const blink = 0.5 + 0.5 * Math.sin(now_ms / 160);
+  ctx.save();
+  if (later > 0) { ctx.fillStyle = `rgba(134,239,172,${0.25 + 0.15 * blink})`; ctx.fillRect(at(cur + now), y, at(cur + now + later) - at(cur + now), h); }
+  if (now > 0) { ctx.fillStyle = `rgba(187,247,208,${0.6 + 0.35 * blink})`; ctx.fillRect(at(cur), y, at(cur + now) - at(cur), h); }
+  ctx.restore();
+}
+
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
 const rr = Math.min(r, w / 2, h / 2);
 ctx.beginPath();
@@ -451,6 +462,29 @@ let aimedMove: ReturnType<typeof moveKind> = null;
 let struckFoes: Set<number> | null = null;
 let aimedAccuracy: string | undefined;
 let aimedAim: TilePosition | null = null;
+// A defensive move's preview: what each one it covers gets back (shares of their bars), the outline of its guard, where it steps you
+type Gain = { now: number; later: number; sNow: number; sLater: number };
+const defendGain = new Map<string, Gain>();       // 'player' or 'ally:k'
+const guardOutline = new Map<string, { color: string; dashed: boolean }>(); // tile -> outline
+let defendPick: Set<string> | null = null;        // tiles you can tap to choose who it covers
+let defendStepTo: TilePosition | null = null;
+if (selectedAction?.defend && phase === 'player_turn') {
+  const fs = useCombat.getState(), d = selectedAction.defend;
+  const { who, mult } = Fight.defendTargets(fs, selectedAction, fs.aim);
+  const a = Fight.defendAmounts(fs, selectedAction, mult);
+  const turns = d.turns ?? 0;
+  const guard = a.physCut > 0 && a.specialCut > 0 ? '#ffffff' : a.physCut > 0 ? '#ffb43a' : a.specialCut > 0 ? '#a78bfa' : d.counter || d.anchor ? '#ffffff' : null;
+  for (const w of who) {
+    const ally = w.kind === 'ally';
+    defendGain.set(ally ? `ally:${w.k}` : 'player', ally
+      ? { now: a.heal + a.repair * 0.5, later: (a.healOver + a.repairOver * 0.5) * turns, sNow: 0, sLater: 0 }
+      : { now: a.heal, later: a.healOver * turns, sNow: a.repair, sLater: a.repairOver * turns });
+    const p = ally ? fs.allies[w.k].pos : fs.grid.playerPosition;
+    if (guard) guardOutline.set(`${p.row},${p.col}`, { color: guard, dashed: !a.physCut && !a.specialCut });
+  }
+  if (d.reach && (d.targets === 'focused' || d.targets === 'split2')) defendPick = new Set(Fight.defendCandidates(fs, selectedAction).map(w => { const p = w.kind === 'player' ? fs.grid.playerPosition : fs.allies[w.k].pos; return `${p.row},${p.col}`; }));
+  defendStepTo = Fight.defendStep(fs, selectedAction);
+}
 // Into the Breach's preview: how much of each struck enemy's health this hit will take (no crits)
 const hitPreview = new Map<number, { min: number; max: number }>();
 // Is a tile somewhere a shoved body can't go (off the board, cover, a wall, someone standing there)?
@@ -645,6 +679,27 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     const dx = Math.sign(aimedAim.col - col) * away, dy = Math.sign(aimedAim.row - row) * away;
     const at = { x: pos.x, y: pos.y };
     if (dx || dy) overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, '#38d6f0', blockedAt(row + dy, col + dx)));
+  }
+  // A defensive move: its guard outlined on whoever it covers (amber physical, violet special, white both; dashed for a counter or anchor alone),
+  // a faint outline on everyone you could tap to cover instead, and an arrow where it steps you
+  const go = guardOutline.get(`${row},${col}`);
+  if (go || defendPick?.has(`${row},${col}`)) {
+    ctx.save();
+    roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
+    if (go) { ctx.strokeStyle = go.color; ctx.lineWidth = 3; ctx.globalAlpha = 0.75 + 0.25 * pulse; if (go.dashed) ctx.setLineDash([tileW * 0.1, tileW * 0.07]); }
+    else { ctx.strokeStyle = 'rgba(134,239,172,0.6)'; ctx.lineWidth = 1.5; ctx.setLineDash([tileW * 0.06, tileW * 0.06]); }
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (isPlayerTile && defendStepTo) {
+    const dx = Math.sign(defendStepTo.col - col), dy = Math.sign(defendStepTo.row - row), at = { x: pos.x, y: pos.y };
+    if (dx || dy) overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, '#38d6f0'));
+  }
+  if (defendStepTo && defendStepTo.row === row && defendStepTo.col === col) {
+    ctx.save();
+    roundRectPath(ctx, pos.x - tileW / 2 + gap + 2, pos.y - tileH / 2 + gap + 2, tileW - gap * 2 - 4, tileH - gap * 2 - 4, radius * 0.8);
+    ctx.strokeStyle = '#38d6f0'; ctx.lineWidth = 2; ctx.setLineDash([tileW * 0.08, tileW * 0.06]); ctx.globalAlpha = 0.85; ctx.stroke();
+    ctx.restore();
   }
   // Wind: two faint streaks drifting across every tile the way it blows
   if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
@@ -851,6 +906,16 @@ const barWidth = tileW * 0.9;
 const barY = playerPos.y + tileH / 2 + 5;
 
 drawUnitBar(ctx, playerPos.x, barY, barWidth, playerHpPercent, '#4ade80');
+const gain = defendGain.get('player');
+if (gain) {
+  drawGainFlash(ctx, playerPos.x, barY, barWidth, 5, playerHpPercent, gain.now, gain.later, now);
+  // Repairs show on a thin structure bar under it while you choose
+  if ((gain.sNow || gain.sLater) && player.maxStructuralHp > 0) {
+    const sf = player.currentStructuralHp / player.maxStructuralHp;
+    drawUnitBar(ctx, playerPos.x, barY + 7, barWidth, sf, '#cbd5e1');
+    drawGainFlash(ctx, playerPos.x, barY + 7, barWidth, 5, sf, gain.sNow, gain.sLater, now);
+  }
+}
 });
 
 // Allies: a host body in the ally's colour ring, with a bar in its colour
@@ -880,6 +945,8 @@ overlay.push(() => {
 const size = Math.max(tileW * 1.05, 28);
 const bw = tileW * 0.9, by = ap.y + tileH / 2 + 5;
 drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color);
+const ag = defendGain.get(`ally:${k}`);
+if (ag) drawGainFlash(ctx, ap.x, by, bw, 5, a.unit.currentHp / a.unit.maxHp, ag.now, ag.later, now);
 ctx.font = `700 ${Math.max(10, Math.floor(tileW * 0.2))}px Manrope, sans-serif`;
 ctx.textAlign = 'center';
 ctx.textBaseline = 'bottom';

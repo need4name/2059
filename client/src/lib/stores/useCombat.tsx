@@ -317,6 +317,7 @@ allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGua
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
 playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders,
+ward: s.ward, regen: s.regen,
 };
 };
 
@@ -335,7 +336,7 @@ grid: target ? { ...state.grid, bossPosition: target.pos, occupied: [...state.fo
 const reAim = () => {
 const { selectedAction, playerClass } = get();
 const attacking = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special');
-set({ aim: attacking ? Fight.bestAim(fightState(), selectedAction, playerClass) : null });
+set({ aim: attacking ? Fight.bestAim(fightState(), selectedAction, playerClass) : selectedAction?.defend ? Fight.defendAim(fightState(), selectedAction) : null });
 };
 
 // Engine events that make a sound
@@ -651,7 +652,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
@@ -883,9 +884,11 @@ if (!selectedAction || phase !== 'player_turn' || inputLocked) return;
 const action = selectedAction;
 
 if (action.type === 'brace' || action.type === 'defend') {
+if (action.defend && !Fight.canDefend(fightState(), action, get().hasMoved)) return;
+const aimAt = get().aim;
 set({ inputLocked: true, selectedAction: null });
 doer = { kind: 'player', move: action.name };
-apply(Fight.resolveBrace(fightState(), action));
+apply(action.defend ? Fight.resolveDefend(fightState(), action, aimAt) : Fight.resolveBrace(fightState(), action));
 finishPlayerAction(false);
 return;
 }
@@ -981,7 +984,17 @@ save(Fight.setTarget(fightState(), index));
 
 setAim: (tile) => {
 const { phase, inputLocked, selectedAction, playerClass } = get();
-if (phase !== 'player_turn' || inputLocked || !selectedAction || (selectedAction.type !== 'attack' && selectedAction.type !== 'special')) return false;
+if (phase !== 'player_turn' || inputLocked || !selectedAction) return false;
+// A defensive move that reaches others: tap yourself or an ally in reach
+if (selectedAction.defend) {
+  const d = selectedAction.defend;
+  if (!d.reach || d.targets === 'self' || d.targets === 'wide') return false;
+  const fs = fightState();
+  const ok = Fight.defendCandidates(fs, selectedAction).some(w => { const p = w.kind === 'player' ? fs.grid.playerPosition : fs.allies[w.k].pos; return p.row === tile.row && p.col === tile.col; });
+  if (ok) set({ aim: tile });
+  return ok;
+}
+if (selectedAction.type !== 'attack' && selectedAction.type !== 'special') return false;
 if (!Fight.aimTiles(fightState(), selectedAction, playerClass, tile).length) return false;
 set({ aim: tile });
 return true;

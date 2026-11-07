@@ -1,5 +1,5 @@
 import type { UpgradeEffect } from '../engine/upgrades';
-import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects, Targeting } from './types';
+import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects, Targeting, DefendKind, DefendSpec } from './types';
 import { MULTI_HIT } from './patterns';
 import { random } from '../engine/rng';
 import { augmentKind } from './types';
@@ -330,7 +330,11 @@ export function rollParts(item: Item): Item['parts'] {
   if (item.type !== 'augmentation' || !item.slot) return undefined;
   const group = groupOf(item.slot);
   const maker = makerOf(item);
-  if (!group || maker === 'HELIX') return undefined;
+  if (!group) return undefined;
+  // Some arms, legs and eyes are defensive (Helix's always are)
+  const def = rollDefense(item, group, maker);
+  if (def) return def;
+  if (maker === 'HELIX') return undefined;
   const r = item.rarity;
   const fits = (id: string) => HEADS[id].group === group && !HEADS[id].signature;
   let pool = Object.keys(HEADS).filter(id => fits(id) && (r === 'common' || r === 'uncommon' ? HEADS[id].basic : true));
@@ -383,7 +387,15 @@ export function partsText(item: Item): string | null {
     return [HOUSINGS[pp.housing]?.label, REGULATORS[pp.regulator]?.label, pp.trait ? `${TRAITS[pp.trait]?.label} trait` : null].filter(Boolean).join(' · ');
   }
   const group = item.slot ? groupOf(item.slot) : null;
-  if (!group || makerOf(item) === 'HELIX') return null;
+  if (!group) return null;
+  if (item.parts && DEF_HEADS[item.parts.head]) {
+    const p = item.parts;
+    const mods = p.mods.map(m => DEF_MODS[m]?.label).filter(Boolean);
+    const aim = p.targeting ? ` · ${TARGETING[p.targeting].label} targeting (${TARGETING[p.targeting].rarity})` : '';
+    const more = [LENSES[p.lens ?? '']?.label, COUPLINGS[p.coupling ?? '']?.label, CORES[p.core ?? '']?.label].filter(Boolean).map(x => ` · ${x}`).join('');
+    return `${DEF_HEADS[p.head].noun} head${aim}${more}${mods.length ? ` · ${mods.join(', ')}` : ''}`;
+  }
+  if (makerOf(item) === 'HELIX') return null;
   const t = T[group][makerOf(item)] ?? T[group].default;
   const parts = item.parts ?? legacyParts(item, group, t.pattern);
   const head = HEADS[parts.head];
@@ -417,8 +429,8 @@ export function partPerks<P extends { extraCooling: number; specialHeatTakenMult
 
 /** The quirk an implant carries, by name, or null: cards show it on its own line, in gold. */
 export function quirkOf(item: Item): string | null {
-  const q = item.parts?.mods.find(m => m in QUIRKS);
-  return q ? QUIRKS[q].label : null;
+  const q = item.parts?.mods.find(m => m in QUIRKS || m in DEF_QUIRKS);
+  return q ? (QUIRKS[q] ?? DEF_QUIRKS[q]).label : null;
 }
 
 /**
@@ -435,6 +447,8 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
   const cond = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
   const description = t.flavour;
 
+  const dh = item.parts ? DEF_HEADS[item.parts.head] : undefined;
+  if (dh) return defendAction(item, item.parts!, dh, maker, up);
   if (t.brace) {
     const guard = Math.round((t.guard ?? 8) * RARITY_DAMAGE[item.rarity] * cond * (1 + (up.guard ?? 0)));
     return { type: 'brace', name: t.name, description, defenseBoost: guard, heatGenerated: t.heat + (up.heat ?? 0) };
@@ -477,6 +491,146 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     ...(aimPart && aimPart.max ? { maxTargets: aimPart.max } : {}),
     ...(parts.targeting === 'focused' ? { focused: true } : {}),
     fromImplant: true,
+  };
+}
+
+// ── Defensive implant moves ──────────────────────────────────────────────────
+// Brace is the one defensive move every host has; every other one comes from an
+// implant and is built from parts like an attack. The head is which move; the
+// coupling what it protects (Dig in, Fall back, Second wind); the core its timing
+// (hot: all now; stock: some now, some after; cold: a drip over 3 turns, most in
+// total; pump: all now and Overload); the lens how reliable it is (clear: always,
+// a little weaker; cracked: rolls between 60% and 150%; for a counter, chance
+// against share); mods add extras; a quirk a rare rule. Rarity scales it all.
+// Sizes are shares of max health or the structure bar, set so even a poor one
+// gives back about one enemy hit (see docs/DESIGN.md, Defensive moves).
+
+export interface DefHead { group: Group; noun: string; kind: DefendKind; base: Partial<DefendSpec>; heat: number; reach?: number; flavour: string }
+export const DEF_HEADS: Record<string, DefHead> = {
+  patch:      { group: 'arm',  noun: 'Patch',       kind: 'patch',      base: { repair: 0.35 },                              heat: -4, reach: 2, flavour: 'Seals what it can reach.' },
+  cauterise:  { group: 'arm',  noun: 'Cauterise',   kind: 'cauterise',  base: { heal: 0.22, cleanse: true },                 heat: 12, reach: 2, flavour: 'Closes the wound with heat.' },
+  mend:       { group: 'arm',  noun: 'Mend',        kind: 'mend',       base: { heal: 0.2 },                                 heat: -4, reach: 3, flavour: 'Knits the flesh back.' },
+  counter:    { group: 'arm',  noun: 'Counter',     kind: 'counter',    base: { counter: { chance: 0.5, share: 0.4 } },      heat: 2,           flavour: 'Turns a blow back where it came from.' },
+  anchor:     { group: 'leg',  noun: 'Anchor',      kind: 'anchor',     base: { physCut: 0.4, anchor: true },                heat: -3, reach: 1, flavour: 'Locks the frame to the deck.' },
+  fallback:   { group: 'leg',  noun: 'Fall Back',   kind: 'fallback',   base: { repair: 0.2, step: 2 },                      heat: -4,          flavour: 'Gives ground and resets.' },
+  digin:      { group: 'leg',  noun: 'Dig In',      kind: 'digin',      base: { repair: 0.25, physCut: 0.2, needs: 'still' }, heat: -6,         flavour: 'Sets the feet and holds.' },
+  secondwind: { group: 'leg',  noun: 'Second Wind', kind: 'secondwind', base: { heal: 0.28, step: 1, needs: 'low' },         heat: -6,          flavour: 'Something left in the tank.' },
+  spguard:    { group: 'eyes', noun: 'Sp. Guard',   kind: 'spguard',    base: { specialCut: 0.4, specialHeatCut: 0.5 },      heat: -3, reach: 2, flavour: 'Filters what comes in on the light.' },
+};
+/** Extras a defensive move can carry. */
+export const DEF_MODS: Record<string, { label: string; spec: Partial<DefendSpec>; heat?: number }> = {
+  purge:   { label: 'Purge',     spec: { cleanse: true } },
+  chill:   { label: 'Coolant',   spec: {}, heat: -10 },
+  rush:    { label: 'Hastes you', spec: { haste: true } },
+  charge:  { label: 'Charge',    spec: { overload: 15 } },
+  rooted:  { label: 'Rooted',    spec: { anchor: true } },
+};
+/** Rare rules on defensive moves (epic and legendary only). */
+export const DEF_QUIRKS: Record<string, { label: string; spec: Partial<DefendSpec>; only?: DefendKind[] }> = {
+  laststand: { label: 'Last stand', spec: { lastStand: true } },
+  jolt:      { label: 'Jolting',    spec: { counterStun: true }, only: ['counter'] },
+};
+/** How often each maker's arms, legs and eyes are defensive (Helix always). */
+const DEF_CHANCE: Partial<Record<Maker, number>> = { HELIX: 1, CROWN: 0.35, PATCHWORK: 0.25 };
+const DEF_LEAN: Partial<Record<Maker, string[]>> = {
+  HELIX: ['patch', 'anchor', 'digin', 'spguard'], CROWN: ['mend', 'secondwind', 'spguard'], CBN: ['cauterise', 'counter'],
+  IOA: ['cauterise', 'fallback'], VOLKOV: ['counter', 'anchor'], KIZUNA: ['counter', 'spguard', 'fallback'], PARSU: ['anchor', 'digin'],
+  TIANXIA: ['anchor', 'patch', 'digin'], PATCHWORK: ['patch'],
+};
+const DEF_MOD_LEAN: Partial<Record<Maker, string[]>> = {
+  HELIX: ['rooted', 'chill'], CROWN: ['purge', 'chill'], CBN: ['charge', 'purge'], IOA: ['rush', 'charge'], VOLKOV: ['charge', 'rooted'],
+  KIZUNA: ['chill', 'rush'], PARSU: ['rooted'], TIANXIA: ['chill', 'rooted'], PATCHWORK: Object.keys(DEF_MODS),
+};
+const RARITY_INDEX: Record<ItemRarity, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+
+/** Roll a defensive implant's parts, or null if this one is an attack (seeded). */
+function rollDefense(item: Item, group: Group, maker: Maker): NonNullable<Item['parts']> | null {
+  if (item.heads?.length) return null; // signature implants keep their heads
+  const chance = DEF_CHANCE[maker] ?? 0.2;
+  if (chance < 1 && random() >= chance) return null;
+  const fits = Object.keys(DEF_HEADS).filter(id => DEF_HEADS[id].group === group);
+  if (!fits.length) return null;
+  const usual = (DEF_LEAN[maker] ?? []).filter(id => fits.includes(id));
+  const head = usual.length && random() < 0.6 ? pick(usual) : pick(fits);
+  const r = item.rarity;
+  const count = r === 'common' ? 0 : r === 'uncommon' ? (random() < 0.5 ? 1 : 0) : r === 'rare' ? 1 : 2;
+  const modPool = DEF_MOD_LEAN[maker]?.length ? DEF_MOD_LEAN[maker]! : Object.keys(DEF_MODS);
+  const mods: string[] = [];
+  for (let k = 0; k < count; k++) { const m = pick(modPool); if (!mods.includes(m)) mods.push(m); }
+  const qc = QUIRK_CHANCE[r] ?? 0;
+  if (qc && random() < qc) {
+    const q = pick(Object.keys(DEF_QUIRKS).filter(id => !DEF_QUIRKS[id].only || DEF_QUIRKS[id].only!.includes(DEF_HEADS[head].kind)));
+    mods.push(q);
+  }
+  const targeting = DEF_HEADS[head].reach ? rollTargeting(r) : undefined;
+  const lens = lean(maker, 'lens', LENSES), coupling = lean(maker, 'coupling', COUPLINGS), core = random() < 0.4 ? 'stock' : lean(maker, 'core', CORES);
+  return { head, mods, ...(targeting ? { targeting } : {}), lens, coupling, core };
+}
+
+/** The move a defensive implant gives you, from its parts, with its upgrade tree's effect on top. */
+function defendAction(item: Item, parts: NonNullable<Item['parts']>, h: DefHead, maker: Maker, up: UpgradeEffect): CombatAction {
+  const ri = RARITY_INDEX[item.rarity] ?? 0;
+  const cond = CONDITION_MULT[item.condition ?? 'pristine'] ?? 1;
+  const boost = 1 + (up.dmg ?? 0) + (up.guard ?? 0);
+  const amt = RARITY_DAMAGE[item.rarity] * cond * boost;
+  const d: DefendSpec = { kind: h.kind, ...h.base };
+  let heat = h.heat;
+  // What it protects (the moves that could go either way)
+  if (h.kind === 'digin' || h.kind === 'fallback' || h.kind === 'secondwind') {
+    const total = (d.heal ?? 0) + (d.repair ?? 0);
+    const c = parts.coupling ?? 'servo';
+    if (c === 'hydraulic') { d.repair = total; d.heal = undefined; }
+    else if (c === 'arc' || c === 'thermal') { d.heal = total; d.repair = undefined; }
+    else { d.heal = total * 0.6; d.repair = total * 0.6; }
+  }
+  // Strength from rarity and condition
+  if (d.heal) d.heal *= amt;
+  if (d.repair) d.repair *= amt;
+  const cut = (x?: number) => (x ? Math.min(0.85, (x + 0.07 * ri) * cond * boost) : undefined);
+  d.physCut = cut(d.physCut); d.specialCut = cut(d.specialCut);
+  // The lens: how reliable
+  const lens = parts.lens ?? 'stock';
+  if (d.counter) {
+    const [ch, sh] = lens === 'clear' ? [1, 0.25] : lens === 'cracked' ? [0.25, 0.6] : [0.5, 0.4];
+    d.counter = { chance: Math.min(1, ch * (1 + 0.2 * ri) + (up.chance ?? 0)), share: Math.min(1, sh * (1 + 0.15 * ri) * cond * boost) };
+  } else if (lens === 'clear') { if (d.heal) d.heal *= 0.9; if (d.repair) d.repair *= 0.9; }
+  else if (lens === 'cracked') d.roll = [0.6, 1.5];
+  // The core: timing for what it gives back, strength against heat for what it guards
+  const core = parts.core ?? 'stock';
+  const gives = !!(d.heal || d.repair);
+  if (gives) {
+    const split = (now: number, over: number, turns: number) => {
+      if (d.heal) { d.healOver = d.heal * over; d.heal *= now; }
+      if (d.repair) { d.repairOver = d.repair * over; d.repair *= now; }
+      if (over) d.turns = turns;
+    };
+    if (core === 'stock') split(0.6, 0.3, 2);
+    else if (core === 'cold') { split(0, 0.5, 3); heat -= 8; }
+    else if (core === 'hot') heat += 6;
+    else if (core === 'pump') { d.overload = (d.overload ?? 0) + 15; heat += 3; }
+  } else {
+    if (core === 'hot') { if (d.physCut) d.physCut = Math.min(0.85, d.physCut + 0.1); if (d.specialCut) d.specialCut = Math.min(0.85, d.specialCut + 0.1); heat += 6; }
+    else if (core === 'cold') { if (d.physCut) d.physCut -= 0.05; if (d.specialCut) d.specialCut -= 0.05; heat -= 8; }
+    else if (core === 'pump') d.overload = (d.overload ?? 0) + 15;
+  }
+  // Mods and quirks
+  for (const m of parts.mods) {
+    const mod = DEF_MODS[m], q = DEF_QUIRKS[m];
+    if (mod) { Object.assign(d, mod.spec.overload ? { overload: (d.overload ?? 0) + mod.spec.overload } : mod.spec); heat += mod.heat ?? 0; }
+    if (q) Object.assign(d, q.spec);
+  }
+  // Who it reaches
+  if (h.reach) {
+    d.reach = h.reach;
+    const t = parts.targeting;
+    d.targets = t === 'wide' ? 'wide' : t === 'split2' || t === 'split3' ? 'split2' : 'focused';
+  } else d.targets = 'self';
+  const round = (x?: number) => (x ? Math.round(x * 100) / 100 : undefined);
+  for (const k of ['heal', 'healOver', 'repair', 'repairOver', 'physCut', 'specialCut'] as const) d[k] = round(d[k]);
+  return {
+    type: 'defend', name: `${MAKER_PARTS[maker].word} ${h.noun}`, description: h.flavour,
+    heatGenerated: heat + (up.heat ?? 0), defend: d, maker, fromImplant: true,
+    side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,
   };
 }
 

@@ -9,7 +9,7 @@ import { getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
 import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx } from '../hud';
-import { stimInfo, statusText } from '../itemText';
+import { stimInfo, statusText, defendSummary } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -139,6 +139,8 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   const isAttack = action.type === 'attack' || action.type === 'special';
   // The extra step after acting (Reflex loop): only a step or a pass, so every move is greyed out
   const stepOnly = !!s.reflexMoveOpen;
+  // Dig in needs you not to have moved; Second wind needs you under half health
+  const usable = !action.defend || Fight.canDefend(s, action, s.hasMoved);
   // Estimates are against whoever this attack would hit (its current aim when picked, else its best aim)
   const aim = isAttack ? (selected && s.aim ? s.aim : Fight.bestAim(s, action, s.playerClass)) : null;
   const struck = aim ? Fight.struckAt(s, action, s.playerClass, aim) : [];
@@ -151,10 +153,10 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   return (
     <button
       onClick={() => setSelectedAction(selected ? null : action)}
-      disabled={phase !== 'player_turn' || inputLocked || stepOnly}
+      disabled={phase !== 'player_turn' || inputLocked || stepOnly || !usable}
       aria-pressed={selected}
       className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
-        selected ? 'key key-selected' : 'key', stepOnly && 'opacity-45 grayscale')}
+        selected ? 'key key-selected' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale')}
     >
       <span className={`w-full truncate font-display text-[13px] font-semibold ${tone}`}>{action.name}</span>
       {isAttack ? (
@@ -165,6 +167,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">
         {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}{struck.length > 1 ? ` ×${struck.length}` : ''}</span>}
         {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} guard</span> : null}
+        {defendSummary(action) && <span className="text-ok">{defendSummary(action)}</span>}
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
         {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
       </span>
@@ -331,7 +334,7 @@ function ActionBar() {
   const [confirmExit, setConfirmExit] = useState(false);
   const stims = items.filter(i => i.type === 'consumable');
   const myTurn = phase === 'player_turn' && !inputLocked;
-  const status = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special') ? statusText(selectedAction) : null;
+  const status = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special' || selectedAction.defend) ? statusText(selectedAction) : null;
 
   return (
     <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>

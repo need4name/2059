@@ -142,6 +142,10 @@ function playerTurn(skill: number) {
   // The strongest attack that hits anyone from here; picking it aims it at its best tiles
   let act = atks.find(a => F.canPlayerHitAny(C.getState() as any, a, C.getState().playerClass));
   if ((s.playerMalfunctioning || s.playerHeat >= 85) && brace && botRandom() < skill) act = brace;
+  // Hurt with a heal or repair move to hand: use it (a sensible player patches up before it's too late)
+  const now = C.getState();
+  const mend = slots.find(a => a.defend && (a.defend.heal || a.defend.healOver || a.defend.repair) && F.canDefend(now as any, a, now.hasMoved));
+  if (mend && now.player.currentHp < now.player.maxHp * 0.45 && botRandom() < skill) act = mend;
   if (act) C.getState().setSelectedAction(act);
   C.getState().endTurn();
 }

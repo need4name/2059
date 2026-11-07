@@ -96,12 +96,67 @@ export function effectsText(action: CombatAction): string | null {
   return out.length ? out.join(' · ') : null;
 }
 
+const pc = (x?: number) => `${Math.round((x ?? 0) * 100)}%`;
+/** A defensive move's headline for its fight-bar button: what it mostly does, in two or three words. */
+export function defendSummary(action: CombatAction): string | null {
+  const d = action.defend;
+  if (!d) return null;
+  if (d.counter) return `${pc(d.counter.chance)} counter`;
+  const now = (d.heal ?? 0) + (d.repair ?? 0), over = ((d.healOver ?? 0) + (d.repairOver ?? 0)) * (d.turns ?? 0);
+  if (now || over) return `${d.heal || d.healOver ? 'heal' : 'repair'} ${pc(now + over)}${over && !now ? ' slow' : ''}`;
+  if (d.physCut || d.specialCut) return `guard ${pc(Math.max(d.physCut ?? 0, d.specialCut ?? 0))}`;
+  return null;
+}
+/** Everything a defensive move does, in plain words, for cards out of a fight. */
+export function defendText(action: CombatAction): string | null {
+  const d = action.defend;
+  if (!d) return null;
+  const who = d.targets === 'wide' ? `you and every ally within ${d.reach}` : d.targets === 'split2' ? `you and an ally within ${d.reach}` : d.targets === 'focused' ? `you or an ally within ${d.reach}` : null;
+  const gives = (what: string, now?: number, over?: number) => now || over
+    ? `${what} ${[now ? `${pc(now)} now` : '', over ? `${pc(over)} a turn for ${d.turns} turns` : ''].filter(Boolean).join(' and ')}`
+    : null;
+  return [
+    who,
+    gives('heals', d.heal, d.healOver),
+    gives('repairs', d.repair, d.repairOver),
+    d.physCut && `physical hits ${pc(d.physCut)} softer`,
+    d.specialCut && `special hits ${pc(d.specialCut)} softer`,
+    d.specialHeatCut && `special hits heat you ${pc(d.specialHeatCut)} less`,
+    d.counter && `${pc(d.counter.chance)} chance to send ${pc(d.counter.share)} of a hit back`,
+    d.counterStun && 'a counter stuns',
+    d.anchor && "can't be shoved",
+    d.step && `you step ${d.step === 1 ? 'a tile' : `${d.step} tiles`} back`,
+    d.cleanse && 'stops bleeding and burning',
+    d.overload && `+${d.overload} Overload`,
+    d.haste && 'you act sooner',
+    d.roll && 'can land weak or strong',
+    d.lastStand && 'twice as strong under 30% health',
+    d.needs === 'still' && "only if you haven't moved",
+    d.needs === 'low' && 'only under half health',
+    d.physCut || d.specialCut || d.counter || d.anchor ? 'lasts until your next turn' : null,
+  ].filter(Boolean).join(' · ');
+}
+
 /**
  * Only what the board can't show, for the line above the fight bar: what it does to them
  * and to you. Moving (shoves, drags, dashes, leaps, steps), the damage type, aim, targets
  * and heat push all show on the tiles instead.
  */
 export function statusText(action: CombatAction): string | null {
+  const d = action.defend;
+  if (d) {
+    // Heals show on the bars, guards as an outline, steps as an arrow: the rest in words
+    const out = [
+      d.counter && `${pc(d.counter.chance)} chance to send ${pc(d.counter.share)} back`,
+      d.counterStun && 'stuns',
+      d.anchor && "can't be shoved",
+      d.cleanse && 'stops bleeding and burning',
+      d.overload && `+${d.overload} Overload`,
+      d.haste && 'you act sooner',
+      d.roll && 'can land weak or strong',
+    ].filter(Boolean);
+    return out.length ? out.join(' · ') : null;
+  }
   const fx = action.effects ?? {};
   const out = [
     fx.bleed && 'bleeds',

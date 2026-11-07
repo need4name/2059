@@ -15,7 +15,7 @@ import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
 import firmware from '../client/src/content/firmware.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
-import { MAKER_INFO, HEADS, MODS, QUIRKS } from '../client/src/lib/combat/augments';
+import { MAKER_INFO, HEADS, MODS, QUIRKS, DEF_HEADS } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
@@ -159,7 +159,7 @@ const upgradeKind = z.object({
     trait: z.array(z.enum(['tough', 'quick', 'charged', 'shod'])).min(1),
   }).partial().strict().optional(),
   effect: z.object({
-    dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), transfer: z.number().int().min(1).max(10), phys: z.number().min(-0.3).max(0.3), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
+    dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), chance: z.number().gt(0).max(0.5), transfer: z.number().int().min(1).max(10), phys: z.number().min(-0.3).max(0.3), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
     attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
     fx: fxFields,
     perk: z.object({
@@ -310,7 +310,7 @@ export function checkContent(): string[] {
     }
     // Part names must be real: heads are head ids or 'wide' / 'mover', mods are mod or quirk ids
     for (const sec of ['kinds', 'capstones', 'legendary'] as const) for (const [kind, list] of Object.entries(ur.data[sec])) for (const k of list) {
-      for (const h of k.parts?.head ?? []) if (!(h in HEADS) && h !== 'wide' && h !== 'mover') problems.push(`upgrades.json ${sec}.${kind}.${k.id}: unknown head "${h}"`);
+      for (const h of k.parts?.head ?? []) if (!(h in HEADS) && !(h in DEF_HEADS) && h !== 'wide' && h !== 'mover') problems.push(`upgrades.json ${sec}.${kind}.${k.id}: unknown head "${h}"`);
       for (const m of k.parts?.mod ?? []) if (!(m in MODS) && !(m in QUIRKS)) problems.push(`upgrades.json ${sec}.${kind}.${k.id}: unknown mod "${m}"`);
     }
     for (const [kind, list] of Object.entries(ur.data.kinds)) {

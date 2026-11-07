@@ -609,6 +609,68 @@
         "effect": {
           "move": 1
         }
+      },
+      {
+        "id": "longdrip",
+        "name": "Longer drip",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "cold"
+          ]
+        },
+        "effect": {
+          "guard": 0.15
+        }
+      },
+      {
+        "id": "hairtrigger",
+        "name": "Hair trigger",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "counter"
+          ]
+        },
+        "effect": {
+          "chance": 0.15
+        }
+      },
+      {
+        "id": "cleanburn",
+        "name": "Clean burn",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "hot",
+            "pump"
+          ]
+        },
+        "effect": {
+          "guard": 0.08,
+          "heat": -3
+        }
+      },
+      {
+        "id": "steadyhand",
+        "name": "Steady hand",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "clear"
+          ]
+        },
+        "effect": {
+          "guard": 0.12
+        }
       }
     ],
     "passive": [
@@ -1306,6 +1368,67 @@
         "effect": {
           "evasion": 5,
           "defense": 3
+        }
+      },
+      {
+        "id": "bulwark",
+        "name": "Bulwark",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "clear"
+          ],
+          "head": [
+            "anchor",
+            "spguard",
+            "digin"
+          ]
+        },
+        "effect": {
+          "guard": 0.3,
+          "defense": 3
+        }
+      },
+      {
+        "id": "lifeline",
+        "name": "Lifeline",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "cold"
+          ],
+          "head": [
+            "mend",
+            "patch",
+            "cauterise"
+          ]
+        },
+        "effect": {
+          "guard": 0.35,
+          "hp": 10
+        }
+      },
+      {
+        "id": "riposte",
+        "name": "Riposte",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "cracked"
+          ],
+          "head": [
+            "counter"
+          ]
+        },
+        "effect": {
+          "chance": 0.25,
+          "guard": 0.2
         }
       }
     ],

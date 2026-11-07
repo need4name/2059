@@ -16,7 +16,7 @@ import { useTutorial } from '@/lib/stores/useTutorial';
 import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
-import { rangeText, effectsText, nameOf } from '../itemText';
+import { rangeText, effectsText, defendText, nameOf } from '../itemText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
@@ -66,6 +66,7 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
       {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat} heat</span>}
       {targetsText(a) && <span className="font-semibold text-cred">{targetsText(a)}</span>}
       {effectsText(a) && <span className="text-ok/90">{effectsText(a)}</span>}
+      {defendText(a) && <span className="text-ok/90">{defendText(a)}</span>}
       {(a.type === 'attack' || a.type === 'special') && <span className="text-orange-300/90">Hot: {hotText(a)}</span>}
     </span>
   );

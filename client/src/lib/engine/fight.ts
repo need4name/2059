@@ -17,13 +17,14 @@ import {
   calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
+import type { DamageResult } from '../combat/actions';
 import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
 import { isImpassable, inBounds } from '../combat/grid';
-import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach } from '../combat/grid';
+import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach, stepDistances } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
 import type { SurgeKind } from './playi';
 import { random } from './rng';
-import { makerOf, type Maker } from '../combat/augments';
+import { makerOf, TARGETING, type Maker } from '../combat/augments';
 import { NO_PERKS, type Perks } from './playi';
 
 // ── Tuning ────────────────────────────────────────────────────────────────────
@@ -149,6 +150,9 @@ export interface Ally {
   defenseBoost: number;
   burning: number;
   stunned: boolean;
+  /** A defensive move's cover, and healing still to come (from the player's moves). */
+  ward?: Ward | null;
+  regen?: Regen | null;
   /** Knocked into the sea: can't be hit, and spends its next turn climbing out. */
   swimming?: boolean;
   /** Its own speed: allies take their own turns on the clock (SPEED.base is average). */
@@ -211,7 +215,16 @@ export interface FightState {
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
   overload: number;
+  /** A defensive move's cover on you, until your next turn (resolveDefend). */
+  ward?: Ward | null;
+  /** Healing or repair still to come at the start of your next turns (a drip). */
+  regen?: Regen | null;
 }
+
+/** Cover from a defensive move, until the covered one's next turn. */
+export interface Ward { physCut: number; specialCut: number; specialHeatCut: number; counter?: { chance: number; share: number; stun?: boolean }; anchored?: boolean }
+/** Health and structure given back at the start of each of the next `turns` turns. */
+export interface Regen { hp: number; structure: number; turns: number }
 
 export type FightEvent =
   | { kind: 'log'; message: string; type: CombatLog['type'] }
@@ -652,8 +665,17 @@ export function startPlayerTurn(s: FightState): FightState {
   const playerHeat = clampHeat(s.playerHeat - PASSIVE_COOLING - s.perks.extraCooling);
   // Redline: once a fight, a turn started at 86+ heat gets a second action
   const redline = s.perks.redline && !s.redlineUsed && playerHeat >= 86;
+  // Guards and cover last until now; drips give back their share
+  const drip = (c: Character, r: Regen | null | undefined) => r && r.turns > 0 && c.currentHp > 0
+    ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + r.hp), currentStructuralHp: Math.min(c.maxStructuralHp, c.currentStructuralHp + r.structure) } : c;
+  const next = (r: Regen | null | undefined) => (r && r.turns > 1 ? { ...r, turns: r.turns - 1 } : null);
+  const player = drip(s.player, s.regen);
   return {
     ...s,
+    player,
+    playerMalfunctioning: s.playerMalfunctioning && player.currentStructuralHp <= 0,
+    playerDefenseBoost: 0, allyGuard: 0, ward: null, regen: next(s.regen),
+    allies: s.allies.map(a => ({ ...a, unit: drip(a.unit, a.regen), regen: next(a.regen), ward: null })),
     playerHeat,
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: (s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat) || redline,
@@ -931,6 +953,158 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
   };
   // Venting from high heat: the heat let out hits every enemy beside you
   if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, (s.playerHeat - heat) * s.perks.ventMult, events, 'Vent burst'), events);
+  // Holding your ground builds toward the Surge
+  state = gainOverload(state, BRACE_OVERLOAD);
+  return { state, events };
+}
+
+/** Overload a Brace adds. */
+export const BRACE_OVERLOAD = 10;
+
+// ── Defensive implant moves ──────────────────────────────────────────────────
+
+/** A hit after a ward: physical and special cut, then a counter may send a share back (taken off what lands). */
+export function wardHit(d: DamageResult, ward: Ward | null | undefined, structure: number): { dmg: DamageResult; sentBack: number } {
+  if (!ward) return { dmg: d, sentBack: 0 };
+  let phys = Math.round((d.damage - d.specialDamage) * (1 - ward.physCut));
+  let special = Math.round(d.specialDamage * (1 - ward.specialCut));
+  let sentBack = 0;
+  if (ward.counter && random() < ward.counter.chance) {
+    const share = Math.min(1, ward.counter.share);
+    sentBack = Math.round((phys + special) * share);
+    phys = Math.round(phys * (1 - share)); special = Math.round(special * (1 - share));
+  }
+  const soaked = Math.min(phys, Math.max(0, structure));
+  return { dmg: { ...d, damage: phys + special, bioDamage: phys - soaked + special, structuralDamage: soaked, specialDamage: special }, sentBack };
+}
+
+/** A counter's share of a hit, straight to the attacker's health (and a stun, with the quirk). */
+function counterHit(s: FightState, i: number, amount: number, stun: boolean, events: FightEvent[]): FightState {
+  const foe = s.foes[i];
+  if (!foe || !isAlive(foe)) return s;
+  const hp = Math.max(0, foe.unit.currentHp - amount);
+  events.push(say(`Countered: ${amount} back at ${foe.unit.name}${stun && hp > 0 ? ', stunned' : ''}`, 'damage'));
+  let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp }, ...(stun && hp > 0 ? { stunned: true } : {}) });
+  if (hp <= 0) { events.push(say(`${foe.unit.name} is down`, 'critical')); events.push({ kind: 'foeDown', foe: i }); state = afterFoeChanges(state, events); }
+  return state;
+}
+
+/** Who a defensive move can cover from here: you, and allies within its reach. */
+export function defendCandidates(s: FightState, action: CombatAction): ({ kind: 'player' } | { kind: 'ally'; k: number })[] {
+  const d = action.defend;
+  const out: ({ kind: 'player' } | { kind: 'ally'; k: number })[] = [{ kind: 'player' }];
+  if (!d || !d.reach || d.targets === 'self') return out;
+  s.allies.forEach((a, k) => { if (allyAlive(a) && chebyshev(s.grid.playerPosition, a.pos) <= d.reach!) out.push({ kind: 'ally', k }); });
+  return out;
+}
+const hurtShare = (s: FightState, w: { kind: 'player' } | { kind: 'ally'; k: number }) => {
+  const c = w.kind === 'player' ? s.player : s.allies[w.k].unit;
+  return c.currentHp / Math.max(1, c.maxHp);
+};
+/** Where a defensive move points by default: whoever is most hurt that it can reach. */
+export function defendAim(s: FightState, action: CombatAction): TilePosition | null {
+  if (!action.defend?.reach || action.defend.targets === 'self' || action.defend.targets === 'wide') return null;
+  const c = defendCandidates(s, action);
+  const pool = action.defend.targets === 'split2' ? c.filter(w => w.kind === 'ally') : c;
+  if (!pool.length) return null;
+  return posOf(s, pool.slice().sort((a, b) => hurtShare(s, a) - hurtShare(s, b))[0]);
+}
+/** Everyone a defensive move covers, aimed at `aim` (yours or an ally's tile), and how strong it is on each. */
+export function defendTargets(s: FightState, action: CombatAction, aim: TilePosition | null): { who: ({ kind: 'player' } | { kind: 'ally'; k: number })[]; mult: number } {
+  const d = action.defend;
+  const c = defendCandidates(s, action);
+  if (!d || !d.reach || !d.targets || d.targets === 'self' || c.length === 1) return { who: [{ kind: 'player' }], mult: 1 };
+  if (d.targets === 'wide') return { who: c, mult: TARGETING.wide.mult };
+  const at = aim ?? defendAim(s, action);
+  const picked = c.find(w => at && same(posOf(s, w), at));
+  if (d.targets === 'focused') return { who: [picked ?? { kind: 'player' }], mult: TARGETING.focused.mult };
+  const ally = picked && picked.kind === 'ally' ? picked : c.find(w => w.kind === 'ally');
+  return { who: ally ? [{ kind: 'player' }, ally] : [{ kind: 'player' }], mult: TARGETING.split2.mult };
+}
+/** Can this defensive move be used now? (Dig in needs you not to have moved; Second wind needs you under half health.) */
+export function canDefend(s: FightState, action: CombatAction, hasMoved: boolean): boolean {
+  const n = action.defend?.needs;
+  if (n === 'still') return !hasMoved;
+  if (n === 'low') return s.player.currentHp < s.player.maxHp * 0.5;
+  return true;
+}
+/** Where a stepping defensive move takes you: as far from the nearest enemy as it can, within its steps. */
+export function defendStep(s: FightState, action: CombatAction): TilePosition | null {
+  const n = action.defend?.step;
+  if (!n) return null;
+  const foes = s.foes.filter(hittable).map(f => f.pos);
+  const blocked = [...foes, ...s.allies.filter(allyAlive).map(a => a.pos)];
+  const dist = stepDistances(s.grid.playerPosition, s.grid, blocked);
+  const near = (p: TilePosition) => (foes.length ? Math.min(...foes.map(f => chebyshev(p, f))) : 0);
+  let best: TilePosition | null = null, score = near(s.grid.playerPosition);
+  dist.forEach((d: number, k: string) => {
+    if (d < 1 || d > n) return;
+    const [row, col] = k.split(',').map(Number), p = { row, col };
+    const t = s.grid.tiles?.[row]?.[col];
+    if (!t || t.type === 'hazard' || t.type === 'obstacle' || t.type === 'void') return;
+    const sc = near(p) - d * 0.01;
+    if (sc > score) { score = sc; best = p; }
+  });
+  return best;
+}
+/** How much a defensive move gives each (as shares), after last stand and the target count; the roll is left to resolveDefend. */
+export function defendAmounts(s: FightState, action: CombatAction, mult: number) {
+  const d = action.defend!;
+  const stand = d.lastStand && s.player.currentHp < s.player.maxHp * 0.3 ? 2 : 1;
+  const m = mult * stand;
+  return {
+    heal: (d.heal ?? 0) * m, healOver: (d.healOver ?? 0) * m, repair: (d.repair ?? 0) * m, repairOver: (d.repairOver ?? 0) * m,
+    physCut: Math.min(0.9, (d.physCut ?? 0) * m), specialCut: Math.min(0.9, (d.specialCut ?? 0) * m),
+  };
+}
+
+/** Use a defensive implant move: heal, repair, guard, counter, anchor, step back, on you and whoever it covers. */
+export function resolveDefend(s: FightState, action: CombatAction, aim: TilePosition | null): Step {
+  const d = action.defend;
+  if (!d) return resolveBrace(s, action);
+  const events: FightEvent[] = [];
+  const { who, mult } = defendTargets(s, action, aim);
+  const roll = d.roll ? d.roll[0] + random() * (d.roll[1] - d.roll[0]) : 1;
+  const a = defendAmounts(s, action, mult * roll);
+  const ward = (): Ward => ({ physCut: a.physCut, specialCut: a.specialCut, specialHeatCut: d.specialHeatCut ?? 0, ...(d.counter ? { counter: { chance: d.counter.chance, share: d.counter.share * roll, stun: d.counterStun } } : {}), ...(d.anchor ? { anchored: true } : {}) });
+  const covers = a.physCut > 0 || a.specialCut > 0 || !!d.counter || !!d.anchor || !!d.specialHeatCut;
+  let state: FightState = { ...s };
+  const said: string[] = [];
+  for (const w of who) {
+    if (w.kind === 'player') {
+      const p = state.player;
+      const hp = Math.min(p.maxHp, p.currentHp + Math.round(p.maxHp * a.heal));
+      const st = Math.min(p.maxStructuralHp, p.currentStructuralHp + Math.round(p.maxStructuralHp * a.repair));
+      if (hp > p.currentHp) said.push(`+${hp - p.currentHp} health`);
+      if (st > p.currentStructuralHp) said.push(`+${st - p.currentStructuralHp} structure`);
+      state = {
+        ...state, player: { ...p, currentHp: hp, currentStructuralHp: st },
+        playerMalfunctioning: state.playerMalfunctioning && st <= 0,
+        ...(a.healOver || a.repairOver ? { regen: { hp: Math.round(p.maxHp * a.healOver), structure: Math.round(p.maxStructuralHp * a.repairOver), turns: d.turns ?? 2 } } : {}),
+        ...(covers ? { ward: ward() } : {}),
+        ...(d.cleanse ? { playerBleeding: 0, playerBurning: 0 } : {}),
+      };
+    } else {
+      const al = state.allies[w.k];
+      // Allies have no structure bar: repair heals them at half strength
+      const share = a.heal + a.repair * 0.5, over = a.healOver + a.repairOver * 0.5;
+      const hp = Math.min(al.unit.maxHp, al.unit.currentHp + Math.round(al.unit.maxHp * share));
+      if (hp > al.unit.currentHp) said.push(`${al.unit.name} +${hp - al.unit.currentHp}`);
+      state = { ...state, allies: state.allies.map((x, k) => (k === w.k ? {
+        ...x, unit: { ...x.unit, currentHp: hp },
+        ...(over ? { regen: { hp: Math.round(x.unit.maxHp * over), structure: 0, turns: d.turns ?? 2 } } : {}),
+        ...(covers ? { ward: { ...ward(), counter: undefined } } : {}),
+        ...(d.cleanse ? { burning: 0 } : {}),
+      } : x)) };
+    }
+  }
+  if (d.cleanse) said.push('bleeding and burning stopped');
+  events.push(say(`${action.name}${said.length ? ` -- ${said.join(', ')}` : ''}`, said.length ? 'heal' : 'info'));
+  state = { ...state, playerHeat: clampHeat(state.playerHeat + (action.heatGenerated ?? 0)) };
+  if (d.haste) state = { ...state, playerHasted: 2 };
+  if (d.overload) state = gainOverload(state, d.overload);
+  const to = defendStep(s, action);
+  if (to) state = { ...state, grid: { ...state.grid, playerPosition: to } };
   return { state, events };
 }
 
@@ -1100,7 +1274,8 @@ function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEve
  * stun chance, knockback, or being dragged toward the attacker.
  */
 function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction, dealt: number, events: FightEvent[]): FightState {
-  const fx = order(s) === 'noShoves' && action.effects ? { ...action.effects, knock: false, pull: false } : action.effects;
+  const pinned = (who.kind === 'player' && s.ward?.anchored) || (who.kind === 'ally' && s.allies[who.k]?.ward?.anchored);
+  const fx = (order(s) === 'noShoves' || pinned) && action.effects ? { ...action.effects, knock: false, pull: false } : action.effects;
   if (!fx) return s;
   const alive = who.kind === 'player' ? s.player.currentHp > 0 : who.kind === 'ally' ? allyAlive(s.allies[who.k]) : true;
   if (!alive) return s;
@@ -1504,14 +1679,15 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level, sweet);
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet;
-  const dmg = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [];
   const held = holdOn(s, Math.max(0, player.currentHp - dmg.bioDamage - spill), events);
   const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
-  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + Math.round(heatFromSpecial(dmg.specialDamage) * (s.perks.specialHeatTakenMult ?? 1)));
+  const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + Math.round(heatFromSpecial(dmg.specialDamage) * (s.perks.specialHeatTakenMult ?? 1) * (1 - (s.ward?.specialHeatCut ?? 0))));
 
 
   events.push({ kind: 'hit' });
@@ -1525,14 +1701,16 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     ...s,
     player: { ...player, currentHp: hp, currentStructuralHp: structure },
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
-    // A guard soaks one hit, so a crowd can't all hit a braced player at full guard
-    playerDefenseBoost: 0, allyGuard: 0,
+    // Your guard (Brace) holds against every hit until your next turn (startPlayerTurn ends it); an ally's Aegis soaks just one
+    allyGuard: 0,
     playerHeat,
     holdfastReady: held.holdfastReady,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   state = gainOverload(state, ((player.currentHp - hp) / Math.max(1, player.maxHp)) * OVERLOAD.taken);
-  // Knockback shoves you a tile straight back, or into whatever is behind you
-  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
+  // A counter sends part of the hit back at whoever threw it
+  if (sentBack > 0) state = counterHit(state, i, sentBack, !!s.ward?.counter?.stun, events);
+  // Knockback shoves you a tile straight back, or into whatever is behind you (not while anchored)
+  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0 && !s.ward?.anchored) state = knockBack(state, foe.pos, { kind: 'player' }, dmg.bioDamage, events);
   state = foeHitEffects(state, i, { kind: 'player' }, action, dmg.bioDamage, events);
   // Heat pushed onto you can tip you over; an enemy that runs itself to 100 burns out too
   if (hp > 0) state = burnout(state, events);
@@ -1543,14 +1721,14 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
 function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number, sweet = 1): Step {
   const foe = s.foes[i], ally = s.allies[k];
-  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
+  const dmg = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp).dmg;
   const lost = dmg.bioDamage + Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const hp = Math.max(0, ally.unit.currentHp - lost);
   const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
   if (hp <= 0) { events.push(say(`${ally.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: k }); }
   const allies = s.allies.map((a, n) => (n === k ? { ...a, unit: { ...a.unit, currentHp: hp }, defenseBoost: 0, taunting: hp > 0 && a.taunting } : a));
   let state = setFoe({ ...s, allies }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
-  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
+  if (action.attackPattern === 'knockback' && order(s) !== 'noShoves' && hp > 0 && !ally.ward?.anchored) state = knockBack(state, foe.pos, { kind: 'ally', k }, lost, events);
   state = foeHitEffects(state, i, { kind: 'ally', k }, action, lost, events);
   return { state, events };
 }

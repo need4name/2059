@@ -65,6 +65,47 @@ focused?: boolean;
 fromImplant?: boolean;
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
 effects?: ActionEffects;
+/** A defensive implant move (type 'defend'): what it does for you or your allies (engine/fight.ts resolveDefend). */
+defend?: DefendSpec;
+}
+
+export type DefendKind = 'patch' | 'cauterise' | 'mend' | 'counter' | 'anchor' | 'spguard' | 'fallback' | 'digin' | 'secondwind';
+/** What a defensive move does. Shares are of the target's max health or structure bar. */
+export interface DefendSpec {
+  kind: DefendKind;
+  /** Health given back now, and each turn for `turns` turns after. */
+  heal?: number; healOver?: number;
+  /** Structure repaired now, and each turn after. */
+  repair?: number; repairOver?: number;
+  turns?: number;
+  /** Share taken off physical / special hits until your next turn. */
+  physCut?: number; specialCut?: number;
+  /** Share off the heat special hits put into you until your next turn. */
+  specialHeatCut?: number;
+  /** Until your next turn, each hit has this chance to send this share of it back at whoever hit you (you take the rest). */
+  counter?: { chance: number; share: number };
+  /** Can't be shoved or dragged until your next turn. */
+  anchor?: boolean;
+  /** Stops bleeding and burning. */
+  cleanse?: boolean;
+  /** Overload added. */
+  overload?: number;
+  /** Act sooner for 2 rounds. */
+  haste?: boolean;
+  /** Steps away from the nearest enemy, this many tiles. */
+  step?: number;
+  /** Only when you haven't moved this turn (Dig in), or are under half health (Second wind). */
+  needs?: 'still' | 'low';
+  /** Twice as strong under 30% health (a quirk). */
+  lastStand?: boolean;
+  /** A counter that also stuns whoever it hits (a quirk). */
+  counterStun?: boolean;
+  /** Who it can reach: yourself only, or you and allies within this many tiles. */
+  reach?: number;
+  /** How many it covers (see TARGETING): one (you or an ally), you and one ally, or everyone in reach. */
+  targets?: 'self' | 'focused' | 'split2' | 'wide';
+  /** Strength roll (a cracked lens): the amounts land between these shares of themselves. */
+  roll?: [number, number];
 }
 
 export interface ActionEffects {

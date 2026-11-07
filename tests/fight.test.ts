@@ -476,20 +476,20 @@ test('bolts stop at the first body, pierces go through, long shots skip the near
 });
 
 test('implant parts: commons get basic heads and no mods, legendaries get two, and the same seed rolls the same parts', async () => {
-  const { rollParts, HEADS } = await import('../client/src/lib/combat/augments');
+  const { rollParts, HEADS, DEF_HEADS } = await import('../client/src/lib/combat/augments');
   const arm = (rarity: any, name = '[CBN] Test Arm') => ({ id: 'x', name, rarity, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '' });
   for (let k = 0; k < 30; k++) {
     seedRandom(k);
     const c = rollParts(arm('common'))!;
-    assert.ok(HEADS[c.head].basic, 'commons only roll basic heads');
+    assert.ok(HEADS[c.head]?.basic || c.head in DEF_HEADS, 'commons only roll basic heads (or a defensive move)');
     assert.equal(c.mods.length, 0);
     const l = rollParts(arm('legendary'))!;
-    assert.ok(l.mods.length >= 1 || HEADS[l.head].signature, 'legendaries carry mods or a signature');
+    assert.ok(l.mods.length >= 1 || HEADS[l.head]?.signature, 'legendaries carry mods or a signature');
   }
   seedRandom(9); const a = rollParts(arm('epic'));
   seedRandom(9); const b = rollParts(arm('epic'));
   assert.deepEqual(a, b);
-  assert.equal(rollParts(arm('rare', '[HELIX] Housing')), undefined, 'Helix parts are braces');
+  assert.ok(rollParts(arm('rare', '[HELIX] Housing'))!.head in DEF_HEADS, 'Helix arms are always defensive moves, built from parts');
 });
 
 test('wide shapes hit every enemy in them, common parts included', () => {
@@ -1054,4 +1054,82 @@ test('part upgrades change the move: more heat pushed, a shift toward special', 
   const fed = actionForItem(base, { transfer: 3, phys: -0.1 })!;
   assert.equal(fed.heatTransfer, plain.heatTransfer! + 3);
   assert.ok(fed.physicalRatio! < plain.physicalRatio!);
+});
+
+// ── Defensive implant moves ──────────────────────────────────────────────────
+const defend = (spec: any, heat = -4): CombatAction => ({ type: 'defend', name: 'Test Guard', description: '', heatGenerated: heat, defend: { targets: 'self', ...spec } });
+
+test('Brace guards every hit until your next turn and adds Overload', () => {
+  const braced = Fight.resolveBrace(fight({ player: withImplants() }), PLAYER_ACTIONS[1]).state;
+  assert.equal(braced.overload, Fight.BRACE_OVERLOAD);
+  seedRandom(5);
+  const once = Fight.resolveFoeAction(braced, 0, hitFor(30, 1), 1).state;
+  assert.equal(once.playerDefenseBoost, braced.playerDefenseBoost, 'the guard is still up for the next hit');
+  assert.equal(Fight.startPlayerTurn(once).playerDefenseBoost, 0, 'and drops at the start of your turn');
+});
+
+test('heals land now, drips land at the start of later turns', () => {
+  const hurt = fight({ player: { ...createPlayer(), currentHp: 40 } });
+  const now = Fight.resolveDefend(hurt, defend({ kind: 'mend', heal: 0.25 }), null).state;
+  assert.equal(now.player.currentHp, 40 + Math.round(hurt.player.maxHp * 0.25));
+  const drip = Fight.resolveDefend(hurt, defend({ kind: 'mend', healOver: 0.1, turns: 3 }), null).state;
+  assert.equal(drip.player.currentHp, 40, 'a drip gives nothing now');
+  const t1 = Fight.startPlayerTurn(drip), t2 = Fight.startPlayerTurn(t1), t3 = Fight.startPlayerTurn(t2), t4 = Fight.startPlayerTurn(t3);
+  const step = Math.round(hurt.player.maxHp * 0.1);
+  assert.deepEqual([t1, t2, t3, t4].map(t => t.player.currentHp), [40 + step, 40 + 2 * step, 40 + 3 * step, 40 + 3 * step], 'three turns of it, then it stops');
+});
+
+test('guards cut physical or special hits until your next turn; a counter sends a share back', () => {
+  const base = fight({ player: withImplants() });
+  seedRandom(8); const plain = Fight.resolveFoeAction(base, 0, hitFor(40, 1), 1).state;
+  const guarded = Fight.resolveDefend(base, defend({ kind: 'anchor', physCut: 0.5 }), null).state;
+  seedRandom(8); const cut = Fight.resolveFoeAction(guarded, 0, hitFor(40, 1), 1).state;
+  const lost = (s: any) => base.player.currentHp - s.player.currentHp + base.player.currentStructuralHp - s.player.currentStructuralHp;
+  assert.ok(lost(cut) < lost(plain), 'a physical guard softens a physical hit');
+  const spOnly = Fight.resolveDefend(base, defend({ kind: 'spguard', specialCut: 0.5 }), null).state;
+  seedRandom(8); assert.equal(lost(Fight.resolveFoeAction(spOnly, 0, hitFor(40, 1), 1).state), lost(plain), 'a special guard does nothing against a physical hit');
+  const countering = Fight.resolveDefend(base, defend({ kind: 'counter', counter: { chance: 1, share: 0.5 } }), null).state;
+  seedRandom(8); const back = Fight.resolveFoeAction(countering, 0, hitFor(40, 1), 1).state;
+  assert.ok(back.foes[0].unit.currentHp < base.foes[0].unit.currentHp, 'the attacker takes the share sent back');
+  assert.ok(lost(back) < lost(plain), 'and you take the rest');
+});
+
+test('an anchored host is not shoved; Dig in needs you still, Second wind needs you low; Fall back steps away', () => {
+  const base = fight({ grid: arena([5, 3], [4, 3]) });
+  const anchored = Fight.resolveDefend(base, defend({ kind: 'anchor', physCut: 0.3, anchor: true }), null).state;
+  seedRandom(2); const shove = Fight.resolveFoeAction(anchored, 0, { ...hitFor(10, 1), attackPattern: 'knockback' }, 1).state;
+  assert.deepEqual(shove.grid.playerPosition, base.grid.playerPosition);
+  assert.equal(Fight.canDefend(base, defend({ kind: 'digin', needs: 'still' }), true), false);
+  assert.equal(Fight.canDefend(base, defend({ kind: 'secondwind', needs: 'low' }), false), false);
+  assert.equal(Fight.canDefend({ ...base, player: { ...base.player, currentHp: 10 } }, defend({ kind: 'secondwind', needs: 'low' }), false), true);
+  const back = Fight.resolveDefend(base, defend({ kind: 'fallback', repair: 0.2, step: 2 }), null).state;
+  const d = (s: any) => Math.max(Math.abs(s.grid.playerPosition.row - 4), Math.abs(s.grid.playerPosition.col - 3));
+  assert.ok(d(back) > d(base), 'Fall back puts distance between you and them');
+});
+
+test('defensive implant moves come from parts: core sets the timing, lens the reliability, rarity the size', () => {
+  const arm = (r: any, parts: any) => ({ id: 'd', name: '[CROWN] Test Arm', rarity: r, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '', parts: { mods: [], lens: 'stock', coupling: 'servo', targeting: 'focused', ...parts } });
+  const surge = actionForItem(arm('common', { head: 'mend', core: 'hot' }))!.defend!;
+  const drip = actionForItem(arm('common', { head: 'mend', core: 'cold' }))!.defend!;
+  assert.equal(surge.heal, 0.2, 'a common surge mend heals a fifth now');
+  assert.ok(!drip.heal && drip.healOver! * drip.turns! > surge.heal!, 'a drip gives nothing now but more in total');
+  const best = actionForItem(arm('legendary', { head: 'mend', core: 'hot' }))!.defend!;
+  assert.ok(best.heal! >= 0.4, `a legendary surge heals at least 40% (${best.heal})`);
+  const clear = actionForItem(arm('common', { head: 'counter', lens: 'clear' }))!.defend!;
+  const cracked = actionForItem(arm('common', { head: 'counter', lens: 'cracked' }))!.defend!;
+  assert.equal(clear.counter!.chance, 1);
+  assert.ok(cracked.counter!.chance < clear.counter!.chance && cracked.counter!.share > clear.counter!.share, 'cracked: less often, more back');
+  assert.equal(surge.targets, 'focused');
+  assert.equal(actionForItem(arm('common', { head: 'counter' }))!.defend!.targets, 'self', 'a counter is yours alone');
+});
+
+test('a heal that reaches allies covers whoever you pick, or both', () => {
+  const s0 = fight();
+  const s = { ...s0, allies: [{ id: 'matron', unit: { ...createPlayer(), id: 'ally', name: 'Matron', currentHp: 30 }, pos: { row: s0.grid.playerPosition.row, col: s0.grid.playerPosition.col + 1 }, moves: [], move: 2, cooldowns: [], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }] } as FightState;
+  const mend = (targets: any) => defend({ kind: 'mend', heal: 0.2, reach: 3, targets });
+  assert.equal(Fight.defendTargets(s, mend('focused'), null).who[0].kind, 'ally', 'by default the most hurt');
+  const both = Fight.resolveDefend(s, mend('split2'), null).state;
+  assert.ok(both.allies[0].unit.currentHp > 30);
+  const me = Fight.resolveDefend({ ...s, player: { ...s.player, currentHp: 50 } }, mend('focused'), s.grid.playerPosition).state;
+  assert.ok(me.player.currentHp > 50 && me.allies[0].unit.currentHp === 30, 'tapping yourself covers you');
 });

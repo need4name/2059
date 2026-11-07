@@ -4,7 +4,7 @@ import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
 import { depthIn } from '@/lib/engine/upgrades';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } from '@/lib/combat/types';
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
-import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, nameOf } from './itemText';
+import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, defendText, nameOf } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
 import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf, canSplice } from '@/lib/combat/augments';
 import { useCombat } from '@/lib/stores/useCombat';
@@ -184,6 +184,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
                 Combat move: <span className="font-semibold">{move.name}</span>
                 {move.damage ? ` · ${move.damage} damage` : ` · +${move.defenseBoost} guard`} · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat
                 {move.type === 'attack' && <div className="text-xs text-hud-dim">{rangeText(move)}{effectsText(move) ? ` · ${effectsText(move)}` : ''}</div>}
+                {move.defend && <div className="text-xs text-hud-dim">{defendText(move)}</div>}
               </div>
             </div>
           )}

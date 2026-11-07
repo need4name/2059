@@ -43,7 +43,8 @@ const wornIn = (slot: AugmentationSlot) => [installed(slot), useInventory.getSta
 export function treeOf(item: Item): TreeKind | null {
   if (item.type !== 'augmentation' || !item.slot) return null;
   const active = augmentKind(item.slot) === 'active';
-  return treeKind(active, active && actionForItem(item)?.type === 'brace');
+  const t = actionForItem(item)?.type;
+  return treeKind(active, active && (t === 'brace' || t === 'defend'));
 }
 
 /** The tree an implant grows (its own, worked out from the part), or null if it grows none. */

@@ -34,6 +34,8 @@ export interface UpgradeEffect {
   dmg?: number; heat?: number; steady?: boolean; precise?: boolean; guard?: number;
   /** Extra heat pushed into whoever it hits; a shift of the physical share (negative: more special). */
   transfer?: number; phys?: number;
+  /** A counter's chance to trigger. */
+  chance?: number;
   attack?: number; defense?: number; hp?: number; move?: number; evasion?: number;
   fx?: ActionEffects; perk?: TreePerk;
 }
@@ -89,6 +91,7 @@ export function partsOf(item: Item): Record<string, string[]> {
     if (p.coupling) out.coupling = [p.coupling];
     if (p.core) out.core = [p.core];
     const head = HEADS[p.head];
+    out.head = [p.head];
     if (head) {
       const fx = head.effects ?? {};
       out.head = [p.head,
@@ -261,7 +264,7 @@ export function effectIn(tree: UpgradeNode[], owned: string[]): UpgradeEffect {
   const out: UpgradeEffect = {};
   const nodes = tree.filter(n => owned.includes(n.id)).sort((a, b) => depthIn(tree, a.id) - depthIn(tree, b.id));
   for (const { effect: e } of nodes) {
-    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
+    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys', 'chance'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
     if (e.steady) out.steady = true;
     if (e.precise) out.precise = true;
     if (e.fx) out.fx = { ...(out.fx ?? {}), ...e.fx };
@@ -280,6 +283,7 @@ export function effectText(e: UpgradeEffect): string {
     e.guard && `+${pct(e.guard)} guard`,
     e.heat && `${sgn(e.heat)} heat`,
     e.transfer && `pushes +${e.transfer} heat into them`,
+    e.chance && `counters ${pct(e.chance)} more often`,
     e.phys && (e.phys > 0 ? 'more physical' : 'more special'),
     e.steady && 'steadier aim',
     e.precise && 'always full damage',
