@@ -1,5 +1,6 @@
 import type { UpgradeEffect } from '../engine/upgrades';
-import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects } from './types';
+import type { Item, ItemRarity, AugmentationSlot, CombatAction, AttackPatternType, AccuracyTier, ActionEffects, Targeting } from './types';
+import { MULTI_HIT } from './patterns';
 import { random } from '../engine/rng';
 import { augmentKind } from './types';
 
@@ -133,6 +134,25 @@ const T: Record<Group, Partial<Record<Maker, Template>> & { default: Template }>
   },
 };
 
+/**
+ * The targeting part of a wide shape: how many enemies in it the move can hit, and what that costs.
+ * Its quality rolls on its own (near the implant's), so a common sweep can carry a rare Split 3 part
+ * (an early crowd weapon) and a rare blast a common Focused one (a pinpoint heavy hitter).
+ */
+export const TARGETING: Record<Targeting, { max: number; mult: number; rarity: ItemRarity; label: string; text: string }> = {
+  focused: { max: 1, mult: 1.25, rarity: 'common', label: 'Focused', text: 'hits one, 25% harder, every tile at full strength' },
+  split2: { max: 2, mult: 1.0, rarity: 'uncommon', label: 'Split 2', text: 'hits up to 2 in it' },
+  split3: { max: 3, mult: 0.9, rarity: 'rare', label: 'Split 3', text: 'hits up to 3 in it, 10% softer' },
+  wide: { max: 0, mult: 0.8, rarity: 'epic', label: 'Wide', text: 'hits every enemy in it, 20% softer' },
+};
+const RARITY_STEPS: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+/** Roll a targeting part: its quality is the implant's, one step worse (30%) or one step better (30%). */
+function rollTargeting(r: ItemRarity): Targeting {
+  const roll = random();
+  const k = Math.max(0, Math.min(4, RARITY_STEPS.indexOf(r) + (roll < 0.3 ? -1 : roll < 0.7 ? 0 : 1)));
+  return k === 0 ? 'focused' : k === 1 ? 'split2' : k === 2 ? 'split3' : 'wide';
+}
+
 const RARITY_DAMAGE: Record<ItemRarity, number> = { common: 1, uncommon: 1.2, rare: 1.45, epic: 1.75, legendary: 2.1 };
 
 function groupOf(slot: AugmentationSlot): Group | null {
@@ -260,7 +280,9 @@ export function rollParts(item: Item): Item['parts'] {
     const q = pick(Object.keys(QUIRKS));
     if (mods.length) mods[mods.length - 1] = q; else mods.push(q);
   }
-  return { head, mods };
+  // Wide shapes get a targeting part (signature heads always hit everyone in them)
+  const targeting = MULTI_HIT.has(HEADS[head].pattern) && !HEADS[head].signature ? rollTargeting(r) : undefined;
+  return targeting ? { head, mods, targeting } : { head, mods };
 }
 
 /** Parts for an implant saved before parts existed: its old maker shape, no mods. */
@@ -279,8 +301,8 @@ export function partsText(item: Item): string | null {
   const head = HEADS[parts.head];
   if (!head) return null;
   const mods = parts.mods.map(m => MODS[m]?.label).filter(Boolean); // quirks show on their own line (quirkOf)
-  const cheap = item.rarity === 'common' && !head.signature ? ' · hits one' : '';
-  return `${head.signature ? 'Signature: ' : ''}${head.noun} head${mods.length ? ` · ${mods.join(', ')}` : ''}${cheap}`;
+  const aim = parts.targeting ? ` · ${TARGETING[parts.targeting].label} targeting (${TARGETING[parts.targeting].rarity})` : '';
+  return `${head.signature ? 'Signature: ' : ''}${head.noun} head${aim}${mods.length ? ` · ${mods.join(', ')}` : ''}`;
 }
 
 /** The quirk an implant carries, by name, or null: cards show it on its own line, in gold. */
@@ -316,7 +338,8 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
   if (up.fx) Object.assign(effects, up.fx);
   const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
 
-  const damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult * (1 + (up.dmg ?? 0));
+  const aimPart = parts.targeting ? TARGETING[parts.targeting] : null;
+  const damage = (t.damage ?? 10) * RARITY_DAMAGE[item.rarity] * cond * head.mult * (aimPart?.mult ?? 1) * (1 + (up.dmg ?? 0));
   // Guaranteed full damage costs extra heat
   const heat = Math.max(2, t.heat + (t.accuracy === 'precise' ? 3 : 0) + (up.heat ?? 0));
   let accuracy = t.accuracy ?? 'variable';
@@ -337,5 +360,7 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
     bypassStructuralDefense: item.passiveEffect === 'bypass_sdef' || undefined,
     side: item.slot === 'left_arm' ? 'left' : item.slot === 'right_arm' ? 'right' : undefined,
     maker,
+    ...(aimPart && aimPart.max ? { maxTargets: aimPart.max } : {}),
+    ...(parts.targeting === 'focused' ? { focused: true } : {}),
   };
 }

@@ -29,7 +29,7 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
 import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
-import { moveTiles, attackPatternOf, SPEED, implantDrive, hotText, hitsMany } from '@/lib/engine/fight';
+import { moveTiles, attackPatternOf, SPEED, implantDrive, hotText, targetsText } from '@/lib/engine/fight';
 
 type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain';
 
@@ -62,7 +62,7 @@ function ActionDetail({ a }: { a: LoadoutAction }) {
       {a.healing ? <span>+{a.healing} HP</span> : null}
       <span>{rangeText(a)}</span>
       {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat} heat</span>}
-      {hitsMany(a) && <span className="font-semibold text-cred">Hits every enemy in it</span>}
+      {targetsText(a) && <span className="font-semibold text-cred">{targetsText(a)}</span>}
       {effectsText(a) && <span className="text-ok/90">{effectsText(a)}</span>}
       {(a.type === 'attack' || a.type === 'special') && <span className="text-orange-300/90">Hot: {hotText(a)}</span>}
     </span>

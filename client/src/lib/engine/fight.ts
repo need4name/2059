@@ -17,7 +17,7 @@ import {
   calculateDamage, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
 } from '../combat/actions';
-import { canHitTarget, getHitTiles, tileWeight } from '../combat/patterns';
+import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
 import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
@@ -977,23 +977,36 @@ export function attackFootprint(action: CombatAction, playerClass: PlayerClass =
 }
 
 /** Shapes that cover several tiles at once: every enemy standing in them is hit. */
-export const MULTI_HIT = new Set<AttackPatternType>(['sweep_arc', 'cone', 'aoe', 'lob', 'burst', 'ring', 'diagonal_cross', 'pierce', 'beam']);
-export const hitsMany = (action: CombatAction, playerClass: PlayerClass = 'none') => action.type !== 'brace' && MULTI_HIT.has(attackPatternOf(action, playerClass));
+export { MULTI_HIT };
+/** How many it hits, in a few words, for cards (null for single-tile shapes). */
+export function targetsText(action: CombatAction, playerClass: PlayerClass = 'none'): string | null {
+  if (action.type === 'brace' || !MULTI_HIT.has(attackPatternOf(action, playerClass))) return null;
+  if (action.focused) return 'Focused: hits one, 25% harder';
+  if (action.maxTargets) return `Hits up to ${action.maxTargets} in it`;
+  return 'Hits every enemy in it';
+}
+/** Can this move hit more than one enemy at once? */
+export const hitsMany = (action: CombatAction, playerClass: PlayerClass = 'none') => action.type !== 'brace' && MULTI_HIT.has(attackPatternOf(action, playerClass)) && (action.maxTargets ?? 99) > 1;
 
 /** How hard an attack lands on a tile of its shape (its sweet spot), aimed at `aim`. */
 export function sweetSpot(action: CombatAction, playerClass: PlayerClass, from: TilePosition, aim: TilePosition | null, tile: TilePosition): number {
   if (!aim || ignoresRange(action, playerClass) || action.type === 'brace') return 1;
-  return tileWeight(attackPatternOf(action, playerClass), from, aim, tile);
+  const w = tileWeight(attackPatternOf(action, playerClass), from, aim, tile);
+  // Focused: no tile of the shape lands below full strength
+  return action.focused ? Math.max(1, w) : w;
 }
 
 /** Every living foe standing on the tiles an aim lands on. */
 export function struckAt(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition): number[] {
   const tiles = aimTiles(s, action, playerClass, aim);
   const hit = s.foes.map((_, i) => i).filter(i => hittable(s.foes[i]) && tiles.some(t => same(t, s.foes[i].pos)));
-  // Cheap parts only manage the nearest one in the shape
-  if (action.effects?.focus && hit.length > 1) {
-    const d = (i: number) => chebyshev(s.grid.playerPosition, s.foes[i].pos);
-    return [hit.reduce((a, b) => (d(b) < d(a) ? b : a))];
+  // The targeting part caps how many it hits: the ones on its strongest tiles first, then the nearest
+  const cap = action.effects?.focus ? 1 : action.maxTargets;
+  if (cap && hit.length > cap) {
+    const me = s.grid.playerPosition;
+    const d = (i: number) => chebyshev(me, s.foes[i].pos);
+    const w = (i: number) => sweetSpot(action, playerClass, me, aim, s.foes[i].pos);
+    return hit.slice().sort((a, b) => w(b) - w(a) || d(a) - d(b)).slice(0, cap);
   }
   return hit;
 }

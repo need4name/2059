@@ -57,6 +57,10 @@ ignoreRange?: boolean;
 side?: 'left' | 'right';
 /** The maker whose part this move comes from (it sets what the move does extra when you're hot). */
 maker?: string;
+/** How many enemies in its shape it can hit (none: all of them). The ones on its strongest tiles come first. */
+maxTargets?: number;
+/** A focused part: one target, and no tile of the shape lands below full strength. */
+focused?: boolean;
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
 effects?: ActionEffects;
 }
@@ -181,7 +185,8 @@ bossThreat?: number;
 /** Heads a signature implant can roll. */
 heads?: string[];
 /** Active implants: the head (attack shape) and mods (side effects) this one was built with. */
-parts?: { head: string; mods: string[] };
+/** Parts: the head (the shape), mods (side effects) and, for wide shapes, the targeting part (how many in the shape it can hit). */
+parts?: { head: string; mods: string[]; targeting?: Targeting };
 /** What its upgrade tree grows from (set when it drops, from the run's dice). Older implants use their id. */
 treeSeed?: number;
 }
@@ -251,6 +256,9 @@ bossPosition: TilePosition;
 occupied?: TilePosition[];
 tiles: TileData[][];
 }
+
+/** A wide shape's targeting part: Focused hits one (harder), Split 2 or 3 hit that many, Wide hits everyone in it (softer). */
+export type Targeting = 'focused' | 'split2' | 'split3' | 'wide';
 
 export type AttackPatternType = 'melee' | 'melee_long' | 'diagonal_cross' | 'cone' | 'aoe' | 'ranged' | 'sweep_arc' | 'lunge' | 'knockback' | 'charge' | 'ring' | 'beam'
   | 'bolt' | 'pierce' | 'longshot' | 'lob' | 'burst' | 'grapple';

@@ -305,3 +305,6 @@ export function tileWeight(type: AttackPatternType, from: TilePosition, aim: Til
     default: return 1;                                                 // strike, lunge, ring: one even hit
   }
 }
+
+/** Shapes that cover several tiles at once (they take a targeting part). */
+export const MULTI_HIT = new Set<AttackPatternType>(['sweep_arc', 'cone', 'aoe', 'lob', 'burst', 'ring', 'diagonal_cross', 'pierce', 'beam']);

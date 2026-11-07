@@ -922,3 +922,26 @@ test('leg moves that carry you: pounce lands beside them, vault lands behind the
   const vault = Fight.resolvePlayerAttack(near, { ...base, attackPattern: 'melee', effects: { vault: true } }, 'none', { row: 3, col: 3 }).state;
   assert.deepEqual(vault.grid.playerPosition, { row: 2, col: 3 }, 'vault: over to the far side');
 });
+
+test('a targeting part decides how many in the shape are hit, and trades damage for it', () => {
+  const s = crowd(); // player 5,3; foes 4,3 and 4,4
+  const sweep = { ...PLAYER_ACTIONS[0], attackPattern: 'sweep_arc' as const };
+  const aim = { row: 4, col: 3 };
+  assert.equal(Fight.struckAt(s, sweep, 'none', aim).length, 2, 'wide: everyone in it');
+  const one = Fight.struckAt(s, { ...sweep, maxTargets: 1 }, 'none', aim);
+  assert.deepEqual(one.map(i => s.foes[i].pos), [{ row: 4, col: 3 }], 'capped: the one on its strongest tile (the middle of the sweep)');
+  // Focused: no tile lands below full strength
+  assert.ok(Fight.sweetSpot(sweep, 'none', { row: 5, col: 3 }, aim, { row: 4, col: 4 }) < 1);
+  assert.equal(Fight.sweetSpot({ ...sweep, focused: true }, 'none', { row: 5, col: 3 }, aim, { row: 4, col: 4 }), 1);
+  // Parts roll a mix: a common sweep can carry a better targeting part, and focused parts hit harder
+  const commonArm = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && i.rarity === 'common' && !i.id.startsWith('hx'))!;
+  const seen = new Set<string>();
+  for (let k = 0; k < 200; k++) { seedRandom(k); const p = rollParts(commonArm); if (p?.targeting) seen.add(p.targeting); }
+  assert.ok(seen.has('focused') && seen.has('split2'), 'common wide shapes roll Focused or Split 2');
+  const base = { ...commonArm, id: 'z', parts: { head: 'hook', mods: [] as string[] } };
+  const focused = actionForItem({ ...base, parts: { ...base.parts, targeting: 'focused' as const } })!;
+  const wide = actionForItem({ ...base, parts: { ...base.parts, targeting: 'wide' as const } })!;
+  assert.equal(focused.maxTargets, 1);
+  assert.equal(wide.maxTargets, undefined);
+  assert.ok(focused.damage! > wide.damage!);
+});
