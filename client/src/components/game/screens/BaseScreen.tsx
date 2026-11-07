@@ -423,7 +423,7 @@ function FirmwarePanel() {
         {att && <Footprint action={att} cell={4} />}
       </div>
       {level < MAX_FIRMWARE_LEVEL && <Meter value={into} max={need} tone="aug" className="h-1.5" />}
-      <p className="text-sm text-aug">Strike is {att?.name}: {att?.description}</p>
+      {att && att.name !== 'Strike' && <p className="text-sm text-aug">Strike is {att.name}: {att.description}</p>}
       {id && (
         <div className="space-y-1 rounded-2xl bg-white/[0.04] px-3.5 py-3 text-[13px] leading-snug">
           <div><span className="font-semibold text-white">Its rule: </span><span className="text-hud-text">{id.rule}</span></div>

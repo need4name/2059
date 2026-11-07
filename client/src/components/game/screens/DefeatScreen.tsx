@@ -150,7 +150,7 @@ export function DefeatScreen() {
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseAttack} ATK</span>
                       <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{def.baseDefense} DEF</span>
                     </span>
-                    {(() => { const lv = useFirmware.getState().level(c); const att = firmwareAttack(c, lv); return att && (
+                    {(() => { const lv = useFirmware.getState().level(c); const att = firmwareAttack(c, lv); return att && att.name !== 'Strike' && (
                       <span className="flex items-center gap-2 text-xs text-aug"><Footprint action={att} className="shrink-0" /><span>Level {lv}. Strike becomes {att.name}: {att.description}</span></span>
                     ); })()}
                   </span>
