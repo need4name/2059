@@ -4,8 +4,6 @@ import { useMap } from '@/lib/stores/useMap';
 import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, canRest, DIR_LABEL } from '@/lib/engine/map';
-import { availableFirmware } from '@/lib/stores/useCombat';
-import { CLASS_DEFINITIONS } from '@/lib/combat/actions';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
@@ -23,7 +21,7 @@ import { SignalMap, wayArrow } from './SignalMap';
 /** The room the signal is standing in: what's here, and the ways on (SignalMap, at the top, draws where it is). */
 export function RoomPanel() {
   const map = useMap();
-  const { progression, openMarket, openRoomCache, chooseEvent, playerClass, setPlayerClass, fightsStarted } = useCombat();
+  const { progression, openMarket, openRoomCache, chooseEvent, fightsStarted } = useCombat();
   const inv = useInventory();
   const shut = useStrain(s => s.active.includes('shut'));
   const allies = useAllies();
@@ -35,7 +33,6 @@ export function RoomPanel() {
   const looked = map.looked.includes(room.id);
   const wakingHere = map.cameFrom === null && fightsStarted === 0 && map.cleared.length === 0;
   const [resting, setResting] = useState(false);
-  const firmware = availableFirmware();
 
   const doLook = () => {
     const found = map.look();
@@ -83,14 +80,6 @@ export function RoomPanel() {
         // A server: later hosts can wake here; resting heals, and brings this host's won fights back
         <section className="slab space-y-3 rounded-[24px] p-4" style={{ backgroundImage: 'linear-gradient(135deg, rgba(92,242,176,0.10), transparent 70%)' }}>
           <p className="text-[15px] leading-relaxed text-hud-text/85">{room.server}</p>
-          {firmware.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {firmware.map(c => (
-                <button key={c} onClick={() => setPlayerClass(c)} aria-pressed={playerClass === c}
-                  className={cx(pill, playerClass === c && 'key-selected text-white')}>{CLASS_DEFINITIONS[c].name}</button>
-              ))}
-            </div>
-          )}
           {allies.met.length > 0 && (
             // Who rides with this host: change the link here, without waiting for a death
             <div className="space-y-1.5">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCombat, hostHealth, availableFirmware, ALL_FIRMWARE_OPEN } from '@/lib/stores/useCombat';
+import { useCombat, hostHealth } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
@@ -405,22 +405,6 @@ function StrainTab() {
 }
 
 /** The loaded firmware: its level, how close the next is, its attack now, and every level's step. */
-/** Testing: load any firmware from here (ALL_FIRMWARE_OPEN). */
-function FirmwareSwitch() {
-  const { playerClass, setPlayerClass } = useCombat();
-  return (
-    <div className="mb-4 space-y-1.5">
-      <div className="text-xs text-hud-faint">Testing: every firmware is open</div>
-      <div className="flex flex-wrap gap-2">
-        {availableFirmware().map(c => (
-          <button key={c} onClick={() => setPlayerClass(c)} aria-pressed={playerClass === c}
-            className={cx('key rounded-full px-3.5 py-1.5 text-[13px] font-semibold', playerClass === c ? 'key-selected text-white' : 'text-hud-text')}>{CLASS_DEFINITIONS[c].name}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
   const id = identityOf(playerClass);
@@ -611,7 +595,6 @@ function StatusTab() {
       <Noticed notes={notes} />
 
 <Panel label="Firmware">
-        {ALL_FIRMWARE_OPEN && <FirmwareSwitch />}
         {playerClass !== 'none' ? <FirmwarePanel /> : <p className="text-sm text-hud-dim">No firmware loaded.</p>}
       </Panel>
 
