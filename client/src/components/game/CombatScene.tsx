@@ -443,6 +443,8 @@ const enemyReachableTiles = phase === 'player_turn' ? (() => {
 const union = Fight.dangerTiles(useCombat.getState());
 return union.size ? union : null;
 })() : null;
+// How hard they'd land on each red tile (enemy sweet spots): bolder red where it hurts more
+const enemyWeights = phase === 'player_turn' ? Fight.dangerWeights(useCombat.getState()) : null;
 // Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
 const enemyShoveTiles = phase === 'player_turn' ? (() => {
 return Fight.dangerTiles(useCombat.getState(), true);
@@ -592,6 +594,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (tint) {
     ctx.fillStyle = tint;
     if (isAimed && !isHovered) ctx.globalAlpha = Math.max(0.3, Math.min(1, 0.35 + ((aimedWeight.get(`${row},${col}`) ?? 1) - 0.7) * 0.9));
+    else if (!isAimed && !isHovered && isInEnemyRange) ctx.globalAlpha = Math.max(0.4, Math.min(1, 0.55 + ((enemyWeights?.get(`${row},${col}`) ?? 1) - 0.8) * 1.2));
     ctx.fill();
     ctx.globalAlpha = 1;
   }

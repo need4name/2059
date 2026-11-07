@@ -945,3 +945,22 @@ test('a targeting part decides how many in the shape are hit, and trades damage 
   assert.equal(wide.maxTargets, undefined);
   assert.ok(focused.damage! > wide.damage!);
 });
+
+test("enemy attacks work like yours: sweet spots, and wide shapes hit everyone in them", () => {
+  // Enemy at (4,3), player straight below. A reach hits hardest at its tip: standing two away hurts more than hugging it
+  const reach: CombatAction = { ...hitFor(40, 1), attackPattern: 'melee_long' };
+  const near = fight({ grid: arena([5, 3], [4, 3]) });
+  const far = fight({ grid: arena([6, 3], [4, 3]) });
+  const lost = (st: FightState, a: CombatAction) => st.player.currentHp - Fight.resolveFoeAction(st, 0, a, 1).state.player.currentHp;
+  assert.ok(lost(far, reach) > lost(near, reach), 'the tip of a reach hits harder');
+  // The red zone is shaded by how hard it would land
+  const w = Fight.dangerWeights(near);
+  assert.ok(w.size > 0);
+  // A wide enemy sweep hits the ally beside you as well
+  const ally = { id: 'bale', unit: createPlayer(), pos: { row: 5, col: 4 }, moves: [], move: 2, cooldowns: [], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false } as unknown as FightState['allies'][number];
+  const sweep: CombatAction = { ...hitFor(30, 1), attackPattern: 'sweep_arc' };
+  const s = { ...near, allies: [ally], foes: [{ ...near.foes[0], unit: { ...near.foes[0].unit, moves: [sweep], heavyMoves: [] } }] };
+  seedRandom(3);
+  const after = Fight.foeTurn(s, 0, 1).state;
+  if (after.player.currentHp < s.player.currentHp) assert.ok(after.allies[0].unit.currentHp < ally.unit.currentHp, 'the sweep caught the ally too');
+});

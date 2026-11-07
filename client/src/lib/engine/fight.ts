@@ -115,6 +115,8 @@ export interface Foe {
   pendingVictim: number | null;
   /** The exact tiles a wound-up heavy will strike. Anyone on them when it fires is hit. */
   pendingTiles: TilePosition[] | null;
+  /** Where a wound-up heavy was aimed (its sweet spot is measured from there). */
+  pendingAim?: TilePosition | null;
   /** Turns of burning left (from ending a turn on a fuel fire). */
   burning: number;
   /** Loses its next turn (slammed into something solid). */
@@ -1348,6 +1350,35 @@ export function foeThreatTiles(s: FightState, i: number, onlyShoves = false): Se
   return out;
 }
 
+/**
+ * How hard the enemies' normal attacks would land on each tile of the red zone if you stood there
+ * (their sweet spots: the hardest of any enemy's moves). The board shades the red by it.
+ */
+export function dangerWeights(s: FightState): Map<string, number> {
+  const out = new Map<string, number>();
+  const occupied = s.allies.filter(allyAlive).map(a => a.pos);
+  for (const { f, i } of livingFoes(s)) {
+    if (f.pendingAction || f.stunned || f.swimming) continue;
+    const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS];
+    for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+      const t = { row, col };
+      if (same(t, f.pos)) continue;
+      const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
+      for (const a of moves) {
+        const pattern = a.attackPattern ?? 'melee_long';
+        const tiles = getHitTiles(f.pos, t, pattern, view);
+        if (!tiles.some(x => same(x, t))) continue;
+        // Aimed at you there: how hard it lands on your tile
+        const w = tileWeight(pattern, f.pos, t, t);
+        const k = `${row},${col}`;
+        if ((out.get(k) ?? 0) < w) out.set(k, w);
+      }
+    }
+    void i;
+  }
+  return out;
+}
+
 export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined, victim = victimOf(s, i)): boolean {
   const g = foeView(s, i, victim);
   return canHitTarget(s.foes[i].pos, g.playerPosition, pattern ?? 'melee_long', g);
@@ -1383,18 +1414,19 @@ export function telegraphHeavy(s: FightState, i: number, action: CombatAction): 
   if (!tiles.length) return { state: moved.state, events: moved.events };
   const at = victim >= 0 ? ` at ${s.allies[victim].unit.name}` : '';
   return {
-    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim, pendingTiles: tiles }),
+    state: setFoe(moved.state, i, { chargingHeavy: true, pendingAction: action, pendingVictim: victim, pendingTiles: tiles, pendingAim: { ...view.playerPosition } }),
     events: [...moved.events, say(`${s.foes[i].unit.name} is charging ${action.name}${at}!`, 'critical'), { kind: 'telegraph' }],
   };
 }
 
 /** Fire foe i's wound-up heavy at its locked tiles. Everyone standing on them is hit (-1 = the player, else an ally). */
-export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean; victims: number[] } {
+export function releaseHeavy(s: FightState, i: number): Step & { action: CombatAction | null; connects: boolean; victims: number[]; aim: TilePosition | null } {
   const foe = s.foes[i];
   const action = foe.pendingAction;
+  const aim = foe.pendingAim ?? null;
   const tiles = foe.pendingTiles ?? [];
-  let state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
-  if (!action) return { state, events: [], action: null, connects: false, victims: [] };
+  let state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null, pendingAim: null });
+  if (!action) return { state, events: [], action: null, connects: false, victims: [], aim };
   const on = (p: TilePosition) => tiles.some(t => same(t, p));
   const events: FightEvent[] = [];
   let victims: number[] = [];
@@ -1415,22 +1447,25 @@ export function releaseHeavy(s: FightState, i: number): Step & { action: CombatA
   }
   if (!victims.length && !events.length) events.push(say(`${foe.unit.name}'s ${action.name} hits empty deck -- you evaded`));
   victims = victims.slice().sort((a, b) => a - b);
-  return { state, events, action, connects: victims.length > 0, victims };
+  return { state, events, action, connects: victims.length > 0, victims, aim };
 }
 
 /** Foe i's attack or shield landing. `level` scales its move damage. */
-export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i)): Step {
+export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i), aim: TilePosition | null = null): Step {
   const foe = s.foes[i];
   const { player, grid } = s;
+  // Enemy shapes have sweet spots too: where you stand in it decides how hard it lands
+  const at = victim >= 0 && s.allies[victim] ? s.allies[victim].pos : grid.playerPosition;
+  const sweet = action.type === 'defend' ? 1 : tileWeight(action.attackPattern ?? 'melee_long', foe.pos, aim ?? at, at);
   if (action.type === 'defend') {
     return {
       state: setFoe(s, i, { defenseBoost: action.defenseBoost || 0, heat: clampHeat(foe.heat + (action.heatGenerated ?? 0)) }),
       events: [say(`${foe.unit.name}: ${action.name} -- guard up`)],
     };
   }
-  if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level);
+  if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level, sweet);
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
-  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1);
+  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet;
   const dmg = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [];
@@ -1468,9 +1503,9 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
 }
 
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
-function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number): Step {
+function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number, sweet = 1): Step {
   const foe = s.foes[i], ally = s.allies[k];
-  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, hasTrait(foe, 'armed') ? 1.1 : 1, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
+  const dmg = calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning);
   const lost = dmg.bioDamage + Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const hp = Math.max(0, ally.unit.currentHp - lost);
   const events: FightEvent[] = [{ kind: 'hit' }, say(`${foe.unit.name} -- ${action.name}: ${lost} damage to ${ally.unit.name}`, 'damage')];
@@ -1542,7 +1577,7 @@ function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: bo
     let state = rel.state;
     const events = [...rel.events];
     if (rel.action) for (const v of rel.victims) {
-      const hit = resolveFoeAction(state, i, rel.action, level, v);
+      const hit = resolveFoeAction(state, i, rel.action, level, v, rel.aim);
       state = hit.state; events.push(...hit.events);
       if (hit.events.some(e => e.kind === 'playerDown')) break;
     }
@@ -1559,8 +1594,27 @@ function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: bo
     const next = telegraphHeavy(choice.state, i, action);
     return { state: next.state, events: [...choice.events, ...next.events], walkAfter: false };
   }
-  const hit = resolveFoeAction(choice.state, i, action, level);
-  return { state: hit.state, events: [...choice.events, ...hit.events], walkAfter: true };
+  const victim = victimOf(choice.state, i);
+  const aimAt = victim >= 0 && choice.state.allies[victim] ? choice.state.allies[victim].pos : choice.state.grid.playerPosition;
+  const hit = resolveFoeAction(choice.state, i, action, level, victim);
+  let state = hit.state;
+  const events = [...choice.events, ...hit.events];
+  // A wide shape hits everyone standing in it, you and your allies alike (the aim stays on its victim)
+  const pattern = action.attackPattern ?? 'melee_long';
+  if (MULTI_HIT.has(pattern) && !events.some(e => e.kind === 'playerDown') && isAlive(state.foes[i])) {
+    const tiles = getHitTiles(state.foes[i].pos, aimAt, pattern, { ...state.grid, bossPosition: state.foes[i].pos });
+    const on = (p: TilePosition) => tiles.some(t => same(t, p));
+    const others: number[] = [];
+    if (victim >= 0 && on(state.grid.playerPosition) && !state.playerSwimming) others.push(-1);
+    state.allies.forEach((a, k) => { if (k !== victim && allyAlive(a) && !a.swimming && on(a.pos)) others.push(k); });
+    for (const v of others) {
+      // The same blow: it doesn't heat the attacker again
+      const more = resolveFoeAction(state, i, { ...action, heatGenerated: 0 }, level, v, aimAt);
+      state = more.state; events.push(...more.events);
+      if (more.events.some(e => e.kind === 'playerDown')) break;
+    }
+  }
+  return { state, events, walkAfter: true };
 }
 
 /**
