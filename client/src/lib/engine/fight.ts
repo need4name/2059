@@ -219,6 +219,9 @@ export interface FightState {
   ward?: Ward | null;
   /** Healing or repair still to come at the start of your next turns (a drip). */
   regen?: Regen | null;
+  /** Rounds left in your gun, and how many it holds (any turn you don't attack reloads it). */
+  gunAmmo?: number;
+  gunMag?: number;
 }
 
 /** Cover from a defensive move, until the covered one's next turn. */
@@ -1247,8 +1250,12 @@ export function canPlayerHit(s: FightState, action: CombatAction, playerClass: P
   return aimableTiles(s, action, playerClass).some(t => struckAt(s, action, playerClass, t).includes(i));
 }
 
-/** Can this attack hit anyone from here? */
-export const canPlayerHitAny = (s: FightState, action: CombatAction, playerClass: PlayerClass) => bestAim(s, action, playerClass) !== null;
+/** Can this attack hit anyone from here? (An empty gun can't.) */
+export const canPlayerHitAny = (s: FightState, action: CombatAction, playerClass: PlayerClass) => !gunEmpty(s, action) && bestAim(s, action, playerClass) !== null;
+/** A gun with no rounds left: it waits for a turn you don't attack. */
+export const gunEmpty = (s: FightState, action: CombatAction) => !!action.gun && (s.gunAmmo ?? action.gun.mag) <= 0;
+/** Any turn you don't attack reloads your gun. */
+export const reloadGun = (s: FightState): FightState => (s.gunMag !== undefined && (s.gunAmmo ?? s.gunMag) < s.gunMag ? { ...s, gunAmmo: s.gunMag } : s);
 
 /** Which foes an attack lands on: everyone on the aimed tiles (the best aim if none is given). */
 export function foesStruck(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition | null = bestAim(s, action, playerClass)): number[] {
@@ -1442,7 +1449,10 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
     firstStrikeUsed: true,
-    playerHeat: clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (hot.effects?.cool ?? 0) - (action.fromImplant ? s.perks.implantHeatCut : 0)),
+    // A gun isn't an implant: it never heats you (a Tianxia gun's vent still cools), but it spends a round
+    playerHeat: action.gun ? clampHeat(playerHeat - (hot.effects?.cool ?? 0))
+      : clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (hot.effects?.cool ?? 0) - (action.fromImplant ? s.perks.implantHeatCut : 0)),
+    ...(action.gun ? { gunAmmo: Math.max(0, (s.gunAmmo ?? action.gun.mag) - 1) } : {}),
   };
   // The screens follow whoever was hit
   if (struck.length && !struck.includes(state.target)) state = { ...state, target: struck[0] };

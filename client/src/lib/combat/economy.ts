@@ -1,4 +1,5 @@
-import type { Item, ItemRarity } from './types';
+import type { Item, ItemRarity, Weapon } from './types';
+import { GUN_FRAMES, rollGun } from './guns';
 import { ITEMS_2059 } from './items2059';
 import { instancedItem } from './loot';
 
@@ -70,6 +71,13 @@ export function generateMarketStock(level: number): Item[] {
   }
   for (let i = 0; i < 3 && stims.length; i++) stock.push(instancedItem(stims[Math.floor(random() * stims.length)]));
   return stock;
+}
+
+/** The Grey Lane's gun rack: three guns rolled from the frames at the stall's grades (it restocks only for a new host or a server rest). */
+export function generateGunRack(level: number): Weapon[] {
+  const out: Weapon[] = [];
+  for (let k = 0; k < 3; k++) out.push(rollGun(GUN_FRAMES[Math.floor(random() * GUN_FRAMES.length)], rollRarity(level)));
+  return out;
 }
 
 /** Credits for scrapping the implants left on the bodies after a fight: a quarter of their sell price. */

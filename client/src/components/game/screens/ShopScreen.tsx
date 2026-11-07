@@ -3,8 +3,11 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout } from '@/lib/stores/useLoadout';
 import { useMarket, marketPrice } from '@/lib/stores/useMarket';
+import { useMap } from '@/lib/stores/useMap';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { TIER1_WEAPONS, getUpgrade } from '@/lib/combat/weapons2059';
+import { gunName, magazineOf, ROUNDS, type GunRound } from '@/lib/combat/guns';
+import { useAugmentTrees, gunMove } from '@/lib/stores/useAugmentTrees';
+import { gunItem } from '@/lib/combat/guns';
 import { buyPrice, sellPrice } from '@/lib/combat/economy';
 import { AUGMENTATION_SLOT_NAMES, augmentKind, type Item, type ItemRarity, type Weapon } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Card, Segmented, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, SlotIcon, cx } from '../hud';
@@ -27,15 +30,15 @@ function kindOf(item: Item): Kind {
 }
 
 function WeaponStats({ w }: { w: Weapon }) {
-  const a = w.combatAction;
+  const a = gunMove(w);
   return (
     <div className="flex flex-wrap gap-1.5">
       <Chip className="capitalize">{w.weaponType}</Chip>
       <Chip tone="hostile">{a.damage} damage</Chip>
+      <Chip>{magazineOf(w)} rounds</Chip>
+      {w.gunParts && <Chip>{ROUNDS[w.gunParts.round as GunRound]?.label}</Chip>}
       {a.accuracy && <Chip tone={a.accuracy === 'precise' ? 'ok' : a.accuracy === 'unreliable' ? 'hostile' : 'cred'} className="capitalize">{a.accuracy}</Chip>}
-      <Chip tone="structure">+{a.heatGenerated ?? 0} heat</Chip>
       <Chip>{rangeText(a)}</Chip>
-      {a.bypassStructuralDefense && <Chip tone="ok">Ignores shielding</Chip>}
     </div>
   );
 }
@@ -72,7 +75,8 @@ export function ShopScreen() {
   const { leaveShop, bossLevel, progression } = useCombat();
   const { gold, items, ownedWeapons, equippedWeapon, buyWeapon, upgradeWeapon, sellWeapon, equipWeapon } = useInventory();
   const { slots, setSlot } = useLoadout();
-  const { stock, ensureStock, buy, sell } = useMarket();
+  const { stock, ensureStock, buy, sell, guns, ensureGuns, buyGun } = useMarket();
+  const rests = useMap(st => st.rests ?? 0);
   const [mode, setMode] = useState<Mode>('buy');
   const [kind, setKind] = useState<Kind>('all');
   const [rarities, setRarities] = useState<ItemRarity[]>([]);
@@ -80,6 +84,8 @@ export function ShopScreen() {
 
   // New stock after every fight (and every new body)
   useEffect(() => { ensureStock(`${progression.deathCount}-${bossLevel}`, bossLevel); }, [bossLevel, progression.deathCount, ensureStock]);
+  // The gun rack only restocks for a new host or a server rest, so fights can't cycle it
+  useEffect(() => { ensureGuns(`${progression.deathCount}-${rests}`, bossLevel); }, [progression.deathCount, rests, bossLevel, ensureGuns]);
 
   const toggleRarity = (r: ItemRarity) => setRarities(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r]);
   const passes = (item: Item) => (kind === 'all' || kindOf(item) === kind) && (rarities.length === 0 || rarities.includes(item.rarity));
@@ -90,7 +96,7 @@ export function ShopScreen() {
 
   const putInSlot = (w: Weapon, idx: number) => {
     equipWeapon(w);
-    setSlot(idx, { ...w.combatAction, key: `weapon_${w.id}`, unlocked: true, source: 'weapon' });
+    setSlot(idx, { ...gunMove(w), key: `weapon_${w.id}`, unlocked: true, source: 'weapon' });
     setAssigning(null);
   };
 
@@ -109,7 +115,7 @@ export function ShopScreen() {
 
         {/* Filters: what kind, then rarity as a row of coloured dots */}
         <div className="space-y-2.5">
-          <Segmented value={kind} onChange={setKind} options={([['all', 'All'], ['active', 'Active'], ['passive', 'Passive'], ['stim', 'Stims'], ['weapon', 'Arms']] as [Kind, string][]).map(([id, label]) => ({ id, label }))} />
+          <Segmented value={kind} onChange={setKind} options={([['all', 'All'], ['active', 'Active'], ['passive', 'Passive'], ['stim', 'Stims'], ['weapon', 'Guns']] as [Kind, string][]).map(([id, label]) => ({ id, label }))} />
           <div className="flex items-center gap-2 px-1">
             {RARITIES.map(r => (
               <button key={r} onClick={() => toggleRarity(r)} aria-pressed={rarities.includes(r)} aria-label={`Only ${r}`} title={r}
@@ -164,24 +170,17 @@ export function ShopScreen() {
             <Label>Your weapons</Label>
             {ownedWeapons.map(w => {
               const isEquipped = equippedWeapon?.id === w.id;
-              const upgrade = getUpgrade(w.id);
-              const canUpgrade = isEquipped && upgrade && !ownedWeapons.find(o => o.id === upgrade.id);
-              const upCost = upgrade ? upgrade.upgradePrice ?? upgrade.price : 0;
               return (
                 <div key={w.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1', MAKER[w.manufacturer]?.glow, isEquipped ? 'ring-cred/40' : 'ring-white/[0.05]')}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className={cx('font-display text-base font-semibold', MAKER[w.manufacturer]?.tone)}>{w.name}</span>
+                    <span className={cx('break-words font-display text-base font-semibold leading-tight', w.rarity ? RARITY_TEXT[w.rarity] : MAKER[w.manufacturer]?.tone)}>{w.gunParts ? gunName(w) : w.name}</span>
                     {isEquipped && <Chip tone="cred">Carrying</Chip>}
                   </div>
                   <WeaponStats w={w} />
                   <div className="flex flex-wrap gap-2">
                     <Btn size="sm" onClick={() => setAssigning(w)}>{isEquipped ? 'Change slot' : 'Carry this'}</Btn>
-                    {canUpgrade && upgrade && (
-                      <Btn size="sm" variant="gold" disabled={gold < upCost} onClick={() => upgradeWeapon(w.id, upgrade)}>Upgrade · ¤{upCost}</Btn>
-                    )}
-                    <Btn size="sm" variant="ghost" onClick={() => sellWeapon(w.id)}>Sell · ¤{w.sellPrice}</Btn>
+                    <Btn size="sm" variant="ghost" onClick={() => { if (w.gunParts) useAugmentTrees.getState().forget(gunItem(w)); sellWeapon(w.id); }}>Sell · ¤{w.sellPrice}</Btn>
                   </div>
-                  {!isEquipped && upgrade && <p className="text-xs text-hud-faint">Carry it first.</p>}
                 </div>
               );
             })}
@@ -190,21 +189,22 @@ export function ShopScreen() {
 
         {showWeapons && mode === 'buy' && (
           <div className="space-y-2.5">
-            <Label>Weapons</Label>
-            {TIER1_WEAPONS.filter(w => !ownedWeapons.find(o => o.id === w.id || o.upgradeOfId === w.id)).map(listed => {
-              // Haggler's discount applies to weapons too
-              const w = { ...listed, price: Math.max(1, Math.round(listed.price * usePlayi.getState().perks().priceMult)) };
-              const affordable = gold >= w.price;
+            <Label>Guns</Label>
+            {guns.length === 0 && <Card className="px-4 py-6 text-center text-sm text-hud-dim">The rack is empty.</Card>}
+            {guns.map(listed => {
+              // Haggler's discount applies to guns too
+              const price = Math.max(1, Math.round(listed.price * usePlayi.getState().perks().priceMult));
+              const affordable = gold >= price;
               return (
-                <div key={w.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1 ring-white/[0.05]', MAKER[w.manufacturer]?.glow)}>
+                <div key={listed.id} className={cx('space-y-3 rounded-3xl bg-gradient-to-br to-hud-panel/80 p-4 ring-1 ring-white/[0.05]', MAKER[listed.manufacturer]?.glow)}>
                   <div className="flex items-start justify-between gap-2">
-                    <span className={cx('font-display text-base font-semibold', MAKER[w.manufacturer]?.tone)}>{w.name}</span>
-                    <span className={cx('shrink-0 font-display text-base font-semibold', affordable ? 'text-cred' : 'text-hud-faint')}>¤{w.price}</span>
+                    <span className={cx('break-words font-display text-base font-semibold leading-tight', RARITY_TEXT[listed.rarity ?? 'common'])}>{gunName(listed)}</span>
+                    <span className={cx('shrink-0 font-display text-base font-semibold', affordable ? 'text-cred' : 'text-hud-faint')}>¤{price}</span>
                   </div>
-                  <WeaponStats w={w} />
-                  <p className="text-[13px] leading-relaxed text-hud-dim">{w.description}</p>
-                  <Btn size="sm" variant={affordable ? 'gold' : 'secondary'} disabled={!affordable} className="w-full" onClick={() => { if (buyWeapon(w)) { equipWeapon(w); setAssigning(w); } }}>
-                    {affordable ? 'Buy' : `Need ¤${w.price - gold} more`}
+                  <WeaponStats w={listed} />
+                  <p className="text-[13px] leading-relaxed text-hud-dim">{listed.description}</p>
+                  <Btn size="sm" variant={affordable ? 'gold' : 'secondary'} disabled={!affordable} className="w-full" onClick={() => { const got = buyGun(listed.id); if (got) setAssigning(got); }}>
+                    {affordable ? 'Buy' : `Need ¤${price - gold} more`}
                   </Btn>
                 </div>
               );

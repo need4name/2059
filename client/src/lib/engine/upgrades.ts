@@ -36,6 +36,8 @@ export interface UpgradeEffect {
   transfer?: number; phys?: number;
   /** A counter's chance to trigger. */
   chance?: number;
+  /** Extra rounds in a gun's magazine. */
+  ammo?: number;
   attack?: number; defense?: number; hp?: number; move?: number; evasion?: number;
   fx?: ActionEffects; perk?: TreePerk;
 }
@@ -265,7 +267,7 @@ export function effectIn(tree: UpgradeNode[], owned: string[]): UpgradeEffect {
   const out: UpgradeEffect = {};
   const nodes = tree.filter(n => owned.includes(n.id)).sort((a, b) => depthIn(tree, a.id) - depthIn(tree, b.id));
   for (const { effect: e } of nodes) {
-    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys', 'chance'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
+    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys', 'chance', 'ammo'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
     if (e.steady) out.steady = true;
     if (e.precise) out.precise = true;
     if (e.fx) out.fx = { ...(out.fx ?? {}), ...e.fx };
@@ -285,6 +287,7 @@ export function effectText(e: UpgradeEffect): string {
     e.heat && `${sgn(e.heat)} heat`,
     e.transfer && `pushes +${e.transfer} heat into them`,
     e.chance && `counters ${pct(e.chance)} more often`,
+    e.ammo && `+${e.ammo} round${e.ammo > 1 ? 's' : ''}`,
     e.phys && (e.phys > 0 ? 'more physical' : 'more special'),
     e.steady && 'steadier aim',
     e.precise && 'always full damage',

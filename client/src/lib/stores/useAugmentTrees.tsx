@@ -1,7 +1,8 @@
 import { create } from 'zustand';
+import { gunAction, gunItem } from '../combat/guns';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
-import { AugmentationSlot, augmentKind, type Item } from '../combat/types';
+import { AugmentationSlot, augmentKind, type Item, type Weapon, type CombatAction } from '../combat/types';
 import { actionForItem } from '../combat/augments';
 import { treeKind, treeFor, blockedIn, costIn, spentIn, effectIn, WINS_PER_POINT, type TreeKind, type UpgradeNode, addPerks, type TreePerk } from '../engine/upgrades';
 import { LoadoutAction } from './useLoadout';
@@ -21,6 +22,8 @@ interface AugmentTreeState {
   /** Take a node on the implant in this slot. */
   /** Take a node on the implant fitted in a slot (or the one spliced in beside it). */
   take: (slot: AugmentationSlot, node: string, spliced?: boolean) => boolean;
+  /** Take a node on the equipped gun's tree. */
+  takeGun: (node: string) => boolean;
   /** A fight won: count it toward the next point. */
   winFight: () => void;
   addPoints: (n: number) => void;
@@ -41,6 +44,7 @@ const wornIn = (slot: AugmentationSlot) => [installed(slot), useInventory.getSta
 
 /** Which tree an implant grows. */
 export function treeOf(item: Item): TreeKind | null {
+  if (item.isGun) return 'attack';
   if (item.type !== 'augmentation' || !item.slot) return null;
   const active = augmentKind(item.slot) === 'active';
   const t = actionForItem(item)?.type;
@@ -53,6 +57,13 @@ export function nodesOf(item: Item): UpgradeNode[] | null {
   return kind ? treeFor(item, kind) : null;
 }
 
+/** A gun's move with its tree's upgrades (an old, unrolled gun keeps its listed move). */
+export function gunMove(w: Weapon): CombatAction {
+  if (!w.gunParts) return w.combatAction;
+  const tree = nodesOf(gunItem(w));
+  return gunAction(w, tree ? effectIn(tree, useAugmentTrees.getState().owned[w.id] ?? []) : {});
+}
+
 export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => ({
   owned: {},
   availablePoints: 0,
@@ -60,6 +71,17 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
 
   take: (slot, node, spliced = false) => {
     const item = spliced ? useInventory.getState().spliced?.[slot] ?? null : installed(slot);
+    const tree = item && nodesOf(item);
+    if (!item || !tree) return false;
+    const mine = get().owned[item.id] ?? [];
+    if (blockedIn(tree, mine, node, get().availablePoints)) return false;
+    set(s => ({ availablePoints: s.availablePoints - costIn(tree, node), owned: { ...s.owned, [item.id]: [...mine, node] } }));
+    return true;
+  },
+
+  takeGun: (node) => {
+    const w = useInventory.getState().equippedWeapon;
+    const item = w?.gunParts ? gunItem(w) : null;
     const tree = item && nodesOf(item);
     if (!item || !tree) return false;
     const mine = get().owned[item.id] ?? [];

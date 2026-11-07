@@ -67,6 +67,8 @@ fromImplant?: boolean;
 effects?: ActionEffects;
 /** A defensive implant move (type 'defend'): what it does for you or your allies (engine/fight.ts resolveDefend). */
 defend?: DefendSpec;
+/** A gun's shot: it holds this many rounds a fight, and any turn you don't attack reloads it. */
+gun?: { mag: number };
 }
 
 export type DefendKind = 'patch' | 'cauterise' | 'mend' | 'counter' | 'anchor' | 'spguard' | 'fallback' | 'digin' | 'secondwind';
@@ -166,6 +168,10 @@ sellPrice: number;      // sell back price (~40% of buy)
 upgradePrice?: number;  // cost to upgrade to tier 2
 icon: string;
 combatAction: CombatAction;
+/** A rolled gun (guns.ts): its grade, what its tree grows from, and its parts. */
+rarity?: ItemRarity;
+treeSeed?: number;
+gunParts?: { barrel: string; round: string; mods: string[] };
 }
 
 export type AugmentationSlot =
@@ -232,6 +238,8 @@ heads?: string[];
 parts?: { head: string; mods: string[]; targeting?: Targeting; lens?: string; coupling?: string; core?: string };
 /** Passive implants: the housing (its structure), regulator (heat) and, on rare and better, a trait. */
 passiveParts?: { housing: string; regulator: string; trait?: string };
+/** A gun seen as an item, for its model number and upgrade tree (guns.ts gunItem). */
+isGun?: boolean;
 /** What its upgrade tree grows from (set when it drops, from the run's dice). Older implants use their id. */
 treeSeed?: number;
 }

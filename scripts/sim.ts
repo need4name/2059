@@ -24,7 +24,9 @@ import { useMap as MP } from '../client/src/lib/stores/useMap';
 import * as P from '../client/src/lib/combat/patterns';
 import * as G from '../client/src/lib/combat/grid';
 import * as A from '../client/src/lib/combat/actions';
-import * as W from '../client/src/lib/combat/weapons2059';
+import * as GN from '../client/src/lib/combat/guns';
+import { useMarket as MK } from '../client/src/lib/stores/useMarket';
+import * as T2 from '../client/src/lib/stores/useAugmentTrees';
 import * as ALD from '../client/src/lib/combat/allies';
 import * as A2 from '../client/src/lib/combat/augments';
 
@@ -35,7 +37,7 @@ const botRandom = () => { botState = (botState + 0x6d2b79f5) >>> 0; let t = botS
 // ── Between fights: install better parts, spend points, buy a weapon, set the bar
 // HEALER=1 (a rough check, not part of --check): every host wears a rare Crown Mend arm and keeps it
 const HEALER_ARM = { id: 'sim-mend', name: '[CROWN] Sim Mend Arm', rarity: 'rare', type: 'augmentation', slot: 'right_arm', icon: '', treeSeed: 1, parts: { head: 'mend', mods: [], lens: 'stock', coupling: 'servo', core: 'stock', targeting: 'focused' } } as any;
-let healsUsed = 0;
+let healsUsed = 0, attackTurns = 0, gunShots = 0;
 function betweenFights() {
   const value = (x: any) => (x.attackBonus || 0) + (x.defenseBonus || 0) + (x.hpBonus || 0) / 3;
   if (process.env.HEALER && I.getState().equippedAugmentations.right_arm?.id !== HEALER_ARM.id) { I.getState().addItems([HEALER_ARM]); I.getState().equipAugmentation(HEALER_ARM); }
@@ -78,14 +80,19 @@ function betweenFights() {
     if (!took) break;
   }
   const inv = I.getState();
-  const afford = W.TIER1_WEAPONS.filter(w => w.price <= inv.gold).sort((a, b) => (b.combatAction.damage ?? 0) - (a.combatAction.damage ?? 0))[0];
-  if (afford && !inv.equippedWeapon && inv.buyWeapon(afford)) inv.equipWeapon(afford);
+  // The Grey Lane's gun rack (it restocks only for a new host or a server rest): carry the best gun you can afford, selling the old one
+  if (!process.env.NOGUNS) {
+    MK.getState().ensureGuns(`${C.getState().progression.deathCount}-${MP.getState().rests ?? 0}`, C.getState().bossLevel);
+    const now = I.getState().equippedWeapon, worth = now ? (GN.gunAction(now).damage ?? 0) : 0;
+    const best = MK.getState().guns.filter(w => w.price <= I.getState().gold + (now?.sellPrice ?? 0)).sort((a, b) => (GN.gunAction(b).damage ?? 0) - (GN.gunAction(a).damage ?? 0))[0];
+    if (best && (GN.gunAction(best).damage ?? 0) > worth * 1.15) { if (now) { T.getState().forget(GN.gunItem(now)); I.getState().sellWeapon(now.id); } MK.getState().buyGun(best.id); }
+  }
   const cls = C.getState().playerClass;
   // Firmware's attack stands in for Strike, as on the player's bar
   const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack, FW.getState().level(cls)), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
   const implantMoves = T.getState().getAugmentCombatActions(slots);
   pool.push(...implantMoves.filter((a: any) => a.damage));
-  const w = I.getState().equippedWeapon; if (w) pool.push({ ...w.combatAction, key: 'w' });
+  const w = I.getState().equippedWeapon; if (w) pool.push({ ...T2.gunMove(w), key: 'w' });
   // A sensible player keeps one heal or repair on the bar when an implant gives one
   const heals = implantMoves.filter((a: any) => a.defend && (a.defend.heal || a.defend.healOver || a.defend.repair));
   const atks = pool.slice(2).sort((a, b) => (b.damage || 0) - (a.damage || 0));
@@ -155,7 +162,7 @@ function playerTurn(skill: number) {
   const now = C.getState();
   const mend = slots.find(a => a.defend && (a.defend.heal || a.defend.healOver || a.defend.repair) && F.canDefend(now as any, a, now.hasMoved));
   if (mend && now.player.currentHp < now.player.maxHp * 0.45 && botRandom() < skill) { act = mend; healsUsed++; }
-  if (act) C.getState().setSelectedAction(act);
+  if (act) { C.getState().setSelectedAction(act); if (act.damage) { attackTurns++; if (act.gun) gunShots++; } }
   C.getState().endTurn();
 }
 
@@ -301,10 +308,12 @@ const bestBy = (k: number) => runs.filter(r => r.some(f => f.deathsBefore >= k))
 const kind = (l: number) => l % 10 === 0 ? 'boss' : l % 5 === 0 ? 'elite' : 'normal';
 const turnsOf = (k: string) => { const f = all.filter(x => kind(x.lvl) === k && x.won); return f.length ? (f.reduce((a, x) => a + x.turns, 0) / f.length).toFixed(1) : '-'; };
 console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('elite')}, boss ${turnsOf('boss')}`);
+if (process.env.PERLEVEL) console.log('won boss fights, turns by threat:', [10, 20, 30].map(t => { const f = all.filter(x => x.lvl === t && x.won); return `${t}: ${f.length ? (f.reduce((a, x) => a + x.turns, 0) / f.length).toFixed(1) : '-'} (${f.length})`; }).join(' | '));
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
 console.log(`rests at a server: ${rested}`);
 console.log(`heal or repair moves used: ${healsUsed}`);
+console.log(`gun shots: ${gunShots} of ${attackTurns} attacking turns (${attackTurns ? Math.round(100 * gunShots / attackTurns) : 0}%)`);
 console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
 if (process.env.STATS) { console.log('firmware:', JSON.stringify(FW.getState().xp), 'opened by going deep:', JSON.stringify(FW.getState().opened)); console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
 console.log(`runs that beat the last boss: ${chaptersDone} of ${runs.length}; stopped at the goals door: ${stuckAtDoor}`);

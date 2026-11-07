@@ -78,3 +78,12 @@ test('a save from before hints were removed loses the hints part and keeps the r
   assert.equal(save.parts['2059-tutorial'], undefined);
   assert.ok(save.parts['2059-combat']);
 });
+
+test('a save from before part-built guns sells the old guns back', () => {
+  const inv = { state: { gold: 50, ownedWeapons: [{ id: 'vk_w_pistol_t1', price: 180 }], equippedWeapon: { id: 'vk_w_pistol_t1', price: 180 } }, version: 1 };
+  mem.set(SAVE_KEY, JSON.stringify({ game: '2059', version: 15, savedAt: '', parts: { '2059-inventory': JSON.stringify(inv) } }));
+  const st = JSON.parse(readSave().parts['2059-inventory']).state;
+  assert.equal(st.gold, 230);
+  assert.deepEqual(st.ownedWeapons, []);
+  assert.equal(st.equippedWeapon, null);
+});

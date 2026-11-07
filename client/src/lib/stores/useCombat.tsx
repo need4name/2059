@@ -22,9 +22,10 @@ import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
 import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin } from '../engine/map';
-import { withTreePerks, setTreeDiscount } from '../engine/upgrades';
+import { withTreePerks, setTreeDiscount, effectIn } from '../engine/upgrades';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
-import { useAugmentTrees } from './useAugmentTrees';
+import { useAugmentTrees, nodesOf } from './useAugmentTrees';
+import { gunItem, magazineOf } from '../combat/guns';
 
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import * as Fight from '../engine/fight';
@@ -209,6 +210,15 @@ const eq = useInventory.getState().equippedAugmentations;
 return (Object.keys(eq) as AugmentationSlot[]).filter(s => eq[s] !== null);
 }
 
+/** The gun's magazine at the start of a fight: full (with any extra rounds from its tree). */
+function gunAtStart(): { gunAmmo?: number; gunMag?: number } {
+const w = useInventory.getState().equippedWeapon;
+if (!w?.gunParts) return { gunAmmo: undefined, gunMag: undefined };
+const tree = nodesOf(gunItem(w));
+const mag = magazineOf(w, tree ? effectIn(tree, useAugmentTrees.getState().owned[w.id] ?? []) : {});
+return { gunAmmo: mag, gunMag: mag };
+}
+
 function buildPlayer(playerClass: PlayerClass) {
 // The play-i tree's perks plus what the allies riding with this host bring
 const linked = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
@@ -321,7 +331,7 @@ allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGua
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
 playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders,
-ward: s.ward, regen: s.regen,
+ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 };
 };
 
@@ -657,7 +667,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
@@ -858,6 +868,8 @@ if (get().reflexMoveOpen) { set({ inputLocked: true }); finishPlayerAction(true)
 if (!selectedAction) {
 set({ inputLocked: true });
 log('-- PASS --');
+// Any turn you don't attack reloads your gun
+save(Fight.reloadGun(fightState()));
 finishPlayerAction(false);
 return;
 }
@@ -894,12 +906,13 @@ if (action.defend && !Fight.canDefend(fightState(), action, get().hasMoved)) ret
 const aimAt = get().aim;
 set({ inputLocked: true, selectedAction: null });
 doer = { kind: 'player', move: action.name };
-apply(action.defend ? Fight.resolveDefend(fightState(), action, aimAt) : Fight.resolveBrace(fightState(), action));
+if (!apply(action.defend ? Fight.resolveDefend(fightState(), action, aimAt) : Fight.resolveBrace(fightState(), action))) save(Fight.reloadGun(fightState()));
 finishPlayerAction(false);
 return;
 }
 
 const aim = get().aim;
+if (Fight.gunEmpty(fightState(), action)) return;
 if (!aim || !Fight.foesStruck(fightState(), action, playerClass, aim).length) {
 log('Nothing to hit there. Move closer, or tap a lit square to aim.');
 return;

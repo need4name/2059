@@ -140,7 +140,9 @@ function SlotButton({ action }: { action: LoadoutAction }) {
   // The extra step after acting (Reflex loop): only a step or a pass, so every move is greyed out
   const stepOnly = !!s.reflexMoveOpen;
   // Dig in needs you not to have moved; Second wind needs you under half health
-  const usable = !action.defend || Fight.canDefend(s, action, s.hasMoved);
+  const usable = (!action.defend || Fight.canDefend(s, action, s.hasMoved)) && !Fight.gunEmpty(s, action);
+  // A gun's rounds left this fight (any turn you don't attack reloads it)
+  const ammo = action.gun ? (s.gunAmmo ?? action.gun.mag) : null;
   // Estimates are against whoever this attack would hit (its current aim when picked, else its best aim)
   const aim = isAttack ? (selected && s.aim ? s.aim : Fight.bestAim(s, action, s.playerClass)) : null;
   const struck = aim ? Fight.struckAt(s, action, s.playerClass, aim) : [];
@@ -171,7 +173,13 @@ function SlotButton({ action }: { action: LoadoutAction }) {
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
         {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
       </span>
+      {ammo !== null && action.gun && (
+        <span className="flex gap-1" aria-label={`${ammo} of ${action.gun.mag} rounds`}>
+          {Array.from({ length: action.gun.mag }, (_, n) => <span key={n} className={cx('h-1.5 w-3 rounded-full', n < ammo ? 'bg-cred' : 'bg-white/15')} />)}
+        </span>
+      )}
       {stepOnly ? <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Step only</span>
+        : ammo === 0 ? <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Empty</span>
         : isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Nobody in reach</span>}
     </button>
   );

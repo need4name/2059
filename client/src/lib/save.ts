@@ -9,7 +9,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -97,6 +97,20 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
   13: (save) => save,
   // 14 -> 15: hints are gone, and the part that remembered which ones you'd seen with them
   14: (save) => { const { ['2059-tutorial']: _gone, ...parts } = save.parts; return { ...save, parts }; },
+  // 15 -> 16: guns are built from parts now; the old fixed guns are sold back at what they cost
+  15: (save) => {
+    const raw = save.parts['2059-inventory'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      const st = part.state ?? {};
+      const old = (st.ownedWeapons ?? []) as { price?: number; gunParts?: unknown }[];
+      const refund = old.filter(w => !w.gunParts).reduce((n, w) => n + (w.price ?? 0), 0);
+      const kept = old.filter(w => w.gunParts);
+      const eq = st.equippedWeapon && st.equippedWeapon.gunParts ? st.equippedWeapon : null;
+      return { ...save, parts: { ...save.parts, '2059-inventory': JSON.stringify({ ...part, state: { ...st, gold: (st.gold ?? 0) + refund, ownedWeapons: kept, equippedWeapon: eq } }) } };
+    } catch { return save; }
+  },
 };
 
 function storage(): Storage | null {

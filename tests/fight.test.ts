@@ -1156,3 +1156,47 @@ test('every implant shows its model number in its name; its move carries the sam
   assert.equal(displayName({ name: '[CROWN] Bio-Stim', type: 'consumable' }), 'Bio-Stim', 'stims have no model number');
   assert.ok(!displayName({ ...lung, name: '[CROWN] Grip Arm (L)' }).includes('(L)'), 'no side tag: the slot says it');
 });
+
+// ── Guns ─────────────────────────────────────────────────────────────────────
+test('guns are built from parts, carry a model number, and never heat you', async () => {
+  const G = await import('../client/src/lib/combat/guns');
+  seedRandom(21);
+  const frame = G.GUN_FRAMES.find(w => w.manufacturer === 'volkov' && w.weaponType === 'pistol')!;
+  const gun = G.rollGun(frame, 'rare');
+  assert.ok(gun.gunParts && gun.treeSeed !== undefined);
+  assert.match(G.gunName(gun), /^VK-P\d+ /);
+  const shot = G.gunAction(gun);
+  assert.equal(shot.heatGenerated, 0);
+  assert.equal(shot.gun!.mag, G.magazineOf(gun));
+  assert.equal(shot.attackPattern, 'bolt');
+  const common = G.gunAction({ ...gun, rarity: 'common' });
+  assert.ok(shot.damage! > common.damage!, 'rarity scales the punch');
+  const thermal = G.gunAction({ ...gun, gunParts: { ...gun.gunParts!, round: 'thermal' } });
+  assert.ok(thermal.physicalRatio! < 0.5 && thermal.heatTransfer! > 0, 'thermal rounds are special and heat them');
+});
+
+test('a shot spends a round and no heat; an empty gun cannot fire; any turn you do not attack reloads it', () => {
+  const pistol: CombatAction = { type: 'attack', name: 'Test Pistol', description: '', damage: 16, accuracy: 'precise', attackPattern: 'melee', heatGenerated: 0, gun: { mag: 2 } };
+  let s = fight({ gunAmmo: 2, gunMag: 2, playerHeat: 40 });
+  seedRandom(1);
+  s = Fight.resolvePlayerAttack(s, pistol).state;
+  assert.equal(s.gunAmmo, 1);
+  assert.equal(s.playerHeat, 40, 'a gun never heats you');
+  s = Fight.resolvePlayerAttack({ ...s, foes: fight().foes }, pistol).state;
+  assert.equal(s.gunAmmo, 0);
+  assert.equal(Fight.gunEmpty(s, pistol), true);
+  assert.equal(Fight.canPlayerHitAny({ ...s, foes: fight().foes }, pistol, 'none'), false);
+  assert.equal(Fight.reloadGun(s).gunAmmo, 2);
+});
+
+test('the gun rack restocks only when its key changes (a new host or a server rest), so fights cannot cycle it', async () => {
+  const { useMarket } = await import('../client/src/lib/stores/useMarket');
+  useMarket.getState().reset();
+  useMarket.getState().ensureGuns('0-0', 5);
+  const first = useMarket.getState().guns.map(g => g.id);
+  assert.equal(first.length, 3);
+  useMarket.getState().ensureGuns('0-0', 6);
+  assert.deepEqual(useMarket.getState().guns.map(g => g.id), first, 'another fight, the same rack');
+  useMarket.getState().ensureGuns('0-1', 6);
+  assert.notDeepEqual(useMarket.getState().guns.map(g => g.id), first, 'a rest restocks it');
+});

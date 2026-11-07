@@ -5,7 +5,7 @@ import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction, BASE_SLOT_COUNT } from '@/lib/stores/useLoadout';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { NO_PERKS, perksFor } from '@/lib/engine/playi';
-import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
+import { useAugmentTrees, gunMove } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
 import type { AugmentationSlot } from '@/lib/combat/types';
@@ -26,7 +26,7 @@ export function useActionPool(): LoadoutAction[] {
     ];
     pool.push(...getAugmentCombatActions(equippedSlots));
     if (equippedWeapon) {
-      pool.push({ ...equippedWeapon.combatAction, key: `weapon_${equippedWeapon.id}`, unlocked: true, source: 'weapon' });
+      pool.push({ ...gunMove(equippedWeapon), key: `weapon_${equippedWeapon.id}`, unlocked: true, source: 'weapon' });
     }
     return pool;
     // owned upgrades are read inside getAugmentCombatActions

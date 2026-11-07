@@ -545,6 +545,44 @@
           },
           "heat": -2
         }
+      },
+      {
+        "id": "extmag",
+        "name": "Extended mag",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "pistol",
+            "revolver",
+            "shotgun"
+          ]
+        },
+        "effect": {
+          "ammo": 1
+        }
+      },
+      {
+        "id": "hotloads",
+        "name": "Hot loads",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "pistol",
+            "revolver",
+            "shotgun"
+          ],
+          "coupling": [
+            "thermal"
+          ]
+        },
+        "effect": {
+          "dmg": 0.08,
+          "transfer": 3
+        }
       }
     ],
     "brace": [
@@ -1321,6 +1359,25 @@
             "bleed": true,
             "drain": 0.3
           }
+        }
+      },
+      {
+        "id": "drummag",
+        "name": "Drum magazine",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "pistol",
+            "revolver",
+            "shotgun"
+          ]
+        },
+        "effect": {
+          "attack": 3,
+          "dmg": 0.15,
+          "ammo": 2
         }
       }
     ],

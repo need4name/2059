@@ -349,6 +349,7 @@ const GLYPHS = {
   back: ['.........', '.....##..', '....##...', '...##....', '..##.....', '...##....', '....##...', '.....##..', '.........'],
   strain: ['....#....', '...##....', '...###...', '..####.#.', '.######..', '.###.###.', '.##...##.', '..#####..', '.........'],
   stim: ['.......#.', '......#.#', '.....###.', '....###..', '...###...', '..###....', '.#.#.....', '#........', '.........'],
+  gun: ['.........', '.#######.', '########.', '########.', '.###.#...', '.##.##...', '.##......', '.##......', '.........'],
 };
 export type GlyphName = keyof typeof GLYPHS;
 
@@ -361,12 +362,12 @@ export function Glyph({ name, className, size = 18, flip }: { name: GlyphName; c
   );
 }
 
-const SLOT_GLYPH: Record<AugmentationSlot | 'stim', GlyphName> = {
+const SLOT_GLYPH: Record<AugmentationSlot | 'stim' | 'gun', GlyphName> = {
   brain: 'brain', eyes: 'eye', ears: 'ear', nose: 'nose', lungs: 'lungs', misc: 'spine',
-  left_arm: 'arm', right_arm: 'arm', left_leg: 'leg', right_leg: 'leg', stim: 'stim',
+  left_arm: 'arm', right_arm: 'arm', left_leg: 'leg', right_leg: 'leg', stim: 'stim', gun: 'gun',
 };
 
 /** The pixel icon for a body slot (or a stim). Left limbs are mirrored. */
-export function SlotIcon({ slot, size = 22, className }: { slot?: AugmentationSlot | 'stim'; size?: number; className?: string }) {
+export function SlotIcon({ slot, size = 22, className }: { slot?: AugmentationSlot | 'stim' | 'gun'; size?: number; className?: string }) {
   return <Glyph name={slot ? SLOT_GLYPH[slot] : 'implant'} size={size} className={className} flip={slot === 'left_arm' || slot === 'left_leg'} />;
 }

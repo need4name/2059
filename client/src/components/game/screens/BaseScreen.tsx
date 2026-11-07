@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCombat, hostHealth } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
-import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
+import { useAugmentTrees, nodesOf, gunMove } from '@/lib/stores/useAugmentTrees';
 import { blockedIn, closedIn, costIn, depthIn, effectIn, effectText, nodeIn, WINS_PER_POINT, type UpgradeNode } from '@/lib/engine/upgrades';
 import { useAudio } from '@/lib/stores/useAudio';
 import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/lib/combat/actions';
@@ -10,7 +10,8 @@ import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
 import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, firmwarePassives, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
-import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
+import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item, type Weapon } from '@/lib/combat/types';
+import { gunAction, gunItem, gunName } from '@/lib/combat/guns';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
 import { Inventory } from '../Inventory';
@@ -150,10 +151,10 @@ function LoadoutTab() {
             const carried = equippedWeapon?.id === w.id;
             return (
               <div key={w.id} className={cx('flex items-center gap-3 rounded-2xl p-3', carried ? 'bg-cred/[0.08] ring-1 ring-cred/30' : 'bg-white/[0.04]')}>
-                <Footprint action={w.combatAction} cell={5} className="shrink-0" />
+                <Footprint action={gunMove(w)} cell={5} className="shrink-0" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-display text-[14px] font-semibold text-cred">{w.name}</span>
-                  <span className="block truncate text-[11px] text-hud-dim">{w.combatAction.damage} damage · {rangeText(w.combatAction)}</span>
+                  <span className={cx('block break-words font-display text-[14px] font-semibold leading-tight', w.rarity ? RARITY_TEXT[w.rarity] : 'text-cred')}>{w.gunParts ? gunName(w) : w.name}</span>
+                  <span className="block truncate text-[11px] text-hud-dim">{gunMove(w).damage} damage · {gunMove(w).gun ? `${gunMove(w).gun!.mag} rounds · ` : ''}{rangeText(gunMove(w))}</span>
                 </span>
                 {carried ? <span className="text-xs font-semibold text-cred">Carrying</span>
                   : <Btn size="sm" variant="gold" onClick={() => equipWeapon(w)}>Carry</Btn>}
@@ -205,8 +206,8 @@ function treeLayout(nodes: UpgradeNode[]) {
 const ROW = 84; // px between rows of the tree
 
 /** One implant's tree (its own, grown from the part): tap a node to see it; a fork takes one side only. */
-function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; item: Item; spliced?: boolean }) {
-  const { owned: all, availablePoints, take } = useAugmentTrees();
+function UpgradeTree({ slot, item, spliced = false, gun }: { slot: AugmentationSlot | 'gun'; item: Item; spliced?: boolean; /** A gun's tree: its move and its Take come from the gun. */ gun?: Weapon }) {
+  const { owned: all, availablePoints, take, takeGun } = useAugmentTrees();
   const nodes = nodesOf(item)!;
   const owned = all[item.id] ?? [];
   const { x, depth, rows } = treeLayout(nodes);
@@ -225,16 +226,16 @@ function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; 
       <div className="slab rounded-[28px] px-2 pb-3 pt-4">
         <div className="mx-auto mb-2 flex w-fit items-center gap-2 px-3">
           <SlotIcon slot={slot} size={18} className="text-sys/80" />
-          <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{nameOf(item)}</span>
+          <span className={cx('font-display text-[15px] font-semibold', RARITY_TEXT[item.rarity])}>{gun ? gunName(gun) : nameOf(item)}</span>
         </div>
         {(() => {
           // What the attack does now, with what's been taken: its shape, and its numbers
-          const move = actionForItem(item, effectIn(nodes, owned));
+          const move = gun ? gunAction(gun, effectIn(nodes, owned)) : actionForItem(item, effectIn(nodes, owned));
           if (!move || move.type !== 'attack') return null;
           return (
             <div className="mx-auto mb-1 flex w-fit items-center gap-2.5 rounded-2xl bg-black/20 px-3 py-1.5">
               <Footprint action={move} cell={4} />
-              <span className="text-[12px] text-hud-dim"><span className="font-semibold text-hud-text">{move.name}</span><br />{move.damage} damage · {(move.heatGenerated ?? 0) > 0 ? '+' : ''}{move.heatGenerated} heat</span>
+              <span className="text-[12px] text-hud-dim"><span className="font-semibold text-hud-text">{move.name}</span><br />{move.damage} damage · {move.gun ? `${move.gun.mag} rounds` : `${(move.heatGenerated ?? 0) > 0 ? '+' : ''}${move.heatGenerated} heat`}</span>
             </div>
           );
         })()}
@@ -275,7 +276,7 @@ function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; 
           {node.cap && <span className={cx('text-xs font-semibold', node.paired ? 'text-violet-200' : 'text-cred')}>{node.cap === 'legendary' ? 'Legendary capstone' : node.paired ? 'Paired capstone' : 'Capstone'}</span>}
         </div>
         <p className="text-sm text-hud-text/85">{effectText(node.effect)}</p>
-        {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus, spliced); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
+        {why === null && <Btn className="w-full" variant="gold" onClick={() => { if (gun) takeGun(focus); else take(slot as AugmentationSlot, focus, spliced); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'points' && <Btn className="w-full" variant="secondary" disabled>Needs {cost} point{cost > 1 ? 's' : ''}</Btn>}
         {why === 'owned' && <p className="text-sm font-semibold text-sys">You have this.</p>}
         {why === 'fork' && <p className="text-sm text-hud-faint">You took {taken(focus)?.name} instead.</p>}
@@ -289,10 +290,15 @@ function UpgradesTab() {
   const { equippedAugmentations, spliced } = useInventory();
   const { owned, availablePoints, wins } = useAugmentTrees();
   // Every implant that grows a tree: the fitted ones, and any spliced in beside them
-  const entries = AUGMENTATION_SLOTS.flatMap(s => [
-    ...(equippedAugmentations[s] && nodesOf(equippedAugmentations[s]!) ? [{ key: s as string, s, item: equippedAugmentations[s]!, spliced: false }] : []),
-    ...(spliced[s] && nodesOf(spliced[s]!) ? [{ key: `${s}+`, s, item: spliced[s]!, spliced: true }] : []),
-  ]);
+  const { equippedWeapon } = useInventory();
+  const entries: { key: string; s: AugmentationSlot | 'gun'; item: Item; spliced: boolean; gun?: Weapon }[] = [
+    ...AUGMENTATION_SLOTS.flatMap(s => [
+      ...(equippedAugmentations[s] && nodesOf(equippedAugmentations[s]!) ? [{ key: s as string, s, item: equippedAugmentations[s]!, spliced: false }] : []),
+      ...(spliced[s] && nodesOf(spliced[s]!) ? [{ key: `${s}+`, s, item: spliced[s]!, spliced: true }] : []),
+    ]),
+    // The gun you carry grows a tree too
+    ...(equippedWeapon?.gunParts ? [{ key: 'gun', s: 'gun' as const, item: gunItem(equippedWeapon), spliced: false, gun: equippedWeapon }] : []),
+  ];
   const firstWaiting = entries.find(e => upgradeWaiting(e.item, owned, availablePoints));
   const [picked, setPicked] = useState<string | null>(null);
   const entry = entries.find(e => e.key === picked) ?? firstWaiting ?? entries[0];
@@ -316,15 +322,15 @@ function UpgradesTab() {
           return (
             <button key={key} onClick={() => setPicked(key)} aria-pressed={key === entry.key}
               className={cx('key relative flex shrink-0 flex-col items-center gap-1.5 rounded-2xl px-3.5 py-2.5', key === entry.key && 'key-selected')}>
-              {(() => { const mv = actionForItem(item); return mv?.type === 'attack' ? <Footprint action={mv} cell={3} /> : <SlotIcon slot={s} size={20} className="text-sys/80" />; })()}
-              <span className="text-[11px] font-semibold text-hud-text">{AUGMENTATION_SLOT_NAMES[s]}{sp ? ' +' : ''}</span>
+              {(() => { const mv = s === 'gun' && entries.find(e => e.key === key)?.gun ? gunAction(entries.find(e => e.key === key)!.gun!) : actionForItem(item); return mv?.type === 'attack' ? <Footprint action={mv} cell={3} /> : <SlotIcon slot={s} size={20} className="text-sys/80" />; })()}
+              <span className="text-[11px] font-semibold text-hud-text">{s === 'gun' ? 'Gun' : AUGMENTATION_SLOT_NAMES[s]}{sp ? ' +' : ''}</span>
               <span className="flex gap-1">{Array.from({ length: Math.max(...nodesOf(item)!.map(x => depthIn(nodesOf(item)!, x.id))) + 1 }, (_, t) => <span key={t} className={cx('h-1.5 w-2.5 rounded-full', t < n ? 'bg-sys' : 'bg-white/10')} />)}</span>
               {waiting && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cred" />}
             </button>
           );
         })}
       </div>
-      <UpgradeTree key={entry.item.id} slot={slot} item={entry.item} spliced={entry.spliced} />
+      <UpgradeTree key={entry.item.id} slot={slot} item={entry.item} spliced={entry.spliced} gun={entry.gun} />
       <p className="px-1 text-xs text-hud-faint">Selling an implant or giving it away gives its points back.</p>
     </div>
   );

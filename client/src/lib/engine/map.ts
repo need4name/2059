@@ -29,6 +29,8 @@ export const roomById = (id: string): Room => { const rooms = index.get(activeCh
 export interface MapState {
   /** Which chapter this map is for (chapters.json id). */
   chapter: string;
+  /** Rests taken at servers (the Grey Lane's gun rack restocks with each). */
+  rests?: number;
   room: string;
   /** The room they came in from (an uncleared fight only lets you back out that way). */
   cameFrom: string | null;
@@ -110,7 +112,7 @@ export const wakePlaces = (s: MapState): string[] => {
 /** A server this host can rest at (in this room, and nothing here is fighting you). */
 export const canRest = (s: MapState, room = roomById(s.room)) => isServer(s, room) && !hasFight(s, room);
 /** Rest at the server: you heal, and every fight this host has won comes back (beaten bosses stay down). Caches and events stay used. */
-export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [] } : s);
+export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [], rests: (s.rests ?? 0) + 1 } : s);
 /** Call the beaten boss here back for this host to fight again (for its drop). */
 export const recall = (s: MapState): MapState =>
   (canRest(s) ? { ...s, recalled: [...(s.recalled ?? []), s.room], cleared: s.cleared.filter(id => id !== s.room) } : s);
