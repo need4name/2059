@@ -359,9 +359,9 @@ function ActionBar() {
           onClick={endTurn}
         >
           {!myTurn ? (phase === 'enemy_turn' ? 'Enemy acting…' : 'Resolving…') : selectedAction ? (
-            // Its status effects ride in the button, under its name (the button never changes height)
+            // Just Execute, with the move's status effects under it (the button never changes height)
             <span className="flex min-w-0 flex-col items-center leading-tight">
-              <span className="max-w-full truncate">Execute · {selectedAction.name}</span>
+              <span className="max-w-full truncate">Execute</span>
               {status && <span className="max-w-full truncate font-body text-[11px] font-medium opacity-85">{status}</span>}
             </span>
           ) : 'Pass turn'}
