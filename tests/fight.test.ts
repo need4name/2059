@@ -1018,9 +1018,10 @@ test('passive parts: housing changes structure, regulators and traits change the
   assert.ok(baffled < raw);
 });
 
-test('the fight bar lists everything else a move does, quirks and heat push included', async () => {
-  const { effectsText } = await import('../client/src/components/game/itemText');
-  const t = effectsText({ ...PLAYER_ACTIONS[0], heatTransfer: 8, effects: { bleed: true, stun: 0.25, drain: 0.25, ignite: true, reap: true } })!;
-  for (const w of ['bleeds', '25% stun', 'heals you 25%', 'sets them alight', 'heats them +8', 'takedown']) assert.ok(t.includes(w), w);
-  assert.equal(effectsText({ ...PLAYER_ACTIONS[0], heatTransfer: 3 }), null, 'a plain strike lists nothing');
+test('the fight bar lists only what the tiles cannot show', async () => {
+  const { statusText } = await import('../client/src/components/game/itemText');
+  const t = statusText({ ...PLAYER_ACTIONS[0], heatTransfer: 8, effects: { bleed: true, stun: 0.25, drain: 0.25, ignite: true, reap: true, knock: true, retreat: true } })!;
+  for (const w of ['bleeds', '25% stun', 'heals you 25%', 'sets them alight', 'takedown']) assert.ok(t.includes(w), w);
+  for (const w of ['heats', 'pushes', 'step']) assert.ok(!t.includes(w), `${w} shows on the tiles instead`);
+  assert.equal(statusText({ ...PLAYER_ACTIONS[0], effects: { dash: true } }), null);
 });

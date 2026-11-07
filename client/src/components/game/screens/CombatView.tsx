@@ -9,8 +9,8 @@ import { chebyshev } from '@/lib/combat/grid';
 import { getHeatMultipliers, getFlankBonus, getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
-import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx, damageTypeRgb, damageTypeText } from '../hud';
-import { stimInfo, effectsText } from '../itemText';
+import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx } from '../hud';
+import { stimInfo, statusText } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -243,30 +243,14 @@ function AllyTurnPanel({ k }: { k: number }) {
   );
 }
 
-/** What the selected move does besides its damage, in words: its damage type, how it aims, how many it hits, and every side effect. */
+/** The selected move's status effects, in words: only what the tiles can't show. */
 function MoveLine() {
   const a = useCombat(s => s.selectedAction);
-  const playerClass = useCombat(s => s.playerClass);
-  if (!a) return null;
-  const parts: { text: string; color?: string }[] = [];
-  if (a.type === 'attack' || a.type === 'special') {
-    parts.push({ text: damageTypeText(a.physicalRatio), color: `rgb(${damageTypeRgb(a.physicalRatio).join(',')})` });
-    if (a.accuracy === 'precise') parts.push({ text: 'always full damage' });
-    if (a.accuracy === 'unreliable') parts.push({ text: 'can roll low' });
-    const targets = Fight.targetsText(a, playerClass);
-    if (targets) parts.push({ text: targets });
-    const fx = effectsText(a);
-    if (fx) parts.push({ text: fx, color: '#86efac' });
-  } else {
-    if (a.defenseBoost) parts.push({ text: `+${a.defenseBoost} guard until your next turn` });
-    if (a.healing) parts.push({ text: `heals ${a.healing}` });
-    if (a.heatGenerated) parts.push({ text: `${a.heatGenerated > 0 ? '+' : ''}${a.heatGenerated} heat` });
-  }
-  if (!parts.length) return null;
+  const text = a && (a.type === 'attack' || a.type === 'special') ? statusText(a) : null;
+  if (!a || !text) return null;
   return (
     <p className="mb-2 px-1 text-[11px] leading-snug text-hud-dim">
-      <span className="font-semibold text-hud-text">{a.name}</span>
-      {parts.map((p, k) => <span key={k}> · <span style={p.color ? { color: p.color } : undefined}>{p.text}</span></span>)}
+      <span className="font-semibold text-hud-text">{a.name}</span> · <span className="text-ok/90">{text}</span>
     </p>
   );
 }

@@ -96,5 +96,29 @@ export function effectsText(action: CombatAction): string | null {
   return out.length ? out.join(' · ') : null;
 }
 
+/**
+ * Only what the board can't show, for the line above the fight bar: what it does to them
+ * and to you. Moving (shoves, drags, dashes, leaps, steps), the damage type, aim, targets
+ * and heat push all show on the tiles instead.
+ */
+export function statusText(action: CombatAction): string | null {
+  const fx = action.effects ?? {};
+  const out = [
+    fx.bleed && 'bleeds',
+    fx.stun && `${Math.round(fx.stun * 100)}% stun`,
+    fx.slow && 'slows them',
+    fx.ignite && 'sets them alight',
+    fx.crush && 'crushing collisions',
+    fx.drain && `heals you ${Math.round(fx.drain * 100)}% of damage`,
+    action.healing && `heals you ${action.healing}`,
+    fx.cool && `vents ${fx.cool} heat`,
+    fx.haste && 'hastes you',
+    fx.hotBonus && `+${Math.round(fx.hotBonus * 100)}% while hot`,
+    fx.lowBonus && `+${Math.round(fx.lowBonus * 100)}% while low on health`,
+    fx.reap && 'a takedown vents your heat and guards you',
+  ].filter(Boolean);
+  return out.length ? out.join(' · ') : null;
+}
+
 /** An item's name as shown: without the bracketed maker stamp. */
 export const nameOf = (item: { name: string }) => item.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+-\s+[A-Z]+$/, '');
