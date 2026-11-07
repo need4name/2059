@@ -213,7 +213,7 @@ const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClas
 const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 // What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
 // The firmware's class rules (Enforcer chains takedowns, Operative acts twice cool, ...), then the slot upgrades
-const perks = withTreePerks(withClass(twinned, playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+const perks = withTreePerks(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 const raw = useInventory.getState().getTotalAugmentationBonuses();
 // Events can cost max health for the rest of this host's life (the scar)
 const augBonuses = { ...raw, hp: raw.hp + perks.maxHpBonus, structure: Math.round(raw.structure * perks.structureMult), hpCost: Math.round(raw.hpCost * perks.healthCostMult) + (useMap.getState().scar ?? 0) };

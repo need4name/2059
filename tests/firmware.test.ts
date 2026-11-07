@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { NO_PERKS } from '../client/src/lib/engine/playi';
 import * as FW from '../client/src/lib/engine/firmware';
 import { basicAttack, PLAYER_ACTIONS } from '../client/src/lib/combat/actions';
 
@@ -48,7 +49,7 @@ test('Courier gets quicker, then acts twice while cool, then every turn', () => 
   assert.equal(FW.firmwarePassives('swift', 3).speed, 3);
   assert.equal(FW.firmwarePassives('swift', 9).twin, 'cool');
   assert.equal(FW.firmwarePassives('swift', 10).twin, 'always');
-  assert.equal(FW.firmwarePassives('swift', 10).speed, 4);
+  assert.equal(FW.firmwarePassives('swift', 10).speed, 5, 'the Quicker fork (the default side) adds 2');
   assert.ok(FW.firmwareAttack('swift', 5, 40)!.effects?.retreat, 'hit and run from level 5');
   assert.deepEqual(FW.firmwarePassives('melee', 10), { speed: 0, twin: null }, 'other firmware stays at its speed');
 });
@@ -77,4 +78,19 @@ test('only elites, bosses and set pieces leave a first impression', async () => 
   assert.equal(useJournal.getState().sight('Limbic Cartel Scavenger', 1), null, 'an ordinary enemy leaves no note');
   assert.ok(useJournal.getState().seen.includes('Limbic Cartel Scavenger'), 'but it counts as met');
   assert.ok(useJournal.getState().sight('Cartel Enforcer', 1), 'an elite does');
+});
+
+test('firmware forks: levels 4, 7 and 10 offer two sides; the one taken shapes the firmware', () => {
+  assert.ok(FW.levelOptions('melee', 4) && FW.levelOptions('melee', 7) && FW.levelOptions('melee', 10));
+  assert.equal(FW.levelOptions('melee', 5), null);
+  // Enforcer level 10: Piledriver (default) keeps its line; Earthshaker hits all round
+  FW.setForkChoices({});
+  assert.equal(FW.firmwareAttack('melee', 10, 40)!.attackPattern, 'melee_long');
+  FW.setForkChoices({ melee: { 10: 1 } });
+  assert.equal(FW.firmwareAttack('melee', 10, 40)!.attackPattern, 'burst');
+  // A fork's perk and health reach the host: Bulk adds 30 health
+  FW.setForkChoices({ melee: { 7: 1 } });
+  assert.equal(FW.withClass(NO_PERKS, 'melee', 7).maxHpBonus, 30);
+  assert.equal(FW.withClass(NO_PERKS, 'melee', 6).maxHpBonus, 0, 'not before the level is reached');
+  FW.setForkChoices({});
 });

@@ -9,7 +9,7 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/li
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
-import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, identityOf } from '@/lib/engine/firmware';
+import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
 import { useTutorial } from '@/lib/stores/useTutorial';
@@ -20,6 +20,7 @@ import { rangeText, effectsText, nameOf } from '../itemText';
 import { exportSave, importSave } from '@/lib/save';
 import { useJournal } from '@/lib/stores/useJournal';
 import { useMap } from '@/lib/stores/useMap';
+import { canRest } from '@/lib/engine/map';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
 import { nextChapter } from '@/lib/combat/chapters';
@@ -419,6 +420,9 @@ function FirmwareSwitch() {
 function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
   const id = identityOf(playerClass);
+  const { forks, setFork } = useFirmware();
+  const map = useMap();
+  const atServer = canRest(map);
   const xp = useFirmware(st => st.xp[playerClass] ?? 0);
   const { level, into, need } = firmwareLevel(xp);
   const att = firmwareAttack(playerClass, level);
@@ -444,10 +448,25 @@ function FirmwarePanel() {
       <ol className="space-y-1">
         {steps.map((st, k) => {
           const lv = k + 2, got = level >= lv;
+          const options = 'choose' in st ? st.choose : null;
+          // A fork: pick a side before you reach it; once taken, change it only at a server
+          const canChange = !got || atServer;
           return (
             <li key={k} className={cx('flex gap-2 text-[13px]', got ? 'text-hud-text' : lv === level + 1 ? 'text-hud-dim' : 'text-hud-faint')}>
               <span className={cx('w-12 shrink-0 font-semibold', got ? 'text-aug' : '')}>Lv {lv}</span>
-              <span>{st.text}</span>
+              {options ? (
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  {options.map((o, side) => {
+                    const on = forks[playerClass]?.[lv] === side || (forks[playerClass]?.[lv] === undefined && side === 0);
+                    return (
+                      <button key={side} disabled={!canChange} onClick={() => setFork(playerClass, lv, side as 0 | 1)} aria-pressed={on}
+                        className={cx('key rounded-xl px-3 py-1.5 text-left text-[12.5px] leading-snug', on ? 'key-selected text-white' : 'text-hud-dim', !canChange && !on && 'opacity-40')}>
+                        {o.text}
+                      </button>
+                    );
+                  })}
+                </span>
+              ) : <span>{(st as FirmwareStep).text}</span>}
             </li>
           );
         })}

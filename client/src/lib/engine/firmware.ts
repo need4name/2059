@@ -8,13 +8,29 @@ import data from '../../content/firmware.json';
 import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
 import type { Perks, SurgeKind } from './playi';
 
-export interface FirmwareStep { text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
+export interface FirmwareStep { perk?: FirmwareIdentity['perks']; hp?: number; text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
 /** A firmware's class: its own rule, heat style and Overload ultimate. */
 export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number } }
-interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareStep[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
+/** A level: one step, or a fork of two the player picks between. */
+export type FirmwareLevel = FirmwareStep | { choose: [FirmwareStep, FirmwareStep] };
+interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
+
+/** Which side of each fork the player took, per firmware and level (0 or 1; 0 if never chosen). The store keeps it and sets it here. */
+let forkChoices: Partial<Record<PlayerClass, Record<number, 0 | 1>>> = {};
+export const setForkChoices = (c: typeof forkChoices) => { forkChoices = c; };
+export const forkChoice = (cls: PlayerClass, level: number): 0 | 1 => forkChoices[cls]?.[level] ?? 0;
+/** The two options at a forked level, or null if the level is a single step. */
+export function levelOptions(cls: PlayerClass, level: number): [FirmwareStep, FirmwareStep] | null {
+  const l = FIRMWARE[cls]?.levels[level - 2];
+  return l && 'choose' in l ? l.choose : null;
+}
+/** The steps a firmware has taken by this level, forks resolved by the player's choices. */
+export function stepsTo(cls: PlayerClass, level: number): FirmwareStep[] {
+  return (FIRMWARE[cls]?.levels ?? []).slice(0, Math.max(0, level - 1)).map((l, k) => ('choose' in l ? l.choose[forkChoice(cls, k + 2)] : l));
+}
 /** Whose firmware each is (sets what its attack does extra when you're hot). */
 export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA' };
 export const FIRMWARE_XP = D.xp;
@@ -33,7 +49,7 @@ export function firmwareLevel(xp: number): { level: number; into: number; need: 
 export const firmwareXpFor = (threat: number) => (threat % 10 === 0 ? FIRMWARE_XP.boss : threat % 5 === 0 ? FIRMWARE_XP.elite : FIRMWARE_XP.win);
 
 /** What a level adds, for the screen: "Level 5: Optical lock: always full damage". */
-export const levelStep = (cls: PlayerClass, level: number): FirmwareStep | null => FIRMWARE[cls]?.levels[level - 2] ?? null;
+export const levelStep = (cls: PlayerClass, level: number): FirmwareStep | null => (level >= 2 ? stepsTo(cls, level)[level - 2] ?? null : null);
 
 /**
  * A firmware's attack at a level. Its damage is the level's scale times the wearer's
@@ -45,7 +61,7 @@ export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?:
   let scale = def.scale, heat = def.base.heatGenerated ?? 0;
   let accuracy = def.base.accuracy, pattern = def.base.attackPattern;
   let effects: ActionEffects = { ...(def.base.effects ?? {}) };
-  for (const step of def.levels.slice(0, Math.max(0, level - 1))) {
+  for (const step of stepsTo(cls, level)) {
     scale += step.scale ?? 0;
     heat += step.heat ?? 0;
     if (step.accuracy) accuracy = step.accuracy;
@@ -66,7 +82,7 @@ export function firmwarePassives(cls: PlayerClass, level: number): { speed: numb
   const def = FIRMWARE[cls];
   if (!def) return { speed: 0, twin: null };
   let speed = def.speed ?? 0, twin: 'cool' | 'always' | null = null;
-  for (const step of def.levels.slice(0, Math.max(0, level - 1))) {
+  for (const step of stepsTo(cls, level)) {
     speed += step.speed ?? 0;
     if (step.twin === 'always' || (step.twin === 'cool' && twin !== 'always')) twin = step.twin;
   }
@@ -83,10 +99,21 @@ export const opensAt = (threat: number, open: PlayerClass[]) => DEEP_FIRMWARE.fi
 /** A firmware's class (rule, heat style, ultimate), or null with none loaded. */
 export const identityOf = (cls: PlayerClass): FirmwareIdentity | null => FIRMWARE[cls]?.identity ?? null;
 /** The host's perks with its firmware's class rules on top. */
-export function withClass(p: Perks, cls: PlayerClass): Perks {
+export function withClass(p: Perks, cls: PlayerClass, level = 1): Perks {
   const id = identityOf(cls);
   if (!id) return p;
-  const k = id.perks;
+  // The class's own perks, plus what its levels (and the forks taken) add
+  const k = { ...id.perks };
+  let hp = 0;
+  for (const st of stepsTo(cls, level)) {
+    hp += st.hp ?? 0;
+    for (const [key, v] of Object.entries(st.perk ?? {}) as [keyof FirmwareIdentity['perks'], number | boolean][]) {
+      if (typeof v === 'boolean') (k as Record<string, unknown>)[key] = v;
+      else if (key === 'coolAct') k.coolAct = Math.max(k.coolAct ?? 0, v);
+      else if (key === 'ventMult') k.ventMult = (k.ventMult ?? 1) * v;
+      else (k as Record<string, number>)[key] = ((k as Record<string, number>)[key] ?? 0) + v;
+    }
+  }
   return {
     ...p,
     chain: p.chain || !!k.chain,
@@ -97,5 +124,6 @@ export function withClass(p: Perks, cls: PlayerClass): Perks {
     ventMult: p.ventMult * (k.ventMult ?? 1),
     transferBonus: p.transferBonus + (k.transferBonus ?? 0),
     surgeKind: id.surge,
+    maxHpBonus: p.maxHpBonus + hp,
   };
 }

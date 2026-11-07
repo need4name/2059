@@ -1,5 +1,5 @@
 {
-  "about": "Firmware (lib/engine/firmware.ts) is the host's class. Each has an `identity`: its own rule (`perks`), its heat style, and its Overload ultimate (`surge`: piledriver, overwatch, blink, overrun). with firmware loaded, its attack takes Strike's place, and the firmware grows over many hosts. Every room fight won with it loaded gives it xp (an elite more, a boss or the chapter's set piece most); its level never resets on death. Each firmware's attack starts from `base` and its damage is `scale` times the wearer's physical attack; every level from 2 adds what it lists (scale and heat add up, the rest replace). `xpToNext[n]` is the xp from level n+1 to n+2. Enforcer (melee) opens with a host death once 5 enemies have been beaten in all; Operative (ranged) opens when a host dies at threat 11 or deeper; any firmware with `unlockAt` opens when a host wins a room fight at that threat or deeper. A level step may also add `speed` (the host's speed while it's loaded) or `twin` (act twice in a turn: 'cool' while at 40 heat or less, 'always' every turn).",
+  "about": "Firmware (lib/engine/firmware.ts) is the host's class. Levels 4, 7 and 10 are forks (`choose`): the player picks one of two, and can change it at a server. Each has an `identity`: its own rule (`perks`), its heat style, and its Overload ultimate (`surge`: piledriver, overwatch, blink, overrun). with firmware loaded, its attack takes Strike's place, and the firmware grows over many hosts. Every room fight won with it loaded gives it xp (an elite more, a boss or the chapter's set piece most); its level never resets on death. Each firmware's attack starts from `base` and its damage is `scale` times the wearer's physical attack; every level from 2 adds what it lists (scale and heat add up, the rest replace). `xpToNext[n]` is the xp from level n+1 to n+2. Enforcer (melee) opens with a host death once 5 enemies have been beaten in all; Operative (ranged) opens when a host dies at threat 11 or deeper; any firmware with `unlockAt` opens when a host wins a room fight at that threat or deeper. A level step may also add `speed` (the host's speed while it's loaded) or `twin` (act twice in a turn: 'cool' while at 40 heat or less, 'always' every turn).",
   "xp": {"win": 1, "elite": 3, "boss": 6},
   "xpToNext": [4, 6, 9, 12, 16, 20, 24, 28, 32],
   "firmware": {
@@ -10,13 +10,13 @@
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Knocks them back", "fx": {"knock": true} },
+        { "choose": [{"text": "Breaker: knockbacks crush into things", "fx": {"crush": true}}, {"text": "Vent engine: venting bursts 50% harder", "perk": {"ventMult": 1.5}}] },
+        { "text": "Hits harder", "scale": 0.1 },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "Knockbacks crush into things", "fx": {"crush": true} },
-        { "text": "Hits harder", "scale": 0.15 },
-        { "text": "A 20% chance to stun", "fx": {"stun": 0.2} },
+        { "choose": [{"text": "Stun lock: a 25% chance to stun", "fx": {"stun": 0.25}}, {"text": "Bulk: +30 max health", "hp": 30}] },
         { "text": "Hits harder", "scale": 0.15 },
         { "text": "Runs cooler", "heat": -3 },
-        { "text": "Piledriver: hits far harder, 35% stun", "scale": 0.25, "fx": {"stun": 0.35} }
+        { "choose": [{"text": "Piledriver: hits far harder, 35% stun", "scale": 0.25, "fx": {"stun": 0.35}}, {"text": "Earthshaker: hits all eight tiles round you", "pattern": "burst", "scale": 0.1}] }
       ]
     },
     "ranged": {
@@ -26,13 +26,13 @@
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Runs cooler", "heat": -2 },
+        { "choose": [{"text": "Optical lock: always full damage", "accuracy": "precise"}, {"text": "Run and gun: step back after the shot", "fx": {"retreat": true}}] },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "Optical lock: always full damage", "accuracy": "precise" },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "Goes through every body in the line", "pattern": "pierce" },
+        { "choose": [{"text": "Through the line: goes through every body", "pattern": "pierce"}, {"text": "Long eye: a shot that wants distance (4+ tiles)", "pattern": "longshot", "scale": 0.15}] },
         { "text": "Hits harder", "scale": 0.15 },
         { "text": "Runs cooler", "heat": -2 },
-        { "text": "Clean line: hits far harder, through cover", "scale": 0.25, "fx": {"ignoreCover": true} }
+        { "choose": [{"text": "Clean line: hits far harder, through cover", "scale": 0.25, "fx": {"ignoreCover": true}}, {"text": "Deep cold: act twice up to 40 heat, sheds 2 more", "perk": {"coolAct": 40, "extraCooling": 2}}] }
       ]
     },
     "swift": {
@@ -44,13 +44,13 @@
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Quicker: +1 speed", "speed": 1 },
+        { "choose": [{"text": "Hit and run: step back after the jab", "fx": {"retreat": true}}, {"text": "Vault: leap over them after the jab", "fx": {"vault": true}}] },
         { "text": "Runs cooler", "heat": -2 },
-        { "text": "Hit and run: step back after the jab", "fx": {"retreat": true} },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "Quicker: +1 speed", "speed": 1 },
+        { "choose": [{"text": "Quicker: +2 speed", "speed": 2}, {"text": "Bleeder: the jab makes them bleed, hits harder", "fx": {"bleed": true}, "scale": 0.1}] },
         { "text": "Hits harder", "scale": 0.15 },
         { "text": "Afterimage: act twice in a turn while you're cool", "twin": "cool" },
-        { "text": "Overclocked: act twice every turn", "twin": "always", "scale": 0.1 }
+        { "choose": [{"text": "Overclocked: act twice every turn", "twin": "always", "scale": 0.1}, {"text": "Blur: +1 speed, hits far harder", "speed": 1, "scale": 0.3}] }
       ]
     },
     "crowd": {
@@ -61,13 +61,13 @@
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Knocks them back", "fx": {"knock": true} },
-        { "text": "Clear the floor: hits all eight tiles around you", "pattern": "burst" },
+        { "choose": [{"text": "Clear the floor: hits all eight tiles around you", "pattern": "burst"}, {"text": "Long shove: a line of three that shoves", "pattern": "knockback", "scale": 0.1}] },
         { "text": "Runs cooler", "heat": -3 },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "A 20% chance to stun", "fx": {"stun": 0.2} },
+        { "choose": [{"text": "Stoker: hits push 6 more heat into them", "perk": {"transferBonus": 6}}, {"text": "Crusher: knockbacks crush, 20% stun", "fx": {"crush": true, "stun": 0.2}}] },
         { "text": "Hits harder", "scale": 0.15 },
-        { "text": "Knockbacks crush into things", "fx": {"crush": true} },
-        { "text": "Overrun: a blast on a 3x3 square up to three tiles away", "pattern": "aoe", "scale": 0.2 }
+        { "text": "A 20% chance to stun", "fx": {"stun": 0.2} },
+        { "choose": [{"text": "Overrun: a blast on a 3x3 square up to three away", "pattern": "aoe", "scale": 0.2}, {"text": "Pressure: hits push 10 more heat, hit harder", "perk": {"transferBonus": 10}, "scale": 0.15}] }
       ]
     }
   }
