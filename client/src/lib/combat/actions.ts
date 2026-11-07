@@ -70,7 +70,7 @@ ranged: {
 name: 'Operative',
 description: 'Kizuna targeting firmware. Precision at distance.',
 icon: '🎯',
-baseHp: 105,
+baseHp: 110,
 baseAttack: 20,
 baseDefense: 4,
 specialAbility: {
@@ -86,7 +86,7 @@ swift: {
 name: 'Courier',
 description: 'IOA limiter-free firmware. Gets there first, gets out first.',
 icon: '',
-baseHp: 100,
+baseHp: 105,
 baseAttack: 15,
 baseDefense: 4,
 specialAbility: { name: 'Flicker Jab', description: 'A jab so quick the arm is back before the hit lands.', damage: 1, attackPattern: 'melee', physicalRatio: 0.75 },
@@ -431,7 +431,7 @@ export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
-export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.04 };
+export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.034 };
 const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
