@@ -148,3 +148,12 @@ test('every arena has a walkable path from player to enemy', () => {
     assert.ok(near, `threat ${lvl} seed ${s}: no path`);
   }
 });
+
+test('a fractional move reach still builds a whole board (no crash laying out cover)', async () => {
+  const { arenaSize, generateBattlefield } = await import('../client/src/lib/combat/grid');
+  for (const move of [2, 2.26, 2.5, 2.74, 3.4]) {
+    const { cols, rows } = arenaSize({ move, units: 3 });
+    assert.ok(Number.isInteger(cols) && Number.isInteger(rows), `${move}: ${cols} x ${rows}`);
+    for (let k = 0; k < 20; k++) { const g = generateBattlefield(5, { move, units: 3 }); assert.equal(g.tiles[0].length, g.cols); }
+  }
+});

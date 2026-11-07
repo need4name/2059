@@ -1025,3 +1025,33 @@ test('the fight bar lists only what the tiles cannot show', async () => {
   for (const w of ['heats', 'pushes', 'step']) assert.ok(!t.includes(w), `${w} shows on the tiles instead`);
   assert.equal(statusText({ ...PLAYER_ACTIONS[0], effects: { dash: true } }), null);
 });
+
+test('part upgrades grow only on implants with that part, and two parts together can grow a synergy capstone', async () => {
+  const { treeFor, partsOf } = await import('../client/src/lib/engine/upgrades');
+  const arm = (parts: any, k: number) => ({ id: `t${k}`, name: '[IOA] Test Arm', rarity: 'epic' as const, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '', treeSeed: 1000 + k, parts });
+  const hot = { head: 'jab', mods: [], lens: 'stock', coupling: 'thermal', core: 'hot' };
+  const cold = { head: 'jab', mods: [], lens: 'clear', coupling: 'hydraulic', core: 'cold' };
+  assert.deepEqual(partsOf(arm(hot, 0)).core, ['hot']);
+  let thermite = 0, stoke = 0;
+  for (let k = 0; k < 60; k++) {
+    const names = treeFor(arm(hot, k), 'attack').map(n => n.name);
+    if (names.includes('Thermite')) thermite++;
+    if (names.includes('Stoked core')) stoke++;
+    assert.ok(!names.includes('Chilled core') && !names.includes('Cold sight'), 'no cold-core upgrades on a hot core');
+    const c = treeFor(arm(cold, k), 'attack').map(n => n.name);
+    assert.ok(!c.includes('Thermite') && !c.includes('Stoked core'), 'no hot-core upgrades on a cold core');
+  }
+  assert.ok(thermite > 5, `a thermal coupling and a hot core often end in Thermite (${thermite}/60)`);
+  assert.ok(stoke > 5, `a hot core often grows Stoked core (${stoke}/60)`);
+  // Implants with no parts never grow part upgrades
+  const bare = { id: 'b', name: '[IOA] Test Lung', rarity: 'legendary' as const, type: 'augmentation' as const, slot: 'lungs' as const, icon: '', treeSeed: 5 };
+  assert.ok(!treeFor(bare, 'passive').some(n => ['Rivets', 'Radiator', 'Heat plate', 'Faraday cage'].includes(n.name)));
+});
+
+test('part upgrades change the move: more heat pushed, a shift toward special', () => {
+  const base = { id: 'p', name: '[IOA] Test Arm', rarity: 'rare' as const, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '', parts: { head: 'jab', mods: [], lens: 'stock', coupling: 'arc', core: 'stock' } };
+  const plain = actionForItem(base)!;
+  const fed = actionForItem(base, { transfer: 3, phys: -0.1 })!;
+  assert.equal(fed.heatTransfer, plain.heatTransfer! + 3);
+  assert.ok(fed.physicalRatio! < plain.physicalRatio!);
+});

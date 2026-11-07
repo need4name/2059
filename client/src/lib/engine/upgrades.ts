@@ -14,7 +14,8 @@
 
 import data from '../../content/upgrades.json';
 import type { ActionEffects, Item, ItemRarity } from '../combat/types';
-import { makerOf } from '../combat/augments';
+import { makerOf, HEADS } from '../combat/augments';
+import { MULTI_HIT } from '../combat/patterns';
 import { hashSeed } from './rng';
 import type { Perks } from './playi';
 
@@ -26,9 +27,13 @@ export type TreeKind = 'attack' | 'brace' | 'passive';
 export interface TreePerk {
   cooling?: number; finisher?: number; flank?: number; firstLook?: boolean; partingCut?: number; sidestep?: boolean;
   hazardCut?: number; vent?: number; braceHeal?: number; structure?: number; toughness?: number; holdfast?: boolean; coolAct?: number;
+  /** Share off the heat special hits put into you (Damper, Faraday cage). */
+  specialHeatCut?: number;
 }
 export interface UpgradeEffect {
   dmg?: number; heat?: number; steady?: boolean; precise?: boolean; guard?: number;
+  /** Extra heat pushed into whoever it hits; a shift of the physical share (negative: more special). */
+  transfer?: number; phys?: number;
   attack?: number; defense?: number; hp?: number; move?: number; evasion?: number;
   fx?: ActionEffects; perk?: TreePerk;
 }
@@ -62,13 +67,47 @@ export function withTreePerks(p: Perks, t: TreePerk): Perks {
     damageTakenMult: p.damageTakenMult * cut(t.toughness),
     holdfast: p.holdfast || !!t.holdfast,
     doubleActionHeat: Math.max(p.doubleActionHeat, t.coolAct ?? 0),
+    specialHeatTakenMult: p.specialHeatTakenMult * cut(t.specialHeatCut),
   };
 }
 /** A node in an implant's tree. `cap` marks the end of a branch (legendary only on legendary parts). */
 export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary'; /** Which tree it's on (active implants' trees are attack or brace). */ kind?: TreeKind }
 
 /** An upgrade that can turn up in trees. `slots`: only on implants for these body slots (and much more likely there). */
-interface Kind { id: string; name: string; makers: string[]; slots?: string[]; effect: UpgradeEffect }
+interface Kind { id: string; name: string; makers: string[]; slots?: string[]; /** Only on implants with these parts (stage 3 part families; capstones with two are the synergy capstones). */ parts?: Record<string, string[]>; effect: UpgradeEffect }
+
+/**
+ * An implant's parts as families of names, for matching upgrade kinds: lens, coupling, core,
+ * head (its id, plus 'wide' for a shape that hits several and 'mover' for one that moves anyone),
+ * mod (mods and quirks), and for passives housing, regulator, trait.
+ */
+export function partsOf(item: Item): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const p = item.parts, pp = item.passiveParts;
+  if (p) {
+    if (p.lens) out.lens = [p.lens];
+    if (p.coupling) out.coupling = [p.coupling];
+    if (p.core) out.core = [p.core];
+    const head = HEADS[p.head];
+    if (head) {
+      const fx = head.effects ?? {};
+      out.head = [p.head,
+        ...(MULTI_HIT.has(head.pattern) ? ['wide'] : []),
+        ...(fx.knock || fx.pull || fx.dash || fx.pounce || fx.vault || ['knockback', 'charge', 'grapple'].includes(head.pattern) || p.mods.includes('knock') ? ['mover'] : [])];
+    }
+    out.mod = [...p.mods];
+  }
+  if (pp) {
+    out.housing = [pp.housing]; out.regulator = [pp.regulator];
+    if (pp.trait) out.trait = [pp.trait];
+  }
+  return out;
+}
+/** Does an implant have every part family a kind asks for? */
+const partsFit = (k: Kind, have: Record<string, string[]>) =>
+  !k.parts || Object.entries(k.parts).every(([fam, want]) => fam === 'mod' && want.length > 1
+    ? want.every(w => have.mod?.includes(w))           // a mod pair (Bloodline) needs both
+    : want.some(w => have[fam]?.includes(w)));
 interface Shape { nodes: number; depth: number; leaves: number; rootKids: number; scale: number }
 const D = data as unknown as {
   costs: number[]; winsPerPoint: number; shapes: Record<ItemRarity, Shape>;
@@ -109,7 +148,7 @@ const cache = new Map<string, UpgradeNode[]>();
 /** The tree an implant grows (the same every time for the same part). */
 export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
   const seed = item.treeSeed !== undefined ? `seed:${item.treeSeed}` : `tree:${item.id}`;
-  const key = `${seed}:${item.templateId ?? item.name}:${kind}:${item.rarity}`;
+  const key = `${seed}:${item.templateId ?? item.name}:${kind}:${item.rarity}:${JSON.stringify(partsOf(item))}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const roll = dice(seed);
@@ -136,7 +175,10 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
   // down one branch, and rarely one already used elsewhere in the tree (capstones never repeat while
   // there are others to pick)
   const used: Record<string, number> = {};
+  const have = partsOf(item);
   const choose = (pool: Kind[], avoid: Set<string>, fresh = false) => {
+    // Part upgrades only grow on parts that have them
+    pool = pool.filter(k => partsFit(k, have));
     const ok = (k: Kind) => !avoid.has(k.id) && !(fresh && used[k.id]) && (!k.slots || k.slots.includes(item.slot ?? ''));
     pool = pool.filter(k => !k.slots || k.slots.includes(item.slot ?? ''));
     let fits = pool.filter(k => ok(k) && (k.makers.includes(maker) || k.makers.includes('any')));
@@ -144,7 +186,8 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
     if (!fits.length) fits = pool.filter(k => !avoid.has(k.id));
     const list = fits.length ? fits : pool;
     // The maker's own upgrades three times as often, and the slot's own six times: what this part is for
-    const w = list.map(k => (k.makers.includes(maker) ? 3 : 1) * (k.slots ? 6 : 1) / (1 + 3 * (used[k.id] ?? 0)));
+    // ...and a part's own upgrades four times as often (a synergy capstone, needing two parts, eight)
+    const w = list.map(k => (k.makers.includes(maker) ? 3 : 1) * (k.slots ? 6 : 1) * (k.parts ? (Object.keys(k.parts).length > 1 || (k.parts.mod?.length ?? 0) > 1 ? 8 : 4) : 1) / (1 + 3 * (used[k.id] ?? 0)));
     let r = roll() * w.reduce((a, b) => a + b, 0);
     for (let k = 0; k < list.length; k++) { r -= w[k]; if (r <= 0) return list[k]; }
     return list[list.length - 1];
@@ -218,7 +261,7 @@ export function effectIn(tree: UpgradeNode[], owned: string[]): UpgradeEffect {
   const out: UpgradeEffect = {};
   const nodes = tree.filter(n => owned.includes(n.id)).sort((a, b) => depthIn(tree, a.id) - depthIn(tree, b.id));
   for (const { effect: e } of nodes) {
-    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion'] as const) if (e[k]) out[k] = (out[k] ?? 0) + e[k]!;
+    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
     if (e.steady) out.steady = true;
     if (e.precise) out.precise = true;
     if (e.fx) out.fx = { ...(out.fx ?? {}), ...e.fx };
@@ -236,6 +279,8 @@ export function effectText(e: UpgradeEffect): string {
     e.dmg && `+${pct(e.dmg)} damage`,
     e.guard && `+${pct(e.guard)} guard`,
     e.heat && `${sgn(e.heat)} heat`,
+    e.transfer && `pushes +${e.transfer} heat into them`,
+    e.phys && (e.phys > 0 ? 'more physical' : 'more special'),
     e.steady && 'steadier aim',
     e.precise && 'always full damage',
     e.attack && `${sgn(e.attack)} attack`,
@@ -277,5 +322,6 @@ function perkText(t?: TreePerk): string[] {
     t.toughness && `you take ${pct(t.toughness)} less damage`,
     t.holdfast && 'once per host, a killing blow leaves you on 1 health',
     t.coolAct && `act twice in a turn at ${t.coolAct} heat or less`,
+    t.specialHeatCut && `special hits heat you ${pct(t.specialHeatCut)} less`,
   ].filter((x): x is string => !!x);
 }

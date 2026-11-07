@@ -190,7 +190,8 @@ const DEFAULT_NEEDS: ArenaNeeds = { move: 1, units: 2 };
 // movement adds a column and two rows; each extra body adds a row (and a column
 // every two). Capped at 9x13 so tiles stay big enough to read on a phone.
 export function arenaSize(needs: ArenaNeeds = DEFAULT_NEEDS) {
-  const extraMove = Math.max(0, needs.move - 1);
+  // Reach is area-based, so it can be a fraction: the board is sized from the nearest whole tile
+  const extraMove = Math.max(0, Math.round(needs.move) - 1);
   const extraUnits = Math.max(0, needs.units - 2);
   const cols = 7 + Math.min(2, extraMove + Math.floor(extraUnits / 2));
   const rows = 9 + Math.min(4, extraMove * 2 + extraUnits);

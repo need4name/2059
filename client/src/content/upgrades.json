@@ -1,111 +1,1615 @@
 {
   "about": "Implant upgrade trees (engine/upgrades.ts). Every implant grows its own tree, worked out from the implant itself (always the same for the same part): its rarity sets the size and depth (shapes), its maker which upgrades turn up (each kind lists the makers that lean on it; 'any' suits every maker). Inner nodes come from kinds, the end of every branch is a capstone, and only a legendary implant ends its deepest branch in a legendary capstone. Numbers grow with rarity (scale) and capstones with how deep they sit. A node needs its parent; the children of one node are a fork. costs[d] is the price of a node d steps from the root. effect: dmg (share of damage), heat (added to the move's heat), steady (aim one step steadier), precise (always full damage), guard (share of guard), attack/defense/hp/move/evasion (stats), fx (side effects, as on implant parts).",
-  "costs": [1, 1, 2, 2, 3, 3],
+  "costs": [
+    1,
+    1,
+    2,
+    2,
+    3,
+    3
+  ],
   "winsPerPoint": 1,
   "shapes": {
-    "common":    { "nodes": 5,  "depth": 3, "leaves": 2, "rootKids": 2, "scale": 1 },
-    "uncommon":  { "nodes": 7,  "depth": 3, "leaves": 3, "rootKids": 2, "scale": 1.05 },
-    "rare":      { "nodes": 9,  "depth": 4, "leaves": 4, "rootKids": 2, "scale": 1.15 },
-    "epic":      { "nodes": 11, "depth": 4, "leaves": 4, "rootKids": 3, "scale": 1.3 },
-    "legendary": { "nodes": 13, "depth": 5, "leaves": 5, "rootKids": 3, "scale": 1.45 }
+    "common": {
+      "nodes": 5,
+      "depth": 3,
+      "leaves": 2,
+      "rootKids": 2,
+      "scale": 1
+    },
+    "uncommon": {
+      "nodes": 7,
+      "depth": 3,
+      "leaves": 3,
+      "rootKids": 2,
+      "scale": 1.05
+    },
+    "rare": {
+      "nodes": 9,
+      "depth": 4,
+      "leaves": 4,
+      "rootKids": 2,
+      "scale": 1.15
+    },
+    "epic": {
+      "nodes": 11,
+      "depth": 4,
+      "leaves": 4,
+      "rootKids": 3,
+      "scale": 1.3
+    },
+    "legendary": {
+      "nodes": 13,
+      "depth": 5,
+      "leaves": 5,
+      "rootKids": 3,
+      "scale": 1.45
+    }
   },
   "kinds": {
     "attack": [
-      { "id": "servo", "name": "Servo boost", "makers": ["VOLKOV", "PARSU", "TIANXIA"], "effect": { "dmg": 0.12, "attack": 2 } },
-      { "id": "ram", "name": "Hydraulic ram", "makers": ["VOLKOV", "TIANXIA"], "effect": { "attack": 2, "fx": { "knock": true } } },
-      { "id": "plate", "name": "Crush plate", "makers": ["PARSU", "VOLKOV"], "effect": { "dmg": 0.08, "fx": { "crush": true } } },
-      { "id": "overdrive", "name": "Overdrive", "makers": ["VOLKOV", "IOA"], "effect": { "dmg": 0.1, "heat": 2, "fx": { "haste": true } } },
-      { "id": "loop", "name": "Coolant loop", "makers": ["TIANXIA", "KIZUNA", "CROWN"], "effect": { "heat": -2, "fx": { "cool": 6 } } },
-      { "id": "gyro", "name": "Gyro sight", "makers": ["KIZUNA", "IOA"], "effect": { "attack": 2, "steady": true } },
-      { "id": "lock", "name": "Target lock", "makers": ["KIZUNA"], "effect": { "dmg": 0.05, "precise": true } },
-      { "id": "barbs", "name": "Barbed edge", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 2, "fx": { "bleed": true } } },
-      { "id": "leech", "name": "Leech line", "makers": ["CBN", "CROWN"], "effect": { "attack": 1, "fx": { "drain": 0.12 } } },
-      { "id": "jammer", "name": "Jammer", "makers": ["IOA"], "effect": { "fx": { "stun": 0.15 } } },
-      { "id": "snare", "name": "Snare code", "makers": ["IOA", "KIZUNA"], "effect": { "attack": 1, "fx": { "slow": true } } },
-      { "id": "edge", "name": "Overclocked edge", "makers": ["any"], "effect": { "dmg": 0.18, "heat": 3 } },
-      { "id": "trim", "name": "Heat trim", "makers": ["any"], "effect": { "attack": 1, "heat": -4 } },
-      { "id": "tune", "name": "Fine tuning", "makers": ["any"], "effect": { "dmg": 0.1, "attack": 2 } },
-      { "id": "flankread", "name": "Flank reader", "makers": ["any"], "slots": ["eyes"], "effect": { "perk": { "flank": 0.25 } } },
-      { "id": "firstlook", "name": "First look", "makers": ["any"], "slots": ["eyes"], "effect": { "attack": 1, "perk": { "firstLook": true } } },
-      { "id": "sprinter", "name": "Sprint start", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "move": 1 } },
-      { "id": "footwork", "name": "Footwork", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "evasion": 2, "perk": { "partingCut": 0.3 } } },
-      { "id": "finisher", "name": "Finisher", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "attack": 1, "perk": { "finisher": 0.15 } } },
-      { "id": "grip", "name": "Grip", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "dmg": 0.06, "perk": { "structure": 0.1 } } }
+      {
+        "id": "servo",
+        "name": "Servo boost",
+        "makers": [
+          "VOLKOV",
+          "PARSU",
+          "TIANXIA"
+        ],
+        "effect": {
+          "dmg": 0.12,
+          "attack": 2
+        }
+      },
+      {
+        "id": "ram",
+        "name": "Hydraulic ram",
+        "makers": [
+          "VOLKOV",
+          "TIANXIA"
+        ],
+        "effect": {
+          "attack": 2,
+          "fx": {
+            "knock": true
+          }
+        }
+      },
+      {
+        "id": "plate",
+        "name": "Crush plate",
+        "makers": [
+          "PARSU",
+          "VOLKOV"
+        ],
+        "effect": {
+          "dmg": 0.08,
+          "fx": {
+            "crush": true
+          }
+        }
+      },
+      {
+        "id": "overdrive",
+        "name": "Overdrive",
+        "makers": [
+          "VOLKOV",
+          "IOA"
+        ],
+        "effect": {
+          "dmg": 0.1,
+          "heat": 2,
+          "fx": {
+            "haste": true
+          }
+        }
+      },
+      {
+        "id": "loop",
+        "name": "Coolant loop",
+        "makers": [
+          "TIANXIA",
+          "KIZUNA",
+          "CROWN"
+        ],
+        "effect": {
+          "heat": -2,
+          "fx": {
+            "cool": 6
+          }
+        }
+      },
+      {
+        "id": "gyro",
+        "name": "Gyro sight",
+        "makers": [
+          "KIZUNA",
+          "IOA"
+        ],
+        "effect": {
+          "attack": 2,
+          "steady": true
+        }
+      },
+      {
+        "id": "lock",
+        "name": "Target lock",
+        "makers": [
+          "KIZUNA"
+        ],
+        "effect": {
+          "dmg": 0.05,
+          "precise": true
+        }
+      },
+      {
+        "id": "barbs",
+        "name": "Barbed edge",
+        "makers": [
+          "CBN",
+          "PATCHWORK"
+        ],
+        "effect": {
+          "attack": 2,
+          "fx": {
+            "bleed": true
+          }
+        }
+      },
+      {
+        "id": "leech",
+        "name": "Leech line",
+        "makers": [
+          "CBN",
+          "CROWN"
+        ],
+        "effect": {
+          "attack": 1,
+          "fx": {
+            "drain": 0.12
+          }
+        }
+      },
+      {
+        "id": "jammer",
+        "name": "Jammer",
+        "makers": [
+          "IOA"
+        ],
+        "effect": {
+          "fx": {
+            "stun": 0.15
+          }
+        }
+      },
+      {
+        "id": "snare",
+        "name": "Snare code",
+        "makers": [
+          "IOA",
+          "KIZUNA"
+        ],
+        "effect": {
+          "attack": 1,
+          "fx": {
+            "slow": true
+          }
+        }
+      },
+      {
+        "id": "edge",
+        "name": "Overclocked edge",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "dmg": 0.18,
+          "heat": 3
+        }
+      },
+      {
+        "id": "trim",
+        "name": "Heat trim",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 1,
+          "heat": -4
+        }
+      },
+      {
+        "id": "tune",
+        "name": "Fine tuning",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "dmg": 0.1,
+          "attack": 2
+        }
+      },
+      {
+        "id": "flankread",
+        "name": "Flank reader",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "eyes"
+        ],
+        "effect": {
+          "perk": {
+            "flank": 0.25
+          }
+        }
+      },
+      {
+        "id": "firstlook",
+        "name": "First look",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "eyes"
+        ],
+        "effect": {
+          "attack": 1,
+          "perk": {
+            "firstLook": true
+          }
+        }
+      },
+      {
+        "id": "sprinter",
+        "name": "Sprint start",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_leg",
+          "right_leg"
+        ],
+        "effect": {
+          "move": 1
+        }
+      },
+      {
+        "id": "footwork",
+        "name": "Footwork",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_leg",
+          "right_leg"
+        ],
+        "effect": {
+          "evasion": 2,
+          "perk": {
+            "partingCut": 0.3
+          }
+        }
+      },
+      {
+        "id": "finisher",
+        "name": "Finisher",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_arm",
+          "right_arm"
+        ],
+        "effect": {
+          "attack": 1,
+          "perk": {
+            "finisher": 0.15
+          }
+        }
+      },
+      {
+        "id": "grip",
+        "name": "Grip",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_arm",
+          "right_arm"
+        ],
+        "effect": {
+          "dmg": 0.06,
+          "perk": {
+            "structure": 0.1
+          }
+        }
+      },
+      {
+        "id": "grind",
+        "name": "Ground lens",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "clear"
+          ]
+        },
+        "effect": {
+          "dmg": 0.12,
+          "heat": -1
+        }
+      },
+      {
+        "id": "rezero",
+        "name": "Rezeroed",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "cracked"
+          ]
+        },
+        "effect": {
+          "dmg": 0.08,
+          "steady": true
+        }
+      },
+      {
+        "id": "arcfeed",
+        "name": "Arc feed",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "coupling": [
+            "arc",
+            "thermal"
+          ]
+        },
+        "effect": {
+          "dmg": 0.1,
+          "transfer": 3,
+          "phys": -0.1
+        }
+      },
+      {
+        "id": "hardline",
+        "name": "Hard line",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "coupling": [
+            "hydraulic",
+            "servo"
+          ]
+        },
+        "effect": {
+          "attack": 2,
+          "phys": 0.1,
+          "fx": {
+            "crush": true
+          }
+        }
+      },
+      {
+        "id": "chill",
+        "name": "Chilled core",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "cold"
+          ]
+        },
+        "effect": {
+          "dmg": 0.1,
+          "heat": -3
+        }
+      },
+      {
+        "id": "stoke",
+        "name": "Stoked core",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "hot"
+          ]
+        },
+        "effect": {
+          "dmg": 0.15,
+          "heat": 2
+        }
+      },
+      {
+        "id": "bellows",
+        "name": "Bellows",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "core": [
+            "pump"
+          ]
+        },
+        "effect": {
+          "transfer": 4,
+          "attack": 1
+        }
+      },
+      {
+        "id": "widen",
+        "name": "Widened head",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "wide"
+          ]
+        },
+        "effect": {
+          "dmg": 0.12
+        }
+      },
+      {
+        "id": "drivehead",
+        "name": "Drive head",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "head": [
+            "mover"
+          ]
+        },
+        "effect": {
+          "attack": 2,
+          "fx": {
+            "crush": true
+          }
+        }
+      },
+      {
+        "id": "serrate",
+        "name": "Serrated",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "mod": [
+            "bleed"
+          ]
+        },
+        "effect": {
+          "dmg": 0.1,
+          "fx": {
+            "slow": true
+          }
+        }
+      },
+      {
+        "id": "jolt",
+        "name": "Jolt coil",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "mod": [
+            "stun"
+          ]
+        },
+        "effect": {
+          "fx": {
+            "stun": 0.15
+          }
+        }
+      },
+      {
+        "id": "siphon",
+        "name": "Siphon",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "mod": [
+            "drain"
+          ]
+        },
+        "effect": {
+          "fx": {
+            "drain": 0.12
+          }
+        }
+      },
+      {
+        "id": "flush",
+        "name": "Flush line",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "mod": [
+            "cool"
+          ]
+        },
+        "effect": {
+          "fx": {
+            "cool": 6
+          },
+          "heat": -2
+        }
+      }
     ],
     "brace": [
-      { "id": "guard", "name": "Shield lattice", "makers": ["HELIX"], "effect": { "guard": 0.12 } },
-      { "id": "plating", "name": "Plating", "makers": ["HELIX", "PARSU"], "effect": { "defense": 4 } },
-      { "id": "padding", "name": "Padding", "makers": ["HELIX", "CROWN"], "effect": { "hp": 10 } },
-      { "id": "vent", "name": "Vent", "makers": ["any"], "effect": { "heat": -4 } },
-      { "id": "dodge", "name": "Slip joint", "makers": ["any"], "effect": { "evasion": 3 } },
-      { "id": "reflex", "name": "Reflex", "makers": ["HELIX"], "effect": { "move": 1 } }
+      {
+        "id": "guard",
+        "name": "Shield lattice",
+        "makers": [
+          "HELIX"
+        ],
+        "effect": {
+          "guard": 0.12
+        }
+      },
+      {
+        "id": "plating",
+        "name": "Plating",
+        "makers": [
+          "HELIX",
+          "PARSU"
+        ],
+        "effect": {
+          "defense": 4
+        }
+      },
+      {
+        "id": "padding",
+        "name": "Padding",
+        "makers": [
+          "HELIX",
+          "CROWN"
+        ],
+        "effect": {
+          "hp": 10
+        }
+      },
+      {
+        "id": "vent",
+        "name": "Vent",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "heat": -4
+        }
+      },
+      {
+        "id": "dodge",
+        "name": "Slip joint",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "evasion": 3
+        }
+      },
+      {
+        "id": "reflex",
+        "name": "Reflex",
+        "makers": [
+          "HELIX"
+        ],
+        "effect": {
+          "move": 1
+        }
+      }
     ],
     "passive": [
-      { "id": "aggro", "name": "Aggressor", "makers": ["VOLKOV", "CBN", "PATCHWORK"], "effect": { "attack": 4 } },
-      { "id": "plating", "name": "Plating", "makers": ["HELIX", "PARSU", "TIANXIA"], "effect": { "defense": 4 } },
-      { "id": "bulk", "name": "Bulk", "makers": ["CROWN", "HELIX", "TIANXIA"], "effect": { "hp": 10 } },
-      { "id": "nerves", "name": "Quick nerves", "makers": ["KIZUNA", "IOA"], "effect": { "evasion": 3 } },
-      { "id": "stride", "name": "Long stride", "makers": ["IOA", "VOLKOV"], "effect": { "move": 1 } },
-      { "id": "balance", "name": "Balance", "makers": ["any"], "effect": { "attack": 2, "defense": 2 } },
-      { "id": "grit", "name": "Grit", "makers": ["any"], "effect": { "hp": 6, "defense": 2 } },
-      { "id": "spite", "name": "Spite", "makers": ["CBN", "PATCHWORK"], "effect": { "attack": 5, "hp": -4 } },
-      { "id": "coldlogic", "name": "Cold logic", "makers": ["any"], "slots": ["brain"], "effect": { "perk": { "cooling": 3 } } },
-      { "id": "focus", "name": "Focus", "makers": ["any"], "slots": ["brain"], "effect": { "attack": 1, "perk": { "finisher": 0.15 } } },
-      { "id": "soundmap", "name": "Sound map", "makers": ["any"], "slots": ["ears"], "effect": { "perk": { "partingCut": 0.3 } } },
-      { "id": "innerear", "name": "Inner ear", "makers": ["any"], "slots": ["ears"], "effect": { "evasion": 2, "perk": { "flank": 0.15 } } },
-      { "id": "filters", "name": "Filters", "makers": ["any"], "slots": ["nose"], "effect": { "perk": { "hazardCut": 0.5 } } },
-      { "id": "scent", "name": "Blood scent", "makers": ["any"], "slots": ["nose"], "effect": { "perk": { "finisher": 0.15 } } },
-      { "id": "deepbreath", "name": "Deep breath", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "vent": 5 } } },
-      { "id": "secondwind", "name": "Second wind", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "braceHeal": 0.04 } } },
-      { "id": "loadpath", "name": "Load path", "makers": ["any"], "slots": ["misc"], "effect": { "perk": { "structure": 0.15 } } },
-      { "id": "shockspine", "name": "Shock spine", "makers": ["any"], "slots": ["misc"], "effect": { "defense": 1, "perk": { "toughness": 0.05 } } }
+      {
+        "id": "aggro",
+        "name": "Aggressor",
+        "makers": [
+          "VOLKOV",
+          "CBN",
+          "PATCHWORK"
+        ],
+        "effect": {
+          "attack": 4
+        }
+      },
+      {
+        "id": "plating",
+        "name": "Plating",
+        "makers": [
+          "HELIX",
+          "PARSU",
+          "TIANXIA"
+        ],
+        "effect": {
+          "defense": 4
+        }
+      },
+      {
+        "id": "bulk",
+        "name": "Bulk",
+        "makers": [
+          "CROWN",
+          "HELIX",
+          "TIANXIA"
+        ],
+        "effect": {
+          "hp": 10
+        }
+      },
+      {
+        "id": "nerves",
+        "name": "Quick nerves",
+        "makers": [
+          "KIZUNA",
+          "IOA"
+        ],
+        "effect": {
+          "evasion": 3
+        }
+      },
+      {
+        "id": "stride",
+        "name": "Long stride",
+        "makers": [
+          "IOA",
+          "VOLKOV"
+        ],
+        "effect": {
+          "move": 1
+        }
+      },
+      {
+        "id": "balance",
+        "name": "Balance",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 2,
+          "defense": 2
+        }
+      },
+      {
+        "id": "grit",
+        "name": "Grit",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "hp": 6,
+          "defense": 2
+        }
+      },
+      {
+        "id": "spite",
+        "name": "Spite",
+        "makers": [
+          "CBN",
+          "PATCHWORK"
+        ],
+        "effect": {
+          "attack": 5,
+          "hp": -4
+        }
+      },
+      {
+        "id": "coldlogic",
+        "name": "Cold logic",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "brain"
+        ],
+        "effect": {
+          "perk": {
+            "cooling": 3
+          }
+        }
+      },
+      {
+        "id": "focus",
+        "name": "Focus",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "brain"
+        ],
+        "effect": {
+          "attack": 1,
+          "perk": {
+            "finisher": 0.15
+          }
+        }
+      },
+      {
+        "id": "soundmap",
+        "name": "Sound map",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "ears"
+        ],
+        "effect": {
+          "perk": {
+            "partingCut": 0.3
+          }
+        }
+      },
+      {
+        "id": "innerear",
+        "name": "Inner ear",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "ears"
+        ],
+        "effect": {
+          "evasion": 2,
+          "perk": {
+            "flank": 0.15
+          }
+        }
+      },
+      {
+        "id": "filters",
+        "name": "Filters",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "nose"
+        ],
+        "effect": {
+          "perk": {
+            "hazardCut": 0.5
+          }
+        }
+      },
+      {
+        "id": "scent",
+        "name": "Blood scent",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "nose"
+        ],
+        "effect": {
+          "perk": {
+            "finisher": 0.15
+          }
+        }
+      },
+      {
+        "id": "deepbreath",
+        "name": "Deep breath",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "lungs"
+        ],
+        "effect": {
+          "perk": {
+            "vent": 5
+          }
+        }
+      },
+      {
+        "id": "secondwind",
+        "name": "Second wind",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "lungs"
+        ],
+        "effect": {
+          "perk": {
+            "braceHeal": 0.04
+          }
+        }
+      },
+      {
+        "id": "loadpath",
+        "name": "Load path",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "misc"
+        ],
+        "effect": {
+          "perk": {
+            "structure": 0.15
+          }
+        }
+      },
+      {
+        "id": "shockspine",
+        "name": "Shock spine",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "misc"
+        ],
+        "effect": {
+          "defense": 1,
+          "perk": {
+            "toughness": 0.05
+          }
+        }
+      },
+      {
+        "id": "rivets",
+        "name": "Rivets",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "plated"
+          ]
+        },
+        "effect": {
+          "defense": 3,
+          "perk": {
+            "structure": 0.1
+          }
+        }
+      },
+      {
+        "id": "feather",
+        "name": "Featherweight",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "light"
+          ]
+        },
+        "effect": {
+          "evasion": 3
+        }
+      },
+      {
+        "id": "gasket",
+        "name": "Gasket",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "sealed"
+          ]
+        },
+        "effect": {
+          "hp": 8,
+          "perk": {
+            "toughness": 0.03
+          }
+        }
+      },
+      {
+        "id": "radiator",
+        "name": "Radiator",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "regulator": [
+            "sink"
+          ]
+        },
+        "effect": {
+          "perk": {
+            "cooling": 2
+          }
+        }
+      },
+      {
+        "id": "damper",
+        "name": "Damper",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "regulator": [
+            "baffle"
+          ]
+        },
+        "effect": {
+          "perk": {
+            "specialHeatCut": 0.25
+          }
+        }
+      },
+      {
+        "id": "kindling",
+        "name": "Kindling",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "regulator": [
+            "primer"
+          ]
+        },
+        "effect": {
+          "attack": 3
+        }
+      }
     ]
   },
   "capstones": {
     "attack": [
-      { "id": "wrecker", "name": "Wrecking ball", "makers": ["VOLKOV", "PARSU"], "effect": { "attack": 4, "dmg": 0.3, "fx": { "stun": 0.2 } } },
-      { "id": "breach", "name": "Breach", "makers": ["VOLKOV", "TIANXIA"], "effect": { "attack": 4, "dmg": 0.25, "fx": { "knock": true, "crush": true } } },
-      { "id": "harvest", "name": "Harvest", "makers": ["CBN", "CROWN"], "effect": { "attack": 4, "dmg": 0.2, "fx": { "drain": 0.3 } } },
-      { "id": "execute", "name": "Executioner", "makers": ["KIZUNA"], "effect": { "attack": 4, "dmg": 0.4, "precise": true } },
-      { "id": "coldhands", "name": "Cold hands", "makers": ["TIANXIA", "CROWN"], "effect": { "attack": 4, "dmg": 0.15, "fx": { "haste": true, "cool": 10 } } },
-      { "id": "ghost", "name": "Ghost protocol", "makers": ["IOA"], "effect": { "attack": 4, "dmg": 0.25, "fx": { "slow": true, "stun": 0.15 } } },
-      { "id": "coldread", "name": "Cold read", "makers": ["KIZUNA", "CROWN"], "effect": { "attack": 4, "dmg": 0.25, "steady": true, "fx": { "cool": 8 } } },
-      { "id": "signalghost", "name": "Signal ghost", "makers": ["KIZUNA", "IOA"], "effect": { "attack": 4, "dmg": 0.2, "fx": { "slow": true, "haste": true } } },
-      { "id": "fury", "name": "Scrap fury", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.35, "heat": 4 } },
-      { "id": "huntereye", "name": "Hunter's eye", "makers": ["any"], "slots": ["eyes"], "effect": { "attack": 4, "dmg": 0.2, "perk": { "finisher": 0.25 } } },
-      { "id": "stepdance", "name": "Step dance", "makers": ["any"], "slots": ["left_leg", "right_leg"], "effect": { "attack": 4, "dmg": 0.2, "perk": { "sidestep": true } } },
-      { "id": "closer", "name": "Closer", "makers": ["any"], "slots": ["left_arm", "right_arm"], "effect": { "attack": 4, "dmg": 0.25, "perk": { "finisher": 0.2 } } }
+      {
+        "id": "wrecker",
+        "name": "Wrecking ball",
+        "makers": [
+          "VOLKOV",
+          "PARSU"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.3,
+          "fx": {
+            "stun": 0.2
+          }
+        }
+      },
+      {
+        "id": "breach",
+        "name": "Breach",
+        "makers": [
+          "VOLKOV",
+          "TIANXIA"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.25,
+          "fx": {
+            "knock": true,
+            "crush": true
+          }
+        }
+      },
+      {
+        "id": "harvest",
+        "name": "Harvest",
+        "makers": [
+          "CBN",
+          "CROWN"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.2,
+          "fx": {
+            "drain": 0.3
+          }
+        }
+      },
+      {
+        "id": "execute",
+        "name": "Executioner",
+        "makers": [
+          "KIZUNA"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.4,
+          "precise": true
+        }
+      },
+      {
+        "id": "coldhands",
+        "name": "Cold hands",
+        "makers": [
+          "TIANXIA",
+          "CROWN"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.15,
+          "fx": {
+            "haste": true,
+            "cool": 10
+          }
+        }
+      },
+      {
+        "id": "ghost",
+        "name": "Ghost protocol",
+        "makers": [
+          "IOA"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.25,
+          "fx": {
+            "slow": true,
+            "stun": 0.15
+          }
+        }
+      },
+      {
+        "id": "coldread",
+        "name": "Cold read",
+        "makers": [
+          "KIZUNA",
+          "CROWN"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.25,
+          "steady": true,
+          "fx": {
+            "cool": 8
+          }
+        }
+      },
+      {
+        "id": "signalghost",
+        "name": "Signal ghost",
+        "makers": [
+          "KIZUNA",
+          "IOA"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.2,
+          "fx": {
+            "slow": true,
+            "haste": true
+          }
+        }
+      },
+      {
+        "id": "fury",
+        "name": "Scrap fury",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 5,
+          "dmg": 0.35,
+          "heat": 4
+        }
+      },
+      {
+        "id": "huntereye",
+        "name": "Hunter's eye",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "eyes"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.2,
+          "perk": {
+            "finisher": 0.25
+          }
+        }
+      },
+      {
+        "id": "stepdance",
+        "name": "Step dance",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_leg",
+          "right_leg"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.2,
+          "perk": {
+            "sidestep": true
+          }
+        }
+      },
+      {
+        "id": "closer",
+        "name": "Closer",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "left_arm",
+          "right_arm"
+        ],
+        "effect": {
+          "attack": 4,
+          "dmg": 0.25,
+          "perk": {
+            "finisher": 0.2
+          }
+        }
+      },
+      {
+        "id": "thermite",
+        "name": "Thermite",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "coupling": [
+            "arc",
+            "thermal"
+          ],
+          "core": [
+            "hot",
+            "pump"
+          ]
+        },
+        "effect": {
+          "attack": 4,
+          "dmg": 0.25,
+          "transfer": 4,
+          "fx": {
+            "ignite": true
+          }
+        }
+      },
+      {
+        "id": "coldsight",
+        "name": "Cold sight",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "clear"
+          ],
+          "core": [
+            "cold"
+          ]
+        },
+        "effect": {
+          "attack": 4,
+          "dmg": 0.3,
+          "precise": true,
+          "fx": {
+            "cool": 10
+          }
+        }
+      },
+      {
+        "id": "battering",
+        "name": "Battering ram",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "coupling": [
+            "hydraulic"
+          ],
+          "head": [
+            "mover"
+          ]
+        },
+        "effect": {
+          "attack": 5,
+          "dmg": 0.3,
+          "fx": {
+            "knock": true,
+            "crush": true
+          }
+        }
+      },
+      {
+        "id": "scatter",
+        "name": "Scattershot",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "lens": [
+            "cracked"
+          ],
+          "head": [
+            "wide"
+          ]
+        },
+        "effect": {
+          "attack": 4,
+          "dmg": 0.35,
+          "fx": {
+            "slow": true
+          }
+        }
+      },
+      {
+        "id": "bloodline",
+        "name": "Bloodline",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "mod": [
+            "bleed",
+            "drain"
+          ]
+        },
+        "effect": {
+          "attack": 4,
+          "dmg": 0.2,
+          "fx": {
+            "bleed": true,
+            "drain": 0.3
+          }
+        }
+      }
     ],
     "brace": [
-      { "id": "fortress", "name": "Fortress", "makers": ["HELIX", "PARSU"], "effect": { "guard": 0.3, "defense": 4 } },
-      { "id": "skin", "name": "Second skin", "makers": ["HELIX", "CROWN"], "effect": { "hp": 25 } },
-      { "id": "ice", "name": "Ice", "makers": ["any"], "effect": { "heat": -8, "guard": 0.15 } },
-      { "id": "light", "name": "Light frame", "makers": ["any"], "effect": { "evasion": 5, "defense": 3 } }
+      {
+        "id": "fortress",
+        "name": "Fortress",
+        "makers": [
+          "HELIX",
+          "PARSU"
+        ],
+        "effect": {
+          "guard": 0.3,
+          "defense": 4
+        }
+      },
+      {
+        "id": "skin",
+        "name": "Second skin",
+        "makers": [
+          "HELIX",
+          "CROWN"
+        ],
+        "effect": {
+          "hp": 25
+        }
+      },
+      {
+        "id": "ice",
+        "name": "Ice",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "heat": -8,
+          "guard": 0.15
+        }
+      },
+      {
+        "id": "light",
+        "name": "Light frame",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "evasion": 5,
+          "defense": 3
+        }
+      }
     ],
     "passive": [
-      { "id": "predator", "name": "Predator", "makers": ["VOLKOV", "CBN", "PATCHWORK"], "effect": { "attack": 10 } },
-      { "id": "mountain", "name": "Mountain", "makers": ["HELIX", "CROWN", "TIANXIA", "PARSU"], "effect": { "hp": 30, "defense": 5 } },
-      { "id": "blur", "name": "Blur", "makers": ["KIZUNA", "IOA"], "effect": { "evasion": 6 } },
-      { "id": "wraith", "name": "Wraith", "makers": ["any"], "effect": { "evasion": 4, "attack": 4 } },
-      { "id": "clearhead", "name": "Clear head", "makers": ["any"], "slots": ["brain"], "effect": { "perk": { "cooling": 2, "coolAct": 30 } } },
-      { "id": "echosense", "name": "Echo sense", "makers": ["any"], "slots": ["ears"], "effect": { "perk": { "sidestep": true, "partingCut": 0.3 } } },
-      { "id": "sealed", "name": "Sealed", "makers": ["any"], "slots": ["nose"], "effect": { "hp": 10, "perk": { "hazardCut": 1 } } },
-      { "id": "ironlungs", "name": "Iron lungs", "makers": ["any"], "slots": ["lungs"], "effect": { "perk": { "braceHeal": 0.06, "vent": 6 } } },
-      { "id": "keel", "name": "Keel", "makers": ["any"], "slots": ["misc"], "effect": { "defense": 3, "perk": { "holdfast": true } } }
+      {
+        "id": "predator",
+        "name": "Predator",
+        "makers": [
+          "VOLKOV",
+          "CBN",
+          "PATCHWORK"
+        ],
+        "effect": {
+          "attack": 10
+        }
+      },
+      {
+        "id": "mountain",
+        "name": "Mountain",
+        "makers": [
+          "HELIX",
+          "CROWN",
+          "TIANXIA",
+          "PARSU"
+        ],
+        "effect": {
+          "hp": 30,
+          "defense": 5
+        }
+      },
+      {
+        "id": "blur",
+        "name": "Blur",
+        "makers": [
+          "KIZUNA",
+          "IOA"
+        ],
+        "effect": {
+          "evasion": 6
+        }
+      },
+      {
+        "id": "wraith",
+        "name": "Wraith",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "evasion": 4,
+          "attack": 4
+        }
+      },
+      {
+        "id": "clearhead",
+        "name": "Clear head",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "brain"
+        ],
+        "effect": {
+          "perk": {
+            "cooling": 2,
+            "coolAct": 30
+          }
+        }
+      },
+      {
+        "id": "echosense",
+        "name": "Echo sense",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "ears"
+        ],
+        "effect": {
+          "perk": {
+            "sidestep": true,
+            "partingCut": 0.3
+          }
+        }
+      },
+      {
+        "id": "sealed",
+        "name": "Sealed",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "nose"
+        ],
+        "effect": {
+          "hp": 10,
+          "perk": {
+            "hazardCut": 1
+          }
+        }
+      },
+      {
+        "id": "ironlungs",
+        "name": "Iron lungs",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "lungs"
+        ],
+        "effect": {
+          "perk": {
+            "braceHeal": 0.06,
+            "vent": 6
+          }
+        }
+      },
+      {
+        "id": "keel",
+        "name": "Keel",
+        "makers": [
+          "any"
+        ],
+        "slots": [
+          "misc"
+        ],
+        "effect": {
+          "defense": 3,
+          "perk": {
+            "holdfast": true
+          }
+        }
+      },
+      {
+        "id": "heatplate",
+        "name": "Heat plate",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "plated"
+          ],
+          "regulator": [
+            "sink"
+          ]
+        },
+        "effect": {
+          "defense": 5,
+          "perk": {
+            "cooling": 3,
+            "structure": 0.1
+          }
+        }
+      },
+      {
+        "id": "faraday",
+        "name": "Faraday cage",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "sealed"
+          ],
+          "regulator": [
+            "baffle"
+          ]
+        },
+        "effect": {
+          "hp": 10,
+          "perk": {
+            "specialHeatCut": 0.5,
+            "toughness": 0.05
+          }
+        }
+      },
+      {
+        "id": "ghostframe",
+        "name": "Ghost frame",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "housing": [
+            "light"
+          ],
+          "trait": [
+            "quick"
+          ]
+        },
+        "effect": {
+          "evasion": 6,
+          "perk": {
+            "partingCut": 0.4
+          }
+        }
+      },
+      {
+        "id": "furnace",
+        "name": "Furnace",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "regulator": [
+            "primer"
+          ],
+          "trait": [
+            "charged",
+            "tough"
+          ]
+        },
+        "effect": {
+          "attack": 8,
+          "hp": 10
+        }
+      }
     ]
   },
   "legendary": {
     "attack": [
-      { "id": "wildfire", "name": "Wildfire", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.3, "fx": { "ignite": true } } },
-      { "id": "runhot", "name": "Redline", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.2, "fx": { "hotBonus": 0.5 } } },
-      { "id": "laststand", "name": "Last stand", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.2, "fx": { "lowBonus": 1 } } },
-      { "id": "reaper", "name": "Reaper", "makers": ["any"], "effect": { "attack": 5, "dmg": 0.3, "fx": { "reap": true } } }
+      {
+        "id": "wildfire",
+        "name": "Wildfire",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 5,
+          "dmg": 0.3,
+          "fx": {
+            "ignite": true
+          }
+        }
+      },
+      {
+        "id": "runhot",
+        "name": "Redline",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 5,
+          "dmg": 0.2,
+          "fx": {
+            "hotBonus": 0.5
+          }
+        }
+      },
+      {
+        "id": "laststand",
+        "name": "Last stand",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 5,
+          "dmg": 0.2,
+          "fx": {
+            "lowBonus": 1
+          }
+        }
+      },
+      {
+        "id": "reaper",
+        "name": "Reaper",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 5,
+          "dmg": 0.3,
+          "fx": {
+            "reap": true
+          }
+        }
+      }
     ],
     "brace": [
-      { "id": "continuity", "name": "Continuity", "makers": ["any"], "effect": { "guard": 0.5, "hp": 30 } }
+      {
+        "id": "continuity",
+        "name": "Continuity",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "guard": 0.5,
+          "hp": 30
+        }
+      }
     ],
     "passive": [
-      { "id": "apex", "name": "Apex", "makers": ["any"], "effect": { "attack": 12, "defense": 6, "hp": 20 } }
+      {
+        "id": "apex",
+        "name": "Apex",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "attack": 12,
+          "defense": 6,
+          "hp": 20
+        }
+      }
     ]
   }
 }

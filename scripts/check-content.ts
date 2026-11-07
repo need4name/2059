@@ -15,7 +15,7 @@ import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
 import firmware from '../client/src/content/firmware.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
-import { MAKER_INFO, HEADS } from '../client/src/lib/combat/augments';
+import { MAKER_INFO, HEADS, MODS, QUIRKS } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
@@ -151,14 +151,21 @@ const upgradeKind = z.object({
   id: z.string().regex(/^[a-z]+$/), name: z.string().trim().min(1).max(20),
   makers: z.array(z.enum(['HELIX', 'VOLKOV', 'TIANXIA', 'KIZUNA', 'CROWN', 'IOA', 'CBN', 'PARSU', 'PATCHWORK', 'any'])).min(1),
   slots: z.array(z.enum(['brain', 'eyes', 'ears', 'nose', 'lungs', 'misc', 'left_arm', 'right_arm', 'left_leg', 'right_leg'])).min(1).optional(),
+  // Only on implants with these parts (every family listed must match one of its values)
+  parts: z.object({
+    lens: z.array(z.enum(['clear', 'stock', 'cracked'])).min(1), coupling: z.array(z.enum(['hydraulic', 'servo', 'arc', 'thermal'])).min(1),
+    core: z.array(z.enum(['cold', 'stock', 'hot', 'pump'])).min(1), head: z.array(z.string().regex(/^[a-z]+$/)).min(1), mod: z.array(z.string().regex(/^[a-z]+$/)).min(1),
+    housing: z.array(z.enum(['light', 'stock', 'plated', 'sealed'])).min(1), regulator: z.array(z.enum(['stock', 'sink', 'baffle', 'primer'])).min(1),
+    trait: z.array(z.enum(['tough', 'quick', 'charged', 'shod'])).min(1),
+  }).partial().strict().optional(),
   effect: z.object({
-    dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
+    dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), transfer: z.number().int().min(1).max(10), phys: z.number().min(-0.3).max(0.3), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
     attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
     fx: fxFields,
     perk: z.object({
       cooling: z.number().int().min(1).max(10), finisher: z.number().gt(0).max(1), flank: z.number().gt(0).max(1), firstLook: z.literal(true),
       partingCut: z.number().gt(0).max(1), sidestep: z.literal(true), hazardCut: z.number().gt(0).max(1), vent: z.number().int().min(1).max(15),
-      braceHeal: z.number().gt(0).max(0.2), structure: z.number().gt(0).max(0.5), toughness: z.number().gt(0).max(0.2), holdfast: z.literal(true), coolAct: z.number().int().min(16).max(60),
+      braceHeal: z.number().gt(0).max(0.2), structure: z.number().gt(0).max(0.5), toughness: z.number().gt(0).max(0.2), holdfast: z.literal(true), coolAct: z.number().int().min(16).max(60), specialHeatCut: z.number().gt(0).max(1),
     }).partial().strict(),
   }).partial().strict().refine(e => Object.keys(e).length > 0, 'an upgrade must do something'),
 }).strict();
@@ -300,6 +307,11 @@ export function checkContent(): string[] {
     for (const [r, sh] of Object.entries(ur.data.shapes)) {
       if (sh.depth >= ur.data.costs.length) problems.push(`upgrades.json shapes.${r}: deeper than the costs list reaches`);
       if (sh.nodes < sh.rootKids + 1) problems.push(`upgrades.json shapes.${r}: too few nodes for its root to fork`);
+    }
+    // Part names must be real: heads are head ids or 'wide' / 'mover', mods are mod or quirk ids
+    for (const sec of ['kinds', 'capstones', 'legendary'] as const) for (const [kind, list] of Object.entries(ur.data[sec])) for (const k of list) {
+      for (const h of k.parts?.head ?? []) if (!(h in HEADS) && h !== 'wide' && h !== 'mover') problems.push(`upgrades.json ${sec}.${kind}.${k.id}: unknown head "${h}"`);
+      for (const m of k.parts?.mod ?? []) if (!(m in MODS) && !(m in QUIRKS)) problems.push(`upgrades.json ${sec}.${kind}.${k.id}: unknown mod "${m}"`);
     }
     for (const [kind, list] of Object.entries(ur.data.kinds)) {
       const deepest = Math.max(...Object.values(ur.data.shapes).map(sh => sh.depth));
