@@ -51,6 +51,8 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
 | Beam | the whole row or column toward the target, to the edge | changing row or column |
 | Blast (`aoe`) | a 3×3 square centred on a tile up to 3 away | leaving the square |
 
+**Hitting several at once:** every attack hits every enemy standing on the tiles it lands on, whatever its rarity. The wide shapes (`MULTI_HIT`: sweep, cone, blast, lob, burst, ring, X-burst, pierce, beam) are how you hit a crowd; their move cards say "Hits every enemy in it", and the fight bar shows ×2 or ×3 when an aim catches more than one. Commons can roll them (arm Hook and Spread, leg Sweep and Shock Stomp, eye Lance), and the Foreman firmware is built around them.
+
 **Sweet spots** (`tileWeight` in `patterns.ts`, `sweetSpot` in `fight.ts`): every shape lands harder on some of its tiles than others (the player's attacks): Reach ×1.15 at its tip and ×0.85 close; Cone ×1.2 at the point, ×0.95 down the middle, ×0.7 at the corners; Blast ×1.3 at its heart, ×0.75 round it; Lob ×1.2 / ×0.8; Shot ×1.1 at 2–3 tiles, ×0.85 at 4; Bolt ×1.1 to 2 tiles, ×0.85 at 4; Pierce weakens 10% a body; Long shot ×1.15 at 4+ tiles, ×0.85 closer; Sweep ×1.15 in the middle, ×0.8 at the ends; Knockback ×1.15 / 1 / ×0.85 by distance; Charge ×0.8 / 1 / ×1.2 (momentum); Grapple ×0.85 close, ×1.05 further; Beam ×1.1 close, ×0.8 far; Burst ×0.85 on the diagonals; X-burst ×1.1 close; Strike, Lunge and Ring hit evenly. The attack pictures and the aimed tiles on the board are shaded by how hard the move lands there (sweet spot × side or back bonus): the bolder the tile, the harder the hit. Moves that shove what they hit show an arrow pointing away from you on each tile, moves that drag show one pointing toward you, and dashes show a cyan dot where you land.
 
 ### Enemy behaviour
@@ -177,7 +179,7 @@ Active implants (arms, legs, eyes) are built from parts when they drop, like gun
 
 | Quality | Heads | Mods |
 | --- | --- | --- |
-| Common | basic heads only; **hits only the nearest enemy** in its shape | 0 |
+| Common | basic heads only (these include wide ones: Hook, Spread, Sweep, Shock Stomp, Lance) | 0 |
 | Uncommon | basic heads | 0 or 1 (half the time) |
 | Rare | any non-signature head | 1 |
 | Epic | any non-signature head | 2 |

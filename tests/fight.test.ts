@@ -9,7 +9,7 @@ import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/comb
 import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
 import { getReachableTiles } from '../client/src/lib/combat/grid';
 import { canHitTarget, getHitTiles } from '../client/src/lib/combat/patterns';
-import { rollParts, QUIRKS } from '../client/src/lib/combat/augments';
+import { rollParts, QUIRKS, actionForItem } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 
 function arena(player: [number, number], boss: [number, number], hazard?: [number, number, number]): CombatGrid {
@@ -487,11 +487,18 @@ test('implant parts: commons get basic heads and no mods, legendaries get two, a
   assert.equal(rollParts(arm('rare', '[HELIX] Housing')), undefined, 'Helix parts are braces');
 });
 
-test('a common implant only hits the nearest enemy in its shape; better parts hit everyone', () => {
+test('wide shapes hit every enemy in them, common parts included', () => {
   const s = crowd(); // player 5,3; foes 4,3 and 4,4
   const hook = { ...PLAYER_ACTIONS[0], attackPattern: 'sweep_arc' as const };
-  assert.equal(Fight.struckAt(s, { ...hook, effects: { focus: true } }, 'none', { row: 4, col: 3 }).length, 1);
   assert.equal(Fight.struckAt(s, hook, 'none', { row: 4, col: 3 }).length, 2);
+  assert.ok(Fight.hitsMany(hook));
+  // A common part can roll a wide shape, and no longer narrows to the nearest enemy
+  const commonArm = ITEMS_2059.find(i => i.type === 'augmentation' && i.slot === 'right_arm' && i.rarity === 'common' && !i.id.startsWith('hx'))!;
+  const shapes = new Set<string>();
+  for (let k = 0; k < 60; k++) { seedRandom(k); const it = { ...commonArm, id: `c${k}`, parts: rollParts(commonArm) }; const a = actionForItem(it)!; shapes.add(a.attackPattern!); assert.ok(!a.effects?.focus); }
+  assert.ok(shapes.has('sweep_arc') || shapes.has('cone'), 'common arms can sweep or spread');
+  // The old narrowing still works if a part ever asks for it
+  assert.equal(Fight.struckAt(s, { ...hook, effects: { focus: true } }, 'none', { row: 4, col: 3 }).length, 1);
 });
 
 test('pull drags an enemy to you; bleed ticks on its turn; drain heals; a hit-and-run step dodges the parting blow', () => {

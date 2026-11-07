@@ -153,18 +153,18 @@ export const HEADS: Record<string, Head> = {
   jab:      { group: 'arm', noun: 'Jab',      pattern: 'melee',          mult: 1.0,  basic: true },
   reach:    { group: 'arm', noun: 'Drive',    pattern: 'melee_long',     mult: 0.95, basic: true },
   lash:     { group: 'arm', noun: 'Lash',     pattern: 'lunge',          mult: 1.1,  basic: true },
-  hook:     { group: 'arm', noun: 'Hook',     pattern: 'sweep_arc',      mult: 0.85 },
+  hook:     { group: 'arm', noun: 'Hook',     pattern: 'sweep_arc',      mult: 0.85, basic: true },
   cutter:   { group: 'arm', noun: 'Cutter',   pattern: 'diagonal_cross', mult: 0.8 },
-  spread:   { group: 'arm', noun: 'Spread',   pattern: 'cone',           mult: 0.85 },
+  spread:   { group: 'arm', noun: 'Spread',   pattern: 'cone',           mult: 0.85, basic: true },
   grapple:  { group: 'arm', noun: 'Grapple',  pattern: 'grapple',        mult: 0.8,  effects: { pull: true } },
   stomp:    { group: 'leg', noun: 'Stomp',    pattern: 'melee',          mult: 1.0,  basic: true },
   kick:     { group: 'leg', noun: 'Kick',     pattern: 'knockback',      mult: 0.9,  basic: true },
   lunge:    { group: 'leg', noun: 'Lunge',    pattern: 'lunge',          mult: 1.05, basic: true },
   charge:   { group: 'leg', noun: 'Charge',   pattern: 'charge',         mult: 1.0 },
-  sweep:    { group: 'leg', noun: 'Sweep',    pattern: 'sweep_arc',      mult: 0.85 },
+  sweep:    { group: 'leg', noun: 'Sweep',    pattern: 'sweep_arc',      mult: 0.85, basic: true },
   stepcut:  { group: 'leg', noun: 'Step-cut', pattern: 'melee',          mult: 0.95, effects: { retreat: true } },
   spinkick: { group: 'leg', noun: 'Spin Kick', pattern: 'sweep_arc',     mult: 0.85, effects: { knock: true } },
-  shockstomp: { group: 'leg', noun: 'Shock Stomp', pattern: 'burst',     mult: 0.7 },
+  shockstomp: { group: 'leg', noun: 'Shock Stomp', pattern: 'burst',     mult: 0.7,  basic: true },
   heeldrop: { group: 'leg', noun: 'Heel Drop', pattern: 'melee',         mult: 0.9,  effects: { stun: 0.25 } },
   hookkick: { group: 'leg', noun: 'Hook Kick', pattern: 'lunge',         mult: 0.85, effects: { pull: true } },
   pounce:   { group: 'leg', noun: 'Pounce',   pattern: 'lunge',          mult: 1.0,  effects: { pounce: true } },
@@ -173,7 +173,7 @@ export const HEADS: Record<string, Head> = {
   dropkick: { group: 'leg', noun: 'Drop Kick', pattern: 'lunge',         mult: 0.95, effects: { knock: true } },
   bolt:     { group: 'eyes', noun: 'Bolt',    pattern: 'bolt',           mult: 1.0,  basic: true },
   scope:    { group: 'eyes', noun: 'Scope',   pattern: 'ranged',         mult: 1.05, basic: true },
-  lance:    { group: 'eyes', noun: 'Lance',   pattern: 'pierce',         mult: 0.9 },
+  lance:    { group: 'eyes', noun: 'Lance',   pattern: 'pierce',         mult: 0.9,  basic: true },
   mortar:   { group: 'eyes', noun: 'Mortar',  pattern: 'lob',            mult: 0.8 },
   // Signatures: legendary only
   breachline:  { group: 'arm', noun: 'Breach Line',   pattern: 'charge',    mult: 1.1,  signature: 'VOLKOV',    effects: { dash: true, knock: true } },
@@ -313,7 +313,6 @@ export function actionForItem(item: Item, up: UpgradeEffect = {}): CombatAction 
   const head = HEADS[parts.head] ?? HEADS[legacyParts(item, group, t.pattern).head];
   const effects: ActionEffects = { ...(head.effects ?? {}) };
   for (const m of parts.mods) Object.assign(effects, (MODS[m] ?? QUIRKS[m])?.effects ?? {});
-  if (item.rarity === 'common' && item.parts && !head.signature) effects.focus = true;
   if (up.fx) Object.assign(effects, up.fx);
   const name = head.signature ? head.noun : `${MAKER_PARTS[maker].word} ${head.noun}`;
 

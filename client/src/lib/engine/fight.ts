@@ -976,6 +976,10 @@ export function attackFootprint(action: CombatAction, playerClass: PlayerClass =
   return { me, tiles: Array.from(seen.values()) };
 }
 
+/** Shapes that cover several tiles at once: every enemy standing in them is hit. */
+export const MULTI_HIT = new Set<AttackPatternType>(['sweep_arc', 'cone', 'aoe', 'lob', 'burst', 'ring', 'diagonal_cross', 'pierce', 'beam']);
+export const hitsMany = (action: CombatAction, playerClass: PlayerClass = 'none') => action.type !== 'brace' && MULTI_HIT.has(attackPatternOf(action, playerClass));
+
 /** How hard an attack lands on a tile of its shape (its sweet spot), aimed at `aim`. */
 export function sweetSpot(action: CombatAction, playerClass: PlayerClass, from: TilePosition, aim: TilePosition | null, tile: TilePosition): number {
   if (!aim || ignoresRange(action, playerClass) || action.type === 'brace') return 1;

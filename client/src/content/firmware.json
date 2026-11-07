@@ -54,7 +54,7 @@
       ]
     },
     "crowd": {
-      "identity": {"rule": "Every hit pushes 6 more heat into whoever it lands on.", "heat": "Cooks crowds: get them to 100 and they overheat.", "ultimate": "Overrun: shove everyone within 3 tiles back and pump 50 heat into each.", "surge": "overrun", "perks": {"transferBonus": 6}},
+      "identity": {"rule": "Built for crowds: its Crowd Press hits every enemy in a sweep, then all eight tiles around you, then a blast up to three tiles away. Every hit pushes 6 more heat into whoever it lands on.", "heat": "Cooks crowds: get them to 100 and they overheat.", "ultimate": "Overrun: shove everyone within 3 tiles back and pump 50 heat into each.", "surge": "overrun", "perks": {"transferBonus": 6}},
       "unlockAt": 20,
       "scale": 0.85,
       "base": {"type": "attack", "name": "Crowd Press", "description": "Tianxia labour firmware: a shoulder through the crowd. Sweeps the three tiles in front of you.", "damage": 12, "heatGenerated": 16, "heatTransfer": 4, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "sweep_arc"},
