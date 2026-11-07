@@ -12,13 +12,11 @@ export function TitleScreen({ onContinue, onNewGame }: { onContinue: () => void;
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-hud-bg">
-      {/* Night sky over the offshore city: soft glows, a warm waterline */}
-      <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-sys/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-aug/10 blur-3xl" />
+      {/* Night sky over the offshore city: a warm waterline */}
       <div className="pointer-events-none absolute inset-0 scanlines" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-amber-500/[0.08] via-transparent to-transparent" />
       <div className="pointer-events-none absolute inset-x-10 bottom-[22%] h-px rounded-full bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" />
-      <div className="pointer-events-none absolute left-[22%] top-12 h-1.5 w-1.5 rounded-full bg-amber-200/80 blur-[1px] animate-pulse" />
+      <div className="pointer-events-none absolute left-[22%] top-12 h-1.5 w-1.5 rounded-full bg-amber-200/80 animate-pulse" />
       <div className="pointer-events-none absolute right-[28%] top-20 h-1 w-1 rounded-full bg-sys/70" />
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-6 text-center">

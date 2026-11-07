@@ -237,11 +237,6 @@ const weapon = z.object({
   name: text, description: text,
   manufacturer: z.enum(['volkov', 'tianxia', 'cbn', 'ioa']),
   weaponType: z.enum(['pistol', 'revolver', 'shotgun']),
-  tier: z.union([z.literal(1), z.literal(2)]),
-  upgradeOfId: z.string().optional(),
-  price: z.number().int().positive(), sellPrice: z.number().int().positive(), upgradePrice: z.number().int().positive().optional(),
-  icon: text,
-  combatAction: action,
 }).strict();
 
 const enemy = z.object({
@@ -290,15 +285,12 @@ export function checkContent(): string[] {
     } else if (!it.consumableEffect && !it.hpBonus) problems.push(`items.json ${it.id}: a consumable needs an effect`);
   });
 
-  // Weapons
-  const wids = new Set((weapons as { id: string }[]).map(w => w.id));
+  // Gun frames: one per maker and action
+  const frames = new Set<string>();
   (weapons as unknown[]).forEach(raw => {
     const r = weapon.safeParse(raw); const id = (raw as { id?: string }).id ?? '?';
     report(`weapons.json ${id}`, r);
-    if (r.success && r.data.tier === 2 && !wids.has(r.data.id.replace(/_mk2$|_t2$/, '_t1')) && !(r.data.upgradeOfId && wids.has(r.data.upgradeOfId))) {
-      problems.push(`weapons.json ${id}: tier 2 weapon has no tier 1 to upgrade from`);
-    }
-    if (r.success && r.data.sellPrice >= r.data.price) problems.push(`weapons.json ${id}: sells for more than it costs`);
+    if (r.success) { const k = `${r.data.manufacturer}-${r.data.weaponType}`; if (frames.has(k)) problems.push(`weapons.json ${id}: a second ${k} frame`); frames.add(k); }
   });
 
   // Enemies
@@ -431,5 +423,5 @@ export function checkContent(): string[] {
 if (process.argv[1]?.endsWith('check-content.ts')) {
   const problems = checkContent();
   if (problems.length) { console.error(problems.map(p => `  - ${p}`).join('\n')); console.error(`${problems.length} content problem(s)`); process.exit(1); }
-  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} weapons, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies, ${chapters.chapters.length} chapters, ${Object.values(MAPS).reduce((n, m) => n + m.rooms.length, 0)} map rooms`);
+  console.log(`Content OK: ${(items as unknown[]).length} items, ${(weapons as unknown[]).length} gun frames, ${Object.keys(enemies.enemies).length} enemies + the Patchwork King, ${allies.allies.length} allies, ${chapters.chapters.length} chapters, ${Object.values(MAPS).reduce((n, m) => n + m.rooms.length, 0)} map rooms`);
 }

@@ -12,7 +12,7 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 - **Turn flow:** an action locks input until it resolves. Every delayed step checks a `fightId`, so leaving or finishing a fight cancels anything still pending.
 - **Setting:** the player is a stray signal living in grey-market brain chips in Offshore Sector 7 (the plastic archipelago). Death = "host lost"; the signal jumps to a new host. Never say a mind is backed up or restored: in this universe minds can be extracted but never reinserted.
 - **Loot:** granted in the store the moment a boss dies (`handleBossDefeated`), not by a screen. Keeps improving past threat 8; the Patchwork King (threat 10) always out-drops a normal boss. On the first life, threat 1 guarantees an active implant and threat 2 a passive one.
-- **Market:** the Grey Lane (`ShopScreen`, `useMarket`, `lib/combat/economy.ts`) is opened from the hub. Buy/sell implants, stims and weapons; filter by active/passive/stim/weapon and rarity. Stock rerolls after every fight.
+- **Market:** the Grey Lane (`ShopScreen`, `useMarket`, `lib/combat/economy.ts`) is opened from the hub. Buy/sell implants, stims and guns; filter by active/passive/stim/gun and rarity. Implants and stims reroll after every fight; the gun rack (`lib/combat/guns.ts`, part-built guns) only for a new host or a server rest.
 - **Implants (`lib/combat/augments.ts`):** active slots (arms, legs, eyes) each give a combat move built from maker x rarity, sharpened by its upgrade path. Passive slots (brain, ears, nose, lungs, spine) give stats only. Maker is read from the `[MAKER]` name prefix. Helix gear is defensive only (its active moves are braces).
 - **Structure bar:** the sum of installed implants (slot x maker x rarity x condition). No implants = no bar; structural hits spill onto health at 50% and you can't malfunction.
 - **Health cost:** CBN, IOA and Volkov implants plus degraded/corroded parts lower max health (floor 30).
@@ -24,7 +24,7 @@ Boss Farm RPG is a near-future cyberpunk roguelike where players augment their b
 - **Heavy attacks:** telegraphed one turn ahead; the orange tiles show where it lands. Stepping out dodges it.
 - **Overheat (100 heat):** movement locked. Move-range tree upgrades apply to tile taps.
 - **Classes:** start Unclassified. Dying at threat level 11+ unlocks Enforcer/Operative permanently; after that every death lets you pick a profile.
-- **Death:** clears implants, credits, weapons, loadout extras and upgrade trees. Keeps host count and class unlock.
+- **Death:** clears implants, credits, guns, loadout extras and upgrade trees. Keeps host count and class unlock.
 - **Seeds:** every run has a `runSeed`; each fight reseeds from `runSeed` + fight number, and each market visit from `runSeed` + its stock key (`lib/engine/rng.ts`).
 - **Checks:** `npm run verify` (typecheck, `tests/`, `scripts/sim.ts --check`) gates every deploy.
 - **Saving:** all stores persist into one versioned save (`2059-save`, `lib/save.ts`); older six-key saves move over on first load. Players can copy the save as text and restore it from the Status tab. Reloading mid-fight returns to base.

@@ -3,7 +3,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
-import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
+import { ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
@@ -454,7 +454,6 @@ resizeObserver.observe(canvas.parentElement);
 
 // Zones are worked out once per change, not every frame (they loop over the whole board)
 let reachableTiles: Set<string> | null = null;
-let currentAttackPattern: AttackPatternType | null = null;
 let aimedTiles: Set<string> | null = null;
 const aimedWeight = new Map<string, number>();
 let aimedMove: ReturnType<typeof moveKind> = null;
@@ -517,14 +516,6 @@ const blockedAt = (r: number, c: number) => r < 0 || c < 0 || r >= grid.rows || 
   || (grid.playerPosition.row === r && grid.playerPosition.col === c);
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
-// Read attack pattern directly from the action - this is the single source of truth.
-// Falls back to class special pattern for 'special' type, then melee_long as last resort.
-const classDef = CLASS_DEFINITIONS[playerClass];
-currentAttackPattern = (
-(selectedAction as any).attackPattern ||
-(selectedAction.type === 'special' ? classDef?.specialAbility?.attackPattern : null) ||
-'melee_long'
-) as AttackPatternType;
 
 // Where it can be aimed (dim), and where the current aim lands (bright)
 const fs = useCombat.getState();

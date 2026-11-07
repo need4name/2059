@@ -54,7 +54,6 @@ export function VictoryScreen() {
         </Btn>
       )
     }>
-      <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-ok/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
         <header className="rise-in space-y-2 text-center">
           <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(74,210,149,0.3)]">{ended ? (chapterMap().endTitle ?? 'It is quiet') : 'Felled'}</h1>

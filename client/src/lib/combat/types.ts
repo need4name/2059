@@ -161,11 +161,9 @@ name: string;
 description: string;
 manufacturer: WeaponManufacturer;
 weaponType: WeaponType;
-tier: 1 | 2;
-upgradeOfId?: string;   // tier-1 id this upgrades from
+tier: 1 | 2;           // kept for old saves; every gun is rolled at a rarity now
 price: number;          // buy price
-sellPrice: number;      // sell back price (~40% of buy)
-upgradePrice?: number;  // cost to upgrade to tier 2
+sellPrice: number;      // sell back price (40% of buy)
 icon: string;
 combatAction: CombatAction;
 /** A rolled gun (guns.ts): its grade, what its tree grows from, and its parts. */

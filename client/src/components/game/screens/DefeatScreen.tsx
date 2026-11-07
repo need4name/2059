@@ -59,7 +59,6 @@ export function DefeatScreen() {
         {offer && !learned ? 'Choose what stays' : anyFirmware && !choice ? 'Choose firmware' : 'Wake'}
       </Btn>
     }>
-      <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-80 -translate-x-1/2 rounded-full bg-hostile/15 blur-3xl" />
       <div className="relative space-y-6 px-4 pb-6 pt-12">
         <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || anyFirmware || places.length > 1 ? 'pt-8' : 'pt-[28vh]')}>
           <Glyph name="signal" size={30} className="signal-pulse text-sys" />

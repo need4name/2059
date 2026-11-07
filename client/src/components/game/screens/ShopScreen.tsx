@@ -73,7 +73,7 @@ function ItemRow({ item, price, action }: { item: Item; price: number; action: R
 
 export function ShopScreen() {
   const { leaveShop, bossLevel, progression } = useCombat();
-  const { gold, items, ownedWeapons, equippedWeapon, buyWeapon, upgradeWeapon, sellWeapon, equipWeapon } = useInventory();
+  const { gold, items, ownedWeapons, equippedWeapon, sellWeapon, equipWeapon } = useInventory();
   const { slots, setSlot } = useLoadout();
   const { stock, ensureStock, buy, sell, guns, ensureGuns, buyGun } = useMarket();
   const rests = useMap(st => st.rests ?? 0);
@@ -102,7 +102,6 @@ export function ShopScreen() {
 
   return (
     <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={leaveShop}>Leave</Btn>}>
-      <div className="pointer-events-none absolute right-0 top-0 h-64 w-48 rounded-full bg-cred/10 blur-3xl" />
       <div className="relative space-y-4 px-4 pb-6 pt-7">
         <header className="flex items-start justify-between gap-3">
           <div className="space-y-1">

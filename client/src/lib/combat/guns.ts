@@ -11,7 +11,7 @@
 import type { ActionEffects, AttackPatternType, CombatAction, Item, ItemRarity, Weapon, WeaponType } from './types';
 import { LENSES, modelOf } from './augments';
 import { random } from '../engine/rng';
-import { BASE_WEAPONS } from './weapons2059';
+import { GUN_FRAME_DATA, frameAsWeapon } from './weapons2059';
 import type { UpgradeEffect } from '../engine/upgrades';
 
 export type GunRound = 'slug' | 'flechette' | 'thermal' | 'emp';
@@ -40,8 +40,8 @@ const MAKER: Record<string, { mod: ActionEffects; barrel: string; rounds: GunRou
 };
 const pick = <T,>(xs: T[]): T => xs[Math.floor(random() * xs.length)];
 
-/** The gun frames the rack can stock: one per maker and action (content/weapons.json, first tier). */
-export const GUN_FRAMES = BASE_WEAPONS.filter(w => w.tier === 1);
+/** The gun frames the rack can stock: one per maker and action (content/weapons.json). */
+export const GUN_FRAMES = GUN_FRAME_DATA.map(frameAsWeapon);
 
 /** Roll a gun from a frame at a rarity (seeded, so a run's rack replays). */
 export function rollGun(frame: Weapon, rarity: ItemRarity): Weapon {
@@ -53,7 +53,7 @@ export function rollGun(frame: Weapon, rarity: ItemRarity): Weapon {
   if ((rarity === 'epic' || rarity === 'legendary') && random() < 0.5) mods.push('extmag');
   const price = RARITY_PRICE[rarity];
   const w: Weapon = {
-    ...frame, id: `${frame.id}-${Math.floor(random() * 1e9).toString(36)}`, rarity, tier: 1, upgradeOfId: undefined, upgradePrice: undefined,
+    ...frame, id: `${frame.id}-${Math.floor(random() * 1e9).toString(36)}`, rarity, tier: 1,
     price, sellPrice: Math.round(price * 0.4), treeSeed: Math.floor(random() * 4294967296), gunParts: { barrel, round, mods },
   } as Weapon;
   return { ...w, combatAction: gunAction(w) };
@@ -71,7 +71,7 @@ export function gunModel(w: Weapon): string {
   return modelOf(gunItem(w)).replace('-', `-${ACTIONS[w.weaponType].letter}`);
 }
 /** A gun's name as shown: its model number and its frame's name ("VK-P3 Operator Sidearm"). */
-export const gunName = (w: Weapon) => `${gunModel(w)} ${w.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s+MK-\d+$/, '')}`;
+export const gunName = (w: Weapon) => `${gunModel(w)} ${w.name.replace(/^\[[A-Z]+\]\s*/, '')}`;
 /** How many rounds a gun holds (with an extended magazine, and any from its tree). */
 export const magazineOf = (w: Weapon, up: UpgradeEffect = {}) => ACTIONS[w.weaponType].mag + (w.gunParts?.mods.includes('extmag') ? 1 : 0) + (up.ammo ?? 0);
 

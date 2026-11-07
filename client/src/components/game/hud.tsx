@@ -191,7 +191,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCa
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center" onClick={onCancel}>
       <div role="dialog" aria-modal="true" className="rise-in slab-solid w-full max-w-sm rounded-[28px] p-6" onClick={e => e.stopPropagation()}>
         <h2 className="font-display text-xl font-semibold text-hud-text">{title}</h2>
         <div className="mt-2 text-sm leading-relaxed text-hud-dim">{body}</div>
@@ -208,7 +208,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCa
 export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
       <div className="rise-in slab-solid w-full max-w-[var(--col)] rounded-t-[28px]" onClick={e => e.stopPropagation()} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/15" />
         <div className="flex items-center justify-between px-5 pb-2 pt-3">

@@ -286,16 +286,16 @@ export const TRAIT_CHANCE: Partial<Record<Item['rarity'], number>> = { rare: 0.3
 export const QUIRK_CHANCE: Partial<Record<Item['rarity'], number>> = { epic: 0.15, legendary: 0.4 };
 
 // What each maker leans toward: its usual heads (picked 60% of the time) and the mods it can carry
-const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[]; word: string }> = {
-  VOLKOV:    { word: 'Hydraulic',    heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance', 'dropkick'], mods: ['knock', 'crush', 'rush'] },
-  TIANXIA:   { word: 'Labour',       heads: ['jab', 'hook', 'kick', 'stomp', 'bolt', 'scope', 'shockstomp', 'spinkick'], mods: ['knock', 'cool'] },
-  KIZUNA:    { word: 'Signed',       heads: ['cutter', 'lash', 'lunge', 'stepcut', 'scope', 'lance', 'vault', 'pounce'], mods: ['cover', 'cool', 'sap'] },
-  CROWN:     { word: 'Concierge',    heads: ['jab', 'reach', 'sweep', 'stepcut', 'scope', 'bolt', 'heeldrop'], mods: ['drain', 'cool'] },
-  CBN:       { word: 'Graft',        heads: ['lash', 'grapple', 'lunge', 'kick', 'bolt', 'lance', 'hookkick', 'pounce'], mods: ['bleed', 'drain'] },
-  IOA:       { word: 'Limiter-free', heads: ['spread', 'hook', 'charge', 'kick', 'mortar', 'bolt', 'slide', 'vault'], mods: ['stun', 'cover', 'rush'] },
-  PARSU:     { word: 'Substrate',    heads: ['jab', 'hook', 'stomp', 'kick', 'bolt', 'mortar', 'shockstomp', 'heeldrop'], mods: ['crush', 'knock', 'sap'] },
-  PATCHWORK: { word: 'Scrap',        heads: [], mods: Object.keys(MODS) },
-  HELIX:     { word: 'Housing',      heads: [], mods: [] },
+const MAKER_PARTS: Record<Maker, { heads: string[]; mods: string[] }> = {
+  VOLKOV:    { heads: ['reach', 'jab', 'spread', 'charge', 'kick', 'scope', 'lance', 'dropkick'], mods: ['knock', 'crush', 'rush'] },
+  TIANXIA:   { heads: ['jab', 'hook', 'kick', 'stomp', 'bolt', 'scope', 'shockstomp', 'spinkick'], mods: ['knock', 'cool'] },
+  KIZUNA:    { heads: ['cutter', 'lash', 'lunge', 'stepcut', 'scope', 'lance', 'vault', 'pounce'], mods: ['cover', 'cool', 'sap'] },
+  CROWN:     { heads: ['jab', 'reach', 'sweep', 'stepcut', 'scope', 'bolt', 'heeldrop'], mods: ['drain', 'cool'] },
+  CBN:       { heads: ['lash', 'grapple', 'lunge', 'kick', 'bolt', 'lance', 'hookkick', 'pounce'], mods: ['bleed', 'drain'] },
+  IOA:       { heads: ['spread', 'hook', 'charge', 'kick', 'mortar', 'bolt', 'slide', 'vault'], mods: ['stun', 'cover', 'rush'] },
+  PARSU:     { heads: ['jab', 'hook', 'stomp', 'kick', 'bolt', 'mortar', 'shockstomp', 'heeldrop'], mods: ['crush', 'knock', 'sap'] },
+  PATCHWORK: { heads: [], mods: Object.keys(MODS) },
+  HELIX:     { heads: [], mods: [] },
 };
 
 const pick = <T,>(arr: T[]): T => arr[Math.floor(random() * arr.length)];

@@ -32,7 +32,6 @@ unequipAugmentation: (slot: AugmentationSlot) => void;
 useConsumable: (itemId: string) => Item | null;
 getTotalAugmentationBonuses: (activeStatMult?: number) => { physicalAttack: number; structuralAttack: number; physicalDefense: number; structuralDefense: number; hp: number; evasion: number; structure: number; hpCost: number; bypassStructuralDefense: boolean; hasKizuna: boolean; treeAttack: number; treeDefense: number; treeHp: number };
 buyWeapon: (weapon: Weapon) => boolean;
-upgradeWeapon: (tier1Id: string, tier2Weapon: Weapon) => boolean;
 sellWeapon: (weaponId: string) => void;
 equipWeapon: (weapon: Weapon | null) => void;
 }
@@ -232,22 +231,6 @@ set((state) => {
 if (state.gold >= weapon.price && !state.ownedWeapons.find(w => w.id === weapon.id)) {
 success = true;
 return { gold: state.gold - weapon.price, ownedWeapons: [...state.ownedWeapons, weapon] };
-}
-return state;
-});
-return success;
-},
-
-upgradeWeapon: (tier1Id: string, tier2Weapon: Weapon) => {
-let success = false;
-const cost = tier2Weapon.upgradePrice ?? tier2Weapon.price;
-set((state) => {
-const hasTier1 = state.ownedWeapons.find(w => w.id === tier1Id);
-if (hasTier1 && state.gold >= cost && !state.ownedWeapons.find(w => w.id === tier2Weapon.id)) {
-success = true;
-const newOwned = state.ownedWeapons.filter(w => w.id !== tier1Id).concat(tier2Weapon);
-const newEquipped = state.equippedWeapon?.id === tier1Id ? tier2Weapon : state.equippedWeapon;
-return { gold: state.gold - cost, ownedWeapons: newOwned, equippedWeapon: newEquipped };
 }
 return state;
 });
