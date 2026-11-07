@@ -69,8 +69,7 @@ export function rangeText(action: CombatAction): string {
 
 /** The side effects an attack carries, in plain words ("pushes back · bleeds"). */
 export function effectsText(action: CombatAction): string | null {
-  const fx = action.effects;
-  if (!fx) return null;
+  const fx = action.effects ?? {};
   const out = [
     fx.focus && 'hits only the nearest one',
     fx.knock && 'pushes back',
@@ -87,6 +86,12 @@ export function effectsText(action: CombatAction): string | null {
     fx.ignoreCover && 'through cover',
     fx.slow && 'slows them',
     fx.haste && 'hastes you',
+    fx.ignite && 'sets them alight',
+    (action.heatTransfer ?? 0) >= 6 && `heats them +${action.heatTransfer}`,
+    action.healing && `heals you ${action.healing}`,
+    fx.hotBonus && `+${Math.round(fx.hotBonus * 100)}% while hot`,
+    fx.lowBonus && `+${Math.round(fx.lowBonus * 100)}% while low on health`,
+    fx.reap && 'a takedown vents your heat and guards you',
   ].filter(Boolean);
   return out.length ? out.join(' · ') : null;
 }

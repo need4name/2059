@@ -1018,10 +1018,9 @@ test('passive parts: housing changes structure, regulators and traits change the
   assert.ok(baffled < raw);
 });
 
-test('tile marks show what else a move does: on the target, and on you', async () => {
-  const { effectMarks } = await import('../client/src/components/game/marks');
-  const m = effectMarks({ ...PLAYER_ACTIONS[0], heatTransfer: 8, effects: { bleed: true, stun: 0.25, drain: 0.25, cool: 8 } });
-  assert.deepEqual(m.target, ['bleed', 'stun', 'heat']);
-  assert.deepEqual(m.self, ['drain', 'cool']);
-  assert.deepEqual(effectMarks({ ...PLAYER_ACTIONS[1] }), { target: [], self: [] }, 'a brace marks nothing here');
+test('the fight bar lists everything else a move does, quirks and heat push included', async () => {
+  const { effectsText } = await import('../client/src/components/game/itemText');
+  const t = effectsText({ ...PLAYER_ACTIONS[0], heatTransfer: 8, effects: { bleed: true, stun: 0.25, drain: 0.25, ignite: true, reap: true } })!;
+  for (const w of ['bleeds', '25% stun', 'heals you 25%', 'sets them alight', 'heats them +8', 'takedown']) assert.ok(t.includes(w), w);
+  assert.equal(effectsText({ ...PLAYER_ACTIONS[0], heatTransfer: 3 }), null, 'a plain strike lists nothing');
 });

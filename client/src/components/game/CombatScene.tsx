@@ -7,7 +7,6 @@ import { CLASS_DEFINITIONS, ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
-import { effectMarks, drawMarks } from './marks';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
@@ -40,6 +39,26 @@ return targetable;
 }
 
 // Rounded rectangle path for the softer tile look
+/** An arrow that slides from a tile's middle toward (dx, dy) and fades, over and over: this will move that way. */
+function drawMoveArrow(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, dy: number, tileW: number, tileH: number, now: number, color: string) {
+  const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const t = (now / 900) % 1, s = tileW * 0.16;
+  for (const k of [0, 0.5]) {
+    const u = (t + k) % 1;
+    const cx = x + ux * tileW * (u * 0.45 - 0.05), cy = y + uy * tileH * (u * 0.45 - 0.05);
+    ctx.globalAlpha = Math.sin(u * Math.PI) * 0.95;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + ux * s, cy + uy * s);
+    ctx.lineTo(cx - ux * s * 0.6 - uy * s * 0.75, cy - uy * s * 0.6 + ux * s * 0.75);
+    ctx.lineTo(cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
 const rr = Math.min(r, w / 2, h / 2);
 ctx.beginPath();
@@ -414,10 +433,10 @@ let currentAttackPattern: AttackPatternType | null = null;
 let aimedTiles: Set<string> | null = null;
 const aimedWeight = new Map<string, number>();
 let aimedMove: ReturnType<typeof moveKind> = null;
-// Who the aim actually hits (the targeting part can cap it), and the marks for what else the move does
+// Who the aim actually hits (the targeting part can cap it)
 let struckFoes: Set<number> | null = null;
-let aimedMarks: ReturnType<typeof effectMarks> = { target: [], self: [] };
 let aimedAccuracy: string | undefined;
+let aimedAim: TilePosition | null = null;
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 // Read attack pattern directly from the action - this is the single source of truth.
@@ -439,8 +458,8 @@ if (fs.aim) {
   for (const t of tiles) aimedWeight.set(`${t.row},${t.col}`, (1 + getFlankBonus(grid.playerPosition, t)) * Fight.sweetSpot(selectedAction, playerClass, grid.playerPosition, fs.aim, t));
   aimedMove = moveKind(selectedAction, playerClass);
   struckFoes = new Set(Fight.struckAt(fs, selectedAction, playerClass, fs.aim));
-  aimedMarks = effectMarks(selectedAction);
   aimedAccuracy = selectedAction.accuracy;
+  aimedAim = fs.aim;
 }
 
 }
@@ -598,24 +617,20 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // A shove or a drag: an arrow on each aimed tile, away from you or toward you
-  if (isAimed && (aimedMove === 'push' || aimedMove === 'pull')) {
+  // Who moves: on each enemy tile it lands on, an arrow sliding the way it will be shoved (away) or dragged (toward you)
+  if (isAimed && (aimedMove === 'push' || aimedMove === 'pull') && living.some(x => x.f.pos.row === row && x.f.pos.col === col)) {
     const away = aimedMove === 'push' ? 1 : -1;
     const dx = Math.sign(col - grid.playerPosition.col) * away, dy = Math.sign(row - grid.playerPosition.row) * away;
-    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, s = tileW * 0.16;
-    const cx = pos.x + ux * tileW * 0.22, cy = pos.y + uy * tileH * 0.22;
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath();
-    ctx.moveTo(cx + ux * s, cy + uy * s);
-    ctx.lineTo(cx - ux * s * 0.6 - uy * s * 0.75, cy - uy * s * 0.6 + ux * s * 0.75);
-    ctx.lineTo(cx - ux * s * 0.6 + uy * s * 0.75, cy - uy * s * 0.6 - ux * s * 0.75);
-    ctx.closePath(); ctx.fill();
+    const at = { x: pos.x, y: pos.y };
+    overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, 'rgba(255,255,255,0.92)'));
   }
-  // What else the move does: marks along the bottom of each tile it lands on, and on your own tile for what it does for you
-  const markPx = Math.max(1.5, tileW * 0.045);
-  if (isAimed && aimedMarks.target.length) drawMarks(ctx, aimedMarks.target, pos.x, pos.y + tileH * 0.3, markPx);
-  // (yours go over your sprite, after the units, so they aren't hidden behind you)
-  if (isPlayerTile && aimedTiles && aimedMarks.self.length) { const at = { x: pos.x, y: pos.y + tileH * 0.36 }, self = aimedMarks.self; overlay.push(() => drawMarks(ctx, self, at.x, at.y, markPx)); }
+  // ...and on your own tile when the move carries you: a dash or leap toward the aim, a step back away from it
+  if (isPlayerTile && aimedTiles && aimedAim && (aimedMove === 'dash' || aimedMove === 'leap' || aimedMove === 'retreat')) {
+    const away = aimedMove === 'retreat' ? -1 : 1;
+    const dx = Math.sign(aimedAim.col - col) * away, dy = Math.sign(aimedAim.row - row) * away;
+    const at = { x: pos.x, y: pos.y };
+    if (dx || dy) overlay.push(() => drawMoveArrow(ctx, at.x, at.y, dx, dy, tileW, tileH, now, '#38d6f0'));
+  }
   // Wind: two faint streaks drifting across every tile the way it blows
   if (windNow && grid.tiles?.[row]?.[col]?.type !== 'obstacle') {
     const { dx, dy } = WIND_VEC[windNow.dir];
