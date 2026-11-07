@@ -1042,6 +1042,9 @@ test('part upgrades grow only on implants with that part, and two parts together
     assert.ok(!c.includes('Thermite') && !c.includes('Stoked core'), 'no hot-core upgrades on a cold core');
   }
   assert.ok(thermite > 5, `a thermal coupling and a hot core often end in Thermite (${thermite}/60)`);
+  const t = Array.from({ length: 60 }, (_, k) => treeFor(arm(hot, k), 'attack')).flat().find(n => n.name === 'Thermite')!;
+  assert.equal(t.paired, true, 'two-part capstones are marked, so they can stand out');
+  assert.ok(!Array.from({ length: 10 }, (_, k) => treeFor(arm(hot, k), 'attack')).flat().some(n => n.name === 'Stoked core' && n.paired));
   assert.ok(stoke > 5, `a hot core often grows Stoked core (${stoke}/60)`);
   // Implants with no parts never grow part upgrades
   const bare = { id: 'b', name: '[IOA] Test Lung', rarity: 'legendary' as const, type: 'augmentation' as const, slot: 'lungs' as const, icon: '', treeSeed: 5 };

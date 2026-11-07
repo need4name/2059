@@ -73,7 +73,7 @@ export function withTreePerks(p: Perks, t: TreePerk): Perks {
   };
 }
 /** A node in an implant's tree. `cap` marks the end of a branch (legendary only on legendary parts). */
-export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary'; /** Which tree it's on (active implants' trees are attack or brace). */ kind?: TreeKind }
+export interface UpgradeNode { id: string; parent?: string; name: string; effect: UpgradeEffect; cap?: 'cap' | 'legendary'; /** A capstone that grew from two parts together (a synergy capstone). */ paired?: boolean; /** Which tree it's on (active implants' trees are attack or brace). */ kind?: TreeKind }
 
 /** An upgrade that can turn up in trees. `slots`: only on implants for these body slots (and much more likely there). */
 interface Kind { id: string; name: string; makers: string[]; slots?: string[]; /** Only on implants with these parts (stage 3 part families; capstones with two are the synergy capstones). */ parts?: Record<string, string[]>; effect: UpgradeEffect }
@@ -213,7 +213,8 @@ export function treeFor(item: Item, kind: TreeKind): UpgradeNode[] {
     if (k.effect.move) moved = true;
     used[k.id] = (used[k.id] ?? 0) + 1;
     kindOf[i] = k.id;
-    return { id: `n${i}`, ...(p !== undefined ? { parent: `n${p}` } : {}), name: k.name, effect: scaled(k.effect, m), ...(cap ? { cap } : {}), kind };
+    const paired = !!cap && !!k.parts && (Object.keys(k.parts).length > 1 || (k.parts.mod?.length ?? 0) > 1);
+    return { id: `n${i}`, ...(p !== undefined ? { parent: `n${p}` } : {}), name: k.name, effect: scaled(k.effect, m), ...(cap ? { cap } : {}), ...(paired ? { paired } : {}), kind };
   });
   cache.set(key, nodes);
   return nodes;

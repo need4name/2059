@@ -248,21 +248,21 @@ function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; 
             })}
           </svg>
           {nodes.map(n => {
-            const st = state(n.id), on = focus === n.id, legend = n.cap === 'legendary';
+            const st = state(n.id), on = focus === n.id, legend = n.cap === 'legendary', paired = !!n.paired;
             return (
               <button key={n.id} onClick={() => setFocus(n.id)} aria-pressed={on} aria-label={n.name}
                 className={cx('absolute flex -translate-x-1/2 flex-col items-center gap-1', wide ? 'w-[68px]' : 'w-[84px]')}
                 style={{ left: `${x[n.id]}%`, top: depth[n.id] * ROW + ROW / 2 - 20 }}>
                 <span className={cx('flex h-10 w-10 items-center justify-center rounded-full font-display text-[13px] font-bold transition',
-                  st === 'owned' && (n.cap ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
-                  st === 'open' && 'bg-hud-raised text-sys ring-2 ring-sys/70',
-                  st === 'locked' && 'bg-hud-raised text-hud-faint ring-1 ring-white/10',
+                  st === 'owned' && (paired ? 'bg-violet-300 text-hud-bg' : n.cap ? 'bg-cred text-hud-bg' : 'bg-sys text-hud-bg'),
+                  // Legendary capstones ring gold, paired (two-part) ones violet, whether open or not yet reachable
+                  (st === 'open' || st === 'locked') && (legend ? 'bg-hud-raised text-cred ring-2 ring-cred/70' : paired ? 'bg-hud-raised text-violet-200 ring-2 ring-violet-300/80'
+                    : st === 'open' ? 'bg-hud-raised text-sys ring-2 ring-sys/70' : 'bg-hud-raised text-hud-faint ring-1 ring-white/10'),
                   st === 'closed' && 'bg-hud-panel text-hud-faint/30 ring-1 ring-white/[0.04]',
-                  legend && st !== 'closed' && st !== 'owned' && 'text-cred ring-2 ring-cred/70',
-                  on && 'scale-110 shadow-[0_0_0_4px_rgba(255,255,255,0.14)]')}>
+                  on && 'scale-110 outline outline-[3px] outline-offset-2 outline-white/15')}>
                   {n.cap ? <Glyph name={legend ? 'strain' : 'upgrade'} size={14} /> : costIn(nodes, n.id)}
                 </span>
-                <span className={cx('text-center text-[10.5px] font-semibold leading-tight', st === 'closed' ? 'text-hud-faint/50' : legend ? 'text-cred' : st === 'owned' ? 'text-hud-text' : 'text-hud-dim')}>{n.name}</span>
+                <span className={cx('text-center text-[10.5px] font-semibold leading-tight', st === 'closed' ? 'text-hud-faint/50' : legend ? 'text-cred' : paired ? 'text-violet-200' : st === 'owned' ? 'text-hud-text' : 'text-hud-dim')}>{n.name}</span>
               </button>
             );
           })}
@@ -272,7 +272,7 @@ function UpgradeTree({ slot, item, spliced = false }: { slot: AugmentationSlot; 
       <div className="slab space-y-2 rounded-[24px] p-4">
         <div className="flex items-baseline justify-between gap-2">
           <span className={cx('font-display text-base font-semibold', node.cap === 'legendary' ? 'text-cred' : 'text-white')}>{node.name}</span>
-          {node.cap && <span className="text-xs font-semibold text-cred">{node.cap === 'legendary' ? 'Legendary capstone' : 'Capstone'}</span>}
+          {node.cap && <span className={cx('text-xs font-semibold', node.paired ? 'text-violet-200' : 'text-cred')}>{node.cap === 'legendary' ? 'Legendary capstone' : node.paired ? 'Paired capstone' : 'Capstone'}</span>}
         </div>
         <p className="text-sm text-hud-text/85">{effectText(node.effect)}</p>
         {why === null && <Btn className="w-full" variant="gold" onClick={() => { take(slot, focus, spliced); const nx = nodes.find(c => c.parent === focus); if (nx) setFocus(nx.id); }}>Take · {cost} point{cost > 1 ? 's' : ''}</Btn>}

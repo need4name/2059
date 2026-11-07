@@ -33,9 +33,14 @@ let botState = 1;
 const botRandom = () => { botState = (botState + 0x6d2b79f5) >>> 0; let t = botState; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // ── Between fights: install better parts, spend points, buy a weapon, set the bar
+// HEALER=1 (a rough check, not part of --check): every host wears a rare Crown Mend arm and keeps it
+const HEALER_ARM = { id: 'sim-mend', name: '[CROWN] Sim Mend Arm', rarity: 'rare', type: 'augmentation', slot: 'right_arm', icon: '', treeSeed: 1, parts: { head: 'mend', mods: [], lens: 'stock', coupling: 'servo', core: 'stock', targeting: 'focused' } } as any;
+let healsUsed = 0;
 function betweenFights() {
   const value = (x: any) => (x.attackBonus || 0) + (x.defenseBonus || 0) + (x.hpBonus || 0) / 3;
+  if (process.env.HEALER && I.getState().equippedAugmentations.right_arm?.id !== HEALER_ARM.id) { I.getState().addItems([HEALER_ARM]); I.getState().equipAugmentation(HEALER_ARM); }
   for (const it of I.getState().items.filter((i: any) => i.type === 'augmentation')) {
+    if (process.env.HEALER && it.slot === 'right_arm') continue;
     const eq = I.getState().equippedAugmentations[it.slot!];
     if (!eq || value(it) > value(eq)) { I.getState().equipAugmentation(it); }
   }
@@ -78,9 +83,13 @@ function betweenFights() {
   const cls = C.getState().playerClass;
   // Firmware's attack stands in for Strike, as on the player's bar
   const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack, FW.getState().level(cls)), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
-  pool.push(...T.getState().getAugmentCombatActions(slots).filter((a: any) => a.damage));
+  const implantMoves = T.getState().getAugmentCombatActions(slots);
+  pool.push(...implantMoves.filter((a: any) => a.damage));
   const w = I.getState().equippedWeapon; if (w) pool.push({ ...w.combatAction, key: 'w' });
-  const extra = pool.slice(2).sort((a, b) => (b.damage || 0) - (a.damage || 0)).slice(0, 2);
+  // A sensible player keeps one heal or repair on the bar when an implant gives one
+  const heals = implantMoves.filter((a: any) => a.defend && (a.defend.heal || a.defend.healOver || a.defend.repair));
+  const atks = pool.slice(2).sort((a, b) => (b.damage || 0) - (a.damage || 0));
+  const extra = heals.length ? [atks[0] ?? null, heals[0]] : atks.slice(0, 2);
   L.getState().setSlots([pool[0], pool[1], extra[0] ?? null, extra[1] ?? null]);
 }
 
@@ -145,7 +154,7 @@ function playerTurn(skill: number) {
   // Hurt with a heal or repair move to hand: use it (a sensible player patches up before it's too late)
   const now = C.getState();
   const mend = slots.find(a => a.defend && (a.defend.heal || a.defend.healOver || a.defend.repair) && F.canDefend(now as any, a, now.hasMoved));
-  if (mend && now.player.currentHp < now.player.maxHp * 0.45 && botRandom() < skill) act = mend;
+  if (mend && now.player.currentHp < now.player.maxHp * 0.45 && botRandom() < skill) { act = mend; healsUsed++; }
   if (act) C.getState().setSelectedAction(act);
   C.getState().endTurn();
 }
@@ -295,6 +304,7 @@ console.log(`turns per won fight: normal ${turnsOf('normal')}, elite ${turnsOf('
 console.log('median best level after hosts lost:', [0, 5, 10, 20].map(k => `${k}: ${med(bestBy(k))}`).join(' | '));
 console.log('highest threat reached:', reached.join(' '));
 console.log(`rests at a server: ${rested}`);
+console.log(`heal or repair moves used: ${healsUsed}`);
 console.log(`fights with an ally: ${pct(all.filter(x => x.allies > 0).length / all.length)}`);
 if (process.env.STATS) { console.log('firmware:', JSON.stringify(FW.getState().xp), 'opened by going deep:', JSON.stringify(FW.getState().opened)); console.log('last run, every host:', JSON.stringify({ ...useRunStats.getState().total, moves: Object.entries(useRunStats.getState().total.moves).sort((a, b) => b[1].uses - a[1].uses).slice(0, 4) })); }
 console.log(`runs that beat the last boss: ${chaptersDone} of ${runs.length}; stopped at the goals door: ${stuckAtDoor}`);
