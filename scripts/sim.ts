@@ -128,6 +128,8 @@ function allyTurnBot(k: number) {
   if (C.getState().allyTurn === k) C.getState().endTurn();
 }
 
+// SMART=1: a careful player who never stands where a hit can land, even if it means not attacking (kiting)
+const SMART = !!process.env.SMART;
 // ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
 function playerTurn(skill: number) {
   // After attacking without moving (Reflex), the game waits for a step or a pass: the bot passes
@@ -151,7 +153,7 @@ function playerTurn(skill: number) {
   const opts = [g.playerPosition, ...Array.from(G.getPlayerReach(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   // Only dodge the red when there's a safe tile to fight from; otherwise walk in
   const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
-  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if (canAttackSomewhere && red.has(`${pos.row},${pos.col}`)) v -= 20 * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if ((s as any).alarm?.on && F.besideColdPod(s as any, pos)) v += 25 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };
+  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if ((canAttackSomewhere || SMART) && red.has(`${pos.row},${pos.col}`)) v -= (SMART ? 70 : 20) * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if ((s as any).alarm?.on && F.besideColdPod(s as any, pos)) v += 25 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };
   const best = opts.sort((a, b) => score(b) - score(a))[0];
   if (s.playerHeat < 100 && (best.row !== g.playerPosition.row || best.col !== g.playerPosition.col)) s.moveTentatively(best);
   const pos = C.getState().grid.playerPosition; const brace = slots.find(a => a.type === 'brace');
@@ -302,6 +304,10 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 console.table(rows.map(r => ({ band: r.band, fights: r.fights, winRate: pct(r.winRate), avgTurns: r.avgTurns.toFixed(1) })));
 if (process.env.PERLEVEL) { const per: Record<number, [number, number]> = {}; for (const f of all) { per[f.lvl] ??= [0, 0]; per[f.lvl][1]++; if (f.won) per[f.lvl][0]++; } console.log('per level win%:', Object.entries(per).map(([l, [w, n]]) => `${l}:${Math.round(100 * w / n)}%(${n})`).join(' ')); const to = all.filter(f => f.timedOut); if (to.length) console.log('timed out (80 turns):', to.length, 'at threats', Array.from(new Set(to.map(f => f.lvl))).join(' ')); }
 console.log('first death at threat:', firstDeath.join(' '));
+// How far a first life gets: wins before the first host is lost
+const firstLifeWins = runs.map(r => { const k = r.findIndex(f => !f.won); return k < 0 ? r.length : k; });
+const firstLife5 = firstLifeWins.filter(n => n >= 5).length / runs.length;
+console.log(`first life wins: ${firstLifeWins.join(' ')} (5+ wins in ${pct(firstLife5)} of runs; past the King in ${pct(runs.filter(r => r.some(f => f.lvl === 10 && f.won && f.deathsBefore === 0)).length / runs.length)})`);
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);
@@ -327,6 +333,7 @@ const checks: [string, boolean][] = [];
 const firstDeathEarly = firstDeath.filter(l => l === 2 || l === 3).length / runs.length;
 // The first life's set piece on threat 3 is tough but beatable: most new players still die there
 // (chapter one only: nobody starts the game in a later chapter)
+if (!process.env.CHAPTER) checks.push([`a first life wins 5 fights in under 60% of runs (got ${pct(firstLife5)})`, firstLife5 < 0.6]);
 if (!process.env.CHAPTER) checks.push([`first death on enemy 2 or 3 in 50-90% of runs (got ${pct(firstDeathEarly)})`, firstDeathEarly >= 0.5 && firstDeathEarly <= 0.9]);
 for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') checks.push([`win rate ${r.band} within 65-100% (got ${pct(r.winRate)})`, Math.round(r.winRate * 100) >= 65]);
 const median = [...reached].sort((a, b) => a - b)[Math.floor(reached.length / 2)];
