@@ -19,6 +19,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 
 - Soft, rounded UI. Avoid hard square boxes, heavy borders and walls of ALL-CAPS letter-spaced text.
 - Don't use Chakra Petch or JetBrains Mono (rejected). Current fonts: Sora for headings, Manrope for everything else.
+- **No way out of a fight.** Once a fight starts it ends only in a win or the host's death: never add a retreat, flee, escape, surrender or any other exit (a test enforces it).
 - Fight rules live in `client/src/lib/engine/fight.ts` as pure functions (state in, state + events out). The combat store only handles timing, sound and inventory. Put new rules in the engine and test them in `tests/fight.test.ts`.
 - Art is pixel art, always (board, tiles, hazards, models). Chapter one's rafts are lashed-together plastic, not wood.
 - UI surfaces are solid, not see-through: buttons are `.key` (a solid face with a lip that sinks when pressed; `.key-primary`, `.key-gold`, `.key-danger`, `.key-selected`), panels are `.slab` (both in `index.css`). No glass, blur or gradient blobs. Icons are the pixel `Glyph`/`SlotIcon` in `hud.tsx`, never emoji.

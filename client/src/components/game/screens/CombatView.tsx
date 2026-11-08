@@ -8,7 +8,7 @@ import { ENEMY_TRAITS } from '@/lib/combat/actions';
 import { getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
-import { Footprint, Btn, Chip, Meter, ConfirmDialog, Sheet, Glyph, SlotIcon, cx } from '../hud';
+import { Footprint, Btn, Chip, Meter, Sheet, Glyph, SlotIcon, cx } from '../hud';
 import { stimInfo, statusText, defendSummary } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
@@ -346,11 +346,10 @@ function TurnStrip() {
 }
 
 function ActionBar() {
-  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, retreat, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
+  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
   const { items } = useInventory();
   const { slots } = useLoadout();
   const [bag, setBag] = useState(false);
-  const [confirmExit, setConfirmExit] = useState(false);
   const stims = items.filter(i => i.type === 'consumable');
   const myTurn = phase === 'player_turn' && !inputLocked;
   const status = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special' || selectedAction.defend) ? statusText(selectedAction) : null;
@@ -387,10 +386,8 @@ function ActionBar() {
         </Btn>
       </div>
       </>}
-      <div className="mt-1 flex items-center justify-between px-1 text-[11px] text-hud-faint">
-        <span />
-        <button className="shrink-0 py-1.5 pl-3 text-hud-dim hover:text-hud-text" onClick={() => setConfirmExit(true)}>Retreat</button>
-      </div>
+      {/* No way out of a fight once it starts: no retreat, ever */}
+      <div className="h-2" />
 
       <Sheet open={bag} title="Stims" onClose={() => setBag(false)}>
         <div className="grid grid-cols-2 gap-2">
@@ -415,14 +412,6 @@ function ActionBar() {
         </div>
       </Sheet>
 
-      <ConfirmDialog
-        open={confirmExit}
-        title="Retreat?"
-        body="It will still be here."
-        confirmLabel="Retreat"
-        onCancel={() => setConfirmExit(false)}
-        onConfirm={() => { setConfirmExit(false); retreat(); }}
-      />
     </div>
   );
 }

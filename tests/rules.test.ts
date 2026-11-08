@@ -166,14 +166,10 @@ test('the first life meets its set piece at threat 3, whichever room it waits in
   assert.ok(EARLY_BITE.bite > 0 && EARLY_BITE.until > 1);
 });
 
-test('retreating keeps your wounds and Overload: no free do-over', async () => {
+test('there is no way out of a fight once it starts', async () => {
   const { useCombat } = await import('../client/src/lib/stores/useCombat');
-  const { useMap } = await import('../client/src/lib/stores/useMap');
-  useMap.getState().setHurt(0);
-  const s = useCombat.getState();
-  useCombat.setState({ farmLevel: null, foes: [{ unit: createBoss(2) } as never], player: { ...createPlayer(), maxHp: 120, currentHp: 45 }, overload: 30 });
-  useCombat.getState().retreat();
-  assert.equal(useMap.getState().hurt, 75);
-  assert.equal(useMap.getState().overload, 30);
-  useCombat.setState({ ...s });
+  assert.equal((useCombat.getState() as unknown as Record<string, unknown>).retreat, undefined, 'no retreat action in the fight store');
+  const fs = await import('node:fs');
+  const view = fs.readFileSync(new URL('../client/src/components/game/screens/CombatView.tsx', import.meta.url), 'utf8');
+  assert.ok(!/>\s*(Retreat|Flee|Escape|Run away|Leave fight)\s*</i.test(view), 'no retreat button on the fight screen');
 });
