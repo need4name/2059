@@ -285,6 +285,7 @@ Sizes are shares of max health or the structure bar, set so even a poor one give
 - Enemies carry 1–3 random common or uncommon implants.
 - **First life only:** every threat-3 enemy is a **set piece** (×1.8 health, ×2.1 attack), whichever threat-3 room it waits in and whatever that room names it, so the first life can't route around it. It ends most first runs (the bot dies at threat 2 or 3 in about 90% of first lives).
 - **Early threats bite** (`EARLY_BITE`): enemy attack ×1.5 at threat 1, easing in a straight line to ×1 by threat 6, so a fresh host feels every hit.
+- **The middle rooms are real fights for a young signal** (`MID_BITE`): threats 4 to 9 have ×2.1 attack and ×1.7 health, easing back to normal by threat 15. A seasoned signal outgrows them (play-i tree, firmware levels, allies). The curve the simulator holds (chapter one, threats 4–9): about 83% won with 1–2 hosts lost (check: 75–90%), about 92% with 3–4, 95% or more with 5+ (check: 93%+); deep rooms stay near 75%.
 - Simulator targets: about 7 turns for a regular fight, about 14 for a boss. Median best level is about 9 after 5 hosts lost and 18–20 after 10.
 
 ### Drops: strip them for parts

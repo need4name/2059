@@ -302,6 +302,10 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 console.table(rows.map(r => ({ band: r.band, fights: r.fights, winRate: pct(r.winRate), avgTurns: r.avgTurns.toFixed(1) })));
 if (process.env.PERLEVEL) { const per: Record<number, [number, number]> = {}; for (const f of all) { per[f.lvl] ??= [0, 0]; per[f.lvl][1]++; if (f.won) per[f.lvl][0]++; } console.log('per level win%:', Object.entries(per).map(([l, [w, n]]) => `${l}:${Math.round(100 * w / n)}%(${n})`).join(' ')); const to = all.filter(f => f.timedOut); if (to.length) console.log('timed out (80 turns):', to.length, 'at threats', Array.from(new Set(to.map(f => f.lvl))).join(' ')); }
 console.log('first death at threat:', firstDeath.join(' '));
+// The curve: threats 4-9 by how many hosts the signal had lost before the fight
+const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
+const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);
+console.log(`threats 4-9 win rate by hosts lost: 1-2: ${pct(mid12.rate)} (${mid12.n}) | 3-4: ${pct(mid34.rate)} (${mid34.n}) | 5+: ${pct(mid5.rate)} (${mid5.n})`);
 // How far players get as the signal learns: best level reached by the time k hosts are lost
 const med = (xs: number[]) => { const v = [...xs].sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : NaN; };
 const bestBy = (k: number) => runs.filter(r => r.some(f => f.deathsBefore >= k)).map(r => Math.max(0, ...r.filter(f => f.deathsBefore <= k && f.won).map(f => f.lvl)));
@@ -335,5 +339,8 @@ if (!Number.isNaN(bossTurns)) checks.push([`boss fights take <= 16 turns (got ${
 const best10 = med(bestBy(10)), best20 = med(bestBy(20));
 if (!Number.isNaN(best10)) checks.push([`best level after 10 hosts lost within 9-28 (got ${best10})`, best10 >= 9 && best10 <= 28]);
 if (!Number.isNaN(best20)) checks.push([`best level after 20 hosts lost within 13-25 (got ${best20})`, best20 >= 13 && best20 <= 25]);
+// The curve (chapter one): threats 4-9 are real fights for a young signal and easy for a seasoned one
+if (!process.env.CHAPTER && mid12.n >= 30) checks.push([`threats 4-9 with 1-2 hosts lost won 75-90% (got ${pct(mid12.rate)})`, mid12.rate >= 0.75 && mid12.rate <= 0.9]);
+if (!process.env.CHAPTER && mid5.n >= 30) checks.push([`threats 4-9 with 5+ hosts lost won 93%+ (got ${pct(mid5.rate)})`, mid5.rate >= 0.93]);
 for (const [label, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
 if (args.includes('--check') && checks.some(([, ok]) => !ok)) process.exit(1);

@@ -516,7 +516,17 @@ export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
 /** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit. */
 export const EARLY_BITE = { bite: 0.5, until: 6 };
 const earlyBite = (level: number) => 1 + EARLY_BITE.bite * Math.max(0, EARLY_BITE.until - level) / (EARLY_BITE.until - 1);
-const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level) });
+/**
+ * The middle rooms are real fights for a young signal: threats `from` to `to` hit and last harder,
+ * easing back to normal by threat `fade`. A seasoned signal (play-i tree, firmware levels, allies) outgrows it.
+ */
+export const MID_BITE = { atk: 1.1, hp: 0.7, from: 4, to: 9, fade: 15 };
+const midBite = (level: number, k: 'atk' | 'hp') => {
+  if (level < MID_BITE.from || level >= MID_BITE.fade) return 1;
+  const full = MID_BITE[k];
+  return 1 + (level <= MID_BITE.to ? full : full * (MID_BITE.fade - level) / (MID_BITE.fade - MID_BITE.to));
+};
+const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp'), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level) * midBite(level, 'atk') });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
