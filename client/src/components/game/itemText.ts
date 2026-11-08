@@ -16,19 +16,19 @@ export function stimInfo(item: Item) {
 /** Short stat line for an implant, e.g. "+3 ATK · +2 DEF · +10 HP". */
 export function implantStats(item: Item): string {
   const parts = [
-    item.attackBonus ? `+${item.attackBonus} ATK` : '',
-    item.structuralAttackBonus ? `+${item.structuralAttackBonus} S-ATK` : '',
-    item.defenseBonus ? `+${item.defenseBonus} DEF` : '',
-    item.structuralDefenseBonus ? `+${item.structuralDefenseBonus} S-DEF` : '',
+    item.attackBonus ? `+${item.attackBonus} Atk` : '',
+    item.structuralAttackBonus ? `+${item.structuralAttackBonus} Sp. Atk` : '',
+    item.defenseBonus ? `+${item.defenseBonus} Def` : '',
+    item.structuralDefenseBonus ? `+${item.structuralDefenseBonus} Sp. Def` : '',
     item.hpBonus ? `+${item.hpBonus} HP` : '',
-    item.evasionBonus ? `+${item.evasionBonus} EVA` : '',
+    item.evasionBonus ? `+${item.evasionBonus} dodge` : '',
   ].filter(Boolean);
   return parts.join(' · ') || 'No stat bonus';
 }
 
 export function passiveText(item: Item): string | null {
   if (item.passiveEffect === 'kizuna_coldstart') return 'First strike while cool lands clean';
-  if (item.passiveEffect === 'bypass_sdef') return 'Cuts through shielding';
+  if (item.passiveEffect === 'bypass_sdef') return 'Special hits ignore Sp. Def';
   return null;
 }
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CONDITION_MULT, structureOf, healthCostOf, canSplice, HOUSINGS, TRAITS } from '../combat/augments';
+import { CONDITION_MULT, structureOf, healthCostOf, canSplice, HOUSINGS, TRAITS, partsSpDef } from '../combat/augments';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { Item, AugmentationSlot, AUGMENTATION_SLOTS, Weapon, augmentKind } from '../combat/types';
@@ -211,7 +211,7 @@ structure         += structureOf(item);
 const pp = item.passiveParts;
 if (pp) {
 evasion += HOUSINGS[pp.housing]?.evasion ?? 0;
-structuralDefense += HOUSINGS[pp.housing]?.spDef ?? 0;
+structuralDefense += partsSpDef(item);
 hp += pp.trait ? TRAITS[pp.trait]?.hp ?? 0 : 0;
 }
 hpCost            += healthCostOf(item);

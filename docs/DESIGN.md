@@ -108,6 +108,10 @@ physical → structure first, the rest to health;  special → health, and +heat
 - **CBN grafts** (`bypass_sdef`) make your special damage ignore the enemy's Sp. Def.
 - **Colours:** moves show their mix as a colour (amber physical, violet special, blended) on their cards, attack pictures and the aimed tiles on the board, and as words ("Physical", "70% physical", "Special").
 
+- **Where Sp. Atk and Sp. Def come from** (`MAKER_SPECIAL`, `SLOT_SPECIAL`, `specialLean`, `specialShare` in `augments.ts`): every implant splits its attack and defence between physical and special by its maker's character, nudged by its slot. Special share: Kizuna 80%, IOA 70%, Crown 60%, Patchwork and Helix 50%, CBN 40%, Tianxia 30%, Volkov and PARSU 20%; brain, eyes and ears +20%, arms and legs −20%. `items.json` is written this way and the content check holds every implant to it (within a point). An implant's upgrade tree splits its attack and defence nodes the same way (`getTreeStatBonuses`), and some nodes give Sp. Atk or Sp. Def straight (Signal edge, Neural gain, Shield lattice; capstones Overmind and Null field; Apex adds +6 Sp. Def).
+- **Implants fade with the structure bar** (`liveStats`, `IMPLANT_FADE` in `actions.ts`; `implantStats` on a character): what implants and their trees add to Attack, Defence, Sp. Atk and Sp. Def works in full at full structure and falls in a straight line to half at none (on top of malfunction's aim). The player and allies have it; enemies don't. Damage previews and every hit use the live stats.
+- **Enemy drops follow how they fight** (`rollCarried` with a `lean`): an enemy whose moves are mostly special carries mostly special-leaning implants, so what you strip off it follows what it hit you with. (Its own stats from those implants keep its old split.)
+
 **Stat lines** (`CLASS_DEFINITIONS`; health / structure / Attack / Defence / Sp. Atk / Sp. Def / Speed): Unclassified 120 / 30 / 14 / 5 / 12 / 5 / 10; Enforcer 150 / 40 / 17 / 9 / 8 / 5 / 8; Operative 110 / 25 / 12 / 4 / 20 / 7 / 11; Courier 105 / 25 / 15 / 4 / 12 / 5 / 13; Foreman 135 / 45 / 15 / 7 / 12 / 8 / 9; Splice 95 / 20 / 10 / 5 / 14 / 9 / 10; Wretch 80 / 15 / 10 / 3 / 10 / 3 / 10. The Self page shows all seven and where speed comes from ("Speed 13: 13 base +1 implants +2 firmware"); the death screen shows each class's line. Firmware attacks have their own mix: Hydraulic Slam 90% physical, Precision Shot 30% physical (mostly special), Graft Whip half and half, the rest 70–75% physical.
 
 ### Accuracy (share of the rolled damage that lands)
@@ -200,9 +204,9 @@ Lens, coupling and core lean toward the maker's own 60% of the time (`MAKER_LEAN
 
 **Passive implants (brain, ears, nose, lungs, spine) have three:**
 
-- **Housing** (`HOUSINGS`): Light (structure ×0.75, +2 evasion), Stock, Plated (structure ×1.35), Sealed (+3 Sp. Def).
+- **Housing** (`HOUSINGS`): Light (structure ×0.75, +2 evasion), Stock, Plated (structure ×1.35), Sealed (Sp. Def +3 on a common, growing with grade to +8 on a legendary; `partsSpDef`).
 - **Regulator** (`REGULATORS`): Stock; Heat sink (shed 1 more heat a turn); Baffle (special hits heat you half as much); Primer (start each fight 10 hotter).
-- **Trait** (`TRAITS`; rare 35%, epic 60%, legendary always): Tough (+8 health), Quick (+1 speed), Charged (+15 Overload at the start of each fight), Shod (hazards hurt 25% less).
+- **Trait** (`TRAITS`; rare 35%, epic 60%, legendary always): Tough (+8 health), Shielded (+4 Sp. Def), Quick (+1 speed), Charged (+15 Overload at the start of each fight), Shod (hazards hurt 25% less).
 - Makers lean: Volkov plated / primer; Tianxia plated / sink; Kizuna light / baffle; Crown sealed / sink; CBN light / primer; IOA light / primer; PARSU plated / baffle; Patchwork stock / stock; Helix sealed / sink. Regulators and traits become fight perks (`partPerks`); housing and Tough change stats. Spliced parts count too. Passives from before have none.
 
 | Quality | Heads | Mods |

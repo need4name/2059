@@ -1200,3 +1200,39 @@ test('the gun rack restocks only when its key changes (a new host or a server re
   useMarket.getState().ensureGuns('0-1', 6);
   assert.notDeepEqual(useMarket.getState().guns.map(g => g.id), first, 'a rest restocks it');
 });
+
+// ── Physical and special ─────────────────────────────────────────────────────
+test('implants lean physical or special by maker and slot; parts add Sp. Def; Shielded is the special Tough', async () => {
+  const { specialShare, specialLean, partsSpDef } = await import('../client/src/lib/combat/augments');
+  const kz = ITEMS_2059.filter(i => i.type === 'augmentation' && i.name.startsWith('[KIZUNA]') && (i.slot === 'eyes' || i.slot === 'brain'));
+  const vk = ITEMS_2059.filter(i => i.type === 'augmentation' && i.name.startsWith('[VOLKOV]') && i.slot?.includes('arm'));
+  const avg = (xs: any[]) => xs.reduce((n, i) => n + specialShare(i), 0) / Math.max(1, xs.length);
+  assert.ok(avg(kz) > 0.8, `Kizuna head parts are mostly special (${avg(kz).toFixed(2)})`);
+  assert.ok(avg(vk) < 0.1, `Volkov arms are physical (${avg(vk).toFixed(2)})`);
+  assert.equal(specialLean({ name: '[CROWN] X', slot: 'lungs' } as any), 0.6);
+  const lung = { id: 'l', name: '[HELIX] L', type: 'augmentation' as const, slot: 'lungs' as const, icon: '' };
+  assert.ok(partsSpDef({ ...lung, rarity: 'legendary', passiveParts: { housing: 'sealed', regulator: 'stock' } }) > partsSpDef({ ...lung, rarity: 'common', passiveParts: { housing: 'sealed', regulator: 'stock' } }), 'a sealed housing grows with grade');
+  assert.equal(partsSpDef({ ...lung, rarity: 'common', passiveParts: { housing: 'stock', regulator: 'stock', trait: 'shielded' } }), 4);
+});
+
+test('implant stats fade as the structure bar empties: full at full, half at none', async () => {
+  const { liveStats, IMPLANT_FADE } = await import('../client/src/lib/combat/actions');
+  const p = { ...createPlayer(), physicalAttack: 100, structuralAttack: 60, implantStats: { pa: 80, sa: 40, pd: 0, sd: 0 }, maxStructuralHp: 100, currentStructuralHp: 100 };
+  assert.equal(liveStats(p).physicalAttack, 100);
+  const broken = liveStats({ ...p, currentStructuralHp: 0 });
+  assert.equal(broken.physicalAttack, 100 - 80 * (1 - IMPLANT_FADE));
+  assert.equal(broken.structuralAttack, 60 - 40 * (1 - IMPLANT_FADE));
+  assert.ok(liveStats({ ...p, currentStructuralHp: 50 }).physicalAttack < 100 && liveStats({ ...p, currentStructuralHp: 50 }).physicalAttack > broken.physicalAttack);
+  // so a hit from a wrecked host lands softer
+  const foe = { ...createBoss(5), physicalDefense: 0, structuralDefense: 0 };
+  const strike = { ...PLAYER_ACTIONS[0], accuracy: 'precise' as const, physicalRatio: 1 };
+  const { estimateDamage } = await import('../client/src/lib/combat/actions');
+  assert.ok(estimateDamage({ ...p, currentStructuralHp: 0 }, foe, strike).max < estimateDamage(p, foe, strike).max);
+});
+
+test('enemies that fight with special moves carry more special-leaning implants', async () => {
+  const { rollCarried } = await import('../client/src/lib/combat/loot');
+  const { specialShare } = await import('../client/src/lib/combat/augments');
+  const avg = (lean: number) => { seedRandom(77); let n = 0, k = 0; for (let r = 0; r < 60; r++) for (const it of rollCarried(12, 3, 'normal', false, undefined, lean)) { n += specialShare(it); k++; } return n / k; };
+  assert.ok(avg(0.9) > avg(0.1) + 0.15, `special fighters carry special parts (${avg(0.9).toFixed(2)} vs ${avg(0.1).toFixed(2)})`);
+});

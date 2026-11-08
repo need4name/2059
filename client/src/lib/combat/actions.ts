@@ -229,6 +229,21 @@ isCrit: boolean;
 isFlank: boolean;
 }
 
+/** How much implant stats are left with an empty structure bar (they fade in a straight line from full). */
+export const IMPLANT_FADE = 0.5;
+/**
+ * A character's stats as they stand: what its implants add fades as its structure bar empties,
+ * from full at full structure to IMPLANT_FADE at none (the implants are what the bar is).
+ */
+export function liveStats(c: Character): Character {
+  const im = c.implantStats;
+  if (!im || c.maxStructuralHp <= 0) return c;
+  const left = IMPLANT_FADE + (1 - IMPLANT_FADE) * Math.max(0, Math.min(1, c.currentStructuralHp / c.maxStructuralHp));
+  if (left >= 1) return c;
+  const cut = (v: number, part: number) => Math.round(v - part * (1 - left));
+  return { ...c, physicalAttack: cut(c.physicalAttack, im.pa), structuralAttack: cut(c.structuralAttack, im.sa), physicalDefense: cut(c.physicalDefense, im.pd), structuralDefense: cut(c.structuralDefense, im.sd) };
+}
+
 export function calculateDamage(
 attacker: Character,
 defender: Character,
@@ -242,6 +257,7 @@ playerHeat: number = 0,
 bypassStructuralDefense: boolean = false,
 criticalCrit: number = 0.30,
 ): DamageResult {
+attacker = liveStats(attacker); defender = liveStats(defender);
 // Two kinds of damage. Physical (Attack vs Defence) is soaked by structure first, like
 // armour; special (Sp. Atk vs Sp. Def, kept in the structural* fields) goes past
 // structure to health and heats the target. physicalRatio is the physical share.
@@ -320,6 +336,7 @@ defender: Character,
 action: CombatAction,
 opts: { defenseBoost?: number; heatMultiplier?: number; flankBonus?: number; tileDistance?: number; isMalfunctioning?: boolean; bypassStructuralDefense?: boolean } = {},
 ): { min: number; max: number; healthMin: number; healthMax: number } {
+attacker = liveStats(attacker); defender = liveStats(defender);
 const physRatio = action.physicalRatio ?? 0.7;
 const w = statWeight(attacker);
 const basePhys = Math.floor(((action.damage || 0) + attacker.physicalAttack * w * STAT_MIX) * physRatio);
@@ -355,6 +372,9 @@ hasKizuna: boolean;               // Kizuna: cold-start accuracy override
 // Tree progression bonuses (from augment path choices)
 treeAttack: number;
 treeDefense: number;
+/** Trees' special share (when given, treeAttack and treeDefense are the physical part only). */
+treeSpAttack?: number;
+treeSpDefense?: number;
 treeHp: number;
 }
 
@@ -370,10 +390,12 @@ const augSDef = augmentationBonuses?.structuralDefense || 0;
 const augHp   = augmentationBonuses?.hp               || 0;
 const augEvasion = augmentationBonuses?.evasion        || 0;
 // Tree path progression bonuses -- split 70/30 phys/structural like base stats
-const treePAtk = Math.floor((augmentationBonuses?.treeAttack  || 0) * 0.7);
-const treeSAtk = Math.ceil ((augmentationBonuses?.treeAttack  || 0) * 0.3);
-const treePDef = Math.floor((augmentationBonuses?.treeDefense || 0) * 0.7);
-const treeSDef = Math.ceil ((augmentationBonuses?.treeDefense || 0) * 0.3);
+// Trees split their attack and defence the way each implant leans (useAugmentTrees); older callers split 70/30
+const split = augmentationBonuses?.treeSpAttack !== undefined || augmentationBonuses?.treeSpDefense !== undefined;
+const treePAtk = split ? (augmentationBonuses?.treeAttack || 0) : Math.floor((augmentationBonuses?.treeAttack  || 0) * 0.7);
+const treeSAtk = split ? (augmentationBonuses?.treeSpAttack || 0) : Math.ceil ((augmentationBonuses?.treeAttack  || 0) * 0.3);
+const treePDef = split ? (augmentationBonuses?.treeDefense || 0) : Math.floor((augmentationBonuses?.treeDefense || 0) * 0.7);
+const treeSDef = split ? (augmentationBonuses?.treeSpDefense || 0) : Math.ceil ((augmentationBonuses?.treeDefense || 0) * 0.3);
 const treeHp   = augmentationBonuses?.treeHp || 0;
 
 // The class's own stat line: Attack / Defence (physical) and Sp. Atk / Sp. Def (special)
@@ -393,6 +415,8 @@ maxHp,
 currentHp: maxHp,
 maxStructuralHp,
 currentStructuralHp: maxStructuralHp,
+// What the implants add, which fades as the structure bar empties
+implantStats: { pa: augPAtk + treePAtk, sa: augSAtk + treeSAtk, pd: augPDef + treePDef, sd: augSDef + treeSDef },
 physicalAttack:   basePAtk + augPAtk + treePAtk,
 structuralAttack: baseSAtk + augSAtk + treeSAtk,
 physicalDefense:  basePDef + augPDef + treePDef,
@@ -625,7 +649,9 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 // a lucky epic doesn't make an early enemy unkillable.
 const numAugs = enemyImplantCount(level);
 const role = typeName ? 'normal' : enemyRole(level, firstRun);
-const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature);
+// Enemies that fight with special moves carry more special-leaning implants (what you strip off them follows)
+const lean = (() => { const ms = (bossType.moves ?? []).filter(m => m.damage); return ms.length ? ms.reduce((n, m) => n + (1 - (m.physicalRatio ?? 0.7)), 0) / ms.length : 0.4; })();
+const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature, lean);
 const implantNames: string[] = [];
 const implantSlots: AugmentationSlot[] = [];
 let bonusPAtk = 0, bonusSAtk = 0, bonusPDef = 0, bonusSDef = 0, bonusHp = 0;
@@ -635,10 +661,12 @@ if (aug.slot) implantSlots.push(aug.slot);
 // Short names for the target card: no maker tag, side or condition
 implantNames.push(String(aug.name ?? '').replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*-\s*[A-Z]+$/, '').replace(/\s*\([LR]\)/, '').trim());
 const k = ENEMY_PART_WEIGHT[aug.rarity] ?? 1;
-bonusPAtk += Math.round((aug.attackBonus || 0) * k);
-bonusSAtk += Math.floor((aug.attackBonus || 0) * k * profile.sAtkR);
-bonusPDef += Math.round((aug.defenseBonus || 0) * k);
-bonusSDef += Math.floor((aug.defenseBonus || 0) * k * profile.sDefR);
+// An enemy uses its parts' whole attack and defence the way its own profile splits them (as before the special re-split)
+const ta = (aug.attackBonus || 0) + (aug.structuralAttackBonus || 0), td = (aug.defenseBonus || 0) + (aug.structuralDefenseBonus || 0);
+bonusPAtk += Math.round(ta * k);
+bonusSAtk += Math.floor(ta * k * profile.sAtkR);
+bonusPDef += Math.round(td * k);
+bonusSDef += Math.floor(td * k * profile.sDefR);
 bonusHp   += Math.max(0, Math.round((aug.hpBonus || 0) * k));
 }
 

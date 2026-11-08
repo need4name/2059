@@ -5,7 +5,7 @@
 import data from '../../content/allies.json';
 import type { Character, CombatAction, Item, ItemRarity, AugmentationSlot, DefendSpec, ActionEffects } from './types';
 import { BOSS_SCALING, ENEMY_GROWTH, ENEMY_TUNING, scaleBossAction } from './actions';
-import { actionForItem, makerOf, normaliseItem, structureOf, HOUSINGS, TRAITS, type Maker } from './augments';
+import { actionForItem, makerOf, normaliseItem, structureOf, HOUSINGS, TRAITS, partsSpDef, type Maker } from './augments';
 import { hashSeed } from '../engine/rng';
 import type { Perks } from '../engine/playi';
 
@@ -133,7 +133,7 @@ export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear
     b.pd += (it.defenseBonus ?? 0) * m; b.sd += (it.structuralDefenseBonus ?? 0) * m; b.ev += (it.evasionBonus ?? 0) * m;
     // Passive parts: a light housing dodges, a sealed one turns special hits, a Tough trait adds health
     const pp = it.passiveParts;
-    if (pp) { b.ev += HOUSINGS[pp.housing]?.evasion ?? 0; b.sd += HOUSINGS[pp.housing]?.spDef ?? 0; b.hp += pp.trait ? TRAITS[pp.trait]?.hp ?? 0 : 0; }
+    if (pp) { b.ev += HOUSINGS[pp.housing]?.evasion ?? 0; b.sd += partsSpDef(it); b.hp += pp.trait ? TRAITS[pp.trait]?.hp ?? 0 : 0; }
     b.st += structureOf(it);
   }
   const maxHp = hp + Math.round(b.hp);
@@ -143,6 +143,8 @@ export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear
     maxHp, currentHp: maxHp,
     // A structure bar from the implants it wears, like yours: physical hits wear it first
     maxStructuralHp: structure, currentStructuralHp: structure,
+    // What its implants add (they fade as its structure bar empties)
+    implantStats: { pa: Math.round(b.pa), sa: Math.round(b.sa), pd: Math.round(b.pd), sd: Math.round(b.sd) },
     physicalAttack: Math.round(atk * 0.6 + b.pa), structuralAttack: Math.round(atk * 0.4 + b.sa),
     physicalDefense: Math.round(dfn * 0.5 + b.pd), structuralDefense: Math.round(dfn * 0.5 + b.sd),
     evasion: Math.round(b.ev), spriteColor: def.color,

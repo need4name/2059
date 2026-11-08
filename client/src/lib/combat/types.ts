@@ -7,6 +7,8 @@ maxHp: number;
 currentHp: number;
 maxStructuralHp: number;
 currentStructuralHp: number;
+/** What its implants (and their trees) add to its stats: they fade as the structure bar empties (actions.ts liveStats). */
+implantStats?: { pa: number; sa: number; pd: number; sd: number };
 physicalAttack: number;
 structuralAttack: number;
 physicalDefense: number;

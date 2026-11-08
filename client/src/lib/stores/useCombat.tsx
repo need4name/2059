@@ -242,6 +242,8 @@ const player = createPlayer({
 evasion: augBonuses.evasion + treeBonus.evasion,
 treeAttack: treeBonus.attack,
 treeDefense: treeBonus.defense,
+treeSpAttack: treeBonus.spAttack,
+treeSpDefense: treeBonus.spDefense,
 treeHp: treeBonus.hp,
 }, playerClass);
 return { player, moveRange: Fight.moveReach(perks.moveBonus + (treeBonus.moveRange ?? 0)), perks };

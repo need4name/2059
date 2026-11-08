@@ -3,7 +3,7 @@ import { gunAction, gunItem } from '../combat/guns';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
 import { AugmentationSlot, augmentKind, type Item, type Weapon, type CombatAction } from '../combat/types';
-import { actionForItem } from '../combat/augments';
+import { actionForItem, specialShare } from '../combat/augments';
 import { treeKind, treeFor, blockedIn, costIn, spentIn, effectIn, WINS_PER_POINT, type TreeKind, type UpgradeNode, addPerks, type TreePerk } from '../engine/upgrades';
 import { LoadoutAction } from './useLoadout';
 import { useInventory } from './useInventory';
@@ -31,7 +31,8 @@ interface AugmentTreeState {
   forget: (item: Item) => void;
 
   getAugmentCombatActions: (equippedSlots: AugmentationSlot[]) => LoadoutAction[];
-  getTreeStatBonuses: (equippedSlots: AugmentationSlot[]) => { attack: number; defense: number; hp: number; moveRange: number; evasion: number };
+  /** What the fitted implants' trees add: attack and defence split physical and special the way each implant leans. */
+  getTreeStatBonuses: (equippedSlots: AugmentationSlot[]) => { attack: number; defense: number; spAttack: number; spDefense: number; hp: number; moveRange: number; evasion: number };
   /** What the slot upgrades taken on fitted implants change about how the host plays. */
   getTreePerks: (equippedSlots: AugmentationSlot[]) => TreePerk;
 
@@ -122,15 +123,20 @@ export const useAugmentTrees = create<AugmentTreeState>()(persist((set, get) => 
 
   // Stats from every installed implant's tree. Movement doesn't stack across implants: the best one counts.
   getTreeStatBonuses: (equippedSlots) => {
-    let attack = 0, defense = 0, hp = 0, moveRange = 0, evasion = 0;
+    let attack = 0, defense = 0, spAttack = 0, spDefense = 0, hp = 0, moveRange = 0, evasion = 0;
     for (const slot of equippedSlots) for (const item of wornIn(slot)) {
       const tree = item && nodesOf(item);
       if (!item || !tree) continue;
       const e = effectIn(tree, get().owned[item.id] ?? []);
-      attack += e.attack ?? 0; defense += e.defense ?? 0; hp += e.hp ?? 0; evasion += e.evasion ?? 0;
+      // A tree's attack and defence nodes lean the way its implant does (a Kizuna eye's mostly special)
+      const sp = specialShare(item);
+      const a = e.attack ?? 0, d = e.defense ?? 0;
+      spAttack += Math.round(a * sp) + (e.spAttack ?? 0); attack += a - Math.round(a * sp);
+      spDefense += Math.round(d * sp) + (e.spDefense ?? 0); defense += d - Math.round(d * sp);
+      hp += e.hp ?? 0; evasion += e.evasion ?? 0;
       moveRange = Math.max(moveRange, e.move ?? 0);
     }
-    return { attack, defense, hp, moveRange, evasion };
+    return { attack, defense, spAttack, spDefense, hp, moveRange, evasion };
   },
 
   getTreePerks: (equippedSlots) => {

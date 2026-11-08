@@ -228,8 +228,10 @@ export function Inventory() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-        <span className="rounded-full bg-hostile/10 px-2.5 py-1 text-rose-300">+{totals.physicalAttack + totals.structuralAttack + tree.attack} attack</span>
-        <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-sky-300">+{totals.physicalDefense + totals.structuralDefense + tree.defense} defence</span>
+        <span className="rounded-full bg-amber-300/10 px-2.5 py-1 text-amber-200">+{totals.physicalAttack + tree.attack} Atk</span>
+        <span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-300">+{totals.structuralAttack + tree.spAttack} Sp. Atk</span>
+        <span className="rounded-full bg-amber-300/10 px-2.5 py-1 text-amber-200">+{totals.physicalDefense + tree.defense} Def</span>
+        <span className="rounded-full bg-violet-400/10 px-2.5 py-1 text-violet-300">+{totals.structuralDefense + tree.spDefense} Sp. Def</span>
         <span className="rounded-full bg-ok/10 px-2.5 py-1 text-ok">+{totals.hp + tree.hp} HP</span>
         <span className="ml-auto text-hud-dim">{equippedSlots.length} of 10 installed</span>
       </div>

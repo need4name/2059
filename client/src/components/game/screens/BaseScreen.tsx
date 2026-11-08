@@ -571,7 +571,7 @@ function StatusTab() {
   const [confirmReset, setConfirmReset] = useState(false);
   const equipped = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   const tree = getTreeStatBonuses(equipped);
-  const stats = createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeHp: tree.hp }, playerClass);
+  const stats = createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeSpAttack: tree.spAttack, treeSpDefense: tree.spDefense, treeHp: tree.hp }, playerClass);
   const cls = CLASS_DEFINITIONS[playerClass];
   const fwLevelNow = useFirmware(st => st.level(playerClass));
   const perks = usePlayi(s => s.perks)();

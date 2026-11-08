@@ -39,6 +39,8 @@ export interface UpgradeEffect {
   /** Extra rounds in a gun's magazine. */
   ammo?: number;
   attack?: number; defense?: number; hp?: number; move?: number; evasion?: number;
+  /** Straight to Sp. Atk or Sp. Def (special upgrades). */
+  spAttack?: number; spDefense?: number;
   fx?: ActionEffects; perk?: TreePerk;
 }
 
@@ -135,7 +137,7 @@ function dice(text: string) {
 /** A kind's numbers at a strength (whole numbers stay whole, true/false stay as they are). */
 function scaled(e: UpgradeEffect, m: number): UpgradeEffect {
   const out: UpgradeEffect = { ...e };
-  for (const k of ['attack', 'defense', 'hp', 'evasion'] as const) if (e[k]) out[k] = Math.sign(e[k]!) * Math.max(1, Math.round(Math.abs(e[k]!) * m));
+  for (const k of ['attack', 'defense', 'hp', 'evasion', 'spAttack', 'spDefense'] as const) if (e[k]) out[k] = Math.sign(e[k]!) * Math.max(1, Math.round(Math.abs(e[k]!) * m));
   for (const k of ['dmg', 'guard'] as const) if (e[k]) out[k] = Math.round(e[k]! * m * 100) / 100;
   if (e.heat) out.heat = Math.round(e.heat * (e.heat < 0 ? m : 1));
   if (e.fx) {
@@ -267,7 +269,7 @@ export function effectIn(tree: UpgradeNode[], owned: string[]): UpgradeEffect {
   const out: UpgradeEffect = {};
   const nodes = tree.filter(n => owned.includes(n.id)).sort((a, b) => depthIn(tree, a.id) - depthIn(tree, b.id));
   for (const { effect: e } of nodes) {
-    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys', 'chance', 'ammo'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
+    for (const k of ['dmg', 'heat', 'guard', 'attack', 'defense', 'hp', 'move', 'evasion', 'transfer', 'phys', 'chance', 'ammo', 'spAttack', 'spDefense'] as const) if (e[k]) out[k] = Math.round(((out[k] ?? 0) + e[k]!) * 100) / 100;
     if (e.steady) out.steady = true;
     if (e.precise) out.precise = true;
     if (e.fx) out.fx = { ...(out.fx ?? {}), ...e.fx };
@@ -293,6 +295,8 @@ export function effectText(e: UpgradeEffect): string {
     e.precise && 'always full damage',
     e.attack && `${sgn(e.attack)} attack`,
     e.defense && `${sgn(e.defense)} defence`,
+    e.spAttack && `${sgn(e.spAttack)} Sp. Atk`,
+    e.spDefense && `${sgn(e.spDefense)} Sp. Def`,
     e.hp && `${sgn(e.hp)} health`,
     e.move && `+${e.move} move`,
     e.evasion && `+${e.evasion} dodge`,

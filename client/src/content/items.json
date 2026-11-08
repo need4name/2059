@@ -6,11 +6,11 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 2,
-    "defenseBonus": 1,
     "hpBonus": 5,
     "icon": "🧠",
-    "passiveEffect": "kizuna_coldstart"
+    "passiveEffect": "kizuna_coldstart",
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "tx_lu_c_01",
@@ -31,11 +31,12 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 2,
-    "defenseBonus": 2,
+    "attackBonus": 1,
+    "defenseBonus": 1,
     "hpBonus": 5,
-    "structuralDefenseBonus": 1,
-    "icon": "⚙️"
+    "structuralDefenseBonus": 2,
+    "icon": "⚙️",
+    "structuralAttackBonus": 1
   },
   {
     "id": "cr_ey_c_01",
@@ -44,10 +45,11 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 3,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 2,
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 2
   },
   {
     "id": "io_er_c_01",
@@ -56,10 +58,10 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 1,
-    "defenseBonus": 2,
     "hpBonus": 3,
-    "icon": "👂"
+    "icon": "👂",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "vk_la_c_01",
@@ -68,10 +70,9 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 4,
+    "attackBonus": 5,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 1,
     "icon": "🦾"
   },
   {
@@ -81,10 +82,9 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 4,
+    "attackBonus": 5,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 1,
     "icon": "🦾"
   },
   {
@@ -121,9 +121,9 @@
     "type": "augmentation",
     "slot": "nose",
     "attackBonus": 0,
-    "defenseBonus": 1,
     "hpBonus": 8,
-    "icon": "👃"
+    "icon": "👃",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "kz_br_u_01",
@@ -132,11 +132,11 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 4,
-    "defenseBonus": 2,
     "hpBonus": 10,
     "icon": "🧠",
-    "passiveEffect": "kizuna_coldstart"
+    "passiveEffect": "kizuna_coldstart",
+    "structuralAttackBonus": 4,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "tx_er_u_01",
@@ -145,10 +145,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 2,
-    "defenseBonus": 4,
+    "attackBonus": 1,
+    "defenseBonus": 2,
     "hpBonus": 6,
-    "icon": "👂"
+    "icon": "👂",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "io_nz_u_01",
@@ -158,9 +160,10 @@
     "type": "augmentation",
     "slot": "nose",
     "attackBonus": 0,
-    "defenseBonus": 2,
+    "defenseBonus": 1,
     "hpBonus": 16,
-    "icon": "👃"
+    "icon": "👃",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "hx_ll_u_01",
@@ -169,11 +172,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 2,
+    "attackBonus": 1,
     "defenseBonus": 4,
     "hpBonus": 10,
     "structuralDefenseBonus": 2,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 1
   },
   {
     "id": "cr_ey_u_01",
@@ -182,10 +186,11 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 6,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 4,
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 5
   },
   {
     "id": "vk_la_u_01",
@@ -194,10 +199,9 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 8,
+    "attackBonus": 11,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 3,
     "icon": "🦾"
   },
   {
@@ -207,10 +211,9 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 8,
+    "attackBonus": 11,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 3,
     "icon": "🦾"
   },
   {
@@ -220,11 +223,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "right_leg",
-    "attackBonus": 2,
+    "attackBonus": 1,
     "defenseBonus": 4,
     "hpBonus": 10,
     "structuralDefenseBonus": 2,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 1
   },
   {
     "id": "tx_lu_u_01",
@@ -233,10 +237,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "lungs",
-    "attackBonus": 2,
-    "defenseBonus": 2,
+    "attackBonus": 1,
+    "defenseBonus": 1,
     "hpBonus": 20,
-    "icon": "🫁"
+    "icon": "🫁",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "hx_ms_u_01",
@@ -245,11 +251,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 4,
-    "defenseBonus": 4,
+    "attackBonus": 2,
+    "defenseBonus": 3,
     "hpBonus": 10,
-    "structuralDefenseBonus": 2,
-    "icon": "⚙️"
+    "structuralDefenseBonus": 3,
+    "icon": "⚙️",
+    "structuralAttackBonus": 2
   },
   {
     "id": "cr_ey_r_01",
@@ -258,10 +265,11 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 9,
+    "attackBonus": 2,
     "defenseBonus": 0,
     "hpBonus": 6,
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 7
   },
   {
     "id": "vk_ra_r_01",
@@ -270,10 +278,9 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 12,
+    "attackBonus": 16,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 4,
     "icon": "🦾"
   },
   {
@@ -283,10 +290,12 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "lungs",
-    "attackBonus": 3,
-    "defenseBonus": 3,
+    "attackBonus": 2,
+    "defenseBonus": 2,
     "hpBonus": 30,
-    "icon": "🫁"
+    "icon": "🫁",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "hx_ms_r_01",
@@ -295,12 +304,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 6,
-    "defenseBonus": 6,
+    "attackBonus": 3,
+    "defenseBonus": 5,
     "hpBonus": 15,
-    "structuralDefenseBonus": 3,
+    "structuralDefenseBonus": 4,
     "evasionBonus": 2,
-    "icon": "⚙️"
+    "icon": "⚙️",
+    "structuralAttackBonus": 3
   },
   {
     "id": "kz_br_r_01",
@@ -309,11 +319,11 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 6,
-    "defenseBonus": 3,
     "hpBonus": 15,
     "icon": "🧠",
-    "passiveEffect": "kizuna_coldstart"
+    "passiveEffect": "kizuna_coldstart",
+    "structuralAttackBonus": 6,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "vk_la_r_01",
@@ -322,10 +332,9 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 12,
+    "attackBonus": 16,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 4,
     "icon": "🦾"
   },
   {
@@ -335,10 +344,12 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 3,
-    "defenseBonus": 6,
+    "attackBonus": 1,
+    "defenseBonus": 3,
     "hpBonus": 9,
-    "icon": "👂"
+    "icon": "👂",
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "io_nz_r_01",
@@ -348,9 +359,10 @@
     "type": "augmentation",
     "slot": "nose",
     "attackBonus": 0,
-    "defenseBonus": 3,
+    "defenseBonus": 1,
     "hpBonus": 24,
-    "icon": "👃"
+    "icon": "👃",
+    "structuralDefenseBonus": 2
   },
   {
     "id": "hx_ll_r_01",
@@ -359,12 +371,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 3,
+    "attackBonus": 2,
     "defenseBonus": 6,
     "hpBonus": 15,
     "structuralDefenseBonus": 3,
     "evasionBonus": 2,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 1
   },
   {
     "id": "hx_rl_r_01",
@@ -373,12 +386,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "right_leg",
-    "attackBonus": 3,
+    "attackBonus": 2,
     "defenseBonus": 6,
     "hpBonus": 15,
     "structuralDefenseBonus": 3,
     "evasionBonus": 2,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 1
   },
   {
     "id": "vk_br_e_01",
@@ -387,11 +401,12 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 10,
-    "defenseBonus": 5,
+    "attackBonus": 8,
+    "defenseBonus": 3,
     "hpBonus": 25,
-    "structuralAttackBonus": 4,
-    "icon": "🧠"
+    "structuralAttackBonus": 6,
+    "icon": "🧠",
+    "structuralDefenseBonus": 2
   },
   {
     "id": "cr_nz_e_01",
@@ -401,9 +416,10 @@
     "type": "augmentation",
     "slot": "nose",
     "attackBonus": 0,
-    "defenseBonus": 5,
+    "defenseBonus": 2,
     "hpBonus": 40,
-    "icon": "👃"
+    "icon": "👃",
+    "structuralDefenseBonus": 3
   },
   {
     "id": "kz_ms_e_01",
@@ -412,11 +428,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 10,
-    "defenseBonus": 10,
+    "attackBonus": 2,
+    "defenseBonus": 2,
     "hpBonus": 25,
     "icon": "📎",
-    "passiveEffect": "kizuna_coldstart"
+    "passiveEffect": "kizuna_coldstart",
+    "structuralAttackBonus": 8,
+    "structuralDefenseBonus": 8
   },
   {
     "id": "tx_la_e_01",
@@ -425,10 +443,11 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 20,
+    "attackBonus": 18,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "tx_ra_e_01",
@@ -437,10 +456,11 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 20,
+    "attackBonus": 18,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "cr_ey_e_01",
@@ -449,10 +469,11 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 15,
+    "attackBonus": 3,
     "defenseBonus": 0,
     "hpBonus": 10,
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 12
   },
   {
     "id": "vk_er_e_01",
@@ -461,11 +482,12 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 5,
-    "defenseBonus": 10,
+    "attackBonus": 4,
+    "defenseBonus": 6,
     "hpBonus": 15,
-    "structuralAttackBonus": 2,
-    "icon": "👂"
+    "structuralAttackBonus": 3,
+    "icon": "👂",
+    "structuralDefenseBonus": 4
   },
   {
     "id": "tx_lu_e_01",
@@ -474,10 +496,12 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "lungs",
-    "attackBonus": 5,
-    "defenseBonus": 5,
+    "attackBonus": 3,
+    "defenseBonus": 3,
     "hpBonus": 50,
-    "icon": "🫁"
+    "icon": "🫁",
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "hx_ll_e_01",
@@ -486,12 +510,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 5,
-    "defenseBonus": 10,
+    "attackBonus": 3,
+    "defenseBonus": 11,
     "hpBonus": 25,
-    "structuralDefenseBonus": 5,
+    "structuralDefenseBonus": 4,
     "evasionBonus": 4,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 2
   },
   {
     "id": "hx_rl_e_01",
@@ -500,12 +525,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "right_leg",
-    "attackBonus": 5,
-    "defenseBonus": 10,
+    "attackBonus": 3,
+    "defenseBonus": 11,
     "hpBonus": 25,
-    "structuralDefenseBonus": 5,
+    "structuralDefenseBonus": 4,
     "evasionBonus": 4,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 2
   },
   {
     "id": "vk_lu_l_01",
@@ -514,11 +540,12 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "lungs",
-    "attackBonus": 8,
-    "defenseBonus": 8,
+    "attackBonus": 9,
+    "defenseBonus": 6,
     "hpBonus": 80,
-    "structuralAttackBonus": 3,
-    "icon": "🫁"
+    "structuralAttackBonus": 2,
+    "icon": "🫁",
+    "structuralDefenseBonus": 2
   },
   {
     "id": "cr_ey_l_01",
@@ -527,10 +554,11 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 24,
+    "attackBonus": 5,
     "defenseBonus": 0,
     "hpBonus": 16,
-    "icon": "🌙"
+    "icon": "🌙",
+    "structuralAttackBonus": 19
   },
   {
     "id": "kz_br_l_01",
@@ -539,11 +567,11 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 16,
-    "defenseBonus": 8,
     "hpBonus": 40,
     "icon": "🧠",
-    "passiveEffect": "kizuna_coldstart"
+    "passiveEffect": "kizuna_coldstart",
+    "structuralAttackBonus": 16,
+    "structuralDefenseBonus": 8
   },
   {
     "id": "px_ms_l_01",
@@ -552,10 +580,12 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 16,
-    "defenseBonus": 16,
+    "attackBonus": 8,
+    "defenseBonus": 8,
     "hpBonus": 40,
-    "icon": "🏴‍☠️"
+    "icon": "🏴‍☠️",
+    "structuralAttackBonus": 8,
+    "structuralDefenseBonus": 8
   },
   {
     "id": "vk_la_l_01",
@@ -564,10 +594,9 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 32,
+    "attackBonus": 44,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 12,
     "icon": "🦾"
   },
   {
@@ -577,10 +606,9 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 32,
+    "attackBonus": 44,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 12,
     "icon": "🦾"
   },
   {
@@ -590,10 +618,12 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 8,
-    "defenseBonus": 16,
+    "attackBonus": 2,
+    "defenseBonus": 5,
     "hpBonus": 24,
-    "icon": "👂"
+    "icon": "👂",
+    "structuralAttackBonus": 6,
+    "structuralDefenseBonus": 11
   },
   {
     "id": "px_nz_l_01",
@@ -603,9 +633,10 @@
     "type": "augmentation",
     "slot": "nose",
     "attackBonus": 0,
-    "defenseBonus": 8,
+    "defenseBonus": 4,
     "hpBonus": 64,
-    "icon": "👃"
+    "icon": "👃",
+    "structuralDefenseBonus": 4
   },
   {
     "id": "px_ll_l_01",
@@ -614,10 +645,12 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 8,
-    "defenseBonus": 16,
+    "attackBonus": 6,
+    "defenseBonus": 11,
     "hpBonus": 40,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 5
   },
   {
     "id": "px_rl_l_01",
@@ -626,10 +659,12 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "right_leg",
-    "attackBonus": 8,
-    "defenseBonus": 16,
+    "attackBonus": 6,
+    "defenseBonus": 11,
     "hpBonus": 40,
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 5
   },
   {
     "id": "pw_a_vk_la_c_01",
@@ -703,11 +738,12 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 2,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "corroded",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_a_io_er_c_01",
@@ -717,10 +753,10 @@
     "type": "augmentation",
     "slot": "ears",
     "attackBonus": 0,
-    "defenseBonus": 1,
     "hpBonus": 1,
     "condition": "degraded",
-    "icon": "👂"
+    "icon": "👂",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_a_hx_ms_c_01",
@@ -742,11 +778,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 4,
+    "attackBonus": 3,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_a_vk_ra_u_01",
@@ -755,11 +792,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 4,
+    "attackBonus": 3,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_a_cr_ey_u_01",
@@ -768,11 +806,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 3,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 2,
     "condition": "degraded",
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 2
   },
   {
     "id": "pw_a_tx_lu_u_01",
@@ -795,10 +834,11 @@
     "type": "augmentation",
     "slot": "left_leg",
     "attackBonus": 1,
-    "defenseBonus": 2,
+    "defenseBonus": 1,
     "hpBonus": 5,
     "condition": "worn",
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_a_kz_br_u_01",
@@ -807,11 +847,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 2,
-    "defenseBonus": 1,
+    "attackBonus": 1,
     "hpBonus": 4,
     "condition": "degraded",
-    "icon": "🧠"
+    "icon": "🧠",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_a_vk_br_u_01",
@@ -820,11 +861,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 4,
-    "defenseBonus": 1,
+    "attackBonus": 1,
     "hpBonus": 8,
     "condition": "degraded",
-    "icon": "🧠"
+    "icon": "🧠",
+    "structuralAttackBonus": 3,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_a_vk_ra_r_01",
@@ -833,11 +875,12 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 8,
+    "attackBonus": 6,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "pw_a_vk_la_r_01",
@@ -846,11 +889,12 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 8,
+    "attackBonus": 6,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "pw_a_kz_br_r_01",
@@ -859,11 +903,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 5,
-    "defenseBonus": 2,
+    "attackBonus": 1,
+    "defenseBonus": 1,
     "hpBonus": 10,
     "condition": "pristine",
-    "icon": "🧠"
+    "icon": "🧠",
+    "structuralAttackBonus": 4,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_a_cr_ey_r_01",
@@ -872,11 +918,12 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 5,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 4,
     "condition": "worn",
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 4
   },
   {
     "id": "pw_b_arm_c_01",
@@ -885,11 +932,12 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 2,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_b_arm_c_02",
@@ -898,11 +946,12 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 2,
+    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_b_leg_c_01",
@@ -951,10 +1000,10 @@
     "type": "augmentation",
     "slot": "ears",
     "attackBonus": 0,
-    "defenseBonus": 1,
     "hpBonus": 2,
     "condition": "worn",
-    "icon": "👂"
+    "icon": "👂",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_b_eye_c_01",
@@ -963,11 +1012,11 @@
     "rarity": "common",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 1,
     "defenseBonus": 0,
     "hpBonus": 2,
     "condition": "worn",
-    "icon": "👁️"
+    "icon": "👁️",
+    "structuralAttackBonus": 1
   },
   {
     "id": "pw_b_misc_c_01",
@@ -989,11 +1038,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 5,
+    "attackBonus": 3,
     "defenseBonus": 1,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "pw_b_arm_u_02",
@@ -1002,11 +1052,12 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 5,
+    "attackBonus": 3,
     "defenseBonus": 1,
     "hpBonus": 0,
     "condition": "worn",
-    "icon": "🦾"
+    "icon": "🦾",
+    "structuralAttackBonus": 2
   },
   {
     "id": "pw_b_leg_u_01",
@@ -1016,10 +1067,11 @@
     "type": "augmentation",
     "slot": "left_leg",
     "attackBonus": 0,
-    "defenseBonus": 2,
+    "defenseBonus": 1,
     "hpBonus": 8,
     "condition": "worn",
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_b_leg_u_02",
@@ -1029,10 +1081,11 @@
     "type": "augmentation",
     "slot": "right_leg",
     "attackBonus": 0,
-    "defenseBonus": 2,
+    "defenseBonus": 1,
     "hpBonus": 8,
     "condition": "worn",
-    "icon": "🦿"
+    "icon": "🦿",
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_b_lung_u_01",
@@ -1054,11 +1107,13 @@
     "rarity": "uncommon",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 2,
-    "defenseBonus": 2,
+    "attackBonus": 1,
+    "defenseBonus": 1,
     "hpBonus": 6,
     "condition": "pristine",
-    "icon": "🧠"
+    "icon": "🧠",
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "pw_b_nose_u_01",
@@ -1117,8 +1172,8 @@
     "type": "augmentation",
     "slot": "left_arm",
     "icon": "🦾",
-    "attackBonus": 9,
-    "structuralAttackBonus": 4,
+    "attackBonus": 10,
+    "structuralAttackBonus": 3,
     "passiveEffect": "bypass_sdef"
   },
   {
@@ -1129,8 +1184,8 @@
     "type": "augmentation",
     "slot": "right_arm",
     "icon": "🦾",
-    "attackBonus": 14,
-    "structuralAttackBonus": 6,
+    "attackBonus": 16,
+    "structuralAttackBonus": 4,
     "passiveEffect": "bypass_sdef"
   },
   {
@@ -1153,9 +1208,11 @@
     "type": "augmentation",
     "slot": "left_arm",
     "icon": "🦾",
-    "attackBonus": 7,
-    "defenseBonus": 5,
-    "hpBonus": 8
+    "attackBonus": 4,
+    "defenseBonus": 3,
+    "hpBonus": 8,
+    "structuralAttackBonus": 3,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "kz_ra_l_01",
@@ -1165,10 +1222,11 @@
     "type": "augmentation",
     "slot": "right_arm",
     "icon": "🦾",
-    "attackBonus": 18,
-    "defenseBonus": 6,
-    "structuralAttackBonus": 6,
-    "passiveEffect": "kizuna_coldstart"
+    "attackBonus": 10,
+    "defenseBonus": 2,
+    "structuralAttackBonus": 14,
+    "passiveEffect": "kizuna_coldstart",
+    "structuralDefenseBonus": 4
   },
   {
     "id": "io_la_u_01",
@@ -1178,8 +1236,8 @@
     "type": "augmentation",
     "slot": "left_arm",
     "icon": "🦾",
-    "attackBonus": 7,
-    "structuralAttackBonus": 2
+    "attackBonus": 5,
+    "structuralAttackBonus": 4
   },
   {
     "id": "hx_la_e_01",
@@ -1189,8 +1247,8 @@
     "type": "augmentation",
     "slot": "left_arm",
     "icon": "🛡️",
-    "defenseBonus": 12,
-    "structuralDefenseBonus": 8,
+    "defenseBonus": 14,
+    "structuralDefenseBonus": 6,
     "hpBonus": 12
   },
   {
@@ -1202,7 +1260,7 @@
     "slot": "right_arm",
     "icon": "🦾",
     "attackBonus": 3,
-    "structuralDefenseBonus": 1
+    "defenseBonus": 1
   },
   {
     "id": "tx_ll_c_02",
@@ -1236,9 +1294,10 @@
     "type": "augmentation",
     "slot": "left_leg",
     "icon": "🦿",
-    "attackBonus": 10,
+    "attackBonus": 8,
     "evasionBonus": 3,
-    "passiveEffect": "bypass_sdef"
+    "passiveEffect": "bypass_sdef",
+    "structuralAttackBonus": 2
   },
   {
     "id": "kz_rl_u_01",
@@ -1248,9 +1307,11 @@
     "type": "augmentation",
     "slot": "right_leg",
     "icon": "🦿",
-    "attackBonus": 3,
-    "defenseBonus": 2,
-    "evasionBonus": 1
+    "attackBonus": 1,
+    "defenseBonus": 1,
+    "evasionBonus": 1,
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "cr_ll_r_01",
@@ -1260,9 +1321,10 @@
     "type": "augmentation",
     "slot": "left_leg",
     "icon": "🦿",
-    "defenseBonus": 5,
+    "defenseBonus": 3,
     "hpBonus": 12,
-    "evasionBonus": 1
+    "evasionBonus": 1,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "vk_ll_l_01",
@@ -1284,10 +1346,9 @@
     "type": "augmentation",
     "slot": "eyes",
     "icon": "👁️",
-    "attackBonus": 12,
-    "defenseBonus": 4,
-    "structuralAttackBonus": 4,
-    "passiveEffect": "kizuna_coldstart"
+    "structuralAttackBonus": 16,
+    "passiveEffect": "kizuna_coldstart",
+    "structuralDefenseBonus": 4
   },
   {
     "id": "vk_ey_r_01",
@@ -1297,8 +1358,8 @@
     "type": "augmentation",
     "slot": "eyes",
     "icon": "👁️",
-    "attackBonus": 10,
-    "structuralAttackBonus": 3
+    "attackBonus": 8,
+    "structuralAttackBonus": 5
   },
   {
     "id": "io_ey_u_01",
@@ -1308,8 +1369,8 @@
     "type": "augmentation",
     "slot": "eyes",
     "icon": "👁️",
-    "attackBonus": 6,
-    "structuralAttackBonus": 1
+    "attackBonus": 1,
+    "structuralAttackBonus": 6
   },
   {
     "id": "cbn_ms_r_01",
@@ -1331,9 +1392,9 @@
     "type": "augmentation",
     "slot": "lungs",
     "icon": "🫁",
-    "defenseBonus": 4,
+    "defenseBonus": 5,
     "hpBonus": 12,
-    "structuralDefenseBonus": 2
+    "structuralDefenseBonus": 1
   },
   {
     "id": "cr_br_e_01",
@@ -1343,8 +1404,9 @@
     "type": "augmentation",
     "slot": "brain",
     "icon": "🧠",
-    "defenseBonus": 8,
-    "hpBonus": 36
+    "defenseBonus": 2,
+    "hpBonus": 36,
+    "structuralDefenseBonus": 6
   },
   {
     "id": "hx_nz_r_01",
@@ -1354,9 +1416,9 @@
     "type": "augmentation",
     "slot": "nose",
     "icon": "👃",
-    "defenseBonus": 6,
+    "defenseBonus": 5,
     "hpBonus": 16,
-    "structuralDefenseBonus": 3
+    "structuralDefenseBonus": 4
   },
   {
     "id": "ps_ms_e_01",
@@ -1366,8 +1428,8 @@
     "type": "augmentation",
     "slot": "misc",
     "icon": "🦴",
-    "defenseBonus": 10,
-    "structuralDefenseBonus": 10,
+    "defenseBonus": 16,
+    "structuralDefenseBonus": 4,
     "hpBonus": 8
   },
   {
@@ -1378,8 +1440,8 @@
     "type": "augmentation",
     "slot": "brain",
     "icon": "🧠",
-    "attackBonus": 10,
-    "structuralAttackBonus": 4
+    "attackBonus": 1,
+    "structuralAttackBonus": 13
   },
   {
     "id": "cbn_br_c_01",
@@ -1389,8 +1451,9 @@
     "type": "augmentation",
     "slot": "brain",
     "icon": "🧠",
-    "attackBonus": 3,
-    "hpBonus": 4
+    "attackBonus": 1,
+    "hpBonus": 4,
+    "structuralAttackBonus": 2
   },
   {
     "id": "ps_nz_c_01",
@@ -1422,8 +1485,9 @@
     "type": "augmentation",
     "slot": "left_arm",
     "icon": "🦾",
-    "attackBonus": 4,
-    "passiveEffect": "bypass_sdef"
+    "attackBonus": 3,
+    "passiveEffect": "bypass_sdef",
+    "structuralAttackBonus": 1
   },
   {
     "id": "ps_ll_u_01",
@@ -1433,8 +1497,7 @@
     "type": "augmentation",
     "slot": "left_leg",
     "icon": "🦿",
-    "defenseBonus": 4,
-    "structuralDefenseBonus": 3,
+    "defenseBonus": 7,
     "hpBonus": 4
   },
   {
@@ -1445,9 +1508,10 @@
     "type": "augmentation",
     "slot": "right_leg",
     "icon": "🦿",
-    "attackBonus": 6,
+    "attackBonus": 5,
     "evasionBonus": 1,
-    "passiveEffect": "bypass_sdef"
+    "passiveEffect": "bypass_sdef",
+    "structuralAttackBonus": 1
   },
   {
     "id": "ps_ms_u_01",
@@ -1457,8 +1521,8 @@
     "type": "augmentation",
     "slot": "misc",
     "icon": "🦴",
-    "defenseBonus": 4,
-    "structuralDefenseBonus": 4
+    "defenseBonus": 6,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "hx_er_u_01",
@@ -1468,8 +1532,9 @@
     "type": "augmentation",
     "slot": "ears",
     "icon": "👂",
-    "defenseBonus": 4,
-    "hpBonus": 10
+    "defenseBonus": 1,
+    "hpBonus": 10,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "kz_er_r_01",
@@ -1479,9 +1544,8 @@
     "type": "augmentation",
     "slot": "ears",
     "icon": "👂",
-    "attackBonus": 6,
-    "defenseBonus": 4,
-    "structuralAttackBonus": 4
+    "structuralAttackBonus": 10,
+    "structuralDefenseBonus": 4
   },
   {
     "id": "cbn_er_e_01",
@@ -1491,8 +1555,8 @@
     "type": "augmentation",
     "slot": "ears",
     "icon": "👂",
-    "attackBonus": 12,
-    "structuralAttackBonus": 6,
+    "attackBonus": 7,
+    "structuralAttackBonus": 11,
     "passiveEffect": "bypass_sdef"
   },
   {
@@ -1503,9 +1567,9 @@
     "type": "augmentation",
     "slot": "nose",
     "icon": "👃",
-    "defenseBonus": 10,
+    "defenseBonus": 7,
     "hpBonus": 30,
-    "structuralDefenseBonus": 4
+    "structuralDefenseBonus": 7
   },
   {
     "id": "ps_lu_r_01",
@@ -1515,9 +1579,9 @@
     "type": "augmentation",
     "slot": "lungs",
     "icon": "🫁",
-    "defenseBonus": 6,
+    "defenseBonus": 8,
     "hpBonus": 16,
-    "structuralDefenseBonus": 4
+    "structuralDefenseBonus": 2
   },
   {
     "id": "cbn_lu_e_01",
@@ -1527,8 +1591,9 @@
     "type": "augmentation",
     "slot": "lungs",
     "icon": "🫁",
-    "defenseBonus": 6,
-    "hpBonus": 40
+    "defenseBonus": 4,
+    "hpBonus": 40,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "tx_rl_e_01",
@@ -1538,9 +1603,11 @@
     "type": "augmentation",
     "slot": "right_leg",
     "icon": "🦿",
-    "attackBonus": 10,
-    "defenseBonus": 8,
-    "hpBonus": 12
+    "attackBonus": 9,
+    "defenseBonus": 7,
+    "hpBonus": 12,
+    "structuralAttackBonus": 1,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "sig_patchwork_crown",
@@ -1549,12 +1616,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 10,
-    "defenseBonus": 6,
+    "attackBonus": 4,
+    "defenseBonus": 2,
     "hpBonus": 20,
-    "structuralAttackBonus": 4,
+    "structuralAttackBonus": 10,
     "icon": "👑",
-    "signature": true
+    "signature": true,
+    "structuralDefenseBonus": 4
   },
   {
     "id": "sig_cartel_hook",
@@ -1563,7 +1631,7 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 12,
+    "attackBonus": 10,
     "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🪝",
@@ -1573,7 +1641,8 @@
       "hook",
       "lash",
       "harvest"
-    ]
+    ],
+    "structuralAttackBonus": 2
   },
   {
     "id": "sig_surgeon_hands",
@@ -1582,10 +1651,10 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 11,
+    "attackBonus": 13,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 5,
+    "structuralAttackBonus": 3,
     "icon": "🩺",
     "signature": true,
     "heads": [
@@ -1621,8 +1690,8 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 8,
-    "defenseBonus": 3,
+    "attackBonus": 4,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "evasionBonus": 2,
     "icon": "🦵",
@@ -1632,7 +1701,9 @@
       "stepcut",
       "charge",
       "sprint"
-    ]
+    ],
+    "structuralAttackBonus": 4,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "sig_listener_array",
@@ -1641,10 +1712,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 16,
-    "defenseBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 6,
+    "structuralAttackBonus": 22,
     "icon": "📡",
     "signature": true,
     "heads": [
@@ -1652,7 +1721,8 @@
       "scope",
       "mortar",
       "longshot"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_commander_stamp",
@@ -1661,8 +1731,8 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 12,
-    "defenseBonus": 4,
+    "attackBonus": 6,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🛂",
     "signature": true,
@@ -1671,7 +1741,9 @@
       "grapple",
       "override",
       "reach"
-    ]
+    ],
+    "structuralAttackBonus": 6,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_vessel_keel",
@@ -1680,12 +1752,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 6,
-    "defenseBonus": 14,
+    "attackBonus": 3,
+    "defenseBonus": 10,
     "hpBonus": 30,
-    "structuralDefenseBonus": 6,
+    "structuralDefenseBonus": 10,
     "icon": "⚓",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 3
   },
   {
     "id": "sig_registrar_lens",
@@ -1694,10 +1767,9 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 17,
-    "defenseBonus": 2,
+    "attackBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 6,
+    "structuralAttackBonus": 21,
     "icon": "🔍",
     "signature": true,
     "heads": [
@@ -1705,7 +1777,8 @@
       "scope",
       "longshot",
       "mortar"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_sister_keys",
@@ -1714,11 +1787,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 6,
-    "defenseBonus": 8,
+    "attackBonus": 2,
+    "defenseBonus": 2,
     "hpBonus": 20,
     "icon": "🗝️",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 4,
+    "structuralDefenseBonus": 6
   },
   {
     "id": "sig_sleeper_eyes",
@@ -1727,10 +1802,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 16,
-    "defenseBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 6,
+    "structuralAttackBonus": 22,
     "icon": "👁️",
     "signature": true,
     "heads": [
@@ -1738,7 +1811,8 @@
       "lance",
       "mortar",
       "longshot"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_count_clicker",
@@ -1747,8 +1821,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 18,
-    "defenseBonus": 4,
+    "attackBonus": 13,
+    "defenseBonus": 3,
     "hpBonus": 0,
     "icon": "🖐️",
     "signature": true,
@@ -1757,7 +1831,9 @@
       "jab",
       "crowdpress",
       "grapple"
-    ]
+    ],
+    "structuralAttackBonus": 5,
+    "structuralDefenseBonus": 1
   },
   {
     "id": "sig_lattice_heart",
@@ -1766,12 +1842,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 8,
-    "defenseBonus": 12,
+    "attackBonus": 4,
+    "defenseBonus": 9,
     "hpBonus": 40,
-    "structuralDefenseBonus": 6,
+    "structuralDefenseBonus": 9,
     "icon": "🔋",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 4
   },
   {
     "id": "sig_foreman_whistle",
@@ -1780,11 +1857,13 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 8,
-    "defenseBonus": 6,
+    "attackBonus": 4,
+    "defenseBonus": 3,
     "hpBonus": 15,
     "icon": "🎶",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 4,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "sig_captain_rig",
@@ -1793,10 +1872,8 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 12,
-    "defenseBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 4,
+    "structuralAttackBonus": 16,
     "icon": "🛸",
     "signature": true,
     "heads": [
@@ -1804,7 +1881,8 @@
       "scope",
       "mortar",
       "lance"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_shepherd_crook",
@@ -1813,7 +1891,7 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 16,
+    "attackBonus": 14,
     "defenseBonus": 4,
     "hpBonus": 0,
     "icon": "🪝",
@@ -1823,7 +1901,8 @@
       "hook",
       "reach",
       "crowdpress"
-    ]
+    ],
+    "structuralAttackBonus": 2
   },
   {
     "id": "sig_overseer_metronome",
@@ -1832,11 +1911,13 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 8,
-    "defenseBonus": 12,
+    "attackBonus": 6,
+    "defenseBonus": 8,
     "hpBonus": 30,
     "icon": "⏱️",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 2,
+    "structuralDefenseBonus": 4
   },
   {
     "id": "sig_tower_arm",
@@ -1845,7 +1926,7 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 19,
+    "attackBonus": 17,
     "defenseBonus": 4,
     "hpBonus": 0,
     "icon": "🌪️",
@@ -1855,7 +1936,8 @@
       "spread",
       "crowdpress",
       "reach"
-    ]
+    ],
+    "structuralAttackBonus": 2
   },
   {
     "id": "sig_weather_eye",
@@ -1864,10 +1946,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 17,
-    "defenseBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 6,
+    "structuralAttackBonus": 23,
     "icon": "🌦️",
     "signature": true,
     "heads": [
@@ -1875,7 +1955,8 @@
       "scope",
       "longshot",
       "mortar"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   },
   {
     "id": "frame_loader_legs_l",
@@ -1884,8 +1965,8 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 25,
-    "defenseBonus": 9,
+    "attackBonus": 10,
+    "defenseBonus": 4,
     "hpBonus": 0,
     "icon": "🦿",
     "signature": true,
@@ -1893,7 +1974,9 @@
       "charge",
       "kick",
       "sprint"
-    ]
+    ],
+    "structuralAttackBonus": 15,
+    "structuralDefenseBonus": 5
   },
   {
     "id": "frame_loader_legs_r",
@@ -1902,8 +1985,8 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "right_leg",
-    "attackBonus": 20,
-    "defenseBonus": 9,
+    "attackBonus": 8,
+    "defenseBonus": 4,
     "hpBonus": 0,
     "icon": "🦿",
     "signature": true,
@@ -1911,7 +1994,9 @@
       "stomp",
       "kick",
       "lunge"
-    ]
+    ],
+    "structuralAttackBonus": 12,
+    "structuralDefenseBonus": 5
   },
   {
     "id": "frame_loader_spine",
@@ -1920,11 +2005,13 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 9,
-    "defenseBonus": 25,
+    "attackBonus": 2,
+    "defenseBonus": 5,
     "hpBonus": 73,
     "icon": "🦾",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 7,
+    "structuralDefenseBonus": 20
   },
   {
     "id": "frame_gantry_arm_r",
@@ -1933,8 +2020,8 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 29,
-    "defenseBonus": 5,
+    "attackBonus": 12,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🏗️",
     "signature": true,
@@ -1942,7 +2029,9 @@
       "reach",
       "hook",
       "spread"
-    ]
+    ],
+    "structuralAttackBonus": 17,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "frame_gantry_arm_l",
@@ -1951,8 +2040,8 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 25,
-    "defenseBonus": 5,
+    "attackBonus": 10,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🦀",
     "signature": true,
@@ -1960,7 +2049,9 @@
       "grapple",
       "jab",
       "hook"
-    ]
+    ],
+    "structuralAttackBonus": 15,
+    "structuralDefenseBonus": 3
   },
   {
     "id": "frame_gantry_spine",
@@ -1969,11 +2060,13 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "misc",
-    "attackBonus": 9,
-    "defenseBonus": 20,
+    "attackBonus": 2,
+    "defenseBonus": 4,
     "hpBonus": 60,
     "icon": "🛤️",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 7,
+    "structuralDefenseBonus": 16
   },
   {
     "id": "frame_swarm_eyes",
@@ -1982,10 +2075,9 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 29,
     "defenseBonus": 0,
     "hpBonus": 0,
-    "structuralAttackBonus": 9,
+    "structuralAttackBonus": 38,
     "icon": "🛸",
     "signature": true,
     "heads": [
@@ -2001,11 +2093,11 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 14,
-    "defenseBonus": 9,
     "hpBonus": 37,
     "icon": "🧠",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 14,
+    "structuralDefenseBonus": 9
   },
   {
     "id": "frame_swarm_ears",
@@ -2014,11 +2106,11 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "ears",
-    "attackBonus": 5,
-    "defenseBonus": 14,
     "hpBonus": 25,
     "icon": "📡",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 5,
+    "structuralDefenseBonus": 14
   },
   {
     "id": "sig_clerk_seal",
@@ -2027,11 +2119,11 @@
     "rarity": "rare",
     "type": "augmentation",
     "slot": "brain",
-    "attackBonus": 8,
-    "defenseBonus": 6,
     "hpBonus": 15,
     "icon": "🔏",
-    "signature": true
+    "signature": true,
+    "structuralAttackBonus": 8,
+    "structuralDefenseBonus": 6
   },
   {
     "id": "sig_warden_key",
@@ -2040,8 +2132,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "right_arm",
-    "attackBonus": 17,
-    "defenseBonus": 4,
+    "attackBonus": 7,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🔐",
     "signature": true,
@@ -2050,7 +2142,9 @@
       "jab",
       "monowire",
       "hook"
-    ]
+    ],
+    "structuralAttackBonus": 10,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_lead_stack",
@@ -2059,8 +2153,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_leg",
-    "attackBonus": 12,
-    "defenseBonus": 4,
+    "attackBonus": 5,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "evasionBonus": 2,
     "icon": "⚡",
@@ -2070,7 +2164,9 @@
       "stepcut",
       "sprint",
       "charge"
-    ]
+    ],
+    "structuralAttackBonus": 7,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_signatory_pen",
@@ -2079,8 +2175,8 @@
     "rarity": "epic",
     "type": "augmentation",
     "slot": "left_arm",
-    "attackBonus": 16,
-    "defenseBonus": 4,
+    "attackBonus": 6,
+    "defenseBonus": 2,
     "hpBonus": 0,
     "icon": "🖋️",
     "signature": true,
@@ -2089,7 +2185,9 @@
       "grapple",
       "override",
       "jab"
-    ]
+    ],
+    "structuralAttackBonus": 10,
+    "structuralDefenseBonus": 2
   },
   {
     "id": "sig_pass_lens",
@@ -2098,10 +2196,8 @@
     "rarity": "legendary",
     "type": "augmentation",
     "slot": "eyes",
-    "attackBonus": 20,
-    "defenseBonus": 2,
     "hpBonus": 0,
-    "structuralAttackBonus": 8,
+    "structuralAttackBonus": 28,
     "icon": "🔆",
     "signature": true,
     "heads": [
@@ -2109,6 +2205,7 @@
       "longshot",
       "scope",
       "mortar"
-    ]
+    ],
+    "structuralDefenseBonus": 2
   }
 ]

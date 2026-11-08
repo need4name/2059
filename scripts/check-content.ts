@@ -15,7 +15,8 @@ import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
 import firmware from '../client/src/content/firmware.json';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
-import { MAKER_INFO, HEADS, MODS, QUIRKS, DEF_HEADS } from '../client/src/lib/combat/augments';
+import { BASE_ITEMS } from '../client/src/lib/combat/items2059';
+import { MAKER_INFO, HEADS, MODS, QUIRKS, DEF_HEADS, specialLean } from '../client/src/lib/combat/augments';
 
 const slot = z.enum(['brain', 'ears', 'eyes', 'nose', 'lungs', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'misc']);
 const rarity = z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']);
@@ -72,7 +73,7 @@ const ally = z.object({
     }).strict(),
     passive: z.object({
       slot: z.enum(['brain', 'ears', 'nose', 'lungs', 'misc']), name: text,
-      passiveParts: z.object({ housing: z.enum(['light', 'stock', 'plated', 'sealed']), regulator: z.enum(['stock', 'sink', 'baffle', 'primer']), trait: z.enum(['tough', 'quick', 'charged', 'shod']).optional() }).strict(),
+      passiveParts: z.object({ housing: z.enum(['light', 'stock', 'plated', 'sealed']), regulator: z.enum(['stock', 'sink', 'baffle', 'primer']), trait: z.enum(['tough', 'quick', 'charged', 'shod', 'shielded']).optional() }).strict(),
       stats: kitStats,
     }).strict(),
   }).strict(),
@@ -170,11 +171,11 @@ const upgradeKind = z.object({
     lens: z.array(z.enum(['clear', 'stock', 'cracked'])).min(1), coupling: z.array(z.enum(['hydraulic', 'servo', 'arc', 'thermal'])).min(1),
     core: z.array(z.enum(['cold', 'stock', 'hot', 'pump'])).min(1), head: z.array(z.string().regex(/^[a-z]+$/)).min(1), mod: z.array(z.string().regex(/^[a-z]+$/)).min(1),
     housing: z.array(z.enum(['light', 'stock', 'plated', 'sealed'])).min(1), regulator: z.array(z.enum(['stock', 'sink', 'baffle', 'primer'])).min(1),
-    trait: z.array(z.enum(['tough', 'quick', 'charged', 'shod'])).min(1),
+    trait: z.array(z.enum(['tough', 'quick', 'charged', 'shod', 'shielded'])).min(1),
   }).partial().strict().optional(),
   effect: z.object({
     dmg: z.number().gt(0).max(1), heat: z.number().int().min(-15).max(10), chance: z.number().gt(0).max(0.5), ammo: z.number().int().min(1).max(3), transfer: z.number().int().min(1).max(10), phys: z.number().min(-0.3).max(0.3), steady: z.literal(true), precise: z.literal(true), guard: z.number().gt(0).max(1),
-    attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
+    attack: z.number().int().min(-10).max(20), defense: z.number().int().min(1).max(20), spAttack: z.number().int().min(1).max(20), spDefense: z.number().int().min(1).max(20), hp: z.number().int().min(-20).max(40), move: z.literal(1), evasion: z.number().int().min(1).max(10),
     fx: fxFields,
     perk: z.object({
       cooling: z.number().int().min(1).max(10), finisher: z.number().gt(0).max(1), flank: z.number().gt(0).max(1), firstLook: z.literal(true),
@@ -285,6 +286,15 @@ export function checkContent(): string[] {
     } else if (!it.consumableEffect && !it.hpBonus) problems.push(`items.json ${it.id}: a consumable needs an effect`);
   });
 
+  // Implants split their attack and defence between physical and special the way their maker and slot lean
+  for (const it of BASE_ITEMS) {
+    if (it.type !== 'augmentation') continue;
+    const lean = specialLean(it);
+    for (const [a, b] of [['attackBonus', 'structuralAttackBonus'], ['defenseBonus', 'structuralDefenseBonus']] as const) {
+      const tot = Math.max(0, it[a] ?? 0) + Math.max(0, it[b] ?? 0);
+      if (tot > 0 && Math.abs((it[b] ?? 0) - tot * lean) > 1) problems.push(`items.json ${it.id}: ${b} should be about ${Math.round(tot * lean)} of ${tot} (its maker and slot lean ${Math.round(lean * 100)}% special)`);
+    }
+  }
   // Gun frames: one per maker and action
   const frames = new Set<string>();
   (weapons as unknown[]).forEach(raw => {

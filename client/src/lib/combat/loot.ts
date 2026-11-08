@@ -1,6 +1,6 @@
 import { Item, ItemRarity, LootDrop, AugmentationSlot, AUGMENTATION_SLOTS, ACTIVE_SLOTS, PASSIVE_SLOTS } from './types';
 import { ITEMS_2059 } from './items2059';
-import { rollParts, rollPassiveParts, normaliseItem } from './augments';
+import { rollParts, rollPassiveParts, normaliseItem, specialShare } from './augments';
 
 import { random } from '../engine/rng';
 /** Drop tuning (see docs/DESIGN.md). */
@@ -68,12 +68,19 @@ function getRandomItemFromPool(
 rarity: ItemRarity,
 pools: Record<ItemRarity, Item[]>,
 slot?: AugmentationSlot,
+/** Lean the pick toward implants this special (0 physical to 1 special): what an enemy fights with. */
+lean?: number,
 ): Item | null {
 let pool = pools[rarity];
 if (slot) pool = pool.filter(i => i.slot === slot);
 if (pool.length === 0) pool = pools[rarity]; // drop slot constraint if nothing found
 if (pool.length === 0) return null;
-return pool[Math.floor(random() * pool.length)];
+if (lean === undefined) return pool[Math.floor(random() * pool.length)];
+// One roll either way, so seeded runs draw the same number of dice: closer to the lean, more likely
+const w = pool.map(i => 0.25 + Math.pow(1 - Math.abs(specialShare(i) - lean), 2) * 3);
+let r = random() * w.reduce((a, b) => a + b, 0);
+for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) return pool[k]; }
+return pool[pool.length - 1];
 }
 
 function pick<T>(list: T[]): T { return list[Math.floor(random() * list.length)]; }
@@ -101,7 +108,7 @@ export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
  * Bosses and elites carry their signature implant at a rolled quality.
  * First life: the first two enemies carry a teaching implant (an arm, then a passive).
  */
-export function rollCarried(level: number, count: number, role: EnemyRole, firstRun = false, signature?: string): Item[] {
+export function rollCarried(level: number, count: number, role: EnemyRole, firstRun = false, signature?: string, lean?: number): Item[] {
 if (firstRun && level === 1) { const t = getRandomItemFromPool('common', ITEM_POOLS, pick(['left_arm', 'right_arm'] as AugmentationSlot[])); return t ? [instancedItem({ ...t, condition: 'pristine' })] : []; }
 if (firstRun && level === 2) { const t = getRandomItemFromPool('uncommon', ITEM_POOLS, pick(PASSIVE_SLOTS)); return t ? [instancedItem({ ...t, condition: 'pristine' })] : []; }
 const out: Item[] = [];
@@ -119,7 +126,7 @@ while (out.length < count) {
   const slot = pick(free.length ? free : AUGMENTATION_SLOTS);
   // Worn gear: what enemies wear rolls at the odds of six threats lower
   const worn = rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG));
-  const t = getRandomItemFromPool(role === 'elite' && !out.length ? rarityAtLeast(worn, 'uncommon') : worn, ITEM_POOLS, slot);
+  const t = getRandomItemFromPool(role === 'elite' && !out.length ? rarityAtLeast(worn, 'uncommon') : worn, ITEM_POOLS, slot, lean);
   if (!t) break;
   taken.add(t.slot);
   out.push(instancedItem({ ...t, condition: usedCondition() }));

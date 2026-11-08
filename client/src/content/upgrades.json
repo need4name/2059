@@ -583,6 +583,19 @@
           "dmg": 0.08,
           "transfer": 3
         }
+      },
+      {
+        "id": "signaledge",
+        "name": "Signal edge",
+        "makers": [
+          "KIZUNA",
+          "IOA",
+          "CROWN"
+        ],
+        "effect": {
+          "spAttack": 3,
+          "dmg": 0.05
+        }
       }
     ],
     "brace": [
@@ -1055,6 +1068,32 @@
         },
         "effect": {
           "attack": 3
+        }
+      },
+      {
+        "id": "lattice",
+        "name": "Shield lattice",
+        "makers": [
+          "HELIX",
+          "KIZUNA",
+          "CROWN",
+          "PARSU"
+        ],
+        "effect": {
+          "spDefense": 4
+        }
+      },
+      {
+        "id": "neuralgain",
+        "name": "Neural gain",
+        "makers": [
+          "KIZUNA",
+          "IOA",
+          "CROWN",
+          "CBN"
+        ],
+        "effect": {
+          "spAttack": 4
         }
       }
     ]
@@ -1702,6 +1741,29 @@
           "attack": 8,
           "hp": 10
         }
+      },
+      {
+        "id": "nullfield",
+        "name": "Null field",
+        "makers": [
+          "HELIX",
+          "KIZUNA"
+        ],
+        "effect": {
+          "spDefense": 10,
+          "hp": 10
+        }
+      },
+      {
+        "id": "overmind",
+        "name": "Overmind",
+        "makers": [
+          "KIZUNA",
+          "IOA"
+        ],
+        "effect": {
+          "spAttack": 10
+        }
       }
     ]
   },
@@ -1787,7 +1849,8 @@
         "effect": {
           "attack": 12,
           "defense": 6,
-          "hp": 20
+          "hp": 20,
+          "spDefense": 6
         }
       }
     ]

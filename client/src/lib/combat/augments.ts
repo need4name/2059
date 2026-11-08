@@ -26,6 +26,25 @@ export function makerOf(item: Item): Maker {
   return m && m in MAKER_INFO ? m : 'PATCHWORK';
 }
 
+// ── Physical or special ───────────────────────────────────────────────────────
+// What share of an implant's attack and defence is special (Sp. Atk, Sp. Def) rather than
+// physical: its maker's character, nudged by its slot (the head's parts lean special, the
+// limbs physical). The content in items.json is split this way (the content check holds it
+// to it); upgrade trees split their attack and defence the same way, and enemies that use
+// more special moves carry more special-leaning implants.
+export const MAKER_SPECIAL: Record<Maker, number> = { VOLKOV: 0.2, PARSU: 0.2, TIANXIA: 0.3, PATCHWORK: 0.5, HELIX: 0.5, CBN: 0.4, CROWN: 0.6, IOA: 0.7, KIZUNA: 0.8 };
+export const SLOT_SPECIAL: Partial<Record<AugmentationSlot, number>> = { brain: 0.2, eyes: 0.2, ears: 0.2, left_arm: -0.2, right_arm: -0.2, left_leg: -0.2, right_leg: -0.2 };
+/** The special share an implant's maker and slot call for (0 all physical, 1 all special). */
+export function specialLean(item: Pick<Item, 'name' | 'slot'>): number {
+  return Math.max(0, Math.min(1, MAKER_SPECIAL[makerOf(item as Item)] + (item.slot ? SLOT_SPECIAL[item.slot] ?? 0 : 0)));
+}
+/** The special share an implant actually carries (its Sp. Atk and Sp. Def against all its attack and defence). */
+export function specialShare(item: Item): number {
+  const sp = Math.max(0, item.structuralAttackBonus ?? 0) + Math.max(0, item.structuralDefenseBonus ?? 0);
+  const all = sp + Math.max(0, item.attackBonus ?? 0) + Math.max(0, item.defenseBonus ?? 0);
+  return all > 0 ? sp / all : specialLean(item);
+}
+
 // ── Stat budget ───────────────────────────────────────────────────────────────
 // Every implant is brought into a power band for its rarity so legendaries are
 // all worth chasing and no epic beats a legendary. Health costs are kept as-is.
@@ -274,13 +293,22 @@ export const REGULATORS: Record<string, Regulator> = {
   baffle: { label: 'Baffle',         specialHeat: 0.5 },
   primer: { label: 'Primer',         startHeat: 10 },
 };
-export interface Trait { label: string; hp?: number; speed?: number; overload?: number; hazard?: number }
+export interface Trait { label: string; hp?: number; speed?: number; overload?: number; hazard?: number; spDef?: number }
 export const TRAITS: Record<string, Trait> = {
   tough:   { label: 'Tough',   hp: 8 },
   quick:   { label: 'Quick',   speed: 1 },
   charged: { label: 'Charged', overload: 15 },
   shod:    { label: 'Shod',    hazard: 0.75 },
+  shielded: { label: 'Shielded', spDef: 4 },
 };
+/** A sealed housing's Sp. Def grows with the part's grade (3 on a common, up to 8 on a legendary). */
+const SEALED_GRADE: Record<ItemRarity, number> = { common: 1, uncommon: 1.35, rare: 1.7, epic: 2.1, legendary: 2.65 };
+/** What a passive implant's parts add to Sp. Def (a sealed housing, a Shielded trait). */
+export function partsSpDef(item: Item): number {
+  const pp = item.passiveParts;
+  if (!pp) return 0;
+  return Math.round((HOUSINGS[pp.housing]?.spDef ?? 0) * (SEALED_GRADE[item.rarity] ?? 1)) + (pp.trait ? TRAITS[pp.trait]?.spDef ?? 0 : 0);
+}
 export const TRAIT_CHANCE: Partial<Record<Item['rarity'], number>> = { rare: 0.35, epic: 0.6, legendary: 1 };
 
 export const QUIRK_CHANCE: Partial<Record<Item['rarity'], number>> = { epic: 0.15, legendary: 0.4 };
