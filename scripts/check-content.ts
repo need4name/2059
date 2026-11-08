@@ -204,13 +204,16 @@ const identity = z.object({
   rule: text, heat: text, ultimate: text, surge: z.enum(['blast', 'piledriver', 'overwatch', 'blink', 'overrun', 'resonance']),
   perks: classPerks,
 }).strict();
-const firmwareDef = z.object({ identity, base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), unlockAt: z.number().int().min(2).max(30).optional(), speed: z.number().int().min(1).max(4).optional() }).strict();
+// Each firmware opens from the boss that holds it: chapter one's threat 5 and its King, then each later chapter's threat 5
+const firmwareOpens = z.object({ chapter: z.string().min(1), threat: z.union([z.literal(5), z.literal(10)]), start: z.number().int().min(1).max(10) }).strict();
+const firmwareHolder = z.object({ enemy: z.string().min(1), traits: z.array(z.enum(['armed', 'sighted', 'focused', 'alert', 'braced', 'enduring', 'fast'])).optional(), moves: z.array(action).min(2).optional(), implants: z.literal(true).optional() }).strict()
+  .refine(h => !(h.moves && h.implants), 'a holder fights with its moves or its implants, not both');
+const firmwareDef = z.object({ opens: firmwareOpens, holder: firmwareHolder, identity, base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), speed: z.number().int().min(1).max(4).optional() }).strict();
 const firmwareFile = z.object({
   about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
   xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),
   firmware: z.object({ melee: firmwareDef, ranged: firmwareDef, swift: firmwareDef, crowd: firmwareDef, splice: firmwareDef, wretch: firmwareDef }).strict()
-    .refine(f => !f.melee.unlockAt && !f.ranged.unlockAt, 'Enforcer and Operative open with a death, not by going deep')
-    .refine(f => !!f.swift.unlockAt && !!f.crowd.unlockAt && !!f.splice.unlockAt && !!f.wretch.unlockAt, 'Courier, Foreman, Splice and Wretch open by going deep: they need unlockAt'),
+    .refine(f => new Set(Object.values(f).map(d => `${d.opens.chapter}:${d.opens.threat}`)).size === Object.keys(f).length, 'one firmware per boss'),
 }).strict().refine(f => Object.values(f.firmware).every(fw => fw.levels.length === f.xpToNext.length), 'every firmware needs one step per level (as many as xpToNext)');
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
@@ -336,7 +339,21 @@ export function checkContent(): string[] {
     }
   }
   // Firmware
-  report('firmware.json', firmwareFile.safeParse(firmware));
+  const fr = firmwareFile.safeParse(firmware);
+  report('firmware.json', fr);
+  if (fr.success) {
+    const chapterIds = (chapters as { chapters: { id: string; cast: { setPiece: string } }[] }).chapters;
+    const known = enemies.enemies as Record<string, unknown>;
+    for (const [cls, d] of Object.entries(fr.data.firmware)) {
+      const ch = chapterIds.find(c => c.id === d.opens.chapter);
+      if (!ch) { problems.push(`firmware.json ${cls}: opens in an unknown chapter "${d.opens.chapter}"`); continue; }
+      if (d.opens.threat === 10 && (d.opens.chapter !== chapterIds[0].id || d.holder.enemy !== ch.cast.setPiece)) problems.push(`firmware.json ${cls}: only chapter one's King (its set piece, on 10) holds firmware on threat 10`);
+      if (d.opens.threat === 5 && !(d.holder.enemy in known)) problems.push(`firmware.json ${cls}: its holder "${d.holder.enemy}" isn't in enemies.json`);
+      if (d.opens.threat === 5 && !d.holder.moves && !d.holder.implants) problems.push(`firmware.json ${cls}: a threat-5 holder needs its moves (or implants: true)`);
+    }
+    // Every chapter's first boss holds one; chapter one's King holds the second
+    for (const c of chapterIds) if (!Object.values(fr.data.firmware).some(d => d.opens.chapter === c.id && d.opens.threat === 5)) problems.push(`firmware.json: no firmware opens from ${c.id}'s threat-5 boss`);
+  }
   // Room events
   const evr = eventFile.safeParse(events);
   report('events.json', evr);
@@ -380,7 +397,7 @@ export function checkContent(): string[] {
     for (const r of m.rooms) {
       for (const e of r.exits) if (!ids.has(e.to)) problems.push(`map ${r.id}: exit ${e.dir} leads to missing room "${e.to}"`);
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
-      if (r.server && (r.threat === undefined || r.threat % 10 !== 0 || r.id === m.end)) problems.push(`map ${r.id}: a server belongs in a boss room (threat 10 or 20; it wakes once the boss is beaten), not the chapter's end`);
+      if (r.server && (r.threat === undefined || r.threat % 5 !== 0 || r.id === m.end)) problems.push(`map ${r.id}: a server belongs in a boss room (threat 5, 10 or 20; it wakes once the boss is beaten), not the chapter's end`);
       if (r.server && !r.quiet) problems.push(`map ${r.id}: a boss room with a server needs quiet text for once the boss is beaten`);
       if (r.threat !== undefined) problems.push(...arenaProblems(r.id, r.arena));
       else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);

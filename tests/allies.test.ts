@@ -139,7 +139,7 @@ test('Field mend heals, Paint target boosts your hits, Aegis guards your next hi
 
   const guarded = Fight.resolveAllyMove(fight([ally('ward', [8, 0])]), 0, 1).state;
   assert.equal(guarded.allyGuard, 14);
-  const near = { ...guarded, grid: arena([3, 3], [2, 3]) };
+  const near = { ...guarded, grid: arena([3, 3], [2, 3]), player: { ...guarded.player, currentHp: 9999, maxHp: 9999 } };
   seedRandom(4); const withGuard = Fight.resolveFoeAction(near, 0, blow, 10);
   seedRandom(4); const without = Fight.resolveFoeAction({ ...near, allyGuard: 0 }, 0, blow, 10);
   assert.ok(withGuard.state.player.currentHp > without.state.player.currentHp);

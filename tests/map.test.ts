@@ -30,11 +30,11 @@ test('an uncleared fight blocks every way but the one you came in by', () => {
 });
 
 test('the way to the chapter boss stays sealed until all three goals are found', () => {
-  let s: M.MapState = { ...M.newMapState(), room: 'wake', cameFrom: 'drift', cleared: ['wake'] };
-  const down = exitTo(s, 'spire');
-  assert.equal(M.exitState(s, M.roomById('wake').exits[down]), 'sealed');
-  s = { ...s, goals: ['slab', 'manifest', 'mother'] };
-  assert.equal(M.go(s, down).room, 'spire');
+  let s: M.MapState = { ...M.newMapState(), room: 'approach', cameFrom: 'nets', cleared: ['approach'] };
+  const up = exitTo(s, 'throne');
+  assert.equal(M.exitState(s, M.roomById('approach').exits[up]), 'sealed');
+  s = { ...s, goals: ['slab', 'manifest', 'ledger'] };
+  assert.equal(M.go(s, up).room, 'throne');
 });
 
 test('looking finds a goal once, and only once the room is clear', () => {
@@ -77,9 +77,9 @@ test('the map remembers rooms across hosts, glimpses the doors beyond, and marks
 test('found rooms show what is there, most pressing first; glimpsed rooms show nothing', () => {
   const s = M.newMapState();
   const rooms = M.chapterMap().rooms;
-  const plain = rooms.find(r => r.threat !== undefined && r.threat % 5 !== 0 && !r.look && !r.cache && !r.ally)!;
+  const plain = rooms.find(r => r.threat !== undefined && r.threat % 5 !== 0 && !r.cache && !r.ally)!;
   assert.equal(M.roomMark(s, plain), 'fight', 'a fight waits for this host');
-  const won = { ...s, cleared: [plain.id] };
+  const won = { ...s, cleared: [plain.id], looked: [plain.id] };
   assert.equal(M.roomMark(won, plain), 'cleared');
   assert.equal(M.roomMark(M.newHost(won), plain), 'fight', 'a new host finds it full again');
   const boss = rooms.find(r => r.threat !== undefined && r.threat % 10 === 0)!;
@@ -115,7 +115,7 @@ test('every room has its own spot on the drawn map', () => {
 });
 
 test('threat rises with depth: elites and bosses sit on the 5s and 10s', () => {
-  for (const r of M.chapterMap().rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne', 'checkpoint', 'foundry', 'theatre', 'spire'].includes(r.id), r.id);
+  for (const r of M.chapterMap().rooms) if (r.threat !== undefined && r.threat % 5 === 0) assert.ok(['weigh', 'throne'].includes(r.id), r.id);
   assert.equal(M.roomById('throne').threat, 10);
 });
 
@@ -244,13 +244,13 @@ const pathTo = (target: string) => {
 
 test('a beaten boss stays down, its room becomes a server, and it can be called back', () => {
   const server = M.chapterMap().rooms.find(r => r.server)!;
-  assert.ok(server.threat! % 10 === 0, 'servers sit in boss rooms');
+  assert.ok(server.threat! % 5 === 0, 'servers sit in boss rooms');
   // Walk to the boss and beat it
   let s = walk(M.newMapState(), ...pathTo(server.id));
   assert.equal(s.room, server.id);
   assert.deepEqual(s.beaten, [server.id], 'beating it keeps it down');
   assert.deepEqual(M.wakePlaces(s), [M.chapterMap().entry, server.id]);
-  assert.equal(M.roomMark(s, server), 'server');
+  assert.equal(M.roomMark({ ...s, looked: [server.id] }, server, server.ally ? [server.ally] : []), 'server');
   // A new host finds every other fight full again, but the boss still down
   const next = M.newHost(s);
   assert.ok(!M.hasFight(next, server), 'the boss stays dead for later hosts');

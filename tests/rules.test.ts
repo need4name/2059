@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { random, seedRandom, mixSeed } from '../client/src/lib/engine/rng';
-import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, createPatchworkKing, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT, STAT_MIX, CLASS_DEFINITIONS } from '../client/src/lib/combat/actions';
+import { mitigate, ACCURACY_RANGE, estimateDamage, createPlayer, createBoss, createPatchworkKing, PLAYER_ACTIONS, PLAYER_STAT_WEIGHT, STAT_MIX, CLASS_DEFINITIONS, FIRMWARE_LIFT } from '../client/src/lib/combat/actions';
 import { powerOf, structureOf, healthCostOf, actionForItem, makerOf, CONDITION_MULT, MIN_PLAYER_HP } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
 import { generateLoot, generatePatchworkKingLoot, rollCarried } from '../client/src/lib/combat/loot';
@@ -92,7 +92,8 @@ test('max health never drops below the floor', () => {
 
 test('every class has a structure bar of its own before implants', () => {
   for (const cls of Object.keys(CLASS_DEFINITIONS) as (keyof typeof CLASS_DEFINITIONS)[]) {
-    assert.equal(createPlayer(undefined, cls).maxStructuralHp, CLASS_DEFINITIONS[cls].baseStructure);
+    // Loaded firmware lifts the whole body, structure too
+    assert.equal(createPlayer(undefined, cls).maxStructuralHp, Math.round(CLASS_DEFINITIONS[cls].baseStructure * (cls === 'none' ? 1 : FIRMWARE_LIFT.structure)));
     assert.ok(CLASS_DEFINITIONS[cls].baseStructure > 0);
   }
 });
@@ -172,4 +173,10 @@ test('there is no way out of a fight once it starts', async () => {
   const fs = await import('node:fs');
   const view = fs.readFileSync(new URL('../client/src/components/game/screens/CombatView.tsx', import.meta.url), 'utf8');
   assert.ok(!/>\s*(Retreat|Flee|Escape|Run away|Leave fight)\s*</i.test(view), 'no retreat button on the fight screen');
+});
+
+test('firmware loaded is a massive upgrade: the same body runs harder with it than without', () => {
+  const bare = createPlayer(undefined, 'none'), loaded = createPlayer(undefined, 'melee');
+  assert.equal(loaded.maxHp, Math.round(CLASS_DEFINITIONS.melee.baseHp * FIRMWARE_LIFT.hp));
+  assert.ok(loaded.maxHp > bare.maxHp * 1.5 && loaded.physicalAttack > bare.physicalAttack * 1.5);
 });

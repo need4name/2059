@@ -551,7 +551,8 @@
           "hint": "the checkpoint gates",
           "to": "checkpoint"
         }
-      ]
+      ],
+      "ally": "matron"
     },
     {
       "id": "recordbarge",

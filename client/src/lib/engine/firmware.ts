@@ -13,7 +13,10 @@ export interface FirmwareStep { perk?: FirmwareIdentity['perks']; hp?: number; t
 export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number; splicePairs?: number; spliceHeatCut?: number; implantDamage?: number; implantTreeDiscount?: number; extraSlots?: number; healthCostScale?: number; implantHeatCut?: number; kinship?: boolean; activeStatMult?: number } }
 /** A level: one step, or a fork of two the player picks between. */
 export type FirmwareLevel = FirmwareStep | { choose: [FirmwareStep, FirmwareStep] };
-interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** Opens when a host wins a room fight at this threat or deeper (none: opens with a death; see handlePlayerDefeated). */ unlockAt?: number; /** Speed it gives from level 1. */ speed?: number }
+/** The boss that holds a firmware: who it is, the traits the firmware gives it, and what it fights with
+ *  (`implants`: its own implants' moves; neither: its own roster, as the King keeps his phases). */
+export interface FirmwareHolder { enemy: string; traits?: string[]; moves?: CombatAction[]; implants?: boolean }
+interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** The boss that opens it: its chapter and threat, and the level it opens at. */ opens: { chapter: string; threat: number; start: number }; holder: FirmwareHolder; /** Speed it gives from level 1. */ speed?: number }
 const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
@@ -92,10 +95,20 @@ export function firmwarePassives(cls: PlayerClass, level: number): { speed: numb
 /** The heat at or below which the wearer acts twice in a turn (100: every turn), or null. */
 export const TWIN_HEAT = { cool: 40, always: 100 };
 
-/** Firmware that opens by going deep (a won room fight at its `unlockAt` threat or deeper), in the order they open. */
-export const DEEP_FIRMWARE = (Object.entries(FIRMWARE) as [PlayerClass, FirmwareDef][]).filter(([, d]) => d.unlockAt !== undefined).sort((a, b) => a[1].unlockAt! - b[1].unlockAt!).map(([cls, d]) => ({ cls, at: d.unlockAt! }));
-/** Firmware a won room fight at this threat opens (that isn't open yet). */
-export const opensAt = (threat: number, open: PlayerClass[]) => DEEP_FIRMWARE.filter(f => threat >= f.at && !open.includes(f.cls)).map(f => f.cls);
+/** The firmware the boss at this chapter's threat holds, if any (chapter one's threat 5 and King, each later chapter's threat 5). */
+export function firmwareHeldAt(chapter: string, threat: number): PlayerClass | null {
+  const hit = (Object.entries(FIRMWARE) as [PlayerClass, FirmwareDef][]).find(([, d]) => d.opens.chapter === chapter && d.opens.threat === threat);
+  return hit ? hit[0] : null;
+}
+/** Who holds a firmware, and how it fights. */
+export const holderOf = (cls: PlayerClass): FirmwareHolder | null => FIRMWARE[cls]?.holder ?? null;
+/** The xp a firmware needs to reach a level. */
+export const xpForLevel = (level: number) => XP_TO_NEXT.slice(0, Math.max(0, Math.min(level, MAX_FIRMWARE_LEVEL) - 1)).reduce((a, b) => a + b, 0);
+/** The xp a firmware opens with: its own starting level, or the best level any open firmware has, whichever is higher. */
+export function openingXp(cls: PlayerClass, xp: Partial<Record<PlayerClass, number>>): number {
+  const best = Math.max(1, ...Object.values(xp).map(n => firmwareLevel(n ?? 0).level));
+  return xpForLevel(Math.max(FIRMWARE[cls]?.opens.start ?? 1, best));
+}
 
 /** A firmware's class (rule, heat style, ultimate), or null with none loaded. */
 export const identityOf = (cls: PlayerClass): FirmwareIdentity | null => FIRMWARE[cls]?.identity ?? null;

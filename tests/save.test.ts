@@ -87,3 +87,18 @@ test('a save from before part-built guns sells the old guns back', () => {
   assert.deepEqual(st.ownedWeapons, []);
   assert.equal(st.equippedWeapon, null);
 });
+
+test('a save from before chapter one ended at the King: hosts past him come back, and a beaten King finishes the chapter', () => {
+  const map = (st: object) => ({ game: '2059', version: 16, savedAt: '', parts: { '2059-map': JSON.stringify({ state: st, version: 2 }) } });
+  mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'indian-ocean', room: 'foundry', cameFrom: 'smelt', cleared: ['deck', 'port'], visited: ['dock', 'deck', 'port'], goals: ['slab', 'mother'], beaten: ['throne', 'foundry'], lit: ['throne'], corpse: { room: 'reef', item: { id: 'x' } } })));
+  const st = JSON.parse(readSave().parts['2059-map']).state;
+  assert.equal(st.room, 'weigh', 'it wakes at the server the first boss leaves');
+  assert.deepEqual([st.cleared, st.visited, st.goals], [['deck'], ['dock', 'deck'], ['slab']]);
+  assert.equal(st.done, true);
+  assert.deepEqual([st.beaten, st.lit], [['weigh'], ['weigh']]);
+  assert.equal(st.corpse.room, 'dock');
+  // Another chapter's map is left alone
+  resetSaveCache();
+  mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'deltas', room: 'landing', cleared: ['x'] })));
+  assert.deepEqual(JSON.parse(readSave().parts['2059-map']).state.cleared, ['x']);
+});

@@ -60,13 +60,47 @@ test('Foreman sweeps, then hits all around, then blasts a square at range', () =
   assert.equal(FW.firmwareAttack('crowd', 10, 40)!.attackPattern, 'aoe');
 });
 
-test('Courier, Foreman, Wretch and Splice open by going deep, Courier first', () => {
-  assert.deepEqual(FW.DEEP_FIRMWARE.map(f => f.cls), ['swift', 'crowd', 'wretch', 'splice']);
-  assert.deepEqual(FW.opensAt(14, []), []);
-  assert.deepEqual(FW.opensAt(15, []), ['swift']);
-  assert.deepEqual(FW.opensAt(21, ['swift']), ['crowd']);
-  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd']), ['wretch', 'splice']);
-  assert.deepEqual(FW.opensAt(30, ['swift', 'crowd', 'wretch', 'splice']), []);
+test('each firmware is held by a boss: chapter one\'s first boss and King, then each later chapter\'s first boss', () => {
+  assert.equal(FW.firmwareHeldAt('indian-ocean', 5), 'melee');
+  assert.equal(FW.firmwareHeldAt('indian-ocean', 10), 'ranged');
+  assert.equal(FW.firmwareHeldAt('deltas', 5), 'swift');
+  assert.equal(FW.firmwareHeldAt('helix-hills', 5), 'crowd');
+  assert.equal(FW.firmwareHeldAt('rain-machine', 5), 'wretch');
+  assert.equal(FW.firmwareHeldAt('corridor', 5), 'splice');
+  assert.equal(FW.firmwareHeldAt('deltas', 10), null, 'later set pieces hold none');
+  assert.equal(FW.firmwareHeldAt('indian-ocean', 3), null);
+});
+
+test('a firmware opens at its own level, or the best level reached, whichever is higher', () => {
+  assert.equal(FW.firmwareLevel(FW.openingXp('melee', {})).level, 1);
+  assert.equal(FW.firmwareLevel(FW.openingXp('swift', {})).level, 3);
+  assert.equal(FW.firmwareLevel(FW.openingXp('swift', { melee: FW.xpForLevel(7) })).level, 7);
+  assert.equal(FW.firmwareLevel(FW.openingXp('splice', { melee: FW.xpForLevel(2) })).level, 6);
+});
+
+test('no firmware until a boss gives one up; it opens for the next host, and going without stays a choice', async () => {
+  const { useCombat, availableFirmware } = await import('../client/src/lib/stores/useCombat');
+  const { useFirmware } = await import('../client/src/lib/stores/useFirmware');
+  const { useMap } = await import('../client/src/lib/stores/useMap');
+  useCombat.getState().resetAll();
+  assert.deepEqual(availableFirmware(), [], 'a new signal has nothing to load');
+  useCombat.getState().rebirth('melee');
+  assert.equal(useCombat.getState().playerClass, 'none');
+  // The first boss fights with the firmware it holds
+  useMap.setState({ room: 'weigh' });
+  useCombat.getState().startRoomFight();
+  const boss = useCombat.getState().foes[0].unit;
+  assert.equal(boss.name, 'Volkov Operator');
+  assert.deepEqual(boss.moves?.map(m => m.name), ['Hydraulic Slam', 'Piledriver', 'Pain Suppression']);
+  useCombat.getState().resetCombat();
+  // Beaten, it opens: nothing changes for this host; the next one can wake with it, or without
+  useFirmware.getState().open('melee');
+  assert.deepEqual(useFirmware.getState().fresh, ['melee']);
+  assert.deepEqual(availableFirmware(), ['melee', 'none']);
+  useCombat.getState().rebirth('melee');
+  assert.equal(useCombat.getState().playerClass, 'melee');
+  assert.deepEqual(useFirmware.getState().fresh, [], 'no longer new once a host has woken');
+  useCombat.getState().resetAll();
 });
 
 test('only elites, bosses and set pieces leave a first impression', async () => {

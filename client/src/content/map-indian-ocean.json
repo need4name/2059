@@ -1,15 +1,15 @@
 {
-  "about": "Chapter one's map. The player sees the room they're in, its exits, and a pixel map of the rooms any host has been in. at = where the room is drawn on that map (grid cell; scripts/layout-maps.ts fills in missing ones). threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (elites on 5/15/25, bosses on 10/20/30). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences. arena = the fight's board, drawn as text rows: '.' deck, '~' open water, '#' crates, 'd' drums, 'n' nets, 'p' pumps, '?' a loose crate (there half the time), 'f' fuel fire, 'c' live cable, 'b' chemical bilge, 'h' split decking, 'P' your start, 'E' enemy starts (first is the lead).",
+  "about": "Chapter one's map. The player sees the room they're in, its exits, and a pixel map of the rooms any host has been in. at = where the room is drawn on that map (grid cell; scripts/layout-maps.ts fills in missing ones). threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (the chapter's two bosses: threat 5, and the King on 10, its last room). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences. arena = the fight's board, drawn as text rows: '.' deck, '~' open water, '#' crates, 'd' drums, 'n' nets, 'p' pumps, '?' a loose crate (there half the time), 'f' fuel fire, 'c' live cable, 'b' chemical bilge, 'h' split decking, 'P' your start, 'E' enemy starts (first is the lead).",
   "chapter": "indian-ocean",
   "title": "Chapter one: the Indian Ocean",
-  "end": "spire",
-  "endTitle": "The sea is quiet",
-  "ending": "The Listener goes dark and, for the first time since you woke, the sea has nothing in it but sea. Somewhere past the horizon, something is warming up.",
+  "end": "throne",
+  "endTitle": "The throne is empty",
+  "ending": "The King slumps among other people's parts, and the grafts let go of him one at a time. Out past the rafts a horn sounds, and the sea is open.",
   "entry": "dock",
   "goals": [
     "slab",
     "manifest",
-    "mother"
+    "ledger"
   ],
   "rooms": [
     {
@@ -307,7 +307,8 @@
       "threat": 5,
       "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
       "look": {
-        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
+        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours.",
+        "goal": "ledger"
       },
       "arena": [
         "...E...",
@@ -337,7 +338,9 @@
           "hint": "floating lanes, traffic",
           "to": "lanes"
         }
-      ]
+      ],
+      "server": "Under the scale's counterweight, a server humming in a nest of cable. Someone has scratched a tally down its side and never finished it.",
+      "quiet": "The scale hangs still over the water, its hooks empty. Nobody comes to be weighed any more."
     },
     {
       "id": "lanes",
@@ -449,7 +452,8 @@
         "...?...",
         ".......",
         "...P..."
-      ]
+      ],
+      "event": "medic"
     },
     {
       "id": "nets",
@@ -470,7 +474,8 @@
         }
       ],
       "look": {
-        "text": "A float with a number painted on it. You know the number. You don't know how."
+        "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'",
+        "goal": "manifest"
       },
       "enemy": "SALV Boarder",
       "arena": [
@@ -540,7 +545,8 @@
           "dir": "up",
           "label": "Up the steps",
           "hint": "a throne",
-          "to": "throne"
+          "to": "throne",
+          "requires": "goals"
         }
       ],
       "look": {
@@ -563,7 +569,6 @@
     },
     {
       "id": "throne",
-      "server": "Behind the throne, wired into its limbs, a server still warm to the touch. One side carries a shipping firm's contract tag; the other, a fist sprayed in tar.",
       "at": [3, 7],
       "name": "The patchwork throne",
       "threat": 10,
@@ -575,12 +580,6 @@
           "label": "Down the steps",
           "hint": "the approach",
           "to": "approach"
-        },
-        {
-          "dir": "east",
-          "label": "Behind the throne",
-          "hint": "a drowned port",
-          "to": "port"
         }
       ],
       "arena": [
@@ -593,698 +592,6 @@
         ".........",
         ".........",
         ".p.....p.",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "port",
-      "at": [4, 7],
-      "name": "Drowned port",
-      "threat": 11,
-      "text": "A container port that sank to its knees, cranes standing up out of the sea. The containers have been turned into streets.",
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the throne",
-          "to": "throne"
-        },
-        {
-          "dir": "east",
-          "hint": "cranes groaning",
-          "to": "cranes"
-        },
-        {
-          "dir": "north",
-          "hint": "container streets",
-          "to": "containers"
-        },
-        {
-          "dir": "south",
-          "hint": "a gantry, uniformed voices",
-          "to": "gantry"
-        }
-      ],
-      "look": {
-        "text": "A sign in four languages: CUSTOMS. Somebody has added a fifth: DON'T."
-      },
-      "enemy": "SALV Boarder",
-      "arena": [
-        "....E....",
-        ".##...##.",
-        ".##~~~##.",
-        "...~~~...",
-        ".........",
-        "~~.....~~",
-        "~~..#..~~",
-        ".........",
-        ".##...##.",
-        ".##...##.",
-        "....P...."
-      ],
-      "event": "medic"
-    },
-    {
-      "id": "containers",
-      "at": [4, 6],
-      "name": "Container streets",
-      "threat": 12,
-      "text": "Rusting boxes stacked into alleys, each painted with a family's name. Most of the names are crossed out.",
-      "exits": [
-        {
-          "dir": "south",
-          "hint": "the port",
-          "to": "port"
-        },
-        {
-          "dir": "down",
-          "label": "Into a container",
-          "hint": "dark, and a smell of cold",
-          "to": "hold"
-        }
-      ],
-      "cache": true,
-      "enemy": "Limbic Cartel Scavenger",
-      "arena": [
-        "E...#...E",
-        ".##.#.##.",
-        ".#.....#.",
-        ".#.###.#.",
-        ".........",
-        "###.#.###",
-        ".........",
-        ".#.###.#.",
-        ".#.....#.",
-        ".##...##.",
-        "....P...."
-      ]
-    },
-    {
-      "id": "hold",
-      "at": [5, 6],
-      "name": "Cold hold",
-      "threat": 13,
-      "text": "A refrigerated container still running, its shelves lined with sealed bags. Each bag is labelled with a weight and a price.",
-      "look": {
-        "text": "A bag with your old face printed on the label. It is empty, and the price has been paid."
-      },
-      "exits": [
-        {
-          "dir": "up",
-          "label": "Back out",
-          "hint": "the container streets",
-          "to": "containers"
-        }
-      ],
-      "ally": "matron",
-      "enemy": "CBN Extraction Surgeon",
-      "arena": [
-        "...E...",
-        ".#.#.#.",
-        ".#.#.#.",
-        ".......",
-        ".#.#.#.",
-        ".#.#.#.",
-        ".......",
-        ".#.?.#.",
-        ".#...#.",
-        ".......",
-        "...P..."
-      ]
-    },
-    {
-      "id": "cranes",
-      "at": [5, 7],
-      "name": "Crane yard",
-      "threat": 12,
-      "text": "Cranes swinging loads over the water with nobody in the cabs. The hooks know where to go.",
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the port",
-          "to": "port"
-        },
-        {
-          "dir": "south",
-          "hint": "a yard of stacked cargo",
-          "to": "yard"
-        }
-      ],
-      "enemy": "Tianxia Compliance Unit",
-      "arena": [
-        "~.E.~",
-        ".....",
-        "..#..",
-        ".....",
-        "~...~",
-        "~...~",
-        ".....",
-        "..d..",
-        ".....",
-        "~...~",
-        ".....",
-        ".....",
-        "~.P.~"
-      ]
-    },
-    {
-      "id": "yard",
-      "at": [5, 8],
-      "name": "Cargo yard",
-      "threat": 13,
-      "text": "Pallets wrapped in plastic, stacked three storeys high and stamped with inspection seals. The seals are newer than the cargo.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the cranes",
-          "to": "cranes"
-        },
-        {
-          "dir": "south",
-          "hint": "a checkpoint, a loudhailer",
-          "to": "checkpoint"
-        }
-      ],
-      "look": {
-        "text": "The seal on one pallet reads INSPECTED. Inside, the pallet is full of seals."
-      },
-      "enemy": "IOA Interdiction Officer",
-      "arena": [
-        ".E.....E.",
-        ".........",
-        ".##.#.##.",
-        ".##.#.##.",
-        ".........",
-        "#.#...#.#",
-        "#.#...#.#",
-        ".........",
-        ".##.#.##.",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "gantry",
-      "at": [4, 9],
-      "name": "IOA gantry",
-      "threat": 14,
-      "text": "A steel walkway over the port with an authority flag snapping at one end. Below, everyone is queuing to be counted.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the port",
-          "to": "port"
-        },
-        {
-          "dir": "east",
-          "hint": "a checkpoint",
-          "to": "checkpoint"
-        },
-        {
-          "dir": "up",
-          "label": "A ladder, up",
-          "hint": "an office, papers rustling",
-          "to": "archive"
-        }
-      ],
-      "look": {
-        "text": "The queue below moves one step every few minutes. Nobody at the front ever comes back."
-      },
-      "enemy": "IOA Interdiction Officer",
-      "arena": [
-        "~.E.~",
-        "~...~",
-        "~.#.~",
-        "~...~",
-        ".....",
-        "~...~",
-        "~~.~~",
-        "~...~",
-        "~.#.~",
-        "~...~",
-        ".....",
-        "~...~",
-        "~.P.~"
-      ]
-    },
-    {
-      "id": "archive",
-      "at": [3, 9],
-      "name": "Manifest archive",
-      "threat": 17,
-      "text": "An office stacked with paper manifests, because paper can't be wiped remotely. A fan turns the pages back and forth.",
-      "look": {
-        "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'",
-        "goal": "manifest"
-      },
-      "exits": [
-        {
-          "dir": "down",
-          "label": "The ladder, down",
-          "hint": "the gantry",
-          "to": "gantry"
-        }
-      ],
-      "enemy": "IOA Interdiction Officer",
-      "arena": [
-        "E.#.#.E",
-        ".......",
-        "#.....#",
-        "...P...",
-        "#.....#",
-        ".......",
-        "E.#.#.."
-      ]
-    },
-    {
-      "id": "checkpoint",
-      "at": [5, 9],
-      "name": "IOA checkpoint",
-      "threat": 15,
-      "text": "A gate of shipping containers with a scanner arch and an officer behind glass. The arch beeps at you before you reach it.",
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the gantry",
-          "to": "gantry"
-        },
-        {
-          "dir": "north",
-          "hint": "the cargo yard",
-          "to": "yard"
-        },
-        {
-          "dir": "south",
-          "hint": "a road of slag, heat",
-          "to": "road"
-        }
-      ],
-      "look": {
-        "text": "The scanner arch shows a body on its screen. The body isn't yours, and it is."
-      },
-      "arena": [
-        "....E....",
-        ".........",
-        ".#.....#.",
-        ".#.....#.",
-        "####c####",
-        ".........",
-        ".#.....#.",
-        ".........",
-        "..d...d..",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "road",
-      "at": [5, 10],
-      "name": "Slag road",
-      "threat": 16,
-      "text": "A causeway of furnace slag, still warm underfoot, leading into smoke. Barefoot workers walk it without flinching.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the checkpoint",
-          "to": "checkpoint"
-        },
-        {
-          "dir": "east",
-          "hint": "a stall under a canopy",
-          "to": "stall2"
-        },
-        {
-          "dir": "south",
-          "hint": "furnaces",
-          "to": "smelt"
-        }
-      ],
-      "ally": "ghostline",
-      "enemy": "Volkov Operator",
-      "arena": [
-        "~..E..~",
-        "~.....~",
-        "~.f.f.~",
-        "~.....~",
-        "~~...~~",
-        "~~...~~",
-        "~.f.f.~",
-        "~.....~",
-        "~..#..~",
-        "~.....~",
-        "~..P..~"
-      ]
-    },
-    {
-      "id": "stall2",
-      "at": [6, 10],
-      "name": "Canopy stall",
-      "text": "A trader under a scrap canopy, selling parts still warm from somebody. She asks no questions and expects none.",
-      "market": true,
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the slag road",
-          "to": "road"
-        }
-      ]
-    },
-    {
-      "id": "smelt",
-      "at": [5, 11],
-      "name": "Smelting barge",
-      "threat": 18,
-      "text": "Plastic melted down in vats and poured into new decking for the rafts. The air tastes of it for days after.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the slag road",
-          "to": "road"
-        },
-        {
-          "dir": "south",
-          "hint": "a foundry, hammering",
-          "to": "foundry"
-        }
-      ],
-      "cache": true,
-      "enemy": "Volkov Operator",
-      "arena": [
-        "..E.E..",
-        ".......",
-        ".ff.ff.",
-        ".ff.ff.",
-        ".......",
-        "...#...",
-        ".......",
-        ".ff.ff.",
-        ".......",
-        "...P..."
-      ]
-    },
-    {
-      "id": "foundry",
-      "server": "A server hung off a fitting chair, its cable run up into the crane. Its screen scrolls two lists side by side: invoices, and names.",
-      "at": [5, 12],
-      "name": "Volkov foundry",
-      "threat": 20,
-      "text": "A foundry where operator limbs are fitted to whoever can pay, or whoever is owed. The fitting chairs face the sea.",
-      "quiet": "The fitting chairs face an empty floor now. The crane hangs still over the place he stood.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the smelting barge",
-          "to": "smelt"
-        },
-        {
-          "dir": "south",
-          "hint": "open water, and something growing",
-          "to": "reef"
-        }
-      ],
-      "ally": "breaker",
-      "arena": [
-        "....E....",
-        ".........",
-        ".p.....p.",
-        ".........",
-        "fff...fff",
-        ".........",
-        ".p.....p.",
-        ".........",
-        "...#.#...",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "reef",
-      "at": [5, 13],
-      "name": "Plastic reef",
-      "threat": 21,
-      "text": "A reef grown from drowned plastic, coral-coloured and sharp. Fish nest in old shoes.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the foundry",
-          "to": "foundry"
-        },
-        {
-          "dir": "west",
-          "hint": "singing",
-          "to": "path"
-        },
-        {
-          "dir": "south",
-          "hint": "a white pontoon",
-          "to": "theatrepath"
-        }
-      ],
-      "look": {
-        "text": "A diver's mask grown into the coral, the glass still clear. The face is gone."
-      },
-      "enemy": "Ghost-MIL Infiltrator",
-      "arena": [
-        "..E...E..",
-        ".~~...~~.",
-        ".~h...h~.",
-        ".........",
-        "...~~~...",
-        ".h.~~~.h.",
-        ".........",
-        ".~~...~~.",
-        ".~.....~.",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "path",
-      "at": [4, 13],
-      "name": "Hymn walk",
-      "threat": 23,
-      "text": "A path lined with pumps set into posts, each one beating at the same slow pace. Someone ahead is singing to them.",
-      "exits": [
-        {
-          "dir": "east",
-          "hint": "the reef",
-          "to": "reef"
-        },
-        {
-          "dir": "west",
-          "hint": "a chapel",
-          "to": "chapel"
-        }
-      ],
-      "enemy": "Pump-Fleet Cadre",
-      "arena": [
-        "E......",
-        ".....~~",
-        ".p.p.~~",
-        ".....~~",
-        "~~.....",
-        "~~.p.p.",
-        "~~.....",
-        ".....~~",
-        ".p.p.~~",
-        ".....~~",
-        "P......"
-      ]
-    },
-    {
-      "id": "chapel",
-      "at": [3, 13],
-      "name": "The Mother's chapel",
-      "threat": 24,
-      "text": "A chapel built inside a whale's ribcage, with a woman at the centre whose heart is a pump the size of a drum. Every pump in the fleet beats in time with hers.",
-      "look": {
-        "text": "The Mother turns her pump toward you and says, very gently, 'There you are. We wondered which one you'd wear.'",
-        "goal": "mother"
-      },
-      "exits": [
-        {
-          "dir": "east",
-          "hint": "the hymn walk",
-          "to": "path"
-        }
-      ],
-      "enemy": "Pump-Fleet Cadre",
-      "arena": [
-        "....E....",
-        ".#.....#.",
-        ".........",
-        ".#.....#.",
-        ".........",
-        ".#..p..#.",
-        ".........",
-        ".#.....#.",
-        ".........",
-        ".#.....#.",
-        "....P...."
-      ]
-    },
-    {
-      "id": "theatrepath",
-      "at": [5, 14],
-      "name": "Clinic pontoon",
-      "threat": 22,
-      "text": "A pontoon of clean white decking with a queue of people waiting in silence. Nobody in the queue has any eyes.",
-      "exits": [
-        {
-          "dir": "north",
-          "hint": "the reef",
-          "to": "reef"
-        },
-        {
-          "dir": "east",
-          "hint": "an operating theatre",
-          "to": "theatre"
-        }
-      ],
-      "ally": "ward",
-      "enemy": "CBN Extraction Surgeon",
-      "arena": [
-        "..E..",
-        ".....",
-        ".d.d.",
-        ".....",
-        "~...~",
-        "~...~",
-        ".d.d.",
-        ".....",
-        "~...~",
-        "~...~",
-        ".....",
-        "..P.."
-      ]
-    },
-    {
-      "id": "theatre",
-      "at": [6, 14],
-      "name": "CBN theatre",
-      "threat": 25,
-      "text": "An operating theatre with a gallery of seats, all filled. They applaud when the surgeon looks up.",
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the pontoon",
-          "to": "theatrepath"
-        },
-        {
-          "dir": "east",
-          "hint": "drifting debris",
-          "to": "drift"
-        }
-      ],
-      "arena": [
-        "##.#E#.##",
-        ".........",
-        "#.#####.#",
-        ".........",
-        "....#....",
-        ".........",
-        ".........",
-        "..#...#..",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "drift",
-      "at": [7, 14],
-      "name": "The drift",
-      "threat": 26,
-      "text": "The rafts thin out into loose debris, roped together by nobody. The water here is very deep and very still.",
-      "exits": [
-        {
-          "dir": "west",
-          "hint": "the theatre",
-          "to": "theatre"
-        },
-        {
-          "dir": "north",
-          "hint": "a wake, where something passed",
-          "to": "wake"
-        }
-      ],
-      "cache": true,
-      "enemy": "Ghost-MIL Infiltrator",
-      "arena": [
-        ".E.~~~.E.",
-        "...~~~...",
-        "~.~~~~~.~",
-        "~.~...~.~",
-        "~...#...~",
-        "~~~...~~~",
-        "~.......~",
-        "~.~~.~~.~",
-        "~.~~.~~.~",
-        ".........",
-        "....P...."
-      ]
-    },
-    {
-      "id": "wake",
-      "at": [7, 13],
-      "name": "The wake",
-      "threat": 28,
-      "text": "A long scar across the water where something huge went down. The debris all points the same way.",
-      "exits": [
-        {
-          "dir": "south",
-          "hint": "the drift",
-          "to": "drift"
-        },
-        {
-          "dir": "down",
-          "label": "Follow the wake down",
-          "hint": "a spire under the water",
-          "to": "spire",
-          "requires": "goals"
-        }
-      ],
-      "look": {
-        "text": "Debris all pointing one way, like iron filings round a magnet."
-      },
-      "enemy": "Helix Continuity Warden",
-      "arena": [
-        "....E...E",
-        ".......#.",
-        "......#..",
-        ".~...#...",
-        ".~~.#....",
-        ".........",
-        "....#.~~.",
-        "...#...~.",
-        "..#......",
-        ".#.......",
-        "P........"
-      ]
-    },
-    {
-      "id": "spire",
-      "at": [7, 12],
-      "name": "The drowned spire",
-      "threat": 30,
-      "text": "A tower standing under the sea with its top just breaking the surface, lit from inside. Whatever is down there has been listening for you.",
-      "quiet": "The tower's lights are out and the water round it is still. Nothing down there is listening any more.",
-      "exits": [
-        {
-          "dir": "up",
-          "hint": "the wake",
-          "to": "wake"
-        }
-      ],
-      "arena": [
-        "...#E#...",
-        ".........",
-        "..~~~~~..",
-        ".~~~~~~~.",
-        ".~~~~~~~.",
-        ".~~~~~~~.",
-        ".~~~~~~~.",
-        ".~~~~~~~.",
-        "..~~~~~..",
         ".........",
         "....P...."
       ]

@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-CLASS_DEFINITIONS, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME,
+CLASS_DEFINITIONS, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME, withFirmware,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines, isNotable, ORDINARY_LINE_CHANCE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -41,13 +41,9 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { withClass, withSplice, withResonance, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, opensAt } from '../engine/firmware';
+import { withClass, withSplice, withResonance, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, firmwareHeldAt, holderOf } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
-// Dying on this level or higher (while unclassified) unlocks class choice for good
-export const CLASS_UNLOCK_LEVEL = 11;
-/** Enemies beaten (by every host together) before a death opens the Enforcer. */
-export const ENFORCER_KILLS = 5;
 
 // Pacing (ms)
 const ENEMY_TURN_DELAY = 700;
@@ -270,10 +266,14 @@ const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, a
 
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
-if (!farm && level === 10) {
+// A boss that holds firmware is always the same one, and fights with it (called back too)
+const held = firmwareHeldAt(activeChapter().id, level), holder = held ? holderOf(held) : null;
+if ((!farm || holder) && level === 10) {
 const piece = activeChapter().cast.setPiece;
-return [piece === ECHO_NAME ? createEcho(usePlayi.getState().lastBody) : piece === 'Patchwork King' ? createPatchworkKing() : createSetPiece(piece)];
+const unit = piece === ECHO_NAME ? createEcho(usePlayi.getState().lastBody) : piece === 'Patchwork King' ? createPatchworkKing() : createSetPiece(piece);
+return [holder ? withFirmware(unit, holder) : unit];
 }
+if (holder) return [withFirmware(createBoss(level, false, holder.enemy, 'elite'), holder)];
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
 const lead = createBoss(level, firstRun && !farm, named);
@@ -398,18 +398,14 @@ if (cond.skipTurn) later(() => finishPlayerAction(false), TURN_HANDOFF_DELAY);
 };
 
 const handlePlayerDefeated = () => {
-const { bossLevel, classesUnlocked, runSeed, progression } = get();
+const { runSeed, progression } = get();
 // The signal learns something from every lost host: deal two cards to choose from
 seedRandom(mixSeed(runSeed, 0x5eed, progression.deathCount));
 usePlayi.getState().makeOffer(useAllies.getState().unlocked().length > 0);
-// Firmware opened by this death: Enforcer once hosts have beaten enough enemies, Operative (and Enforcer) deep enough
-const before = availableFirmware();
-if (useRunStats.getState().total.enemiesKilled >= ENFORCER_KILLS) useFirmware.getState().open('melee');
-const unlockNow = !classesUnlocked && bossLevel >= CLASS_UNLOCK_LEVEL;
-set({ classesUnlocked: classesUnlocked || unlockNow });
+// Firmware taken from a boss by this host: the next host is the first that can load it
 set({
 phase: 'defeat', inputLocked: true, fightId: get().fightId + 1,
-justOpened: availableFirmware().filter(c => !before.includes(c)),
+justOpened: [...useFirmware.getState().fresh],
 });
 };
 
@@ -456,9 +452,10 @@ bossLevel: farmLevel !== null ? bossLevel : level + 1,
 });
 const { levelsGained } = get().gainXp(xp);
 // Upgrade points come from wins: one for every WINS_PER_POINT fights won (engine/upgrades.ts)
-// Going deep opens new firmware (Courier at 15, Foreman at 20): a won room fight at that threat or deeper
-const firmwareFound = farmLevel === null ? opensAt(level, useFirmware.getState().opened) : [];
-for (const cls of firmwareFound) { useFirmware.getState().open(cls); log(`NEW FIRMWARE -- ${CLASS_DEFINITIONS[cls].name}`, 'critical'); }
+// A boss that held firmware gives it up: it opens for the next host (nothing says so until then)
+const held = farmLevel === null ? firmwareHeldAt(activeChapter().id, level) : null;
+const firmwareFound = held && !useFirmware.getState().opened.includes(held) ? [held] : [];
+for (const cls of firmwareFound) useFirmware.getState().open(cls);
 // The loaded firmware learns from every room fight won (elites and bosses teach it more)
 const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, firmwareXpFor(level)) : null;
 if (firmwareUp) log(`FIRMWARE -- level ${firmwareUp}: ${levelStep(get().playerClass, firmwareUp)?.text ?? ''}`);
@@ -573,6 +570,7 @@ const { progression, runSeed: lastSeed } = get();
 // The signal remembers what the body it left was wearing (chapter two's Echo wears it)
 usePlayi.getState().rememberBody(AUGMENTATION_SLOTS.map(sl => useInventory.getState().equippedAugmentations[sl]).filter((i): i is Item => !!i));
 
+useFirmware.getState().woke();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
 useAugmentTrees.getState().resetTrees();
@@ -1178,11 +1176,9 @@ const syncTreeDiscount = (cls: PlayerClass) => setTreeDiscount({ all: cls === 'n
 useCombat.subscribe((s, prev) => { if (s.playerClass !== prev.playerClass) syncTreeDiscount(s.playerClass); });
 syncTreeDiscount(useCombat.getState().playerClass);
 
-/** Testing: every firmware is open from the start, so each class can be tried. Turn off to use the unlock rules. */
-export const ALL_FIRMWARE_OPEN = true;
-
+/** The firmware a new host can wake with: each one taken from a boss, in the order they opened, then none
+ *  (once any is open, going without is a choice). Empty until the first is taken: every host runs unclassified. */
 export function availableFirmware(): PlayerClass[] {
-if (ALL_FIRMWARE_OPEN) return ['none', 'melee', 'ranged', 'swift', 'crowd', 'splice', 'wretch'];
-const all = [...(useCombat.getState().classesUnlocked ? (['melee', 'ranged'] as PlayerClass[]) : []), ...useFirmware.getState().opened];
-return all.filter((c, k) => all.indexOf(c) === k);
+const open = useFirmware.getState().opened.filter((c, k, all) => c !== 'none' && all.indexOf(c) === k);
+return open.length ? [...open, 'none'] : [];
 }

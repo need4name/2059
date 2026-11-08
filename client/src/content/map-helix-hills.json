@@ -750,7 +750,8 @@
           "hint": "a chapel with no saint",
           "to": "chapel"
         }
-      ]
+      ],
+      "ally": "ghostline"
     },
     {
       "id": "chapel",

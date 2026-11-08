@@ -3956,7 +3956,7 @@
           "physicalRatio": 0.65,
           "heatTransfer": 7,
           "heatGenerated": 10,
-          "attackPattern": "sweep_arc"
+          "attackPattern": "bolt"
         },
         {
           "type": "attack",
@@ -3967,7 +3967,7 @@
           "physicalRatio": 0.8,
           "heatTransfer": 5,
           "heatGenerated": 8,
-          "attackPattern": "charge"
+          "attackPattern": "pierce"
         },
         {
           "type": "defend",
@@ -3987,7 +3987,7 @@
           "physicalRatio": 0.55,
           "heatTransfer": 12,
           "heatGenerated": 16,
-          "attackPattern": "diagonal_cross"
+          "attackPattern": "beam"
         },
         {
           "type": "attack",
@@ -4019,7 +4019,7 @@
           "physicalRatio": 0.6,
           "heatTransfer": 10,
           "heatGenerated": 14,
-          "attackPattern": "charge"
+          "attackPattern": "pierce"
         },
         {
           "type": "attack",
@@ -4031,7 +4031,7 @@
           "physicalRatio": 0.7,
           "heatTransfer": 16,
           "heatGenerated": 20,
-          "attackPattern": "sweep_arc"
+          "attackPattern": "beam"
         },
         {
           "type": "attack",
@@ -4043,7 +4043,7 @@
           "physicalRatio": 0.75,
           "heatTransfer": 18,
           "heatGenerated": 22,
-          "attackPattern": "charge"
+          "attackPattern": "bolt"
         }
       ]
     ],

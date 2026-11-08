@@ -9,7 +9,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -111,7 +111,34 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       return { ...save, parts: { ...save.parts, '2059-inventory': JSON.stringify({ ...part, state: { ...st, gold: (st.gold ?? 0) + refund, ownedWeapons: kept, equippedWeapon: eq } }) } };
     } catch { return save; }
   },
+  // 16 -> 17: chapter one ends at the King. Rooms past him are gone: a host in one wakes at the dock (or the
+  // weigh-station's server), and a King already beaten finishes the chapter. The weigh-station holds the server now.
+  16: (save) => {
+    const raw = save.parts['2059-map'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw);
+      const st = part.state ?? {};
+      if ((st.chapter ?? 'indian-ocean') !== 'indian-ocean') return save;
+      const kept = new Set(CHAPTER_ONE_ROOMS);
+      const only = (xs: unknown) => (Array.isArray(xs) ? xs.filter((x: string) => kept.has(x)) : []);
+      const kingDown = (st.beaten ?? []).includes('throne') || !!st.done;
+      const beaten = kingDown ? ['weigh'] : [];
+      const next = {
+        ...st,
+        room: kept.has(st.room) ? st.room : kingDown ? 'weigh' : 'dock', cameFrom: kept.has(st.cameFrom) ? st.cameFrom : null,
+        cleared: only(st.cleared), visited: only(st.visited), looked: only(st.looked), taken: only(st.taken), fell: only(st.fell), spent: only(st.spent),
+        goals: (st.goals ?? []).filter((g: string) => g === 'slab' || g === 'manifest'),
+        corpse: st.corpse && !kept.has(st.corpse.room) ? { ...st.corpse, room: 'dock' } : st.corpse ?? null,
+        done: kingDown, beaten, lit: beaten, recalled: [],
+      };
+      return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: next }) } };
+    } catch { return save; }
+  },
 };
+
+/** Chapter one's rooms since it ends at the King (save step 16). */
+const CHAPTER_ONE_ROOMS = ['dock', 'deck', 'bottles', 'walkway', 'shacks', 'stall', 'hull', 'bilge', 'pumps', 'weigh', 'lanes', 'barge', 'cables', 'nets', 'generator', 'approach', 'throne'];
 
 function storage(): Storage | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }

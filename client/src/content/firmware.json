@@ -1,9 +1,15 @@
 {
-  "about": "Firmware (lib/engine/firmware.ts) is the host's class. Levels 4, 7 and 10 are forks (`choose`): the player picks one of two, and can change it at a server. Each has an `identity`: its own rule (`perks`), its heat style, and its Overload ultimate (`surge`: piledriver, overwatch, blink, overrun). with firmware loaded, its attack takes Strike's place, and the firmware grows over many hosts. Every room fight won with it loaded gives it xp (an elite more, a boss or the chapter's set piece most); its level never resets on death. Each firmware's attack starts from `base` and its damage is `scale` times the wearer's physical attack; every level from 2 adds what it lists (scale and heat add up, the rest replace). `xpToNext[n]` is the xp from level n+1 to n+2. Enforcer (melee) opens with a host death once 5 enemies have been beaten in all; Operative (ranged) opens when a host dies at threat 11 or deeper; any firmware with `unlockAt` opens when a host wins a room fight at that threat or deeper. A level step may also add `speed` (the host's speed while it's loaded) or `twin` (act twice in a turn: 'cool' while at 40 heat or less, 'always' every turn).",
+  "about": "Firmware (lib/engine/firmware.ts) is the host's class. Levels 4, 7 and 10 are forks (`choose`): the player picks one of two, and can change it at a server. Each has an `identity`: its own rule (`perks`), its heat style, and its Overload ultimate (`surge`: piledriver, overwatch, blink, overrun). with firmware loaded, its attack takes Strike's place, and the firmware grows over many hosts. Every room fight won with it loaded gives it xp (an elite more, a boss or the chapter's set piece most); its level never resets on death. Each firmware's attack starts from `base` and its damage is `scale` times the wearer's physical attack; every level from 2 adds what it lists (scale and heat add up, the rest replace). `xpToNext[n]` is the xp from level n+1 to n+2. Firmware opens from a boss: `opens` names the chapter and threat of the boss that holds it (chapter one's threat-5 boss and its King, then each later chapter's threat-5 boss). Beating it opens the firmware for the next host (firmware is only ever loaded when a host wakes), at level `start` or the best level any firmware has reached, whichever is higher. `holder` is that boss: who fights with it, the traits it gives them and the moves it fights with (`implants`: it fights with its own implants' moves, like the Echo; the King keeps his phases). A level step may also add `speed` (the host's speed while it's loaded) or `twin` (act twice in a turn: 'cool' while at 40 heat or less, 'always' every turn).",
   "xp": {"win": 1, "elite": 3, "boss": 6},
   "xpToNext": [4, 6, 9, 12, 16, 20, 24, 28, 32],
   "firmware": {
     "melee": {
+      "opens": {"chapter": "indian-ocean", "threat": 5, "start": 1},
+      "holder": {"enemy": "Volkov Operator", "traits": ["armed", "braced"], "moves": [
+        {"type": "attack", "name": "Hydraulic Slam", "description": "", "damage": 15, "accuracy": "variable", "physicalRatio": 0.9, "heatTransfer": 6, "heatGenerated": 12, "attackPattern": "melee_long", "effects": {"knock": true}},
+        {"type": "attack", "name": "Piledriver", "description": "", "damage": 28, "isHeavy": true, "accuracy": "precise", "physicalRatio": 0.85, "heatTransfer": 12, "heatGenerated": 16, "attackPattern": "ring", "effects": {"knock": true}},
+        {"type": "defend", "name": "Pain Suppression", "description": "", "defenseBoost": 9, "heatGenerated": -8}
+      ]},
       "identity": {"rule": "A takedown gives you another action.", "heat": "Runs hot fast: +3 heat on every hit, and venting bursts hit 50% harder.", "ultimate": "Piledriver: twice your best move on everyone within 2 tiles, and knocks them back.", "surge": "piledriver", "perks": {"chain": true, "heatGenBonus": 3, "ventMult": 1.5}},
       "scale": 1.15,
       "base": {"type": "attack", "name": "Hydraulic Slam", "description": "Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.", "damage": 14, "heatGenerated": 15, "heatTransfer": 5, "accuracy": "variable", "physicalRatio": 0.9, "attackPattern": "melee_long"},
@@ -20,6 +26,8 @@
       ]
     },
     "ranged": {
+      "opens": {"chapter": "indian-ocean", "threat": 10, "start": 2},
+      "holder": {"enemy": "Patchwork King", "traits": ["sighted", "focused"]},
       "identity": {"rule": "Acts twice in a turn while you start it cool (25 heat or less).", "heat": "Runs cold: sheds 3 more heat every turn.", "ultimate": "Overwatch: a free precise shot at every enemy within 6 tiles.", "surge": "overwatch", "perks": {"coolAct": 25, "extraCooling": 3}},
       "scale": 1.0,
       "base": {"type": "attack", "name": "Precision Shot", "description": "Kizuna targeting firmware: a shot down a straight line of four tiles.", "damage": 12, "heatGenerated": 14, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.3, "attackPattern": "bolt"},
@@ -36,8 +44,13 @@
       ]
     },
     "swift": {
+      "opens": {"chapter": "deltas", "threat": 5, "start": 3},
+      "holder": {"enemy": "IOA Interdiction Officer", "traits": ["fast", "alert"], "moves": [
+        {"type": "attack", "name": "Flicker Jab", "description": "", "damage": 11, "accuracy": "variable", "physicalRatio": 0.75, "heatTransfer": 3, "heatGenerated": 6, "attackPattern": "melee"},
+        {"type": "attack", "name": "Limiter Off", "description": "", "damage": 14, "accuracy": "variable", "physicalRatio": 0.7, "heatTransfer": 4, "heatGenerated": 8, "attackPattern": "lunge", "effects": {"bleed": true}},
+        {"type": "attack", "name": "Blink", "description": "", "damage": 24, "isHeavy": true, "accuracy": "precise", "physicalRatio": 0.75, "heatTransfer": 6, "heatGenerated": 12, "attackPattern": "charge"}
+      ]},
       "identity": {"rule": "A free step after every attack you make without moving first.", "heat": "Runs warm and keeps moving.", "ultimate": "Blink: vent all your heat and act again at once, hasted.", "surge": "blink", "perks": {"reflexMove": true}},
-      "unlockAt": 15,
       "scale": 0.95,
       "base": {"type": "attack", "name": "Flicker Jab", "description": "IOA limiter-free firmware: a jab so quick the arm is back before the hit lands. One tile next to you.", "damage": 8, "heatGenerated": 8, "heatTransfer": 2, "accuracy": "variable", "physicalRatio": 0.75, "attackPattern": "melee"},
       "levels": [
@@ -53,8 +66,13 @@
       ]
     },
     "crowd": {
+      "opens": {"chapter": "helix-hills", "threat": 5, "start": 4},
+      "holder": {"enemy": "Fan Technician", "traits": ["enduring", "braced"], "moves": [
+        {"type": "attack", "name": "Crowd Press", "description": "", "damage": 13, "accuracy": "variable", "physicalRatio": 0.7, "heatTransfer": 12, "heatGenerated": 10, "attackPattern": "sweep_arc", "effects": {"knock": true}},
+        {"type": "attack", "name": "Clear the Floor", "description": "", "damage": 12, "accuracy": "variable", "physicalRatio": 0.6, "heatTransfer": 14, "heatGenerated": 10, "attackPattern": "ring"},
+        {"type": "attack", "name": "Overrun", "description": "", "damage": 22, "isHeavy": true, "accuracy": "variable", "physicalRatio": 0.5, "heatTransfer": 30, "heatGenerated": 14, "attackPattern": "aoe", "effects": {"knock": true}}
+      ]},
       "identity": {"rule": "Built for crowds: its Crowd Press hits every enemy in a sweep, then all eight tiles around you, then a blast up to three tiles away. Every hit pushes 6 more heat into whoever it lands on.", "heat": "Cooks crowds: get them to 100 and they overheat.", "ultimate": "Overrun: shove everyone within 3 tiles back and pump 50 heat into each.", "surge": "overrun", "perks": {"transferBonus": 6}},
-      "unlockAt": 20,
       "scale": 0.85,
       "base": {"type": "attack", "name": "Crowd Press", "description": "Tianxia labour firmware: a shoulder through the crowd. Sweeps the three tiles in front of you.", "damage": 12, "heatGenerated": 16, "heatTransfer": 4, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "sweep_arc"},
       "levels": [
@@ -70,8 +88,13 @@
       ]
     },
     "splice": {
+      "opens": {"chapter": "corridor", "threat": 5, "start": 6},
+      "holder": {"enemy": "Unlogged Technician", "traits": ["enduring", "alert"], "moves": [
+        {"type": "attack", "name": "Graft Whip", "description": "", "damage": 13, "accuracy": "variable", "physicalRatio": 0.5, "heatTransfer": 4, "heatGenerated": 9, "attackPattern": "melee_long", "effects": {"slow": true}},
+        {"type": "attack", "name": "Drink", "description": "", "damage": 12, "accuracy": "variable", "physicalRatio": 0.4, "heatTransfer": 5, "heatGenerated": 8, "attackPattern": "grapple", "effects": {"pull": true}},
+        {"type": "attack", "name": "Resonance", "description": "", "damage": 26, "isHeavy": true, "accuracy": "variable", "physicalRatio": 0.4, "heatTransfer": 14, "heatGenerated": 14, "attackPattern": "aoe"}
+      ]},
       "identity": {"rule": "Each passive slot can hold a second, compatible implant: both count, and both upgrade trees grow. Up to 2 pairs.", "heat": "Runs warm from the strain: each spliced pair adds 2 heat a turn and takes 10% off your structure.", "ultimate": "Resonance: everything within 3 tiles takes 0.6 times your best move for every spliced pair (up to 3).", "surge": "resonance", "perks": {"splicePairs": 2}},
-      "unlockAt": 25,
       "scale": 0.8,
       "base": {"type": "attack", "name": "Graft Whip", "description": "Patchwork graft firmware: a lash of grafted cable that drinks a little. Reaches two tiles in a line.", "damage": 10, "heatGenerated": 12, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.5, "attackPattern": "melee_long", "effects": {"drain": 0.1}},
       "levels": [
@@ -87,8 +110,9 @@
       ]
     },
     "wretch": {
+      "opens": {"chapter": "rain-machine", "threat": 5, "start": 5},
+      "holder": {"enemy": "Valley Raider", "traits": ["armed", "enduring"], "implants": true},
       "identity": {"rule": "No rule of its own: implant moves hit 35% harder, implant upgrades cost a point less, and a fifth move slot. Implants' health costs hit it 50% harder.", "heat": "Whatever its implants make it: their makers' hot effects are all it has.", "ultimate": "None of its own: the plain Signal Surge.", "surge": "blast", "perks": {"implantDamage": 0.35, "implantTreeDiscount": 1, "extraSlots": 1, "healthCostScale": 1.5}},
-      "unlockAt": 22,
       "scale": 0.7,
       "base": {"type": "attack", "name": "Strike", "description": "A plain blow. One tile next to you.", "damage": 10, "heatGenerated": 11, "heatTransfer": 3, "accuracy": "variable", "physicalRatio": 0.7, "attackPattern": "melee"},
       "levels": [

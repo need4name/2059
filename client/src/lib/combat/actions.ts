@@ -1,6 +1,6 @@
 import { activeChapter, CHAPTERS } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
-import { firmwareAttack } from '../engine/firmware';
+import { firmwareAttack, firmwareHeldAt, holderOf } from '../engine/firmware';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
@@ -378,6 +378,11 @@ treeSpDefense?: number;
 treeHp: number;
 }
 
+/** Firmware loaded lifts the whole body (base, implants and trees): the first one is a massive upgrade.
+ *  Enemies past chapter one's first boss are built for a host that has it (FIRMWARE_ERA). */
+export const FIRMWARE_LIFT = { hp: 1.45, atk: 1.4, def: 1.25, structure: 1.4 };
+const NO_LIFT = { hp: 1, atk: 1, def: 1, structure: 1 };
+
 export function createPlayer(
 augmentationBonuses?: AugmentationBonuses,
 playerClass: PlayerClass = 'none',
@@ -399,14 +404,17 @@ const treeSDef = split ? (augmentationBonuses?.treeSpDefense || 0) : Math.ceil (
 const treeHp   = augmentationBonuses?.treeHp || 0;
 
 // The class's own stat line: Attack / Defence (physical) and Sp. Atk / Sp. Def (special)
-const maxHp = Math.max(MIN_PLAYER_HP, classStats.baseHp + augHp + treeHp - (augmentationBonuses?.hpCost || 0));
+// Firmware is a massive upgrade: loaded, the whole body runs harder (FIRMWARE_LIFT)
+const lift = playerClass === 'none' ? NO_LIFT : FIRMWARE_LIFT;
+const maxHp = Math.max(MIN_PLAYER_HP, Math.round((classStats.baseHp + augHp + treeHp) * lift.hp) - (augmentationBonuses?.hpCost || 0));
 const basePAtk = classStats.baseAttack;
 const baseSAtk = classStats.baseSpAtk;
 const basePDef = classStats.baseDefense;
 const baseSDef = classStats.baseSpDef;
 // Every body has a structure bar of its own; implants and upgrades add to it
 const augStructure = augmentationBonuses?.structure || 0;
-const maxStructuralHp = classStats.baseStructure + augStructure + treePDef + treeSDef;
+const maxStructuralHp = Math.round((classStats.baseStructure + augStructure + treePDef + treeSDef) * lift.structure);
+const atk = (n: number) => Math.round(n * lift.atk), def = (n: number) => Math.round(n * lift.def);
 
 return {
 id: 'player',
@@ -416,11 +424,11 @@ currentHp: maxHp,
 maxStructuralHp,
 currentStructuralHp: maxStructuralHp,
 // What the implants add, which fades as the structure bar empties
-implantStats: { pa: augPAtk + treePAtk, sa: augSAtk + treeSAtk, pd: augPDef + treePDef, sd: augSDef + treeSDef },
-physicalAttack:   basePAtk + augPAtk + treePAtk,
-structuralAttack: baseSAtk + augSAtk + treeSAtk,
-physicalDefense:  basePDef + augPDef + treePDef,
-structuralDefense: baseSDef + augSDef + treeSDef,
+implantStats: { pa: atk(augPAtk + treePAtk), sa: atk(augSAtk + treeSAtk), pd: def(augPDef + treePDef), sd: def(augSDef + treeSDef) },
+physicalAttack:   atk(basePAtk + augPAtk + treePAtk),
+structuralAttack: atk(baseSAtk + augSAtk + treeSAtk),
+physicalDefense:  def(basePDef + augPDef + treePDef),
+structuralDefense: def(baseSDef + augSDef + treeSDef),
 evasion: augEvasion,
 bypassStructuralDefense: augmentationBonuses?.bypassStructuralDefense ?? false,
 hasKizuna: augmentationBonuses?.hasKizuna ?? false,
@@ -513,36 +521,42 @@ export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
 export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
-/** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit. */
-export const EARLY_BITE = { bite: 0.5, until: 6 };
-const earlyBite = (level: number) => 1 + EARLY_BITE.bite * Math.max(0, EARLY_BITE.until - level) / (EARLY_BITE.until - 1);
+/** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit:
+ *  hardest for the first life (`first`), less for the hosts after it, who still run without firmware until the first boss falls. */
+export const EARLY_BITE = { first: 0.5, bite: 0.45, until: 6 };
+const earlyBite = (level: number, firstRun = false) => 1 + (firstRun ? EARLY_BITE.first : EARLY_BITE.bite) * Math.max(0, EARLY_BITE.until - level) / (EARLY_BITE.until - 1);
 /**
  * The middle rooms are real fights for a young signal: threats `from` to `to` hit and last harder,
  * easing back to normal by threat `fade`. A seasoned signal (play-i tree, firmware levels, allies) outgrows it.
  */
-export const MID_BITE = { atk: 1.1, hp: 0.7, from: 4, to: 9, fade: 15 };
+export const MID_BITE = { atk: 1.1, hp: 0.7, from: 6, to: 9, fade: 15 };
 const midBite = (level: number, k: 'atk' | 'hp') => {
   if (level < MID_BITE.from || level >= MID_BITE.fade) return 1;
   const full = MID_BITE[k];
   return 1 + (level <= MID_BITE.to ? full : full * (MID_BITE.fade - level) / (MID_BITE.fade - MID_BITE.to));
 };
-const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp'), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level) * midBite(level, 'atk') });
+/** Past chapter one's first boss (threat 6 on, and every later chapter) enemies are built for a host with firmware. */
+export const FIRMWARE_ERA = { from: 6, hp: 1.35, atk: 1.4 };
+const era = (level: number) => (level >= FIRMWARE_ERA.from || CHAPTERS.indexOf(activeChapter()) > 0 ? FIRMWARE_ERA : { hp: 1, atk: 1 });
+const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp') * era(level).hp, atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level, firstRun) * midBite(level, 'atk') * era(level).atk });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
+/** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
+export const KING_EXTRA = { hp: 1.6, atk: 1.4 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
 const base = createBoss(10, false, 'Helix Continuity Warden');
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
-const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+const hp = Math.round(base.maxHp * KING_MULT.hp * KING_EXTRA.hp), shp = Math.max(8, (pDef + sDef) * 3);
 // He wears the Patchwork Crown (epic, or legendary a third of the time) over his frame's own implants
 const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'legendary' : 'epic');
 const carried = [...(crown ? [crown] : []), ...(base.carried ?? [])].slice(0, 3);
 return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24', carried, implants: carried.map(i => `${i.signature ? '' : `${modelOf(i)} `}${i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()}`), implantSlots: carried.flatMap(i => (i.slot ? [i.slot] : [])),
 maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
-physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
+physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk * KING_EXTRA.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk * KING_EXTRA.atk),
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
@@ -589,6 +603,25 @@ physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttac
 physicalDefense: pDef, structuralDefense: sDef };
 }
 
+/**
+ * A boss that holds firmware (content/firmware.json `holder`) fights with it: the firmware's traits on
+ * top of its own, and the firmware's moves (or, for the Wretch's holder, its own implants' moves, like
+ * the Echo). It is the threat's elite or boss, whoever it is.
+ */
+export function withFirmware(unit: Character, holder: { traits?: string[]; moves?: CombatAction[]; implants?: boolean }): Character {
+const traits = [...(unit.traits ?? []), ...(holder.traits ?? [])].filter((t, n, all) => all.indexOf(t) === n);
+if (holder.moves) return { ...unit, traits, moves: holder.moves };
+if (holder.implants) {
+const attacks = (unit.carried ?? []).map(i => actionForItem(i)).filter((a): a is CombatAction => !!a && a.type === 'attack' && (a.damage ?? 0) > 0);
+const strongest = attacks.reduce<CombatAction | null>((m, a) => (!m || (a.damage ?? 0) > (m.damage ?? 0) ? a : m), null);
+if (strongest) return { ...unit, traits, moves: [
+...attacks.map(a => ({ ...a, isHeavy: false, heatGenerated: 8, heatTransfer: 5 })),
+{ ...strongest, name: `${strongest.name}, overdriven`, damage: Math.round((strongest.damage ?? 10) * 1.6), isHeavy: true, accuracy: 'precise', heatGenerated: 12, heatTransfer: 9 },
+] };
+}
+return { ...unit, traits };
+}
+
 export function getBossPreview(level: number, firstRun = false, roomEnemy?: string): { name: string; color: string; hp: number } {
 const S = BOSS_SCALING;
 const baseHp = Math.floor((S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic) * growth(level).hp);
@@ -596,6 +629,9 @@ if (level === 10) {
 const name = cast().setPiece;
 return { name, color: ENEMY_DATA.enemies[name]?.color ?? '#fbbf24', hp: Math.round(baseHp * KING_MULT.hp) };
 }
+// A boss that holds firmware is always the same one (matches planFoes)
+const held = firmwareHeldAt(activeChapter().id, level), holder = held ? holderOf(held) : null;
+if (holder && ENEMY_DATA.enemies[holder.enemy]) return { name: holder.enemy, color: ENEMY_DATA.enemies[holder.enemy].color, hp: Math.round(baseHp * ROLE_MULT.elite.hp) };
 // A room's named enemy, for regular fights (matches planFoes)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
 const t = named ?? enemyTypeForLevel(level, firstRun);
@@ -641,7 +677,7 @@ export const TRAIT_OF_SLOT: Record<AugmentationSlot, string> = {
 /** How many implants an enemy carries at a threat level. */
 export const enemyImplantCount = (level: number) => (level <= 5 ? 1 : level <= 10 ? 2 : 3);
 
-export function createBoss(level: number = 1, firstRun = false, typeName?: string): Character {
+export function createBoss(level: number = 1, firstRun = false, typeName?: string, roleAs?: EnemyRole): Character {
 const bossType = typeName && ENEMY_DATA.enemies[typeName] ? enemyType(typeName) : enemyTypeForLevel(level, firstRun);
 const S = BOSS_SCALING;
 const bossHp      = Math.floor(S.hpBase + level * S.hpPerLevel + level * level * S.hpQuadratic);
@@ -662,7 +698,7 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 // a lucky epic doesn't make an early enemy unkillable.
 const numAugs = enemyImplantCount(level);
 // A room's own enemy is a regular one, except the first life's threat-3 set piece: whichever room it waits in, it hits as one
-const role = typeName ? (firstRun && level === 3 ? 'setpiece' : 'normal') : enemyRole(level, firstRun);
+const role = roleAs ?? (typeName ? (firstRun && level === 3 ? 'setpiece' : 'normal') : enemyRole(level, firstRun));
 // Enemies that fight with special moves carry more special-leaning implants (what you strip off them follows)
 const lean = (() => { const ms = (bossType.moves ?? []).filter(m => m.damage); return ms.length ? ms.reduce((n, m) => n + (1 - (m.physicalRatio ?? 0.7)), 0) / ms.length : 0.4; })();
 const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature, lean);
@@ -689,7 +725,7 @@ pDef += bonusPDef; sDef += bonusSDef;
 let finalHp = bossHp + bonusHp;
 const structuralHp = Math.max(8, (pDef + sDef) * 3);
 // Elites, bosses and the first-life set piece are tougher; everything grows level on level
-const g = growth(level);
+const g = growth(level, firstRun);
 finalHp = Math.round(finalHp * ROLE_MULT[role].hp * g.hp);
 pAtk = Math.round(pAtk * ROLE_MULT[role].atk * g.atk); sAtk = Math.round(sAtk * ROLE_MULT[role].atk * g.atk);
 
