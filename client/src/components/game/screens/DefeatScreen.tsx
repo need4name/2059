@@ -23,8 +23,9 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 };
 
 export function DefeatScreen() {
-  const { boss, playerClass, justOpened, rebirth } = useCombat();
-  const { forks, setFork } = useFirmware();
+  const { boss, playerClass, rebirth } = useCombat();
+  // What opened since the last host woke is new (kept in the save, so a restart keeps the tag)
+  const { forks, setFork, fresh: justOpened } = useFirmware();
   // Every firmware taken from a boss so far
   const choices = availableFirmware();
   const anyFirmware = choices.length > 0;

@@ -10,7 +10,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -157,6 +157,26 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       if (back) out = { ...out, parts: { ...out.parts, '2059-trees': JSON.stringify({ ...t, state: { ...t.state, owned, availablePoints: (t.state?.availablePoints ?? 0) + back } }) } };
     } catch { /* keep it */ }
     return out;
+  },
+  // 18 -> 19: firmware a save had already earned under the new rules but never got (it beat a boss before
+  // the boss held firmware): past the weigh-station opens the Enforcer, a beaten King the Operative
+  18: (save) => {
+    const raw = save.parts['2059-map'];
+    if (!raw) return save;
+    try {
+      const st = JSON.parse(raw).state ?? {};
+      const past = ['lanes', 'barge', 'cables', 'nets', 'generator', 'approach', 'throne'];
+      const inOne = (st.chapter ?? 'indian-ocean') === 'indian-ocean';
+      const enforcer = !inOne || (st.beaten ?? []).includes('weigh') || (st.visited ?? []).some((r: string) => past.includes(r));
+      const operative = !inOne || !!st.done;
+      const earned = [...(enforcer ? ['melee'] : []), ...(operative ? ['ranged'] : [])];
+      if (!earned.length) return save;
+      const fw = save.parts['2059-firmware'] ? JSON.parse(save.parts['2059-firmware']) : { state: { xp: {}, opened: [], fresh: [], forks: {} }, version: 1 };
+      const f = fw.state ?? {};
+      const add = earned.filter(c => !(f.opened ?? []).includes(c));
+      if (!add.length) return save;
+      return { ...save, parts: { ...save.parts, '2059-firmware': JSON.stringify({ ...fw, state: { ...f, opened: [...(f.opened ?? []), ...add], fresh: [...(f.fresh ?? []), ...add] } }) } };
+    } catch { return save; }
   },
 };
 

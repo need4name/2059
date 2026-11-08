@@ -114,3 +114,17 @@ test('a save from before guns stopped growing gives back the points spent on a g
   assert.ok(t.availablePoints >= 3, 'two steps of a gun tree come back');
   assert.equal(JSON.parse(save.parts['2059-map']).state.looked, undefined);
 });
+
+test('a save that beat the weigh-station (or got past it) before bosses held firmware gets the Enforcer, and the King the Operative', () => {
+  const map = (st: object) => ({ game: '2059', version: 18, savedAt: '', parts: { '2059-map': JSON.stringify({ state: st, version: 2 }) } });
+  mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'indian-ocean', room: 'lanes', visited: ['dock', 'deck', 'weigh', 'lanes'], beaten: [] })));
+  let fw = JSON.parse(readSave().parts['2059-firmware']).state;
+  assert.deepEqual([fw.opened, fw.fresh], [['melee'], ['melee']]);
+  resetSaveCache();
+  mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'indian-ocean', room: 'throne', visited: ['dock', 'throne'], beaten: ['weigh'], done: true })));
+  fw = JSON.parse(readSave().parts['2059-firmware']).state;
+  assert.deepEqual(fw.opened, ['melee', 'ranged']);
+  resetSaveCache();
+  mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'indian-ocean', room: 'deck', visited: ['dock', 'deck', 'walkway'], beaten: [] })));
+  assert.equal(readSave().parts['2059-firmware'], undefined, 'nothing earned yet, nothing opened');
+});

@@ -4,6 +4,7 @@ import { useAudio } from "./lib/stores/useAudio";
 import { GameUI } from "./components/game/GameUI";
 import { TitleScreen } from "./components/game/screens/TitleScreen";
 import { dailyDay, dailySeed } from "./lib/daily";
+import { Crashed } from "./components/game/Crashed";
 
 function App() {
   const [onTitle, setOnTitle] = useState(true);
@@ -23,7 +24,7 @@ function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-hud-bg">
-      {onTitle ? <TitleScreen onContinue={() => setOnTitle(false)} onNewGame={newGame} /> : <GameUI />}
+      <Crashed>{onTitle ? <TitleScreen onContinue={() => setOnTitle(false)} onNewGame={newGame} /> : <GameUI />}</Crashed>
     </div>
   );
 }
