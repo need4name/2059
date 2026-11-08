@@ -513,7 +513,10 @@ export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
 export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
-const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) });
+/** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit. */
+export const EARLY_BITE = { bite: 0.5, until: 6 };
+const earlyBite = (level: number) => 1 + EARLY_BITE.bite * Math.max(0, EARLY_BITE.until - level) / (EARLY_BITE.until - 1);
+const growth = (level: number) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1), atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level) });
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
@@ -648,7 +651,8 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 // from the body afterwards. Their stats count for less on higher-quality parts, so
 // a lucky epic doesn't make an early enemy unkillable.
 const numAugs = enemyImplantCount(level);
-const role = typeName ? 'normal' : enemyRole(level, firstRun);
+// A room's own enemy is a regular one, except the first life's threat-3 set piece: whichever room it waits in, it hits as one
+const role = typeName ? (firstRun && level === 3 ? 'setpiece' : 'normal') : enemyRole(level, firstRun);
 // Enemies that fight with special moves carry more special-leaning implants (what you strip off them follows)
 const lean = (() => { const ms = (bossType.moves ?? []).filter(m => m.damage); return ms.length ? ms.reduce((n, m) => n + (1 - (m.physicalRatio ?? 0.7)), 0) / ms.length : 0.4; })();
 const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature, lean);

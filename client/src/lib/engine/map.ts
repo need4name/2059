@@ -118,7 +118,7 @@ export const recall = (s: MapState): MapState =>
   (canRest(s) ? { ...s, recalled: [...(s.recalled ?? []), s.room], cleared: s.cleared.filter(id => id !== s.room) } : s);
 
 /** Share of max health a host gets back after winning a fight (catching its breath). */
-export const WIN_RECOVER = 0.3;
+export const WIN_RECOVER = 0.2;
 /** What a host is still missing after a won fight that left it on `hp` of `max`. */
 export const hurtAfterWin = (hp: number, max: number) => Math.max(0, max - hp - Math.round(max * WIN_RECOVER));
 /** The health a host starts its next fight on. */

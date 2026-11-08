@@ -187,6 +187,8 @@ toggleAllyMove: (ally: number) => void;
 moveAlly: (pos: TilePosition) => void;
 allyAct: (ally: number, move: number) => void;
 resetCombat: () => void;
+/** Back out of a fight: your wounds and Overload come with you; the enemy will still be there. */
+retreat: () => void;
 resetAll: () => void;
 /** A new host wakes with this firmware, at the entry or a server reached before (`at`). */
 rebirth: (newClass?: PlayerClass, at?: string) => void;
@@ -1026,6 +1028,13 @@ if (selectedAction.type !== 'attack' && selectedAction.type !== 'special') retur
 if (!Fight.aimTiles(fightState(), selectedAction, playerClass, tile).length) return false;
 set({ aim: tile });
 return true;
+},
+
+retreat: () => {
+const { farmLevel, player } = get();
+// Retreating costs what the fight has cost you so far: no free do-over
+if (farmLevel === null && get().foes.length) { useMap.getState().setHurt(player.maxHp - player.currentHp); useMap.getState().setOverload(get().overload); }
+get().resetCombat();
 },
 
 resetCombat: () => {

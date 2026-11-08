@@ -346,7 +346,7 @@ function TurnStrip() {
 }
 
 function ActionBar() {
-  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, resetCombat, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
+  const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, retreat, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
   const { items } = useInventory();
   const { slots } = useLoadout();
   const [bag, setBag] = useState(false);
@@ -421,7 +421,7 @@ function ActionBar() {
         body="It will still be here."
         confirmLabel="Retreat"
         onCancel={() => setConfirmExit(false)}
-        onConfirm={() => { setConfirmExit(false); resetCombat(); }}
+        onConfirm={() => { setConfirmExit(false); retreat(); }}
       />
     </div>
   );

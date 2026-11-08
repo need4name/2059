@@ -157,3 +157,23 @@ test('a fractional move reach still builds a whole board (no crash laying out co
     for (let k = 0; k < 20; k++) { const g = generateBattlefield(5, { move, units: 3 }); assert.equal(g.tiles[0].length, g.cols); }
   }
 });
+
+test('the first life meets its set piece at threat 3, whichever room it waits in; early threats bite harder', async () => {
+  const { EARLY_BITE } = await import('../client/src/lib/combat/actions');
+  seedRandom(5); const first = createBoss(3, true, 'Pump-Fleet Cadre');
+  seedRandom(5); const later = createBoss(3, false, 'Pump-Fleet Cadre');
+  assert.ok(first.maxHp > later.maxHp * 1.4 && first.physicalAttack > later.physicalAttack * 1.4, 'a named room still holds the set piece on a first life');
+  assert.ok(EARLY_BITE.bite > 0 && EARLY_BITE.until > 1);
+});
+
+test('retreating keeps your wounds and Overload: no free do-over', async () => {
+  const { useCombat } = await import('../client/src/lib/stores/useCombat');
+  const { useMap } = await import('../client/src/lib/stores/useMap');
+  useMap.getState().setHurt(0);
+  const s = useCombat.getState();
+  useCombat.setState({ farmLevel: null, foes: [{ unit: createBoss(2) } as never], player: { ...createPlayer(), maxHp: 120, currentHp: 45 }, overload: 30 });
+  useCombat.getState().retreat();
+  assert.equal(useMap.getState().hurt, 75);
+  assert.equal(useMap.getState().overload, 30);
+  useCombat.setState({ ...s });
+});
