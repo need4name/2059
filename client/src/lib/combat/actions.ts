@@ -490,8 +490,10 @@ export const BOSS_DOSSIERS: Record<string, string> = {
 // Elites guard the 5th level of each sector; bosses the 10th (the set piece on 10 is built separately)
 
 export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
+/** The threat where the first life meets its set piece (the chapter's `firstFight`): it ends nearly every first life. */
+export const FIRST_SET_PIECE = 2;
 export function enemyRole(level: number, firstRun = false): EnemyRole {
-if (firstRun && level === 3) return 'setpiece';
+if (firstRun && level === FIRST_SET_PIECE) return 'setpiece';
 if (level % 10 === 5) return 'elite';
 if (level % 10 === 0) return 'boss';
 return 'normal';
@@ -513,7 +515,7 @@ return types[idx % types.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 1.8, atk: 2.1 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 3.8, atk: 4.4 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
@@ -536,7 +538,7 @@ const midBite = (level: number, k: 'atk' | 'hp') => {
   return 1 + (level <= MID_BITE.to ? full : full * (MID_BITE.fade - level) / (MID_BITE.fade - MID_BITE.to));
 };
 /** Past chapter one's first boss (threat 6 on, and every later chapter) enemies are built for a host with firmware. */
-export const FIRMWARE_ERA = { from: 6, hp: 1.35, atk: 1.4 };
+export const FIRMWARE_ERA = { from: 6, hp: 1.5, atk: 1.6 };
 const era = (level: number) => (level >= FIRMWARE_ERA.from || CHAPTERS.indexOf(activeChapter()) > 0 ? FIRMWARE_ERA : { hp: 1, atk: 1 });
 const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp') * era(level).hp, atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level, firstRun) * midBite(level, 'atk') * era(level).atk });
 
@@ -544,7 +546,7 @@ const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENE
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
-export const KING_EXTRA = { hp: 1.6, atk: 1.4 };
+export const KING_EXTRA = { hp: 3, atk: 2.2 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
@@ -633,7 +635,7 @@ return { name, color: ENEMY_DATA.enemies[name]?.color ?? '#fbbf24', hp: Math.rou
 const held = firmwareHeldAt(activeChapter().id, level), holder = held ? holderOf(held) : null;
 if (holder && ENEMY_DATA.enemies[holder.enemy]) return { name: holder.enemy, color: ENEMY_DATA.enemies[holder.enemy].color, hp: Math.round(baseHp * ROLE_MULT.elite.hp) };
 // A room's named enemy, for regular fights (matches planFoes)
-const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
+const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === FIRST_SET_PIECE) && ENEMY_DATA.enemies[roomEnemy] ? enemyType(roomEnemy) : null;
 const t = named ?? enemyTypeForLevel(level, firstRun);
 return { name: t.name, color: t.color, hp: Math.round(baseHp * ROLE_MULT[enemyRole(level, firstRun)].hp) };
 }
@@ -698,7 +700,7 @@ let sDef = Math.ceil (totalDef * profile.sDefR);
 // a lucky epic doesn't make an early enemy unkillable.
 const numAugs = enemyImplantCount(level);
 // A room's own enemy is a regular one, except the first life's threat-3 set piece: whichever room it waits in, it hits as one
-const role = roleAs ?? (typeName ? (firstRun && level === 3 ? 'setpiece' : 'normal') : enemyRole(level, firstRun));
+const role = roleAs ?? (typeName ? (firstRun && level === FIRST_SET_PIECE ? 'setpiece' : 'normal') : enemyRole(level, firstRun));
 // Enemies that fight with special moves carry more special-leaning implants (what you strip off them follows)
 const lean = (() => { const ms = (bossType.moves ?? []).filter(m => m.damage); return ms.length ? ms.reduce((n, m) => n + (1 - (m.physicalRatio ?? 0.7)), 0) / ms.length : 0.4; })();
 const carried = rollCarried(level, numAugs, role, firstRun, bossType.signature, lean);

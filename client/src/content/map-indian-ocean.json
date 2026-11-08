@@ -103,7 +103,7 @@
       "id": "walkway",
       "at": [0, 2],
       "name": "Rope walkway",
-      "threat": 3,
+      "threat": 2,
       "text": "A walkway of drums and rope over open water. The ropes are newer than anything else here.",
       "exits": [
         {

@@ -202,6 +202,7 @@ function restIfHurt() {
     const id = queue.shift()!;
     MAP.roomById(id).exits.forEach((e, k) => {
       if (goal || seen.has(e.to) || (e.requires === 'goals' && !MAP.allGoals(s))) return;
+      if (!KNOWN && !s.visited.includes(e.to)) return;
       const room = MAP.roomById(e.to);
       if (MAP.hasFight(s, room)) return;
       seen.add(e.to); prev.set(e.to, { from: id, exit: k }); queue.push(e.to);
@@ -236,8 +237,47 @@ function rushToBoss(): boolean {
   return MAP.hasFight(MP.getState());
 }
 
+// ── A new player's map: the bot only knows rooms some host has been in (the map remembers them across
+// hosts). It sees a known room's exits but not what's behind an unknown one. It fights a known fight it
+// can likely handle (no deeper than one past the deepest it has won here); otherwise it explores the
+// nearest unknown room (ties at random), and walks into whatever waits there. KNOWN=1 gives it the whole map.
+const KNOWN = !!process.env.KNOWN;
+let bestWonHere = 0;
+function exploreToFight(): boolean {
+  for (let tries = 0; tries < 60; tries++) {
+    tidyRoom();
+    const s = MP.getState();
+    if (MAP.hasFight(s)) return true;
+    const known = new Set(s.visited);
+    const prev = new Map<string, { from: string; exit: number }>(); const dist = new Map([[s.room, 0]]);
+    const seen = new Set([s.room]); const queue = [s.room];
+    const fights: string[] = [], frontier: string[] = [], looks: string[] = [];
+    while (queue.length) {
+      const id = queue.shift()!;
+      MAP.roomById(id).exits.forEach((e, k) => {
+        if (seen.has(e.to) || (e.requires === 'goals' && !MAP.allGoals(s))) return;
+        seen.add(e.to); prev.set(e.to, { from: id, exit: k }); dist.set(e.to, dist.get(id)! + 1);
+        if (!known.has(e.to)) { frontier.push(e.to); return; }
+        const room = MAP.roomById(e.to);
+        if (MAP.hasFight(s, room)) { fights.push(e.to); return; }
+        queue.push(e.to); if (room.look && !s.looked.includes(room.id)) looks.push(e.to);
+      });
+    }
+    const threat = (id: string) => MAP.roomById(id).threat ?? 0;
+    const byThreat = [...fights].sort((a, b) => threat(a) - threat(b));
+    const order = frontier.map(id => ({ id, d: dist.get(id)!, r: botRandom() })).sort((a, b) => a.d - b.d || a.r - b.r).map(x => x.id);
+    const target = byThreat.find(id => threat(id) <= bestWonHere + 1) ?? order[0] ?? byThreat[0] ?? looks[0];
+    if (!target) return false;
+    const path: number[] = [];
+    for (let cur = target; cur !== s.room;) { const p = prev.get(cur)!; path.unshift(p.exit); cur = p.from; }
+    for (const ex of path) { MP.getState().go(ex); tidyRoom(); if (MAP.hasFight(MP.getState())) return true; }
+  }
+  return false;
+}
+
 function walkToFight(): boolean {
   if (process.env.RUSH && (MAP.hasFight(MP.getState()) || rushToBoss())) return true;
+  if (!KNOWN && !process.env.RUSH) return exploreToFight();
   for (let tries = 0; tries < 40; tries++) {
     tidyRoom();
     const s = MP.getState();
@@ -286,6 +326,10 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     restIfHurt();
     // No fight left in reach: either the last boss is down, or the goals door is still shut
     // A chapter done: on to the next one (a fresh map, a new host), until the last
+    const here = CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter);
+    bestWonHere = Math.max(0, ...out.filter(f => f.ch === here && f.won).map(f => f.lvl));
+    // ONLYCH1=1: stop once chapter one is done (quick runs for chapter-one numbers)
+    if (process.env.ONLYCH1 && MP.getState().done) { chaptersDone++; break; }
     const found = walkToFight();
     if (!found && MP.getState().done && CH.nextChapter(MP.getState().chapter)) { chaptersDone++; C.getState().goToNextChapter(); continue; }
     if (!found) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut", s.room, "done", s.done, "cleared spire", s.cleared.includes("spire"), "spire fights", out.filter(f => f.lvl >= 30).map(f => [f.lvl, f.won, f.timedOut]), "last", lastThreat(), "fights", out.length); } } break; }
@@ -362,7 +406,9 @@ if (process.env.CH1) {
     const fights = all.filter(f => f.ch === 0 && f.lvl === t);
     return { threat: t, 'first won on host (median)': firsts.length ? q(firsts, 0.5) : '-', 'quickest-slowest': firsts.length ? `${Math.min(...firsts)}-${Math.max(...firsts)}` : '-', 'runs that got there': `${firsts.length}/${runs.length}`, 'win rate': fights.length ? pct(fights.filter(f => f.won).length / fights.length) : '-', 'hosts lost here': fights.filter(f => !f.won).length };
   }));
-  const done = runs.map(r => { const k = r.findIndex(f => f.ch > 0); return k < 0 ? null : r[k - 1].deathsBefore + 1; }).filter((x): x is number => x !== null);
+  const done = runs.map(r => r.find(f => f.ch === 0 && f.lvl === 10 && f.won)).filter(Boolean).map(f => f!.deathsBefore + 1);
+  const host1 = runs.map(r => r.find(f => !f.won)?.lvl ?? null);
+  console.log(`host 1 lost at threat: ${[1, 2, 3, 4, 5].map(t => `${t}: ${pct(host1.filter(x => x === t).length / runs.length)}`).join(', ')}, later: ${pct(host1.filter(x => x === null || x > 5).length / runs.length)}`);
   console.log(`chapter one finished on host: median ${q(done, 0.5)}, ${Math.min(...done)}-${Math.max(...done)} (${done.length}/${runs.length} runs)`);
 }
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
@@ -391,8 +437,10 @@ const firstDeathEarly = firstDeath.filter(l => l === 2 || l === 3).length / runs
 // The first life's set piece on threat 3 is tough but beatable: most new players still die there
 // (chapter one only: nobody starts the game in a later chapter)
 if (!process.env.CHAPTER) checks.push([`a first life wins 5 fights in under 60% of runs (got ${pct(firstLife5)})`, firstLife5 < 0.6]);
-if (!process.env.CHAPTER) checks.push([`first death on enemy 2 or 3 in 50-95% of runs (got ${pct(firstDeathEarly)})`, firstDeathEarly >= 0.5 && firstDeathEarly <= 0.95]);
-for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') checks.push([`win rate ${r.band} within 65-100% (got ${pct(r.winRate)})`, Math.round(r.winRate * 100) >= 65]);
+const host1At2 = firstDeath.filter(l => l === 2).length / runs.length;
+if (!process.env.CHAPTER) checks.push([`host 1 lost at threat 2 in 90%+ of runs (got ${pct(host1At2)})`, host1At2 >= 0.9]);
+// The King is chapter one's wall: a host that reaches him usually needs a few tries (35%+)
+for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') { const floor = r.band === '10 King' ? 35 : 65; checks.push([`win rate ${r.band} within ${floor}-100% (got ${pct(r.winRate)})`, Math.round(r.winRate * 100) >= floor]); }
 const median = [...reached].sort((a, b) => a - b)[Math.floor(reached.length / 2)];
 checks.push([`median highest threat >= 9 (got ${median})`, median >= 9]);
 const normalTurns = Number(turnsOf('normal')), bossTurns = Number(turnsOf('boss'));
@@ -410,8 +458,8 @@ if (!process.env.CHAPTER && mid12.n >= 30) checks.push([`threats 4-9 with 1-2 ho
 if (!process.env.CHAPTER && !process.env.RUSH) {
   const mid = (xs: (number | null)[]) => med(xs.map(x => x ?? 99));
   const b5 = mid(boss5), k = mid(king);
-  checks.push([`chapter one's first boss first beaten on host 2-5 (median ${b5})`, b5 >= 2 && b5 <= 5]);
-  checks.push([`the King first beaten at least a host after it (median ${k})`, k >= b5 + 1]);
+  checks.push([`chapter one's first boss first beaten on host 3-5 (median ${b5})`, b5 >= 3 && b5 <= 5]);
+  checks.push([`the King first beaten on host 7-11 (median ${k}; aim 8-10)`, k >= 7 && k <= 11]);
   if (withFw.n >= 30 && noFw.n >= 30) checks.push([`threats 6-9: firmware wins at least 10 points more than none (${pct(withFw.rate)} vs ${pct(noFw.rate)})`, withFw.rate - noFw.rate >= 0.1]);
 }
 if (!process.env.CHAPTER && mid5.n >= 30) checks.push([`threats 4-9 with 5+ hosts lost won 93%+ (got ${pct(mid5.rate)})`, mid5.rate >= 0.93]);

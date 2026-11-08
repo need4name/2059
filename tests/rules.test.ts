@@ -159,10 +159,11 @@ test('a fractional move reach still builds a whole board (no crash laying out co
   }
 });
 
-test('the first life meets its set piece at threat 3, whichever room it waits in; early threats bite harder', async () => {
-  const { EARLY_BITE } = await import('../client/src/lib/combat/actions');
-  seedRandom(5); const first = createBoss(3, true, 'Pump-Fleet Cadre');
-  seedRandom(5); const later = createBoss(3, false, 'Pump-Fleet Cadre');
+test('the first life meets its set piece at threat 2, whichever room it waits in; early threats bite harder', async () => {
+  const { EARLY_BITE, FIRST_SET_PIECE } = await import('../client/src/lib/combat/actions');
+  assert.equal(FIRST_SET_PIECE, 2);
+  seedRandom(5); const first = createBoss(2, true, 'Pump-Fleet Cadre');
+  seedRandom(5); const later = createBoss(2, false, 'Pump-Fleet Cadre');
   assert.ok(first.maxHp > later.maxHp * 1.4 && first.physicalAttack > later.physicalAttack * 1.4, 'a named room still holds the set piece on a first life');
   assert.ok(EARLY_BITE.bite > 0 && EARLY_BITE.until > 1);
 });

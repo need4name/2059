@@ -4,6 +4,7 @@
 // (best level each day) sit under their own key and survive both slots.
 
 import { hashSeed } from './engine/rng';
+import { FIRST_SET_PIECE } from './combat/actions';
 
 export const DAILY_FLAG = '2059-daily-on';
 export const DAILY_SAVE_KEY = '2059-daily-save';
@@ -51,4 +52,4 @@ export function endDaily(level: number | null) {
 }
 
 /** The first life's set piece (the Enforcer on threat 3) is skipped in a daily run: one life shouldn't end on a script. */
-export const firstLifeAt = (deathCount: number, level: number) => deathCount === 0 && !(dailyDay && level === 3);
+export const firstLifeAt = (deathCount: number, level: number) => deathCount === 0 && !(dailyDay && level === FIRST_SET_PIECE);

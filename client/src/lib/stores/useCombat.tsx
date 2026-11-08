@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-CLASS_DEFINITIONS, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME, withFirmware,
+CLASS_DEFINITIONS, FIRST_SET_PIECE, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME, withFirmware,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines, isNotable, ORDINARY_LINE_CHANCE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -275,10 +275,10 @@ return [holder ? withFirmware(unit, holder) : unit];
 }
 if (holder) return [withFirmware(createBoss(level, false, holder.enemy, 'elite'), holder)];
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
-const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === 3) ? roomEnemy : undefined;
+const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === FIRST_SET_PIECE) ? roomEnemy : undefined;
 const lead = createBoss(level, firstRun && !farm, named);
 // Set pieces fight alone: the first fight, elites and bosses, the first-life Enforcer
-if (level === 1 || level % 5 === 0 || lead.name === 'Cartel Enforcer') return [lead];
+if (level === 1 || level % 5 === 0 || lead.name === 'Cartel Enforcer' || (firstRun && !farm && level === FIRST_SET_PIECE)) return [lead];
 const r = random();
 const count = r < 0.5 ? 1 : r < 0.85 ? 2 : 3;
 if (count === 1) return [lead];
