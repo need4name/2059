@@ -245,7 +245,7 @@ function walkToFight(): boolean {
   return false;
 }
 
-interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean }
+interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean; cls: string }
 
 let chaptersDone = 0, stuckAtDoor = 0, debugShown = false, rested = 0;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
@@ -273,7 +273,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     }
     const won = C.getState().phase === 'victory';
     if (process.env.DEBUGLOSS && !won && Number(process.env.DEBUGLOSS) === lvl && !debugShown) { debugShown = true; console.log('LOSS', lvl, 'turns', turns, C.getState().foes.map(f => [f.unit.name, f.unit.currentHp, f.unit.maxHp])); console.log(C.getState().combatLog.slice(-8).map(l => l.message).join(' | ')); }
-    out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut });
+    out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut, cls: C.getState().playerClass });
     if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
       // The bot picks one of the two cards the tree offers
@@ -298,6 +298,12 @@ const all = runs.flat();
 const band = (l: number) => l <= 3 ? '1-3' : l <= 6 ? '4-6' : l <= 9 ? '7-9' : l === 10 ? '10 King' : l <= 14 ? '11-14' : l <= 20 ? '15-20' : '21+';
 const bands = ['1-3', '4-6', '7-9', '10 King', '11-14', '15-20', '21+'];
 const rows = bands.map(b => { const f = all.filter(x => band(x.lvl) === b); return { band: b, fights: f.length, winRate: f.length ? f.filter(x => x.won).length / f.length : NaN, avgTurns: f.length ? f.reduce((a, x) => a + x.turns, 0) / f.length : NaN }; }).filter(r => r.fights > 0);
+// Each firmware's record: win rates by stretch of the map, and fights played with it loaded
+if (process.env.BYCLASS) {
+  const stretch = (l: number) => l <= 9 ? '1-9' : l <= 20 ? '10-20' : '21+';
+  const classes = Array.from(new Set(all.map(f => f.cls)));
+  console.table(classes.map(c => { const f = all.filter(x => x.cls === c); const row: any = { firmware: c, fights: f.length }; for (const b of ['1-9', '10-20', '21+']) { const g = f.filter(x => stretch(x.lvl) === b); row[b] = g.length ? `${Math.round(100 * g.filter(x => x.won).length / g.length)}% (${g.length})` : '-'; } row.turns = (f.reduce((a, x) => a + x.turns, 0) / f.length).toFixed(1); row.lowestHp = `${Math.round(100 * f.filter(x => x.won).reduce((a, x) => a + x.lowest, 0) / Math.max(1, f.filter(x => x.won).length))}%`; return row; }));
+}
 const firstDeath = runs.map(r => r.find(f => !f.won)?.lvl ?? null);
 const reached = runs.map(r => Math.max(...r.map(f => f.lvl)));
 const pct = (n: number) => `${Math.round(n * 100)}%`;
