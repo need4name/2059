@@ -354,6 +354,17 @@ console.log(`chapter one's threat-5 boss first beaten on host: ${boss5.join(' ')
 const loaded = (on: boolean) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 6 && x.lvl <= 9 && (x.cls !== 'none') === on); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const withFw = loaded(true), noFw = loaded(false);
 console.log(`chapter one threats 6-9 won: with firmware ${pct(withFw.rate)} (${withFw.n}), without ${pct(noFw.rate)} (${noFw.n})`);
+// CH1=1: chapter one threat by threat: which host first wins it (median and spread), win rate, and where hosts are lost
+if (process.env.CH1) {
+  const q = (xs: number[], f: number) => { const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(v.length * f))]; };
+  console.table(Array.from({ length: 10 }, (_, k) => k + 1).map(t => {
+    const firsts = runs.map(r => r.find(f => f.ch === 0 && f.lvl === t && f.won)).filter(Boolean).map(f => f!.deathsBefore + 1);
+    const fights = all.filter(f => f.ch === 0 && f.lvl === t);
+    return { threat: t, 'first won on host (median)': firsts.length ? q(firsts, 0.5) : '-', 'quickest-slowest': firsts.length ? `${Math.min(...firsts)}-${Math.max(...firsts)}` : '-', 'runs that got there': `${firsts.length}/${runs.length}`, 'win rate': fights.length ? pct(fights.filter(f => f.won).length / fights.length) : '-', 'hosts lost here': fights.filter(f => !f.won).length };
+  }));
+  const done = runs.map(r => { const k = r.findIndex(f => f.ch > 0); return k < 0 ? null : r[k - 1].deathsBefore + 1; }).filter((x): x is number => x !== null);
+  console.log(`chapter one finished on host: median ${q(done, 0.5)}, ${Math.min(...done)}-${Math.max(...done)} (${done.length}/${runs.length} runs)`);
+}
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);
