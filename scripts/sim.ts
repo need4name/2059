@@ -310,7 +310,7 @@ function walkToFight(): boolean {
 /** How deep a fight is across chapters: chapter one runs 1-10, every later chapter 30 more. */
 const depthOf = (ch: number, lvl: number) => (ch <= 0 ? lvl : 10 + 30 * (ch - 1) + lvl);
 
-interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean; cls: string; ch: number; depth: number }
+interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean; cls: string; ch: number; depth: number; hpStart: number; gear: number; hostWins: number; cards: number; foes: number; fwLevel: number }
 
 let chaptersDone = 0, stuckAtDoor = 0, debugShown = false, rested = 0;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
@@ -334,7 +334,13 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     if (!found && MP.getState().done && CH.nextChapter(MP.getState().chapter)) { chaptersDone++; C.getState().goToNextChapter(); continue; }
     if (!found) { if (out.some(f => f.won && f.lvl === lastThreat())) chaptersDone++; else { stuckAtDoor++; if (process.env.DEBUGDOOR) { const s = MP.getState(); console.log("door shut", s.room, "done", s.done, "cleared spire", s.cleared.includes("spire"), "spire fights", out.filter(f => f.lvl >= 30).map(f => [f.lvl, f.won, f.timedOut]), "last", lastThreat(), "fights", out.length); } } break; }
     const lvl = MAP.roomById(MP.getState().room).threat!; const deathsBefore = C.getState().progression.deathCount;
-    C.getState().startRoomFight(); C.getState().dismissIntro(); let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
+    // What the host brings to this fight (for VARY=1): health carried in, implant quality, wins so far, play-i cards
+    const RANK: Record<string, number> = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
+    const hh = hostHealth(), hpStart = hh.hp / hh.max;
+    const gear = Object.values(I.getState().equippedAugmentations).reduce((n, it) => n + (it ? RANK[it.rarity] ?? 1 : 0), 0);
+    const hostWins = (() => { let n = 0; for (let k = out.length - 1; k >= 0 && out[k].deathsBefore === deathsBefore && out[k].won; k--) n++; return n; })();
+    const cards = Y.getState().owned.length, fwLevel = FW.getState().level(C.getState().playerClass);
+    C.getState().startRoomFight(); C.getState().dismissIntro(); const foeCount = C.getState().foes.length; let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { const k = C.getState().allyTurn; if (k !== null) allyTurnBot(k); else { playerTurn(skill); turns++; } }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);
@@ -346,7 +352,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     const won = C.getState().phase === 'victory';
     if (process.env.DEBUGLOSS && !won && Number(process.env.DEBUGLOSS) === lvl && !debugShown) { debugShown = true; console.log('LOSS', lvl, 'turns', turns, C.getState().foes.map(f => [f.unit.name, f.unit.currentHp, f.unit.maxHp])); console.log(C.getState().combatLog.slice(-8).map(l => l.message).join(' | ')); }
     const ch = CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter);
-    out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut, cls: C.getState().playerClass, ch, depth: depthOf(ch, lvl) });
+    out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut, cls: C.getState().playerClass, ch, depth: depthOf(ch, lvl), hpStart, gear, hostWins, cards, foes: foeCount, fwLevel });
     if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
       // The bot picks one of the two cards the tree offers
@@ -410,6 +416,24 @@ if (process.env.CH1) {
   const host1 = runs.map(r => r.find(f => !f.won)?.lvl ?? null);
   console.log(`host 1 lost at threat: ${[1, 2, 3, 4, 5].map(t => `${t}: ${pct(host1.filter(x => x === t).length / runs.length)}`).join(', ')}, later: ${pct(host1.filter(x => x === null || x > 5).length / runs.length)}`);
   console.log(`chapter one finished on host: median ${q(done, 0.5)}, ${Math.min(...done)}-${Math.max(...done)} (${done.length}/${runs.length} runs)`);
+}
+// VARY=1: what decides chapter one's boss fights, and why some runs take far longer than others
+if (process.env.VARY) {
+  const rate = (f: Fight[]) => f.length ? `${pct(f.filter(x => x.won).length / f.length)} (${f.length})` : '-';
+  for (const [name, t] of [['threat-5 boss', 5], ['the King', 10], ['threats 2-4', -1]] as const) {
+    const f = all.filter(x => x.ch === 0 && (t === -1 ? x.lvl >= 2 && x.lvl <= 4 && x.deathsBefore > 0 : x.lvl === t));
+    console.log(`\n${name}: won ${rate(f)}`);
+    console.log('  by health carried in:', [[0, 0.5], [0.5, 0.8], [0.8, 1.01]].map(([a, b]) => `${Math.round(a * 100)}-${Math.min(100, Math.round(b * 100))}%: ${rate(f.filter(x => x.hpStart >= a && x.hpStart < b))}`).join(' | '));
+    console.log('  by implant quality worn:', [[0, 3], [3, 6], [6, 10], [10, 99]].map(([a, b]) => `${a}-${b - 1}: ${rate(f.filter(x => x.gear >= a && x.gear < b))}`).join(' | '));
+    console.log('  by play-i cards:', [[0, 2], [2, 4], [4, 7], [7, 99]].map(([a, b]) => `${a}-${b - 1}: ${rate(f.filter(x => x.cards >= a && x.cards < b))}`).join(' | '));
+    console.log('  by wins this host first:', [[0, 1], [1, 3], [3, 6], [6, 99]].map(([a, b]) => `${a}-${b - 1}: ${rate(f.filter(x => x.hostWins >= a && x.hostWins < b))}`).join(' | '));
+    if (t === -1) console.log('  by enemies in the room:', [1, 2, 3].map(n => `${n}: ${rate(f.filter(x => x.foes === n))}`).join(' | '));
+    if (t === 10) console.log('  by firmware level:', [[1, 2], [2, 3], [3, 4], [4, 99]].map(([a, b]) => `${a}${b === 99 ? '+' : ''}: ${rate(f.filter(x => x.fwLevel >= a && x.fwLevel < b))}`).join(' | '));
+  }
+  // Slow runs against quick ones: where their hosts were lost before the first boss fell
+  const per = runs.map(r => { const k = r.findIndex(x => x.ch === 0 && x.lvl === 5 && x.won); const before = k < 0 ? r : r.slice(0, k); return { host: k < 0 ? 99 : r[k].deathsBefore + 1, lost: before.filter(x => !x.won).map(x => x.lvl), tries5: before.filter(x => x.lvl === 5).length }; });
+  const group = (lo: number, hi: number) => { const g = per.filter(x => x.host >= lo && x.host <= hi); const at = (t: (l: number) => boolean) => (g.reduce((n, x) => n + x.lost.filter(t).length, 0) / Math.max(1, g.length)).toFixed(1); return `${g.length} runs: hosts lost at 2: ${at(l => l === 2)}, 3-4: ${at(l => l === 3 || l === 4)}, 5: ${at(l => l === 5)}, elsewhere: ${at(l => l > 5)}`; };
+  console.log('\nbefore the first boss fell, per run: quick (host 1-3)', group(1, 3), '\n  middle (4-6)', group(4, 6), '\n  slow (7+)', group(7, 98));
 }
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
