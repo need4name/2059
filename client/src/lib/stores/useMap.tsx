@@ -13,7 +13,6 @@ const CHAPTER_ONE = 'indian-ocean';
 interface MapStore extends M.MapState {
   go: (exitIndex: number) => void;
   clearRoom: () => void;
-  look: () => string | null;
   /** Mark this room's cache searched. Returns false if there was nothing to take. */
   takeCache: () => boolean;
   /** The chapter's last fight is won. */
@@ -37,13 +36,12 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, looked: s.looked, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [] });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [] });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
   go: (i) => set(M.go(pick(get()), i)),
   clearRoom: () => set(M.clearRoom(pick(get()))),
-  look: () => { const r = M.look(pick(get())); set(r.state); return r.found; },
   takeCache: () => { const before = pick(get()); const after = M.takeCache(before); set(after); return after !== before; },
   finishChapter: () => set(M.finishChapter(pick(get()))),
   newHost: (left, at) => set(M.newHost(pick(get()), left ?? null, at)),

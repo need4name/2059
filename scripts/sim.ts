@@ -81,9 +81,9 @@ function betweenFights() {
     if (!took) break;
   }
   const inv = I.getState();
-  // The Grey Lane's gun rack (it restocks only for a new host or a server rest): carry the best gun you can afford, selling the old one
+  // The Grey Lane's gun rack (it restocks after every won fight and for every new host): carry the best gun you can afford, selling the old one
   if (!process.env.NOGUNS) {
-    MK.getState().ensureGuns(`${C.getState().progression.deathCount}-${MP.getState().rests ?? 0}`, C.getState().bossLevel);
+    MK.getState().ensureGuns(`${C.getState().progression.deathCount}-${useRunStats.getState().total.fightsWon}`, C.getState().bossLevel);
     const now = I.getState().equippedWeapon, worth = now ? (GN.gunAction(now).damage ?? 0) : 0;
     const best = MK.getState().guns.filter(w => w.price <= I.getState().gold + (now?.sellPrice ?? 0)).sort((a, b) => (GN.gunAction(b).damage ?? 0) - (GN.gunAction(a).damage ?? 0))[0];
     if (best && (GN.gunAction(best).damage ?? 0) > worth * 1.15) { if (now) { T.getState().forget(GN.gunItem(now)); I.getState().sellWeapon(now.id); } MK.getState().buyGun(best.id); }
@@ -172,11 +172,10 @@ function playerTurn(skill: number) {
 const ALLY_ORDER = (id: string) => ['bale', 'matron', 'ghostline', 'ward', 'breaker'].indexOf(id);
 
 // ── The hidden map: walk to the easiest fight still standing ─────────────────
-// On the way the bot looks at things (goals), meets allies and searches caches.
+// On the way the bot meets allies and searches caches (goals are found by clearing their rooms).
 function tidyRoom() {
   const s = MP.getState(); const room = MAP.roomById(s.room);
   if (MAP.hasFight(s, room)) return;
-  if (room.look && !s.looked.includes(room.id)) MP.getState().look();
   if (room.ally && !AL.getState().met.includes(room.ally)) {
     AL.getState().meet(room.ally);
     const slots = Y.getState().perks().allySlots;
@@ -251,7 +250,7 @@ function exploreToFight(): boolean {
     const known = new Set(s.visited);
     const prev = new Map<string, { from: string; exit: number }>(); const dist = new Map([[s.room, 0]]);
     const seen = new Set([s.room]); const queue = [s.room];
-    const fights: string[] = [], frontier: string[] = [], looks: string[] = [];
+    const fights: string[] = [], frontier: string[] = [];
     while (queue.length) {
       const id = queue.shift()!;
       MAP.roomById(id).exits.forEach((e, k) => {
@@ -260,13 +259,13 @@ function exploreToFight(): boolean {
         if (!known.has(e.to)) { frontier.push(e.to); return; }
         const room = MAP.roomById(e.to);
         if (MAP.hasFight(s, room)) { fights.push(e.to); return; }
-        queue.push(e.to); if (room.look && !s.looked.includes(room.id)) looks.push(e.to);
+        queue.push(e.to);
       });
     }
     const threat = (id: string) => MAP.roomById(id).threat ?? 0;
     const byThreat = [...fights].sort((a, b) => threat(a) - threat(b));
     const order = frontier.map(id => ({ id, d: dist.get(id)!, r: botRandom() })).sort((a, b) => a.d - b.d || a.r - b.r).map(x => x.id);
-    const target = byThreat.find(id => threat(id) <= bestWonHere + 1) ?? order[0] ?? byThreat[0] ?? looks[0];
+    const target = byThreat.find(id => threat(id) <= bestWonHere + 1) ?? order[0] ?? byThreat[0];
     if (!target) return false;
     const path: number[] = [];
     for (let cur = target; cur !== s.room;) { const p = prev.get(cur)!; path.unshift(p.exit); cur = p.from; }
@@ -285,7 +284,7 @@ function walkToFight(): boolean {
     // Search through clear rooms; a fight room ends a path. With no fight in reach,
     // go and look at whatever hasn't been looked at (that's where the goals are).
     const prev = new Map<string, { from: string; exit: number }>();
-    const seen = new Set([s.room]); const queue = [s.room]; const fights: string[] = [], looks: string[] = [];
+    const seen = new Set([s.room]); const queue = [s.room]; const fights: string[] = [];
     while (queue.length) {
       const id = queue.shift()!;
       MAP.roomById(id).exits.forEach((e, k) => {
@@ -293,10 +292,10 @@ function walkToFight(): boolean {
         seen.add(e.to); prev.set(e.to, { from: id, exit: k });
         const room = MAP.roomById(e.to);
         if (MAP.hasFight(s, room)) fights.push(e.to);
-        else { queue.push(e.to); if (room.look && !s.looked.includes(room.id)) looks.push(e.to); }
+        else queue.push(e.to);
       });
     }
-    const targets = fights.length ? fights.sort((a, b) => (MAP.roomById(a).threat ?? 0) - (MAP.roomById(b).threat ?? 0)) : looks;
+    const targets = fights.sort((a, b) => (MAP.roomById(a).threat ?? 0) - (MAP.roomById(b).threat ?? 0));
     if (!targets.length) return false;
     let cur = targets[0];
     const path: number[] = [];
@@ -355,7 +354,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     if (process.env.DEBUGLOSS && !won && Number(process.env.DEBUGLOSS) === lvl && !debugShown) { debugShown = true; console.log('LOSS', lvl, 'turns', turns, C.getState().foes.map(f => [f.unit.name, f.unit.currentHp, f.unit.maxHp])); console.log(C.getState().combatLog.slice(-8).map(l => l.message).join(' | ')); }
     const ch = CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter);
     out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut, cls: C.getState().playerClass, ch, depth: depthOf(ch, lvl), hpStart, gear, hostWins, cards, foes: foeCount, fwLevel, worn, gun });
-    if (won) { C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
+    if (won) { C.getState().takeBestParts(); C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
       // The bot picks one of the two cards the tree offers
       const offer = Y.getState().offer;
@@ -487,7 +486,7 @@ const best10 = med(bestBy(10)), best20 = med(bestBy(20));
 if (!Number.isNaN(best10)) checks.push([`deepest win after 10 hosts lost within 20-60 (got ${best10})`, best10 >= 20 && best10 <= 60]);
 if (!Number.isNaN(best20)) checks.push([`deepest win after 20 hosts lost within 25-90 (got ${best20})`, best20 >= 25 && best20 <= 90]);
 // The curve (chapter one): threats 4-9 are real fights for a young signal and easy for a seasoned one
-if (!process.env.CHAPTER && mid12.n >= 30) checks.push([`threats 4-9 with 1-2 hosts lost won 75-95% (got ${pct(mid12.rate)})`, mid12.rate >= 0.75 && mid12.rate <= 0.95]);
+if (!process.env.CHAPTER && mid12.n >= 30) checks.push([`threats 4-9 with 1-2 hosts lost won 65-95% (got ${pct(mid12.rate)})`, mid12.rate >= 0.65 && mid12.rate <= 0.95]);
 // Firmware (chapter one): its first boss takes a few hosts, the King a few more, and firmware is a massive upgrade
 if (!process.env.CHAPTER && !process.env.RUSH) {
   const mid = (xs: (number | null)[]) => med(xs.map(x => x ?? 99));

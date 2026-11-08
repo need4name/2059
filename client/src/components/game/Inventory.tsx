@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees, nodesOf } from '@/lib/stores/useAugmentTrees';
 import { depthIn } from '@/lib/engine/upgrades';
@@ -6,7 +6,7 @@ import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, AugmentationSlot, Item } f
 import { Btn, Card, Label, RARITY_TEXT, RARITY_GLOW, RARITY_DOT, Footprint, SlotIcon, cx } from './hud';
 import { implantStats, passiveText, conditionText, stimInfo, rangeText, effectsText, defendText, nameOf } from './itemText';
 import { augmentKind } from '@/lib/combat/types';
-import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf, canSplice } from '@/lib/combat/augments';
+import { actionForItem, structureOf, healthCostOf, makerOf, MAKER_INFO, partsText, quirkOf, canSplice, type Maker } from '@/lib/combat/augments';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { withClass } from '@/lib/engine/firmware';
@@ -201,7 +201,7 @@ function ImplantRow({ item, action, startOpen = false }: { item: Item; action: R
 }
 
 export function Inventory() {
-  const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses, spliced, spliceIn, unsplice } = useInventory();
+  const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses, spliced, spliceIn, unsplice, seen, markSeen } = useInventory();
   // Splice firmware: passive slots can hold a second, compatible implant
   const splicing = useCombat(st => st.playerClass === 'splice');
   const spliceLevel = useFirmware(st => st.level('splice'));
@@ -218,7 +218,28 @@ export function Inventory() {
   const tree = getTreeStatBonuses(equippedSlots);
   const augmentations = items.filter(i => i.type === 'augmentation');
   const consumables = items.filter(i => i.type === 'consumable');
-  const shown = filter ? augmentations.filter(i => i.slot === filter) : augmentations;
+  // New implants (not yet seen here) have their own tab; once seen they join the spares, which can be filtered
+  const fresh = augmentations.filter(i => !seen.includes(i.id));
+  const spares = augmentations.filter(i => seen.includes(i.id));
+  const [tab, setTab] = useState<'new' | 'spare'>(fresh.length ? 'new' : 'spare');
+  const [kind, setKind] = useState<'all' | 'active' | 'passive'>('all');
+  const [maker, setMaker] = useState<Maker | null>(null);
+  const [rarity, setRarity] = useState<Item['rarity'] | null>(null);
+  const [sort, setSort] = useState<'newest' | 'rarest'>('newest');
+  // What was new counts as seen once you leave the page, or go to the spares
+  const freshIds = useRef<string[]>([]);
+  freshIds.current = fresh.map(i => i.id);
+  useEffect(() => () => useInventory.getState().markSeen(freshIds.current), []);
+  const showSpares = () => { markSeen(freshIds.current); setTab('spare'); };
+  const RANK = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
+  const bySlot = (list: Item[]) => (filter ? list.filter(i => i.slot === filter) : list);
+  const shown = tab === 'new' ? bySlot(fresh).slice().reverse() : (() => {
+    const list = bySlot(spares).filter(i => (kind === 'all' || (i.slot && augmentKind(i.slot) === kind)) && (!maker || makerOf(i) === maker) && (!rarity || i.rarity === rarity));
+    return sort === 'rarest' ? [...list].sort((a, b) => RANK.indexOf(a.rarity) - RANK.indexOf(b.rarity)) : [...list].reverse();
+  })();
+  const makersHere = Array.from(new Set(spares.map(makerOf)));
+  const raritiesHere = RANK.filter(r => spares.some(i => i.rarity === r)) as Item['rarity'][];
+  const chip = (on: boolean) => cx('key shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold', on ? 'key-selected text-white' : 'text-hud-dim');
 
   const install = (item: Item) => {
     equipAugmentation(item);
@@ -256,13 +277,38 @@ export function Inventory() {
       {splicing && <p className="px-1 text-xs text-hud-dim">Spliced pairs: {pairsNow} of {pairLimit}</p>}
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>{filter ? `Spare for ${AUGMENTATION_SLOT_NAMES[filter].toLowerCase()}` : `Spare implants (${augmentations.length})`}</Label>
-          {filter && <button className="text-xs font-semibold text-sys" onClick={() => setFilter(null)}>Show all</button>}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setTab('new')} aria-pressed={tab === 'new'} className={cx('key relative rounded-full px-4 py-2 text-[13px] font-semibold', tab === 'new' ? 'key-selected text-white' : 'text-hud-dim')}>
+            New ({bySlot(fresh).length}){fresh.length > 0 && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-cred" />}
+          </button>
+          <button onClick={showSpares} aria-pressed={tab === 'spare'} className={cx('key rounded-full px-4 py-2 text-[13px] font-semibold', tab === 'spare' ? 'key-selected text-white' : 'text-hud-dim')}>
+            Spare ({bySlot(spares).length})
+          </button>
+          {filter && <button className="ml-auto text-xs font-semibold text-sys" onClick={() => setFilter(null)}>{AUGMENTATION_SLOT_NAMES[filter]} only · show all</button>}
         </div>
+        {tab === 'spare' && spares.length > 0 && (
+          // Narrow the spares down: active or passive, a maker, a rarity; newest or rarest first
+          <div className="space-y-2">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {(['all', 'active', 'passive'] as const).map(k => <button key={k} onClick={() => setKind(k)} className={chip(kind === k)}>{k === 'all' ? 'All' : k === 'active' ? 'Active' : 'Passive'}</button>)}
+              <span className="mx-1 w-px shrink-0 bg-white/10" />
+              {(['newest', 'rarest'] as const).map(k => <button key={k} onClick={() => setSort(k)} className={chip(sort === k)}>{k === 'newest' ? 'Newest' : 'Rarest'}</button>)}
+            </div>
+            {makersHere.length > 1 && (
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                {makersHere.map(m => <button key={m} onClick={() => setMaker(maker === m ? null : m)} className={cx(chip(maker === m), maker !== m && MAKER_INFO[m].tone)}>{MAKER_INFO[m].label}</button>)}
+              </div>
+            )}
+            {raritiesHere.length > 1 && (
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                {raritiesHere.map(r => <button key={r} onClick={() => setRarity(rarity === r ? null : r)} className={cx(chip(rarity === r), rarity !== r && RARITY_TEXT[r])}>{r[0].toUpperCase() + r.slice(1)}</button>)}
+              </div>
+            )}
+          </div>
+        )}
         {shown.length === 0 ? (
           <Card raised className="px-4 py-7 text-center text-sm text-hud-faint">
-            None.
+            {tab === 'new' ? 'Nothing new.' : 'None.'}
           </Card>
         ) : (
           <div className="space-y-2">

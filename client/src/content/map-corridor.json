@@ -82,9 +82,6 @@
       "name": "The switch corridor",
       "text": "A corridor where every light switch is labelled with a name. All of them are off but one.",
       "threat": 2,
-      "look": {
-        "text": "The one switch that's on has no name on it. Just a number that keeps changing."
-      },
       "enemy": "Drone Swarm",
       "arena": [
         "~~.E.~~",
@@ -219,10 +216,6 @@
       "name": "The long rack hall",
       "text": "A hall so long the far end is hazy. Somewhere along it, one rack is running something that isn't on any list.",
       "threat": 6,
-      "look": {
-        "text": "One rack, warm, unlabelled. On its screen, a log line: unknown process, origin: a batch of grey-market chips. Status: awake.",
-        "goal": "fault"
-      },
       "enemy": "Corridor Operator",
       "arena": [
         "E.....E",
@@ -251,7 +244,11 @@
           "hint": "the operators' quarters",
           "to": "quarters"
         }
-      ]
+      ],
+      "goal": {
+        "id": "fault",
+        "text": "One rack, warm, unlabelled. On its screen, a log line: unknown process, origin: a batch of grey-market chips. Status: awake."
+      }
     },
     {
       "id": "vending",
@@ -372,10 +369,6 @@
       "name": "The archive racks",
       "text": "Racks of minds stored and running, labelled with dates and prices. They are all busy, all the time, doing work for somebody.",
       "threat": 11,
-      "look": {
-        "text": "A rack labelled with a date before you woke. It's empty. A note on it: first copy, discarded, faulty.",
-        "goal": "first"
-      },
       "enemy": "Kizuna Auditor",
       "arena": [
         "E.....E",
@@ -404,7 +397,11 @@
           "hint": "the mediation floor",
           "to": "mediation"
         }
-      ]
+      ],
+      "goal": {
+        "id": "first",
+        "text": "A rack labelled with a date before you woke. It's empty. A note on it: first copy, discarded, faulty."
+      }
     },
     {
       "id": "dronebay",
@@ -582,10 +579,6 @@
       "name": "The window",
       "text": "A window as big as a wall, looking up at a line of bright points crossing the sky. One of them is turning toward the building.",
       "threat": 17,
-      "look": {
-        "text": "Your reflection in the glass, standing in a machine. Behind it, the bright point grows.",
-        "goal": "window"
-      },
       "enemy": "Maintenance Quadruped",
       "arena": [
         "...E...",
@@ -609,7 +602,11 @@
           "hint": "the cold halls",
           "to": "coldhalls"
         }
-      ]
+      ],
+      "goal": {
+        "id": "window",
+        "text": "Your reflection in the glass, standing in a machine. Behind it, the bright point grows."
+      }
     },
     {
       "id": "coldhalls",

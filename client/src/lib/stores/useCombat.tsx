@@ -166,6 +166,10 @@ holdfastSpent: boolean;
 strip: Strip | null;
 /** Take one implant off a body (while picks are left). */
 takePart: (itemId: string) => void;
+/** Put a taken part back on the body (it's still yours to choose until you leave). */
+returnPart: (itemId: string) => void;
+/** Take the best parts left, up to the picks (the simulator's quick choice; the win screen leaves it to you). */
+takeBestParts: () => void;
 /** What the enemy said when it saw you, and what the signal noticed (shown at the start of a fight). */
 fightIntro: { speaker: string; color: string; line: string | null; note: string | null } | null;
 dismissIntro: () => void;
@@ -206,12 +210,11 @@ const eq = useInventory.getState().equippedAugmentations;
 return (Object.keys(eq) as AugmentationSlot[]).filter(s => eq[s] !== null);
 }
 
-/** The gun's magazine at the start of a fight: full (with any extra rounds from its tree). */
+/** The gun's magazine at the start of a fight: full. */
 function gunAtStart(): { gunAmmo?: number; gunMag?: number } {
 const w = useInventory.getState().equippedWeapon;
 if (!w?.gunParts) return { gunAmmo: undefined, gunMag: undefined };
-const tree = nodesOf(gunItem(w));
-const mag = magazineOf(w, tree ? effectIn(tree, useAugmentTrees.getState().owned[w.id] ?? []) : {});
+const mag = magazineOf(w);
 return { gunAmmo: mag, gunMag: mag };
 }
 
@@ -1042,13 +1045,27 @@ set({ strip: { ...st, taken: [...st.taken, itemId] } });
 useAudio.getState().play('cache');
 },
 
+returnPart: (itemId) => {
+const st = get().strip;
+if (!st || !st.taken.includes(itemId) || !useInventory.getState().items.some(i => i.id === itemId)) return;
+useInventory.getState().removeItem(itemId);
+useRunStats.getState().add({ partsTaken: -1 });
+set({ strip: { ...st, taken: st.taken.filter(id => id !== itemId) } });
+},
+
+takeBestParts: () => {
+const st = get().strip;
+if (!st) return;
+const order = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
+const left = () => st.bodies.flatMap(b => b.items).filter(i => !get().strip!.taken.includes(i.id));
+while (get().strip!.taken.length < st.picks && left().length) get().takePart(left().sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity))[0].id);
+},
+
 continueFromVictory: () => {
-// Leaving without choosing takes the best part for you; the rest are scrapped for credits
+// Leaving takes nothing more: what wasn't taken is scrapped for credits
 const st = get().strip;
 if (st) {
-  const order = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
   const left = () => st.bodies.flatMap(b => b.items).filter(i => !get().strip!.taken.includes(i.id));
-  while (get().strip!.taken.length < st.picks && left().length) get().takePart(left().sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity))[0].id);
   const scrap = scrapValue(left());
   if (scrap) useInventory.getState().addGold(scrap);
   set({ strip: null });

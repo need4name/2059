@@ -1189,16 +1189,21 @@ test('a shot spends a round and no heat; an empty gun cannot fire; any turn you 
   assert.equal(Fight.reloadGun(s).gunAmmo, 2);
 });
 
-test('the gun rack restocks only when its key changes (a new host or a server rest), so fights cannot cycle it', async () => {
+test('the gun rack restocks when its key changes (every won fight, every new host), and a gun never grows', async () => {
   const { useMarket } = await import('../client/src/lib/stores/useMarket');
+  const { gunMove } = await import('../client/src/lib/stores/useAugmentTrees');
+  const { gunAction } = await import('../client/src/lib/combat/guns');
   useMarket.getState().reset();
   useMarket.getState().ensureGuns('0-0', 5);
   const first = useMarket.getState().guns.map(g => g.id);
   assert.equal(first.length, 3);
   useMarket.getState().ensureGuns('0-0', 6);
-  assert.deepEqual(useMarket.getState().guns.map(g => g.id), first, 'another fight, the same rack');
+  assert.deepEqual(useMarket.getState().guns.map(g => g.id), first, 'the same key, the same rack');
   useMarket.getState().ensureGuns('0-1', 6);
-  assert.notDeepEqual(useMarket.getState().guns.map(g => g.id), first, 'a rest restocks it');
+  assert.notDeepEqual(useMarket.getState().guns.map(g => g.id), first, 'a won fight restocks it');
+  // Fixed as rolled: the move the store hands out is the rolled one, nothing added
+  const g = useMarket.getState().guns[0];
+  assert.deepEqual(gunMove(g), gunAction(g));
 });
 
 // ── Physical and special ─────────────────────────────────────────────────────

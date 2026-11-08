@@ -13,7 +13,7 @@ import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, playerClass } = useCombat();
+  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, returnPart, playerClass } = useCombat();
   const items = currentLoot?.items ?? [];
   const picksLeft = strip ? strip.picks - strip.taken.length : 0;
   const scrap = strip ? scrapValue(strip.bodies.flatMap(b => b.items).filter(i => !strip.taken.includes(i.id))) : 0;
@@ -26,29 +26,18 @@ export function VictoryScreen() {
   const endings = chapterMap().endings;
   const [chosen, setChosen] = useState<number | null>(null);
   const hosts = useCombat(s => s.progression.deathCount) + 1;
-  const looks = chapterMap().rooms.filter(r => r.look);
   const chapterAllies = chapterMap().rooms.flatMap(r => (r.ally ? [r.ally] : []));
-  // Salvage: tap a part to pick it, then the button below takes it
-  const [picked, setPicked] = useState<string | null>(null);
-  const pickedItem = strip?.bodies.flatMap(b => b.items).find(i => i.id === picked) ?? null;
-  const take = () => { if (picked) { takePart(picked); setPicked(null); } };
+  // Salvage: the + takes a part at once; tap it again to put it back. Whatever isn't taken is scrap.
 
   return (
     <Screen footer={
-      picksLeft > 0 ? (
-        <div className="space-y-2">
-          <Btn variant="gold" size="lg" className="w-full truncate" disabled={!pickedItem} onClick={take}>
-            <Glyph name="implant" size={18} />{pickedItem ? `Take ${nameOf(pickedItem)}` : 'Tap a part'}
-          </Btn>
-          <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Choose for me</button>
-        </div>
-      ) : ended && onward ? (
+      ended && onward ? (
         <div className="space-y-2">
           <Btn variant="primary" size="lg" className="w-full" onClick={() => { continueFromVictory(); goToNextChapter(); }}>Go on</Btn>
           <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Stay here a while</button>
         </div>
       ) : (
-        <Btn variant="primary" size="lg" className="w-full" onClick={continueFromVictory}>
+        <Btn variant="primary" size="lg" className="w-full" onClick={() => continueFromVictory()}>
           Go back
         </Btn>
       )
@@ -66,7 +55,6 @@ export function VictoryScreen() {
               {[
                 ['Hosts used', `${hosts}`],
                 ['Places seen', `${map.visited.length} of ${chapterMap().rooms.length}`],
-                ['Things looked at', `${looks.filter(r => map.looked.includes(r.id)).length} of ${looks.length}`],
                 ...(chapterAllies.length ? [['Allies linked', `${chapterAllies.filter(id => met.includes(id)).length} of ${chapterAllies.length}`]] : []),
               ].map(([k, v]) => (
                 <div key={k} className="rounded-2xl bg-black/20 px-3 py-2.5">
@@ -118,11 +106,12 @@ export function VictoryScreen() {
                 <div className="grid grid-cols-1 gap-2">
                   {b.items.map(item => {
                     const taken = strip.taken.includes(item.id), gone = !taken && picksLeft === 0;
+                    const toggle = () => (taken ? returnPart(item.id) : takePart(item.id));
                     const move = actionForItem(item);
                     const parts = partsText(item);
                     return (
-                      <button key={item.id} disabled={taken || gone} onClick={() => setPicked(picked === item.id ? null : item.id)} aria-pressed={picked === item.id || taken}
-                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-sys/70' : picked === item.id ? 'ring-2 ring-cred' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
+                      <button key={item.id} disabled={gone} onClick={toggle} aria-pressed={taken}
+                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-cred' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
                           <span className={cx('block break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
@@ -131,9 +120,9 @@ export function VictoryScreen() {
                           {quirkOf(item) && <span className="block truncate text-[11px] font-semibold text-cred">{quirkOf(item)}</span>}
                         </span>
                         {move?.type === 'attack' && <Footprint action={move} cell={5} className="shrink-0" />}
-                        {taken ? <Chip tone="sys">Taken</Chip> : !gone && (
-                          <span className={cx('key flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-bold', picked === item.id ? 'key-gold text-[#1a1003]' : 'text-cred', !picked && 'animate-pulse')} aria-hidden>
-                            {picked === item.id ? '✓' : '+'}
+                        {!gone && (
+                          <span className={cx('key flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-bold', taken ? 'key-gold text-[#1a1003]' : 'text-cred animate-pulse')} aria-hidden>
+                            {taken ? '✓' : '+'}
                           </span>
                         )}
                       </button>

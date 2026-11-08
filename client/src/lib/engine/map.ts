@@ -11,8 +11,9 @@ import corridorMap from '../../content/map-corridor.json';
 import { activeChapter, chapterById } from '../combat/chapters';
 
 export interface Exit { dir: string; label?: string; hint: string; to: string; requires?: 'goals' }
-export interface Look { text: string; goal?: string }
-export interface Room { id: string; /** Where the room is drawn on the map (grid cell). */ at: [number, number]; name: string; text: string; threat?: number; market?: boolean; look?: Look; ally?: string; cache?: boolean; /** A boss's room: once the boss is beaten it stays down for every host, and this server (what you see of it) wakes up: later hosts can wake here, a host can rest, and the boss can be called back. */ server?: string; /** A room event (content/events.json), there once the fight is won. */ event?: string; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
+/** One of the chapter's hidden goals: found when its room is clear, and then its text shows in the room. */
+export interface Goal { id: string; text: string }
+export interface Room { id: string; /** Where the room is drawn on the map (grid cell). */ at: [number, number]; name: string; text: string; threat?: number; market?: boolean; goal?: Goal; ally?: string; cache?: boolean; /** A boss's room: once the boss is beaten it stays down for every host, and this server (what you see of it) wakes up: later hosts can wake here, a host can rest, and the boss can be called back. */ server?: string; /** A room event (content/events.json), there once the fight is won. */ event?: string; enemy?: string; quiet?: string; arena?: string[]; tileset?: string; exits: Exit[] }
 /** A choice at the end of the last chapter, and what it leads to. */
 export interface Ending { choice: string; text: string }
 export interface ChapterMap { chapter: string; title: string; entry: string; end: string; ending: string; endTitle?: string; endings?: Ending[]; goals: string[]; rooms: Room[] }
@@ -40,8 +41,6 @@ export interface MapState {
   visited: string[];
   /** Hidden goals found (kept across hosts). */
   goals: string[];
-  /** Things looked at (kept across hosts). */
-  looked: string[];
   /** Supply caches already searched by this host. */
   taken: string[];
   /** The chapter's last fight is won (kept across hosts; the end room stays quiet). */
@@ -70,7 +69,7 @@ export interface MapState {
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], looked: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], taken: [], done: false, fell: [], corpse: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -100,8 +99,8 @@ export function go(s: MapState, exitIndex: number): MapState {
   const exit = room.exits[exitIndex];
   if (!exit || exitState(s, exit) !== 'open') return s;
   const lit = s.lit ?? [];
-  return { ...s, room: exit.to, cameFrom: room.id, visited: s.visited.includes(exit.to) ? s.visited : [...s.visited, exit.to],
-    lit: isServer(s, roomById(exit.to)) && !lit.includes(exit.to) ? [...lit, exit.to] : lit };
+  return findGoal({ ...s, room: exit.to, cameFrom: room.id, visited: s.visited.includes(exit.to) ? s.visited : [...s.visited, exit.to],
+    lit: isServer(s, roomById(exit.to)) && !lit.includes(exit.to) ? [...lit, exit.to] : lit });
 }
 
 /** Rooms a new host can wake in: the chapter's entry, then every server reached, in the order found. */
@@ -124,23 +123,24 @@ export const hurtAfterWin = (hp: number, max: number) => Math.max(0, max - hp - 
 /** The health a host starts its next fight on. */
 export const healthNow = (s: MapState, max: number) => Math.max(1, max - (s.hurt ?? 0));
 
+/** A goal in this room is found once nothing here is fighting you (no looking needed). */
+export function findGoal(s: MapState): MapState {
+  const room = roomById(s.room);
+  return room.goal && !hasFight(s, room) && !s.goals.includes(room.goal.id) ? { ...s, goals: [...s.goals, room.goal.id] } : s;
+}
+/** The goal found here just now (between two states), if any. */
+export const goalFound = (before: MapState, after: MapState): Goal | null => {
+  const g = roomById(after.room).goal;
+  return g && after.goals.includes(g.id) && !before.goals.includes(g.id) ? g : null;
+};
+
 export const clearRoom = (s: MapState): MapState => {
   if (s.cleared.includes(s.room)) return s;
-  const next = { ...s, cleared: [...s.cleared, s.room] };
+  const next = findGoal({ ...s, cleared: [...s.cleared, s.room] });
   // A boss beaten for the first time stays down, and its server wakes (a place to wake, rest and call it back)
   if (!roomById(s.room).server || (s.beaten ?? []).includes(s.room)) return next;
   return { ...next, beaten: [...(s.beaten ?? []), s.room], lit: [...(s.lit ?? []).filter(id => id !== s.room), s.room] };
 };
-
-/** Look at the thing in the room. Returns the new state and whether it was a goal found just now. */
-export function look(s: MapState): { state: MapState; found: string | null } {
-  const room = roomById(s.room);
-  if (!room.look || hasFight(s)) return { state: s, found: null };
-  const looked = s.looked.includes(room.id) ? s.looked : [...s.looked, room.id];
-  const goal = room.look.goal;
-  const found = goal && !s.goals.includes(goal) ? goal : null;
-  return { state: { ...s, looked, goals: found ? [...s.goals, found] : s.goals }, found };
-}
 
 /** A supply cache this host can still search (once the room is clear). */
 export const cacheReady = (s: MapState, room = roomById(s.room)) => !!room.cache && !hasFight(s, room) && !(s.taken ?? []).includes(room.id);
@@ -164,9 +164,9 @@ export function takeCorpse(s: MapState): { state: MapState; item: Item | null } 
 /**
  * The one thing a found room shows on the map, most pressing first: a fight still
  * waiting for this host (boss, elite or regular), someone to link with, a cache to
- * search, someone with an offer (an event this host hasn't used), something not yet looked at, a server, the Grey Lane, or a fight already won.
+ * search, someone with an offer (an event this host hasn't used), a server, the Grey Lane, or a fight already won.
  */
-export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'event' | 'look' | 'server' | 'market' | 'cleared';
+export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'event' | 'server' | 'market' | 'cleared';
 /** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
 export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
 
@@ -175,7 +175,6 @@ export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark 
   if (room.ally && !met.includes(room.ally)) return 'ally';
   if (cacheReady(s, room)) return 'cache';
   if (room.event && !(s.spent ?? []).includes(room.id)) return 'event';
-  if (room.look && !s.looked.includes(room.id)) return 'look';
   if (isServer(s, room)) return 'server';
   if (room.market) return 'market';
   if (room.threat !== undefined) return 'cleared';

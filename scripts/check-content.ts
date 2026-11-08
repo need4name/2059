@@ -133,7 +133,7 @@ const mapFile = z.object({
     id: z.string().regex(/^[a-z0-9]+$/), at: z.tuple([z.number().int().min(0).max(40), z.number().int().min(0).max(40)]), name: text, text: z.string().trim().min(1).max(260),
     threat: z.number().int().min(1).max(200).optional(), market: z.boolean().optional(),
     tileset: z.string().regex(/^[a-z-]+$/).optional(),
-    look: z.object({ text: z.string().trim().min(1).max(200), goal: text.optional() }).strict().optional(),
+    goal: z.object({ id: text, text: z.string().trim().min(1).max(200) }).strict().optional(),
     ally: text.optional(), cache: z.boolean().optional(), server: z.string().trim().min(1).max(260).optional(), event: z.string().regex(/^[a-z]+$/).optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
@@ -405,13 +405,13 @@ export function checkContent(): string[] {
       if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);
       // A way back must be the opposite way: up comes back down, north comes back south
       for (const e of r.exits) for (const b of m.rooms.find(x => x.id === e.to)?.exits ?? []) if (b.to === r.id && b.dir !== OPPOSITE[e.dir]) problems.push(`map ${r.id}: goes ${e.dir} to ${e.to}, but the way back is ${b.dir} (should be ${OPPOSITE[e.dir]})`);
-      if (r.look?.goal && !m.goals.includes(r.look.goal)) problems.push(`map ${r.id}: goal "${r.look.goal}" isn't one of the chapter's goals`);
+      if (r.goal && !m.goals.includes(r.goal.id)) problems.push(`map ${r.id}: goal "${r.goal.id}" isn't one of the chapter's goals`);
     }
     const allyIds = (allies as { allies: { id: string }[] }).allies.map(a => a.id);
     for (const r of m.rooms) if (r.ally && !allyIds.includes(r.ally)) problems.push(`map ${r.id}: ally "${r.ally}" isn't in allies.json`);
     for (const r of m.rooms) if (r.ally) allyRooms[r.ally] = (allyRooms[r.ally] ?? 0) + 1;
     for (const g of m.goals) {
-      const n = m.rooms.filter(r => r.look?.goal === g).length;
+      const n = m.rooms.filter(r => r.goal?.id === g).length;
       if (n !== 1) problems.push(`map: goal "${g}" should be in exactly one room (found ${n})`);
     }
     const seen = new Set([m.entry]); const queue = [m.entry];

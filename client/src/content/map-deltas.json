@@ -1,5 +1,5 @@
 {
-  "about": "Chapter two's hidden map, the drowned deltas. Same rules as chapter one's map (see map-indian-ocean.json): threat, enemy, look/goal, cache, ally, market, quiet, arena. In arenas 'm' is a mud flat that floods at high tide.",
+  "about": "Chapter two's hidden map, the drowned deltas. Same rules as chapter one's map (see map-indian-ocean.json): threat, enemy, goal, cache, ally, market, quiet, arena. In arenas 'm' is a mud flat that floods at high tide.",
   "chapter": "deltas",
   "title": "Chapter two: the Drowned Deltas",
   "entry": "landing",
@@ -37,9 +37,6 @@
       "name": "The shallows",
       "text": "Water the colour of tea over mud that holds your feet a moment too long. Footprints lead out ahead of you, already filling.",
       "threat": 1,
-      "look": {
-        "text": "The footprints are your size. They go the way you were about to go."
-      },
       "enemy": "Silt Diver",
       "arena": [
         "...E...",
@@ -107,9 +104,6 @@
       "name": "Stilt houses",
       "text": "Houses on legs, the ladders pulled up. Every doorway has a strip of tape across it with a number written on it.",
       "threat": 3,
-      "look": {
-        "text": "The numbers on the tape count down from door to door. The last house has no number at all."
-      },
       "enemy": "Hull-Bound Deckhand",
       "arena": [
         "E.....E",
@@ -141,9 +135,6 @@
       "name": "The drowned school",
       "text": "A school roof just above the waterline, desks floating in the classroom below. The bell still rings when the current takes it.",
       "threat": 3,
-      "look": {
-        "text": "A register on the teacher's desk. Every child is marked present, in the same handwriting, on every day."
-      },
       "enemy": "Silt Diver",
       "arena": [
         "...E...",
@@ -230,10 +221,6 @@
       "name": "The scan post",
       "text": "A tower on a raft, its light sweeping the water in slow circles. Where it passes, the water goes very still.",
       "threat": 5,
-      "look": {
-        "text": "A stamp left on the counter, still inked. The mark it makes is a little picture of you.",
-        "goal": "stamp"
-      },
       "arena": [
         "...E...",
         ".......",
@@ -261,7 +248,11 @@
           "hint": "a queue that doesn't move",
           "to": "queue"
         }
-      ]
+      ],
+      "goal": {
+        "id": "stamp",
+        "text": "A stamp left on the counter, still inked. The mark it makes is a little picture of you."
+      }
     },
     {
       "id": "mudflats",
@@ -301,9 +292,6 @@
       "name": "The pylons",
       "text": "Power pylons standing in the water, cables hanging down into it. The hum gets into your teeth.",
       "threat": 7,
-      "look": {
-        "text": "A cable has been cut and tied in a knot, very neatly. Someone wanted it quiet."
-      },
       "enemy": "Checkpoint Scanner",
       "arena": [
         "..E....",
@@ -335,9 +323,6 @@
       "name": "The queue",
       "text": "People standing in water to the waist, in a line that goes back further than you can see. Nobody moves when the light passes, and nobody turns to look at you.",
       "threat": 8,
-      "look": {
-        "text": "Someone near the front has your face. They step forward when the light comes, and so do you."
-      },
       "ally": "tally",
       "enemy": "The Recurring",
       "arena": [
@@ -414,10 +399,6 @@
       "text": "A pool so calm it is a mirror, in the middle of the moving river. Something is standing at the far side, already looking at you.",
       "quiet": "The pool is a mirror again, and nothing stands on the far side. Your reflection takes a moment to follow you.",
       "threat": 10,
-      "look": {
-        "text": "Your reflection is a moment late. When it catches up, it's smiling.",
-        "goal": "mirror"
-      },
       "arena": [
         "...E...",
         ".......",
@@ -445,7 +426,11 @@
           "hint": "a dry dock, hammering",
           "to": "drydock"
         }
-      ]
+      ],
+      "goal": {
+        "id": "mirror",
+        "text": "Your reflection is a moment late. When it catches up, it's smiling."
+      }
     },
     {
       "id": "channel",
@@ -484,9 +469,6 @@
       "name": "The dry dock",
       "text": "A ship hauled out of the water and opened up like a patient. The hammering stops when you come in and starts again behind you.",
       "threat": 12,
-      "look": {
-        "text": "Inside the hull, bunks bolted to the ribs. The bunks have restraints, and the restraints have been used."
-      },
       "enemy": "Hull-Bound Deckhand",
       "arena": [
         "..E....",
@@ -560,10 +542,6 @@
       "name": "Record barge",
       "text": "A barge stacked to the rails with sealed cases. The cases are warm, and some of them are humming.",
       "threat": 14,
-      "look": {
-        "text": "One case is open. Inside, a chip on a bed of foam, and a label in clean handwriting: yours, second copy.",
-        "goal": "case"
-      },
       "enemy": "Record Courier",
       "arena": [
         "...E...",
@@ -587,7 +565,11 @@
           "hint": "the checkpoint gates",
           "to": "checkpoint"
         }
-      ]
+      ],
+      "goal": {
+        "id": "case",
+        "text": "One case is open. Inside, a chip on a bed of foam, and a label in clean handwriting: yours, second copy."
+      }
     },
     {
       "id": "checkpoint",
@@ -667,9 +649,6 @@
       "name": "The wrecks",
       "text": "Boats sunk on top of boats until the pile breaks the surface. You can walk across it, if you don't look down.",
       "threat": 17,
-      "look": {
-        "text": "A name painted on a hull, scraped off, painted on again, many times. Never the same name."
-      },
       "enemy": "SALV Boarder",
       "arena": [
         "..E....",
@@ -800,9 +779,6 @@
       "name": "The boat graveyard",
       "text": "Hulls beached in rows like bodies on a shore. Each one has a light left burning in its wheelhouse.",
       "threat": 21,
-      "look": {
-        "text": "In every wheelhouse, the same photograph, taped to the glass. You don't recognise anyone in it, which is somehow worse."
-      },
       "enemy": "The Recurring",
       "arena": [
         "E.....E",
@@ -838,9 +814,6 @@
       "at": [6, 8],
       "name": "The drowned clinic",
       "text": "A clinic on stilts, its beds still made, its trays still laid. Someone has been working here recently, on someone.",
-      "look": {
-        "text": "A tray of chips in numbered slots. One slot is empty, and the number is one you know."
-      },
       "cache": true,
       "exits": [
         {
@@ -887,9 +860,6 @@
       "name": "The archives",
       "text": "A warehouse on a hill, the only dry place for miles, full of paper. Every folder has the same thing in it: a scan of a skull, and a little light at the back.",
       "threat": 23,
-      "look": {
-        "text": "Your folder is thick. The first page is dated before you woke."
-      },
       "cache": true,
       "enemy": "Record Courier",
       "arena": [
@@ -983,9 +953,6 @@
       "name": "The causeway",
       "text": "A raised road across the water, built from something that gives a little underfoot. Don't think about it.",
       "threat": 26,
-      "look": {
-        "text": "Hands, here and there, holding the road together. One of them is holding a stamp."
-      },
       "enemy": "The Recurring",
       "arena": [
         "~~.E.~~",
@@ -1017,9 +984,6 @@
       "name": "The racks",
       "text": "Racks of small lights in the dark, one for every body that ever passed the checkpoint. A few of them are flickering in time with you.",
       "threat": 28,
-      "look": {
-        "text": "Three of the lights are yours. You can tell which one is the oldest; it's the one that's still."
-      },
       "enemy": "CBN Extraction Surgeon",
       "arena": [
         "E..E..E",

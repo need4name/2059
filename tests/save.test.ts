@@ -102,3 +102,15 @@ test('a save from before chapter one ended at the King: hosts past him come back
   mem.set(SAVE_KEY, JSON.stringify(map({ chapter: 'deltas', room: 'landing', cleared: ['x'] })));
   assert.deepEqual(JSON.parse(readSave().parts['2059-map']).state.cleared, ['x']);
 });
+
+test('a save from before guns stopped growing gives back the points spent on a gun, and forgets what was looked at', () => {
+  const inv = { state: { ownedWeapons: [{ id: 'g1', gunParts: { barrel: 'stock', round: 'slug', mods: [] } }], equippedWeapon: null }, version: 1 };
+  const trees = { state: { owned: { g1: ['a', 'b'], arm1: ['c'] }, availablePoints: 1, wins: 0 }, version: 0 };
+  const map = { state: { chapter: 'deltas', room: 'landing', looked: ['x'], cleared: [] }, version: 2 };
+  mem.set(SAVE_KEY, JSON.stringify({ game: '2059', version: 17, savedAt: '', parts: { '2059-inventory': JSON.stringify(inv), '2059-trees': JSON.stringify(trees), '2059-map': JSON.stringify(map) } }));
+  const save = readSave();
+  const t = JSON.parse(save.parts['2059-trees']).state;
+  assert.deepEqual(Object.keys(t.owned), ['arm1']);
+  assert.ok(t.availablePoints >= 3, 'two steps of a gun tree come back');
+  assert.equal(JSON.parse(save.parts['2059-map']).state.looked, undefined);
+});

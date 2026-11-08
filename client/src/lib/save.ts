@@ -4,12 +4,13 @@
 import type { StateStorage } from 'zustand/middleware';
 import { alliesUnlockedBy } from './combat/allies';
 import { dailyDay, DAILY_SAVE_KEY } from './daily';
+import upgrades from '../content/upgrades.json';
 
 export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -135,7 +136,32 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: next }) } };
     } catch { return save; }
   },
+  // 17 -> 18: nothing is looked at any more (goals are found by clearing their rooms): the map forgets what was looked at
+  // ...guns don't grow any more: points spent on a gun's tree come back; and implants already held count as seen
+  17: (save) => {
+    let out = save;
+    const raw = save.parts['2059-map'];
+    if (raw) try { const part = JSON.parse(raw); const { looked: _gone, ...st } = part.state ?? {}; out = { ...out, parts: { ...out.parts, '2059-map': JSON.stringify({ ...part, state: st }) } }; } catch { /* keep it */ }
+    // Implants an old save already holds count as seen (only what comes after is new)
+    if (out.parts['2059-inventory']) try {
+      const part = JSON.parse(out.parts['2059-inventory']); const st = part.state ?? {};
+      out = { ...out, parts: { ...out.parts, '2059-inventory': JSON.stringify({ ...part, state: { ...st, seen: (st.items ?? []).map((i: { id: string }) => i.id) } }) } };
+    } catch { /* keep it */ }
+    const inv = out.parts['2059-inventory'], trees = out.parts['2059-trees'];
+    if (inv && trees) try {
+      const i = JSON.parse(inv).state ?? {}, t = JSON.parse(trees);
+      const guns = new Set([...(i.ownedWeapons ?? []), ...(i.equippedWeapon ? [i.equippedWeapon] : [])].filter((w: { gunParts?: unknown }) => w.gunParts).map((w: { id: string }) => w.id));
+      const owned = { ...(t.state?.owned ?? {}) } as Record<string, string[]>;
+      let back = 0;
+      for (const id of Object.keys(owned)) if (guns.has(id)) { back += owned[id].reduce((n, _x, k) => n + (GUN_TREE_COSTS[Math.min(GUN_TREE_COSTS.length - 1, k)] ?? 1), 0); delete owned[id]; }
+      if (back) out = { ...out, parts: { ...out.parts, '2059-trees': JSON.stringify({ ...t, state: { ...t.state, owned, availablePoints: (t.state?.availablePoints ?? 0) + back } }) } };
+    } catch { /* keep it */ }
+    return out;
+  },
 };
+
+/** What each step down an upgrade tree cost (content/upgrades.json `costs`), for giving gun points back (save step 17). */
+const GUN_TREE_COSTS: number[] = (upgrades as { costs: number[] }).costs;
 
 /** Chapter one's rooms since it ends at the King (save step 16). */
 const CHAPTER_ONE_ROOMS = ['dock', 'deck', 'bottles', 'walkway', 'shacks', 'stall', 'hull', 'bilge', 'pumps', 'weigh', 'lanes', 'barge', 'cables', 'nets', 'generator', 'approach', 'throne'];

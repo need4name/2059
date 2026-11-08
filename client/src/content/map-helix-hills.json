@@ -17,9 +17,6 @@
       "at": [1, 16],
       "name": "Pod 4471",
       "text": "A pod with its lid up and the gel still warm. The body in it is yours now, and the body is dreaming.",
-      "look": {
-        "text": "A number on the lid: 4471. Someone has scratched a second number beside it, and crossed it out."
-      },
       "exits": [
         {
           "dir": "out",
@@ -70,9 +67,6 @@
       "name": "Nurses' station",
       "text": "A desk with a kettle, a rota and a screen of numbers counting down. The chair is still turning.",
       "threat": 2,
-      "look": {
-        "text": "The rota has everyone's name on it, and one line at the bottom in different ink: whoever is in 4471."
-      },
       "enemy": "Continuation Officer",
       "arena": [
         "..E....",
@@ -123,9 +117,6 @@
       "name": "Terminal corridor",
       "text": "Terminals along both walls, one number on each, all ticking down at the same rate. Nobody reads them.",
       "threat": 3,
-      "look": {
-        "text": "The numbers aren't time. They go up when a sleeper dreams hard, and down when they don't. Yours isn't on any of them."
-      },
       "enemy": "Kizuna Auditor",
       "arena": [
         "E.....E",
@@ -193,10 +184,6 @@
       "name": "The count room",
       "text": "A tally board as big as a wall, filled in by hand. The last line has been rubbed out and rewritten so many times the board shows through.",
       "threat": 4,
-      "look": {
-        "text": "Eleven thousand five hundred. Then, in a different hand: one over.",
-        "goal": "sheet"
-      },
       "enemy": "Academy Graduate",
       "arena": [
         "E.....E",
@@ -225,7 +212,11 @@
           "hint": "the first ward",
           "to": "sisterward"
         }
-      ]
+      ],
+      "goal": {
+        "id": "sheet",
+        "text": "Eleven thousand five hundred. Then, in a different hand: one over."
+      }
     },
     {
       "id": "sisterward",
@@ -263,9 +254,6 @@
       "name": "The long dark ward",
       "text": "A ward where half the pod lights have failed. In the dark ones you can hear breathing, slow and even.",
       "threat": 6,
-      "look": {
-        "text": "A pod open and empty, the lattice cut out of the gel in a neat square. The square is still warm."
-      },
       "cache": true,
       "enemy": "Kizuna Auditor",
       "arena": [
@@ -399,9 +387,6 @@
       "text": "One pod alone in a round room, cables running into it from every wall. Inside it, someone is dreaming of the sea.",
       "quiet": "The pod in the round room has gone dark. The cables still run into it from every wall.",
       "threat": 10,
-      "look": {
-        "text": "On the pod's glass, condensation in the shape of a raft, and a throne, and a crown."
-      },
       "tileset": "indian-ocean",
       "arena": [
         "ppp.E.ppp",
@@ -521,9 +506,6 @@
       "name": "The Academy",
       "text": "A white building where training takes twenty minutes and the students come out certain. The corridors are full of them, all walking in step.",
       "threat": 13,
-      "look": {
-        "text": "A list of graduates on the wall. Every name has a date beside it, and every date is today."
-      },
       "enemy": "Academy Graduate",
       "arena": [
         "...E...",
@@ -648,10 +630,6 @@
       "name": "The archive",
       "text": "Files on every sleeper, back to the first. The drawers are labelled by number, not name.",
       "threat": 16,
-      "look": {
-        "text": "A file for 4471, and in it a second file, much thinner, for whatever is in 4471 now. Date of birth: blank.",
-        "goal": "file"
-      },
       "enemy": "Kizuna Auditor",
       "arena": [
         "E.....E",
@@ -680,7 +658,11 @@
           "hint": "the pumping house",
           "to": "pumphouse"
         }
-      ]
+      ],
+      "goal": {
+        "id": "file",
+        "text": "A file for 4471, and in it a second file, much thinner, for whatever is in 4471 now. Date of birth: blank."
+      }
     },
     {
       "id": "pumphouse",
@@ -719,9 +701,6 @@
       "name": "Town square",
       "text": "A square with a fountain, a bench and a statue of a man holding a light to the sky. The fountain's water is warm.",
       "threat": 18,
-      "look": {
-        "text": "On the statue's plinth, the town's motto, worn smooth by hands: we keep them so they keep us."
-      },
       "enemy": "Continuation Officer",
       "arena": [
         "E.....E",
@@ -758,10 +737,6 @@
       "at": [5, 5],
       "name": "The chapel",
       "text": "A chapel where the pews face a window onto the wards. People come here to watch the sleepers breathe.",
-      "look": {
-        "text": "A child's photo tucked into a hymn book: a beach, a bucket, a face. You look for it in your own memory and find nothing at all.",
-        "goal": "photo"
-      },
       "cache": true,
       "exits": [
         {
@@ -769,7 +744,11 @@
           "hint": "town square",
           "to": "square"
         }
-      ]
+      ],
+      "goal": {
+        "id": "photo",
+        "text": "A child's photo tucked into a hymn book: a beach, a bucket, a face. You look for it in your own memory and find nothing at all."
+      }
     },
     {
       "id": "office",
@@ -902,9 +881,6 @@
       "name": "The glass house",
       "text": "A house with walls of glass looking down over the wards. The air inside is cool, and it smells of the people below.",
       "threat": 24,
-      "look": {
-        "text": "A thermostat on the wall, set low. A note under it in careful handwriting: thank you, all of you."
-      },
       "enemy": "Sleepwalker",
       "arena": [
         "E.....E",

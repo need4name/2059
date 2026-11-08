@@ -1,5 +1,5 @@
 {
-  "about": "Chapter one's map. The player sees the room they're in, its exits, and a pixel map of the rooms any host has been in. at = where the room is drawn on that map (grid cell; scripts/layout-maps.ts fills in missing ones). threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (the chapter's two bosses: threat 5, and the King on 10, its last room). goal = one of the chapter's three hidden goals, found by looking. requires 'goals' = sealed until all three are found. Keep room text to about two sentences. arena = the fight's board, drawn as text rows: '.' deck, '~' open water, '#' crates, 'd' drums, 'n' nets, 'p' pumps, '?' a loose crate (there half the time), 'f' fuel fire, 'c' live cable, 'b' chemical bilge, 'h' split decking, 'P' your start, 'E' enemy starts (first is the lead).",
+  "about": "Chapter one's map. The player sees the room they're in, its exits, and a pixel map of the rooms any host has been in. at = where the room is drawn on that map (grid cell; scripts/layout-maps.ts fills in missing ones). threat = the fight in the room; enemy = who holds it (regular rooms only; elites and bosses come from their threat) (the chapter's two bosses: threat 5, and the King on 10, its last room). goal = one of the chapter's three hidden goals, found when its room is clear (its text then shows in the room). requires 'goals' = sealed until all three are found. Keep room text to about two sentences. arena = the fight's board, drawn as text rows: '.' deck, '~' open water, '#' crates, 'd' drums, 'n' nets, 'p' pumps, '?' a loose crate (there half the time), 'f' fuel fire, 'c' live cable, 'b' chemical bilge, 'h' split decking, 'P' your start, 'E' enemy starts (first is the lead).",
   "chapter": "indian-ocean",
   "title": "Chapter one: the Indian Ocean",
   "end": "throne",
@@ -49,9 +49,6 @@
           "to": "bottles"
         }
       ],
-      "look": {
-        "text": "A tally scratched into the plastic, counting to something nobody finished."
-      },
       "enemy": "Limbic Cartel Scavenger",
       "arena": [
         "..E....",
@@ -71,9 +68,6 @@
       "name": "Bottle field",
       "threat": 2,
       "text": "Ten thousand bottles netted into a floor that shifts under every step. Some still have messages in them.",
-      "look": {
-        "text": "One note, the ink run: 'If you find this I am already sold.'"
-      },
       "exits": [
         {
           "dir": "west",
@@ -122,9 +116,6 @@
           "to": "shacks"
         }
       ],
-      "look": {
-        "text": "Rope knotted the way sailors do it. Whoever tied it knew the old ways, and is gone."
-      },
       "enemy": "Non-Continuous Raider",
       "arena": [
         "~.E.~",
@@ -146,9 +137,6 @@
       "name": "Tarp shacks",
       "threat": 3,
       "text": "Shacks of blue tarp and bottle walls, doors tied shut from the outside. A pot is still warm on a stove.",
-      "look": {
-        "text": "A child's drawing pinned to a door: a man lying down, and a little light at the back of his neck."
-      },
       "exits": [
         {
           "dir": "west",
@@ -213,9 +201,6 @@
           "to": "pumps"
         }
       ],
-      "look": {
-        "text": "Under the painted face, someone has scratched a smaller one. It has your jaw."
-      },
       "enemy": "Pump-Fleet Cadre",
       "arena": [
         "...E.E...",
@@ -247,9 +232,6 @@
           "to": "pumps"
         }
       ],
-      "look": {
-        "text": "A shoe, still laced, with nothing in it. The water has rinsed it very clean."
-      },
       "enemy": "Non-Continuous Raider",
       "arena": [
         "...E...",
@@ -306,10 +288,6 @@
       "name": "Cartel weigh-station",
       "threat": 5,
       "text": "A crane scale hung over the water with hooks on the end. Everything that comes through here is weighed, including people.",
-      "look": {
-        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours.",
-        "goal": "ledger"
-      },
       "arena": [
         "...E...",
         ".......",
@@ -340,7 +318,11 @@
         }
       ],
       "server": "Under the scale's counterweight, a server humming in a nest of cable. Someone has scratched a tally down its side and never finished it.",
-      "quiet": "The scale hangs still over the water, its hooks empty. Nobody comes to be weighed any more."
+      "quiet": "The scale hangs still over the water, its hooks empty. Nobody comes to be weighed any more.",
+      "goal": {
+        "id": "ledger",
+        "text": "The ledger by the scale lists weights, not names. One line is crossed out and rewritten: yours."
+      }
     },
     {
       "id": "lanes",
@@ -371,9 +353,6 @@
           "to": "nets"
         }
       ],
-      "look": {
-        "text": "A boat made from a fridge door, with a child's sticker still on it."
-      },
       "enemy": "SALV Boarder",
       "arena": [
         "..E~~.E..",
@@ -396,10 +375,6 @@
       "name": "Surgery barge",
       "threat": 7,
       "text": "A white barge, scrubbed clean, with a row of steel slabs under bright lamps. It is the only quiet place on the water.",
-      "look": {
-        "text": "One slab has restraints, and an outline in dried fluid that fits you exactly.",
-        "goal": "slab"
-      },
       "exits": [
         {
           "dir": "west",
@@ -418,7 +393,11 @@
         ".......",
         "E.....E",
         "...P..."
-      ]
+      ],
+      "goal": {
+        "id": "slab",
+        "text": "One slab has restraints, and an outline in dried fluid that fits you exactly."
+      }
     },
     {
       "id": "cables",
@@ -438,9 +417,6 @@
           "to": "generator"
         }
       ],
-      "look": {
-        "text": "Every cable is labelled with whoever stole it. The labels go back forty years."
-      },
       "enemy": "Tianxia Compliance Unit",
       "arena": [
         "...E...",
@@ -473,10 +449,6 @@
           "to": "approach"
         }
       ],
-      "look": {
-        "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'",
-        "goal": "manifest"
-      },
       "enemy": "SALV Boarder",
       "arena": [
         ".E...E.",
@@ -490,7 +462,11 @@
         ".......",
         "...P..."
       ],
-      "event": "netted"
+      "event": "netted",
+      "goal": {
+        "id": "manifest",
+        "text": "A manifest line, stamped and signed: 'Unit 4471. Donor deceased. Chip intact. Do not wake.'"
+      }
     },
     {
       "id": "generator",
@@ -549,9 +525,6 @@
           "requires": "goals"
         }
       ],
-      "look": {
-        "text": "Offerings at the foot of the steps: teeth, chips, a wedding ring with the finger still in it."
-      },
       "enemy": "Non-Continuous Raider",
       "arena": [
         "..E.E..",

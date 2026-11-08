@@ -75,8 +75,6 @@ const MARKS: Record<RoomMark | 'sealed', { rows: string[]; x: string; o?: string
   cache: { x: '#d9963a', o: '#7d521b', l: '#f2c46e', rows: ['lllll', 'xoxox', 'xxxxx', 'xooox', 'xxxxx'] },
   // A speech bubble: someone here wants something from you (an event)
   event: { x: '#c9b6f2', o: '#4b3a72', rows: ['xxxxx', 'xoxox', 'xxxxx', '.x...'] },
-  // An eye, not yet looked at closely
-  look: { x: '#38d6f0', o: '#0a2f38', rows: ['.xxx.', 'xxoxx', '.xxx.'] },
   // A server rack with its lights on: a later host can wake here, and a host can rest
   server: { x: '#4f6b7d', o: '#1b2a35', l: '#5cf2b0', rows: ['xxxx', 'xllx', 'xoox', 'xlox', 'xxxx'] },
   // The Grey Lane's coin

@@ -37,14 +37,16 @@ test('the way to the chapter boss stays sealed until all three goals are found',
   assert.equal(M.go(s, up).room, 'throne');
 });
 
-test('looking finds a goal once, and only once the room is clear', () => {
+test('a goal is found once its room is clear, no looking needed', () => {
   let s = walk(M.newMapState(), 'deck', 'walkway', 'stall', 'weigh', 'lanes');
   s = M.go(s, exitTo(s, 'barge'));
-  assert.equal(M.look(s).found, null, 'not while the enemy is still there');
-  s = M.clearRoom(s);
-  const r = M.look(s);
-  assert.equal(r.found, 'slab');
-  assert.equal(M.look(r.state).found, null);
+  assert.ok(!s.goals.includes('slab'), 'not while the enemy is still there');
+  const won = M.clearRoom(s);
+  assert.ok(won.goals.includes('slab'));
+  assert.equal(M.goalFound(s, won)?.id, 'slab');
+  assert.equal(M.goalFound(won, M.clearRoom(won)), null, 'found once');
+  // Nothing anywhere is left to look at
+  for (const m of Object.values(M.MAPS)) for (const r of m.rooms) assert.equal((r as { look?: unknown }).look, undefined, `nothing to look at in ${r.id}`);
 });
 
 test('a new host wakes at the dock with fights refilled, remembering rooms and goals', () => {
@@ -79,7 +81,7 @@ test('found rooms show what is there, most pressing first; glimpsed rooms show n
   const rooms = M.chapterMap().rooms;
   const plain = rooms.find(r => r.threat !== undefined && r.threat % 5 !== 0 && !r.cache && !r.ally)!;
   assert.equal(M.roomMark(s, plain), 'fight', 'a fight waits for this host');
-  const won = { ...s, cleared: [plain.id], looked: [plain.id] };
+  const won = { ...s, cleared: [plain.id] };
   assert.equal(M.roomMark(won, plain), 'cleared');
   assert.equal(M.roomMark(M.newHost(won), plain), 'fight', 'a new host finds it full again');
   const boss = rooms.find(r => r.threat !== undefined && r.threat % 10 === 0)!;
@@ -92,9 +94,6 @@ test('found rooms show what is there, most pressing first; glimpsed rooms show n
   assert.notEqual(M.roomMark(clear, ally, [ally.ally!]), 'ally', 'linked: it stops calling');
   const cache = rooms.find(r => r.cache)!;
   assert.equal(M.roomMark(clear, cache), 'cache');
-  const lookRoom = rooms.find(r => r.look && !r.ally && !r.cache)!;
-  assert.equal(M.roomMark(clear, lookRoom), 'look');
-  assert.notEqual(M.roomMark({ ...clear, looked: [lookRoom.id] }, lookRoom), 'look');
   for (const r of M.mapView(s).rooms.filter(r => !r.seen)) assert.equal(r.mark, null);
 });
 
@@ -250,7 +249,7 @@ test('a beaten boss stays down, its room becomes a server, and it can be called 
   assert.equal(s.room, server.id);
   assert.deepEqual(s.beaten, [server.id], 'beating it keeps it down');
   assert.deepEqual(M.wakePlaces(s), [M.chapterMap().entry, server.id]);
-  assert.equal(M.roomMark({ ...s, looked: [server.id] }, server, server.ally ? [server.ally] : []), 'server');
+  assert.equal(M.roomMark(s, server, server.ally ? [server.ally] : []), 'server');
   // A new host finds every other fight full again, but the boss still down
   const next = M.newHost(s);
   assert.ok(!M.hasFight(next, server), 'the boss stays dead for later hosts');

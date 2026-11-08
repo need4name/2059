@@ -1,10 +1,10 @@
 import { nameOf } from '../itemText';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useMap } from '@/lib/stores/useMap';
 import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
-import { roomById, roomText, hasFight, exitState, allGoals, cacheReady, corpseHere, canRest, DIR_LABEL } from '@/lib/engine/map';
+import { roomById, roomText, hasFight, exitState, cacheReady, corpseHere, canRest, DIR_LABEL } from '@/lib/engine/map';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
@@ -31,15 +31,12 @@ export function RoomPanel() {
   const fight = hasFight(map, room);
   const enemy = room.threat !== undefined ? getBossPreview(room.threat, firstLifeAt(progression.deathCount, room.threat), room.enemy) : null;
   const [news, setNews] = useState<string | null>(null);
-  const looked = map.looked.includes(room.id);
   const wakingHere = map.cameFrom === null && fightsStarted === 0 && map.cleared.length === 0;
   const [resting, setResting] = useState(false);
 
-  const doLook = () => {
-    const found = map.look();
-    if (room.look) useJournal.getState().addNote(`look:${room.id}`, room.look.text, room.name, progression.deathCount + 1);
-    if (found) setNews(allGoals(useMap.getState()) ? 'Far off, something heavy shifts and opens.' : 'Something about this stays with you.');
-  };
+  // A goal is found once its room is clear: its line shows here, and the journal keeps it
+  const goalHere = room.goal && !fight && map.goals.includes(room.goal.id) ? room.goal : null;
+  useEffect(() => { if (goalHere) useJournal.getState().addNote(`look:${room.id}`, goalHere.text, room.name, progression.deathCount + 1); }, [goalHere, room.id, room.name, progression.deathCount]);
 
   const pill = 'key inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-hud-text';
 
@@ -61,11 +58,10 @@ export function RoomPanel() {
         )}
         {!fight && room.threat !== undefined && <p className="mt-3 text-sm text-hud-faint">It's quiet here now.</p>}
 
-        {room.look && !fight && looked && <p className="mt-4 border-l-2 border-sys/40 pl-3.5 text-sm italic leading-relaxed text-hud-text/75">{room.look.text}</p>}
-        {((room.look && !fight && !looked) || cacheReady(map, room)) && (
+        {goalHere && <p className="mt-4 border-l-2 border-sys/40 pl-3.5 text-sm italic leading-relaxed text-hud-text/75">{goalHere.text}</p>}
+        {cacheReady(map, room) && (
           <div className="mt-4 flex flex-wrap gap-2">
-            {room.look && !fight && !looked && <button onClick={doLook} className={pill}><Glyph name="eye" size={14} className="text-sys" />Look closer</button>}
-            {cacheReady(map, room) && <button onClick={() => setNews(openRoomCache())} className={pill}>Search the cache</button>}
+            <button onClick={() => setNews(openRoomCache())} className={pill}>Search the cache</button>
           </div>
         )}
         {corpseHere(map, room) && map.corpse && (
@@ -129,15 +125,19 @@ export function RoomPanel() {
         const hasPart = !!partToGive(inv.items, worn, powerOf);
         const costOf = (c: (typeof ev.choices)[number]) => [c.cost?.credits && `¤${c.cost.credits}`, c.cost?.health && `${c.cost.health} max health`, c.cost?.part && 'your weakest part', c.odds !== undefined && 'a risk'].filter(Boolean).join(' · ');
         return (
-          <section className="slab space-y-3 rounded-[24px] p-4">
-            <p className="text-[15px] leading-relaxed text-hud-text/85">{ev.text}</p>
+          // Someone here with an offer: a warm card of its own, so it never reads as more room text
+          <section className="slab space-y-3 rounded-[24px] p-4 ring-1 ring-[#f2b33d]/40" style={{ backgroundColor: 'rgba(242,179,61,0.08)' }}>
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f2b33d]/20 text-[#f2b33d]"><Glyph name="allies" size={20} /></span>
+              <p className="text-[15px] leading-relaxed text-hud-text">{ev.text}</p>
+            </div>
             <div className="flex flex-wrap gap-2">
               {ev.choices.map((c, k) => {
                 const why = cantChoose(c, inv.gold, hasPart);
                 return (
-                  <button key={k} disabled={!!why} onClick={() => setNews(chooseEvent(k))} className={cx(pill, 'flex-col items-start gap-0.5 rounded-[18px] text-left', why && 'opacity-50')}>
+                  <button key={k} disabled={!!why} onClick={() => setNews(chooseEvent(k))} className={cx('key inline-flex flex-col items-start gap-0.5 rounded-[18px] px-4 py-2 text-left text-[13px] font-semibold', why ? 'text-hud-dim' : 'key-gold text-[#2a1a02]')}>
                     <span>{c.label}</span>
-                    <span className="text-[11px] font-medium text-hud-faint">{why ?? (costOf(c) || 'free')}</span>
+                    <span className={cx('text-[11px] font-medium', why ? 'text-hud-faint' : 'text-[#2a1a02]/70')}>{why ?? (costOf(c) || 'free')}</span>
                   </button>
                 );
               })}

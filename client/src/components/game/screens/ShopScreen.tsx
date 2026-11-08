@@ -3,7 +3,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout } from '@/lib/stores/useLoadout';
 import { useMarket, marketPrice } from '@/lib/stores/useMarket';
-import { useMap } from '@/lib/stores/useMap';
+import { useRunStats } from '@/lib/stores/useRunStats';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { gunName, magazineOf, ROUNDS, type GunRound } from '@/lib/combat/guns';
 import { useAugmentTrees, gunMove } from '@/lib/stores/useAugmentTrees';
@@ -76,7 +76,7 @@ export function ShopScreen() {
   const { gold, items, ownedWeapons, equippedWeapon, sellWeapon, equipWeapon } = useInventory();
   const { slots, setSlot } = useLoadout();
   const { stock, ensureStock, buy, sell, guns, ensureGuns, buyGun } = useMarket();
-  const rests = useMap(st => st.rests ?? 0);
+  const won = useRunStats(st => st.total.fightsWon);
   const [mode, setMode] = useState<Mode>('buy');
   const [kind, setKind] = useState<Kind>('all');
   const [rarities, setRarities] = useState<ItemRarity[]>([]);
@@ -84,8 +84,8 @@ export function ShopScreen() {
 
   // New stock after every fight (and every new body)
   useEffect(() => { ensureStock(`${progression.deathCount}-${bossLevel}`, bossLevel); }, [bossLevel, progression.deathCount, ensureStock]);
-  // The gun rack only restocks for a new host or a server rest, so fights can't cycle it
-  useEffect(() => { ensureGuns(`${progression.deathCount}-${rests}`, bossLevel); }, [progression.deathCount, rests, bossLevel, ensureGuns]);
+  // The gun rack restocks after every won fight (and for every new body): fight on to see a better gun
+  useEffect(() => { ensureGuns(`${progression.deathCount}-${won}`, bossLevel); }, [progression.deathCount, won, bossLevel, ensureGuns]);
 
   const toggleRarity = (r: ItemRarity) => setRarities(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r]);
   const passes = (item: Item) => (kind === 'all' || kindOf(item) === kind) && (rarities.length === 0 || rarities.includes(item.rarity));

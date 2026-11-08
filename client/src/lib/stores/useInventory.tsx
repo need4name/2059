@@ -9,6 +9,10 @@ export type EquippedAugmentations = Record<AugmentationSlot, Item | null>;
 
 interface InventoryState {
 items: Item[];
+/** Implants already seen on the Implants page: any other spare is new (its own tab). */
+seen: string[];
+/** Mark implants as seen (they move from New to Spare). */
+markSeen: (ids: string[]) => void;
 gold: number;
 equippedAugmentations: EquippedAugmentations;
 ownedWeapons: Weapon[];
@@ -47,6 +51,8 @@ return slots as EquippedAugmentations;
 
 export const useInventory = create<InventoryState>()(persist((set, get) => ({
 items: [],
+seen: [],
+markSeen: (ids) => { const fresh = ids.filter(id => !get().seen.includes(id)); if (fresh.length) set({ seen: [...get().seen, ...fresh].slice(-300) }); },
 gold: 0,
 equippedAugmentations: createEmptyAugmentations(),
 ownedWeapons: [],
@@ -105,6 +111,7 @@ items: state.items.filter(item => item.id !== itemId),
 clearInventory: () => {
 set({
 items: [],
+seen: [],
 gold: 0,
 equippedAugmentations: createEmptyAugmentations(),
 ownedWeapons: [],
@@ -258,6 +265,6 @@ set({ equippedWeapon: weapon });
 // A save with missing body slots (older or hand-edited) still loads: fill the gaps with empty slots
 merge: (persisted, current) => {
 const p = (persisted ?? {}) as Partial<InventoryState>;
-return { ...current, ...p, spliced: p.spliced ?? {}, equippedAugmentations: { ...createEmptyAugmentations(), ...(p.equippedAugmentations ?? {}) } };
+return { ...current, ...p, seen: p.seen ?? [], spliced: p.spliced ?? {}, equippedAugmentations: { ...createEmptyAugmentations(), ...(p.equippedAugmentations ?? {}) } };
 },
 }));
