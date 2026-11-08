@@ -108,12 +108,12 @@ test('first life: the first enemy carries an active implant, the second a passiv
   }
 });
 
-test('the Patchwork King wears the Patchwork Crown, epic or better, and his purse is a stim and credits', () => {
+test('the Patchwork King wears the Patchwork Crown, rare or epic (the first rung up), and his purse is a stim and credits', () => {
   seedRandom(9);
   for (let k = 0; k < 20; k++) {
     const king = createPatchworkKing();
     const crown = king.carried!.find(i => i.name.includes('Patchwork Crown'))!;
-    assert.ok(crown && (crown.rarity === 'epic' || crown.rarity === 'legendary'));
+    assert.ok(crown && (crown.rarity === 'rare' || crown.rarity === 'epic'));
     assert.ok(generatePatchworkKingLoot().items.every(i => i.type === 'consumable'));
   }
 });
@@ -127,7 +127,7 @@ test('enemies carry real implants built from parts; bosses and elites wear their
   assert.equal(new Set(scav.carried!.map(i => i.slot)).size, scav.carried!.length, 'one per body slot');
   const listener = createBoss(30);
   const sig = listener.carried!.find(i => i.signature)!;
-  assert.ok(sig && /Listener/.test(sig.name) && ['epic', 'legendary'].includes(sig.rarity));
+  assert.ok(sig && /Listener/.test(sig.name) && ['rare', 'epic'].includes(sig.rarity), 'a boss low on the ladder: rare or epic');
   assert.ok(['lance', 'scope', 'mortar', 'longshot'].includes(sig.parts!.head), 'rolls from its own heads');
   assert.ok(createBoss(15).carried!.some(i => i.signature), 'the threat-15 elite wears one too');
   assert.ok(generateLoot(8).items.every(i => i.type === 'consumable'), 'implants only come off bodies now');
@@ -180,4 +180,16 @@ test('firmware loaded is a massive upgrade: the same body runs harder with it th
   const bare = createPlayer(undefined, 'none'), loaded = createPlayer(undefined, 'melee');
   assert.equal(loaded.maxHp, Math.round(CLASS_DEFINITIONS.melee.baseHp * FIRMWARE_LIFT.hp));
   assert.ok(loaded.maxHp > bare.maxHp * 1.5 && loaded.physicalAttack > bare.physicalAttack * 1.5);
+});
+
+test('the loot ladder runs across chapters: chapter one is commons and a few uncommons, rares open in chapter two, legendaries come late', async () => {
+  const { rarityWeights } = await import('../client/src/lib/combat/loot');
+  const { ladderDepth, CHAPTERS } = await import('../client/src/lib/combat/chapters');
+  assert.equal(ladderDepth(10, CHAPTERS[0]), 10);
+  assert.equal(ladderDepth(1, CHAPTERS[1]), 11, 'chapter two carries on from the King');
+  assert.equal(ladderDepth(1, CHAPTERS[2]), 41);
+  for (let d = 1; d <= 10; d++) assert.ok(rarityWeights(d).rare <= 3 && rarityWeights(d).epic === 0 && rarityWeights(d).legendary === 0, `chapter one stays low (${d})`);
+  assert.equal(rarityWeights(4).uncommon, 5);
+  assert.ok(rarityWeights(20).rare > 0 && rarityWeights(20).legendary === 0);
+  assert.ok(rarityWeights(80).legendary > rarityWeights(30).legendary);
 });

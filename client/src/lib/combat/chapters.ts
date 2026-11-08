@@ -47,6 +47,14 @@ let active = CHAPTERS[0];
 export const activeChapter = (): Chapter => active;
 export const setActiveChapter = (id: string) => { active = chapterById(id); };
 
+/** How far up the loot ladder a threat sits, across chapters: chapter one runs 1-10 (it ends at its King),
+ *  each later chapter 30 more (chapter two's threat 1 is 11). Drop and shop odds climb with it, so the ladder
+ *  keeps going from chapter to chapter instead of starting over. */
+export function ladderDepth(threat: number, chapter: Chapter = active): number {
+  const i = Math.max(0, CHAPTERS.indexOf(chapter));
+  return i === 0 ? threat : 10 + 30 * (i - 1) + threat;
+}
+
 /** The chapter after this one, if it's ready to play. */
 export function nextChapter(id: string): Chapter | null {
   const i = CHAPTERS.findIndex(c => c.id === id);

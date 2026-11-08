@@ -3,6 +3,7 @@ import { ITEMS_2059 } from './items2059';
 import { rollParts, rollPassiveParts, normaliseItem, specialShare } from './augments';
 
 import { random } from '../engine/rng';
+import { ladderDepth } from './chapters';
 /** Drop tuning (see docs/DESIGN.md). */
 export const LOOT = { normalDropChance: 0.5, stimMin: 0.15, stimMax: 0.25, goldBase: 10, goldPerLevel: 8 };
 const RARITY_ORDER: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
@@ -40,21 +41,25 @@ legendary: ITEMS_2059.filter(i => i.type === 'augmentation' && !i.signature && i
 // The pw_ prefix filter was removed -- no items carry that prefix in items2059.
 // PATCHWORK_POOLS was an empty object and caused 0% item drops on levels 1-5.
 
-// Rarity weights by boss level - graduated from common-heavy to rare-possible
-function getRarityWeights(bossLevel: number): Record<ItemRarity, number> {
-if (bossLevel <= 2)  return { common: 90, uncommon: 10, rare: 0,  epic: 0, legendary: 0 };
-if (bossLevel === 3) return { common: 75, uncommon: 22, rare: 3,  epic: 0, legendary: 0 };
-if (bossLevel === 4) return { common: 60, uncommon: 33, rare: 7,  epic: 0, legendary: 0 };
-if (bossLevel === 5) return { common: 45, uncommon: 40, rare: 13, epic: 2, legendary: 0 };
-if (bossLevel <= 7)  return { common: 30, uncommon: 38, rare: 22, epic: 8, legendary: 2 };
-if (bossLevel <= 9)  return { common: 15, uncommon: 30, rare: 35, epic: 15, legendary: 5 };
-// Past the King the odds keep improving until commons stop dropping
-const t = Math.min(10, bossLevel - 9);
-return { common: Math.max(0, 10 - t), uncommon: Math.max(8, 26 - 2 * t), rare: 36, epic: 18 + 1.5 * t, legendary: 6 + 1.2 * t };
+/**
+ * The loot ladder: rarity odds by depth (`ladderDepth`: chapter one 1-10, chapter two 11-40, chapter three
+ * 41-70, ...). The game starts at the bottom: chapter one is commons with a few uncommons, rares open in
+ * chapter two, epics grow through it, legendaries are for the late chapters. Climbing it is the build's arc.
+ */
+export function rarityWeights(depth: number): Record<ItemRarity, number> {
+if (depth <= 4)  return { common: 95, uncommon: 5,  rare: 0,  epic: 0,  legendary: 0 };
+if (depth <= 7)  return { common: 85, uncommon: 15, rare: 0,  epic: 0,  legendary: 0 };
+if (depth <= 10) return { common: 70, uncommon: 27, rare: 3,  epic: 0,  legendary: 0 };
+if (depth <= 20) return { common: 50, uncommon: 38, rare: 11, epic: 1,  legendary: 0 };
+if (depth <= 30) return { common: 35, uncommon: 40, rare: 20, epic: 4,  legendary: 1 };
+if (depth <= 40) return { common: 22, uncommon: 38, rare: 28, epic: 10, legendary: 2 };
+if (depth <= 70) return { common: 12, uncommon: 30, rare: 35, epic: 18, legendary: 5 };
+return { common: 5, uncommon: 22, rare: 36, epic: 26, legendary: 11 };
 }
 
-function rollRarity(bossLevel: number): ItemRarity {
-const weights = getRarityWeights(bossLevel);
+/** A rarity rolled at a threat in the active chapter (its place on the ladder). */
+function rollRarity(threat: number): ItemRarity {
+const weights = rarityWeights(ladderDepth(threat));
 const total = Object.values(weights).reduce((a, b) => a + b, 0);
 let roll = random() * total;
 for (const [rarity, weight] of Object.entries(weights)) {
@@ -114,9 +119,11 @@ if (firstRun && level === 2) { const t = getRandomItemFromPool('uncommon', ITEM_
 const out: Item[] = [];
 const rarityAtLeast = (r: ItemRarity, floor: ItemRarity): ItemRarity => (RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r);
 if (signature && (role === 'boss' || role === 'elite')) {
+  // A boss's own implant sits a rung or two above its rooms: rare or epic in chapter two, epic or legendary after
+  const deep = ladderDepth(level) > 40;
   const rarity = role === 'boss'
-    ? (random() < Math.min(0.5, 0.15 + 0.01 * level) ? 'legendary' : 'epic')
-    : rarityAtLeast(rollRarity(level), level >= 15 ? 'rare' : 'uncommon');
+    ? (random() < Math.min(0.5, 0.15 + 0.01 * level) ? (deep ? 'legendary' : 'epic') : (deep ? 'epic' : 'rare'))
+    : rarityAtLeast(rollRarity(level), ladderDepth(level) >= 25 ? 'rare' : 'uncommon');
   const sig = signatureImplant(signature, rarity);
   if (sig) out.push(sig);
 }

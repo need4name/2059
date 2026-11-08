@@ -553,8 +553,8 @@ export function createPatchworkKing(): Character {
 const base = createBoss(10, false, 'Helix Continuity Warden');
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
 const hp = Math.round(base.maxHp * KING_MULT.hp * KING_EXTRA.hp), shp = Math.max(8, (pDef + sDef) * 3);
-// He wears the Patchwork Crown (epic, or legendary a third of the time) over his frame's own implants
-const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'legendary' : 'epic');
+// He wears the Patchwork Crown (rare, or epic a third of the time: the first rung up the ladder) over his frame's own implants
+const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'epic' : 'rare');
 const carried = [...(crown ? [crown] : []), ...(base.carried ?? [])].slice(0, 3);
 return { ...base, name: 'Patchwork King', spriteColor: '#fbbf24', carried, implants: carried.map(i => `${i.signature ? '' : `${modelOf(i)} `}${i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()}`), implantSlots: carried.flatMap(i => (i.slot ? [i.slot] : [])),
 maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,

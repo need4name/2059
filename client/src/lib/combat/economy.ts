@@ -4,6 +4,7 @@ import { ITEMS_2059 } from './items2059';
 import { instancedItem } from './loot';
 
 import { random } from '../engine/rng';
+import { ladderDepth } from './chapters';
 // What things cost at the Grey Lane market. Sellers get a fraction back.
 const RARITY_PRICE: Record<ItemRarity, number> = {
   common: 45, uncommon: 95, rare: 190, epic: 360, legendary: 640,
@@ -37,9 +38,13 @@ export function sellPrice(item: Item): number {
 
 // Market stock: rarer goods appear as the threat level climbs
 function stockRarityWeights(level: number): Record<ItemRarity, number> {
-  if (level <= 2) return { common: 70, uncommon: 28, rare: 2, epic: 0, legendary: 0 };
-  if (level <= 5) return { common: 45, uncommon: 40, rare: 13, epic: 2, legendary: 0 };
-  if (level <= 9) return { common: 25, uncommon: 40, rare: 25, epic: 9, legendary: 1 };
+  // On the loot ladder (`ladderDepth`), a step ahead of what bodies drop: you pay for it
+  const d = ladderDepth(level);
+  if (d <= 4) return { common: 85, uncommon: 15, rare: 0, epic: 0, legendary: 0 };
+  if (d <= 10) return { common: 70, uncommon: 27, rare: 3, epic: 0, legendary: 0 };
+  if (d <= 20) return { common: 50, uncommon: 38, rare: 11, epic: 1, legendary: 0 };
+  if (d <= 40) return { common: 30, uncommon: 40, rare: 23, epic: 6, legendary: 1 };
+  if (d <= 70) return { common: 15, uncommon: 33, rare: 33, epic: 15, legendary: 4 };
   return { common: 12, uncommon: 33, rare: 33, epic: 17, legendary: 5 };
 }
 
@@ -64,8 +69,8 @@ export function generateMarketStock(level: number): Item[] {
     usedTemplates.add(pick.id);
     stock.push(instancedItem(pick));
   }
-  // From threat 12 the stall sometimes has a legendary, so a missing piece can be bought instead of farmed
-  if (level >= 12 && random() < Math.min(0.6, 0.25 + 0.03 * (level - 12))) {
+  // From chapter two's last third (ladder depth 40) the stall sometimes has a legendary, so a missing piece can be bought instead of farmed
+  if (ladderDepth(level) >= 40 && random() < Math.min(0.6, 0.25 + 0.03 * (ladderDepth(level) - 40))) {
     const legs = augments.filter(i => i.rarity === 'legendary' && !usedTemplates.has(i.id));
     if (legs.length) stock.unshift(instancedItem(legs[Math.floor(random() * legs.length)]));
   }
