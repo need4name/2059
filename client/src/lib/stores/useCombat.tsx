@@ -1176,9 +1176,8 @@ const syncTreeDiscount = (cls: PlayerClass) => setTreeDiscount({ all: cls === 'n
 useCombat.subscribe((s, prev) => { if (s.playerClass !== prev.playerClass) syncTreeDiscount(s.playerClass); });
 syncTreeDiscount(useCombat.getState().playerClass);
 
-/** The firmware a new host can wake with: each one taken from a boss, in the order they opened, then none
- *  (once any is open, going without is a choice). Empty until the first is taken: every host runs unclassified. */
+/** The firmware a new host can wake with: each one taken from a boss, in the order they opened. Empty until
+ *  the first is taken: every host runs unclassified till then, and none after (going without will be a late-game challenge). */
 export function availableFirmware(): PlayerClass[] {
-const open = useFirmware.getState().opened.filter((c, k, all) => c !== 'none' && all.indexOf(c) === k);
-return open.length ? [...open, 'none'] : [];
+return useFirmware.getState().opened.filter((c, k, all) => c !== 'none' && all.indexOf(c) === k);
 }

@@ -25,10 +25,11 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 export function DefeatScreen() {
   const { boss, playerClass, justOpened, rebirth } = useCombat();
   const { forks, setFork } = useFirmware();
-  // Every firmware taken from a boss so far, then none
+  // Every firmware taken from a boss so far
   const choices = availableFirmware();
   const anyFirmware = choices.length > 0;
-  const [choice, setChoice] = useState<PlayerClass | null>(playerClass !== 'none' && choices.includes(playerClass) ? playerClass : null);
+  // The firmware this host ran, else the first one opened: once one is open, a host always wakes with firmware
+  const [choice, setChoice] = useState<PlayerClass | null>(choices.includes(playerClass) ? playerClass : choices[0] ?? null);
   const { offer, owned, pick } = usePlayi();
   const [learned, setLearned] = useState<string | null>(null);
   const [setPoint, setSetPoint] = useState<0 | 50>(0);

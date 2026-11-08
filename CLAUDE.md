@@ -13,7 +13,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - A host death restarts the chapter at its entry room, as another corpse reanimating.
 - Tell it like Dark Souls: never explain the world. No narrator, no faction intros, no glossary. The world only shows in what's lying around (implant descriptions, room text, enemy lines, journal fragments). The story is the signal finding out what it is; each chapter asks it one question about itself. The owner's notes are the hidden truth: everything shown must agree with them, and most of it is never said.
 - Room text: about two sentences per room to start; tweak as we go. Chapter goals are placeholders until the story is written.
-- Firmware opens from bosses: chapter one's threat-5 boss (Enforcer) and the King (Operative), then each later chapter's threat-5 boss one more. Each holder fights with the firmware it holds. A new firmware is only ever loaded when a host wakes; until the first boss falls every host is Unclassified, and after that going without is a challenge run.
+- Firmware opens from bosses: chapter one's threat-5 boss (Enforcer) and the King (Operative), then each later chapter's threat-5 boss one more. Each holder fights with the firmware it holds. A new firmware is only ever loaded when a host wakes; until the first boss falls every host is Unclassified, and after that every host wakes with firmware (Unclassified isn't offered; it will be a late-game challenge mode).
 - Makers: Helix (defensive, no weapons), Volkov (operator limbs), Tianxia (labour), Kizuna (MIL/neural), Crown (luxury/restorative), CBN (cartel grafts, cost health), IOA (grey firmware), PARSU (materials), Patchwork (salvage).
 
 ## Design preferences

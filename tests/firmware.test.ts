@@ -78,7 +78,7 @@ test('a firmware opens at its own level, or the best level reached, whichever is
   assert.equal(FW.firmwareLevel(FW.openingXp('splice', { melee: FW.xpForLevel(2) })).level, 6);
 });
 
-test('no firmware until a boss gives one up; it opens for the next host, and going without stays a choice', async () => {
+test('no firmware until a boss gives one up; it opens for the next host, who has to wake with it', async () => {
   const { useCombat, availableFirmware } = await import('../client/src/lib/stores/useCombat');
   const { useFirmware } = await import('../client/src/lib/stores/useFirmware');
   const { useMap } = await import('../client/src/lib/stores/useMap');
@@ -93,11 +93,11 @@ test('no firmware until a boss gives one up; it opens for the next host, and goi
   assert.equal(boss.name, 'Volkov Operator');
   assert.deepEqual(boss.moves?.map(m => m.name), ['Hydraulic Slam', 'Piledriver', 'Pain Suppression']);
   useCombat.getState().resetCombat();
-  // Beaten, it opens: nothing changes for this host; the next one can wake with it, or without
+  // Beaten, it opens: nothing changes for this host; the next one wakes with it (going without isn't offered)
   useFirmware.getState().open('melee');
   assert.deepEqual(useFirmware.getState().fresh, ['melee']);
-  assert.deepEqual(availableFirmware(), ['melee', 'none']);
-  useCombat.getState().rebirth('melee');
+  assert.deepEqual(availableFirmware(), ['melee']);
+  useCombat.getState().rebirth('none');
   assert.equal(useCombat.getState().playerClass, 'melee');
   assert.deepEqual(useFirmware.getState().fresh, [], 'no longer new once a host has woken');
   useCombat.getState().resetAll();
