@@ -119,7 +119,8 @@ test('ally attacks need range and count for Coordinated', () => {
   assert.equal(Fight.canAllyUse(close, 0, 0), true);
   seedRandom(2);
   const hit = Fight.resolveAllyMove(close, 0, 0);
-  assert.ok(hit.state.foes[0].unit.currentHp < close.foes[0].unit.currentHp);
+  const worn = (u: { currentHp: number; currentStructuralHp: number }) => u.currentHp + u.currentStructuralHp;
+  assert.ok(worn(hit.state.foes[0].unit) < worn(close.foes[0].unit), 'it lands (on structure or health)');
   assert.deepEqual(hit.state.allyHitFoes, [0]);
   // The player's next hit on that foe gets the Coordinated bonus
   const sturdy = (st: FightState) => ({ ...st, grid: arena([3, 3], [2, 3]), foes: [{ ...st.foes[0], pos: { row: 2, col: 3 }, unit: { ...st.foes[0].unit, currentHp: 9999, maxHp: 9999 } }] });
@@ -290,8 +291,9 @@ test("an ally's attack goes for the enemy it can reach when the target is out of
   assert.equal(Fight.allyAimFoe(s, 0, atk), 1, 'the one beside it, not the far target');
   assert.equal(Fight.canAllyUse(s, 0, atk), true);
   const hit = Fight.resolveAllyMove(s, 0, atk).state;
-  assert.ok(hit.foes[1].unit.currentHp < s.foes[1].unit.currentHp);
-  assert.equal(hit.foes[0].unit.currentHp, s.foes[0].unit.currentHp);
+  const worn = (u: { currentHp: number; currentStructuralHp: number }) => u.currentHp + u.currentStructuralHp;
+  assert.ok(worn(hit.foes[1].unit) < worn(s.foes[1].unit));
+  assert.equal(worn(hit.foes[0].unit), worn(s.foes[0].unit));
 });
 
 test('allies start beside or behind the player, not between it and the enemy', async () => {

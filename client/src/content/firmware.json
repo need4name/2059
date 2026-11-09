@@ -6,13 +6,13 @@
     "melee": {
       "opens": {"chapter": "indian-ocean", "threat": 5, "start": 1},
       "holder": {"enemy": "Volkov Operator", "traits": ["armed", "braced"], "moves": [
-        {"type": "attack", "name": "Hydraulic Slam", "description": "", "damage": 15, "accuracy": "variable", "physicalRatio": 0.9, "heatTransfer": 6, "heatGenerated": 12, "attackPattern": "melee_long", "effects": {"knock": true}},
-        {"type": "attack", "name": "Piledriver", "description": "", "damage": 28, "isHeavy": true, "accuracy": "precise", "physicalRatio": 0.85, "heatTransfer": 12, "heatGenerated": 16, "attackPattern": "ring", "effects": {"knock": true}},
+        {"type": "attack", "name": "Hydraulic Slam", "description": "", "damage": 17, "accuracy": "variable", "physicalRatio": 0.9, "heatTransfer": 6, "heatGenerated": 12, "attackPattern": "melee_long", "effects": {"knock": true}},
+        {"type": "attack", "name": "Piledriver", "description": "", "damage": 31, "isHeavy": true, "accuracy": "precise", "physicalRatio": 0.85, "heatTransfer": 12, "heatGenerated": 16, "attackPattern": "ring", "effects": {"knock": true}},
         {"type": "defend", "name": "Pain Suppression", "description": "", "defenseBoost": 9, "heatGenerated": -8}
       ]},
       "identity": {"rule": "A takedown gives you another action.", "heat": "Runs hot fast: +3 heat on every hit, and venting bursts hit 50% harder.", "ultimate": "Piledriver: twice your best move on everyone within 2 tiles, and knocks them back.", "surge": "piledriver", "perks": {"chain": true, "heatGenBonus": 3, "ventMult": 1.5}},
       "scale": 1.15,
-      "base": {"type": "attack", "name": "Hydraulic Slam", "description": "Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.", "damage": 14, "heatGenerated": 15, "heatTransfer": 5, "accuracy": "variable", "physicalRatio": 0.9, "attackPattern": "melee_long"},
+      "base": {"type": "attack", "name": "Hydraulic Slam", "description": "Volkov operator firmware: the whole frame behind one blow. Reaches two tiles in a line.", "damage": 18, "heatGenerated": 15, "heatTransfer": 5, "accuracy": "variable", "physicalRatio": 0.9, "attackPattern": "melee_long"},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Knocks them back", "fx": {"knock": true} },
@@ -52,7 +52,7 @@
       ]},
       "identity": {"rule": "A free step after every attack you make without moving first.", "heat": "Runs warm and keeps moving.", "ultimate": "Blink: vent all your heat and act again at once, hasted.", "surge": "blink", "perks": {"reflexMove": true}},
       "scale": 0.95,
-      "base": {"type": "attack", "name": "Flicker Jab", "description": "IOA limiter-free firmware: a jab so quick the arm is back before the hit lands. One tile next to you.", "damage": 8, "heatGenerated": 8, "heatTransfer": 2, "accuracy": "variable", "physicalRatio": 0.75, "attackPattern": "melee"},
+      "base": {"type": "attack", "name": "Flicker Jab", "description": "IOA limiter-free firmware: a jab so quick the arm is back before the hit lands. One tile next to you.", "damage": 12, "heatGenerated": 8, "heatTransfer": 2, "accuracy": "variable", "physicalRatio": 0.75, "attackPattern": "melee"},
       "levels": [
         { "text": "Hits harder", "scale": 0.1 },
         { "text": "Quicker: +1 speed", "speed": 1 },

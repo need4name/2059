@@ -29,7 +29,7 @@ export const ACTIONS: Record<WeaponType, { pattern: AttackPatternType; mag: numb
   shotgun:  { pattern: 'cone',   mag: 2, mult: 1.5, noun: 'Shotgun',  letter: 'S' },
 };
 /** An implant attack's base damage, before rarity: what a gun's punch is measured against. */
-export const GUN_BASE = 18;
+export const GUN_BASE = 15;
 const RARITY_DAMAGE: Record<ItemRarity, number> = { common: 1, uncommon: 1.2, rare: 1.45, epic: 1.75, legendary: 2.1 };
 const RARITY_PRICE: Record<ItemRarity, number> = { common: 160, uncommon: 260, rare: 420, epic: 650, legendary: 950 };
 /** Each maker's extra, and what its parts lean toward. */

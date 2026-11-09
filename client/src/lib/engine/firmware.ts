@@ -75,7 +75,8 @@ export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?:
   return {
     ...def.base,
     maker: FIRMWARE_MAKER[cls],
-    damage: physicalAttack !== undefined ? Math.floor(physicalAttack * scale) : def.base.damage,
+    // The attack's own damage grows with the firmware's level; your Attack already counts in every hit, so it isn't counted twice
+    damage: Math.round((def.base.damage ?? 10) * scale),
     heatGenerated: heat, accuracy, attackPattern: pattern,
     effects: Object.keys(effects).length ? effects : undefined,
   };

@@ -76,7 +76,7 @@ export const ALLY_MAX_LEVEL = 10;
 /** Each ally level adds this much to health, attack, defence and move damage. */
 export const ALLY_LEVEL_GROWTH = 1.08;
 /** Overall ally strength: the main knob for how much an ally carries a host. */
-export const ALLY_TUNING = { hp: 0.55, atk: 0.75 };
+export const ALLY_TUNING = { hp: 0.55, atk: 0.4 };
 /** Fights won to go from level n to n + 1. */
 export const allyXpToNext = (level: number) => level + 1;
 
@@ -145,7 +145,8 @@ export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear
     maxStructuralHp: structure, currentStructuralHp: structure,
     // What its implants add (they fade as its structure bar empties)
     implantStats: { pa: Math.round(b.pa), sa: Math.round(b.sa), pd: Math.round(b.pd), sd: Math.round(b.sd) },
-    physicalAttack: Math.round(atk * 0.6 + b.pa), structuralAttack: Math.round(atk * 0.4 + b.sa),
+    // An ally's gear sharpens it on the same terms as its own attack (ALLY_TUNING): it helps you, it doesn't carry you
+    physicalAttack: Math.round(atk * 0.6 + b.pa * ALLY_TUNING.atk), structuralAttack: Math.round(atk * 0.4 + b.sa * ALLY_TUNING.atk),
     physicalDefense: Math.round(dfn * 0.5 + b.pd), structuralDefense: Math.round(dfn * 0.5 + b.sd),
     evasion: Math.round(b.ev), spriteColor: def.color,
   };

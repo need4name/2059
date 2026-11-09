@@ -1,4 +1,4 @@
-import { activeChapter, CHAPTERS } from './chapters';
+import { activeChapter, CHAPTERS, ladderDepth } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
 import { firmwareAttack, firmwareHeldAt, holderOf } from '../engine/firmware';
 import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
@@ -328,7 +328,8 @@ export const STAT_MIX = 1.7;
 // The player's flat attack stat counts at 60% so the move you pick still matters
 // once you're loaded with implants. Enemy stats are tuned for full weight.
 export const PLAYER_STAT_WEIGHT = 0.6;
-function statWeight(attacker: Character) { return attacker.id === 'player' ? PLAYER_STAT_WEIGHT : 1; }
+/** How much an attacker's stats count: your side (you and your allies) at PLAYER_STAT_WEIGHT, enemies in full. */
+function statWeight(attacker: Character) { return attacker.id === 'player' || attacker.id.startsWith('ally_') ? PLAYER_STAT_WEIGHT : 1; }
 
 // Expected damage range for an action, ignoring crits. Mirrors calculateDamage so the
 // numbers on the action buttons match what actually lands.
@@ -517,17 +518,17 @@ return types[idx % types.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 6, atk: 2.6 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 0.6, atk: 0.95 }, setpiece: { hp: 6, atk: 2.6 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
-export const ENEMY_TUNING = { hp: 0.6, atk: 1.05 };
+export const ENEMY_TUNING = { hp: 0.45, atk: 1.05 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
 export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
 /** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit:
  *  hardest for the first life (`first`), less for the hosts after it, who still run without firmware until the first boss falls. */
-export const EARLY_BITE = { first: 0.5, bite: 0.45, until: 6 };
+export const EARLY_BITE = { first: 0.7, bite: 0.6, until: 6 };
 const earlyBite = (level: number, firstRun = false) => 1 + (firstRun ? EARLY_BITE.first : EARLY_BITE.bite) * Math.max(0, EARLY_BITE.until - level) / (EARLY_BITE.until - 1);
 /**
  * The middle rooms are real fights for a young signal: threats `from` to `to` hit and last harder,
@@ -540,7 +541,7 @@ const midBite = (level: number, k: 'atk' | 'hp') => {
   return 1 + (level <= MID_BITE.to ? full : full * (MID_BITE.fade - level) / (MID_BITE.fade - MID_BITE.to));
 };
 /** Past chapter one's first boss (threat 6 on, and every later chapter) enemies are built for a host with firmware. */
-export const FIRMWARE_ERA = { from: 6, hp: 1.6, atk: 1.95 };
+export const FIRMWARE_ERA = { from: 6, hp: 1.5, atk: 1.75 };
 const era = (level: number) => (level >= FIRMWARE_ERA.from || CHAPTERS.indexOf(activeChapter()) > 0 ? FIRMWARE_ERA : { hp: 1, atk: 1 });
 const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp') * era(level).hp, atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level, firstRun) * midBite(level, 'atk') * era(level).atk });
 
@@ -548,7 +549,7 @@ const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENE
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
-export const KING_EXTRA = { hp: 3.4, atk: 3.1 };
+export const KING_EXTRA = { hp: 2.6, atk: 3.3 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
@@ -681,6 +682,9 @@ export const TRAIT_OF_SLOT: Record<AugmentationSlot, string> = {
 /** How many implants an enemy carries at a threat level. */
 export const enemyImplantCount = (level: number) => (level <= 5 ? 1 : level <= 10 ? 2 : 3);
 
+/** Up to this depth (chapter one's threats 1-2) enemies fight plainly: one at a time, no traits, heavies or side effects. */
+export const EARLY_PLAIN = 2;
+
 export function createBoss(level: number = 1, firstRun = false, typeName?: string, roleAs?: EnemyRole): Character {
 const bossType = typeName && ENEMY_DATA.enemies[typeName] ? enemyType(typeName) : enemyTypeForLevel(level, firstRun);
 const S = BOSS_SCALING;
@@ -750,7 +754,11 @@ grade: enemyGradeAt(level),
 implants: implantNames.filter(Boolean),
 implantSlots,
 carried,
-traits: [...(bossType.traits ?? []), ...implantSlots.map(sl => TRAIT_OF_SLOT[sl])].filter((t, n, all) => t && all.indexOf(t) === n),
+// The first rooms are plain duels, so each idea arrives on its own: no traits, no heavies, no side effects
+// (the first life's set piece keeps its own); from threat 3 they all come in
+...(ladderDepth(level) <= EARLY_PLAIN && role !== 'setpiece'
+  ? { traits: [], moves: (BOSS_ATTACKS[bossType.name] ?? []).filter(m => !m.isHeavy).map(({ effects: _fx, ...m }) => m) }
+  : { traits: [...(bossType.traits ?? []), ...implantSlots.map(sl => TRAIT_OF_SLOT[sl])].filter((t, n, all) => t && all.indexOf(t) === n) }),
 ...(bossType.enrage ? { enrage: bossType.enrage } : {}),
 };
 }

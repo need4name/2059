@@ -6,7 +6,7 @@ Character, CombatPhase, CombatAction, CombatLog, LootDrop, Item,
 PlayerClass, CombatGrid, TilePosition, AugmentationSlot, AUGMENTATION_SLOTS,
 } from '../combat/types';
 import {
-CLASS_DEFINITIONS, FIRST_SET_PIECE, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME, withFirmware,
+CLASS_DEFINITIONS, FIRST_SET_PIECE, EARLY_PLAIN, createPlayer, createBoss, createPatchworkKing, createEcho, createSetPiece, ECHO_NAME, withFirmware,
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines, isNotable, ORDINARY_LINE_CHANCE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
@@ -17,7 +17,7 @@ import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getPlayerReach, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
-import { nextChapter, activeChapter } from '../combat/chapters';
+import { nextChapter, activeChapter, ladderDepth } from '../combat/chapters';
 import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
@@ -269,6 +269,9 @@ overclockActive: false, kizunaJustFired: false,
 // Random for now (seeded); the story will set these later.
 const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
 
+/** A firmware holder's health over an ordinary elite's. */
+const HOLDER_HP = 1.7;
+
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
 // A boss that holds firmware is always the same one, and fights with it (called back too)
@@ -278,14 +281,16 @@ const piece = activeChapter().cast.setPiece;
 const unit = piece === ECHO_NAME ? createEcho(usePlayi.getState().lastBody) : piece === 'Patchwork King' ? createPatchworkKing() : createSetPiece(piece);
 return [holder ? withFirmware(unit, holder) : unit];
 }
-if (holder) return [withFirmware(createBoss(level, false, holder.enemy, 'elite'), holder)];
+// The boss that holds firmware is a wall of its own: tougher than the elites around it
+if (holder) { const u = createBoss(level, false, holder.enemy, 'elite'); const hp = Math.round(u.maxHp * HOLDER_HP); return [withFirmware({ ...u, maxHp: hp, currentHp: hp }, holder)]; }
 // A room can name who holds it (regular fights only; the first-life Enforcer always comes first)
 const named = roomEnemy && level % 5 !== 0 && !(firstRun && level === FIRST_SET_PIECE) ? roomEnemy : undefined;
 const lead = createBoss(level, firstRun && !farm, named);
 // Set pieces fight alone: the first fight, elites and bosses, the first-life Enforcer
 if (level === 1 || level % 5 === 0 || lead.name === 'Cartel Enforcer' || (firstRun && !farm && level === FIRST_SET_PIECE)) return [lead];
-const r = random();
-const count = r < 0.5 ? 1 : r < 0.85 ? 2 : 3;
+// Crowds grow with depth: one at a time in the first rooms, pairs from threat 3, threes from threat 6
+const r = random(), d = ladderDepth(level);
+const count = d <= EARLY_PLAIN ? 1 : d < 6 ? (r < 0.55 ? 1 : 2) : r < 0.5 ? 1 : r < 0.85 ? 2 : 3;
 if (count === 1) return [lead];
 const names = enemyNamesNear(level);
 const scale = GROUP_SCALE[count];
