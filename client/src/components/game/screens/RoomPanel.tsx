@@ -67,7 +67,7 @@ export function RoomPanel() {
         {corpseHere(map, room) && map.corpse && (
           <div className="mt-4 border-l-2 border-[#b4383f]/60 pl-3.5">
             <p className="text-sm leading-relaxed text-hud-text/75">A body lies here. You remember wearing it. Something is still fitted to it.</p>
-            <button onClick={() => { const it = useMap.getState().takeCorpse(); if (it) { useInventory.getState().addItems([it]); useAudio.getState().play('cache'); setNews(`You take back ${nameOf(it)}.`); } }} className={cx(pill, 'mt-2.5')}>Take it back</button>
+            <button onClick={() => { const it = useMap.getState().takeCorpse(); if (it) { useInventory.getState().receive([it]); useAudio.getState().play('cache'); setNews(`You take back ${nameOf(it)}.`); } }} className={cx(pill, 'mt-2.5')}>Take it back</button>
           </div>
         )}
         {news && <p className="mt-3 text-sm text-sys">{news}</p>}

@@ -436,6 +436,8 @@ if (chapterDone) { useMap.getState().finishChapter(); useStrain.getState().unloc
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ strip });
+// Only one part to choose from: it's taken for you (tap it again to put it back)
+if (strip && strip.bodies.flatMap(b => b.items).length === 1) get().takePart(strip.bodies[0].items[0].id);
 const earned = strainCredits(loot.gold, useStrain.getState().active);
 useInventory.getState().addGold(earned);
 useRunStats.getState().add({ fightsWon: 1, credits: earned, ...(farmLevel === null && (level % 10 === 0) ? { bossesKilled: 1 } : farmLevel === null && level % 5 === 0 ? { elitesKilled: 1 } : {}) });
@@ -618,7 +620,7 @@ if (pool.length) gifts.push(instancedItem(pool[Math.floor(random() * pool.length
 }
 const bio = ITEMS_2059.find(i => i.id === 'stim_bio');
 for (let k = 0; k < perks.startBioStims && bio; k++) gifts.push(instancedItem(bio));
-if (gifts.length) useInventory.getState().addItems(gifts);
+if (gifts.length) useInventory.getState().receive(gifts);
 if (perks.startPoints) useAugmentTrees.getState().addPoints(perks.startPoints);
 // In chapters of machines, the new host is a machine: one of the frames, its parts already fitted
 if (activeChapter().rules?.machines) {
@@ -803,7 +805,7 @@ if (out.implant) {
 const rarity = out.implant === 'better' ? gradeUp(part?.rarity ?? 'common') : out.implant;
 const pool = ITEM_POOLS[rarity];
 const t = pool[Math.floor(random() * pool.length)];
-if (t) { const it = instancedItem(t); useInventory.getState().addItems([it]); got.push(displayName(it)); }
+if (t) { const it = instancedItem(t); useInventory.getState().receive([it]); got.push(displayName(it)); }
 }
 for (let n = 0; n < (out.stims ?? 0); n++) {
 const stims = ITEMS_2059.filter(i => i.type === 'consumable' && i.consumableEffect && i.consumableEffect !== 'overclock');
@@ -1041,7 +1043,7 @@ const st = get().strip;
 if (!st || st.taken.length >= st.picks || st.taken.includes(itemId)) return;
 const item = st.bodies.flatMap(b => b.items).find(i => i.id === itemId);
 if (!item) return;
-useInventory.getState().addItems([item]);
+useInventory.getState().receive([item]);
 useRunStats.getState().add({ partsTaken: 1 });
 set({ strip: { ...st, taken: [...st.taken, itemId] } });
 useAudio.getState().play('cache');
@@ -1049,7 +1051,12 @@ useAudio.getState().play('cache');
 
 returnPart: (itemId) => {
 const st = get().strip;
-if (!st || !st.taken.includes(itemId) || !useInventory.getState().items.some(i => i.id === itemId)) return;
+if (!st || !st.taken.includes(itemId)) return;
+// Fitted at once into an empty slot: take it back off first
+const inv = useInventory.getState();
+const fitted = AUGMENTATION_SLOTS.find(sl => inv.equippedAugmentations[sl]?.id === itemId);
+if (fitted) inv.unequipAugmentation(fitted);
+if (!useInventory.getState().items.some(i => i.id === itemId)) return;
 useInventory.getState().removeItem(itemId);
 useRunStats.getState().add({ partsTaken: -1 });
 set({ strip: { ...st, taken: st.taken.filter(id => id !== itemId) } });

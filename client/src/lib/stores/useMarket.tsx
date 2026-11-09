@@ -65,7 +65,7 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
     if (!item) return false;
     const price = marketPrice(item);
     if (!useInventory.getState().spendGold(price)) return false;
-    useInventory.getState().addItems([item]);
+    useInventory.getState().receive([item]);
     set({ stock: get().stock.filter(i => i.id !== itemId) });
     return true;
   },

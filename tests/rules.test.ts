@@ -193,3 +193,26 @@ test('the loot ladder runs across chapters: chapter one is commons and a few unc
   assert.ok(rarityWeights(20).rare > 0 && rarityWeights(20).legendary === 0);
   assert.ok(rarityWeights(80).legendary > rarityWeights(30).legendary);
 });
+
+test('a new implant for an empty slot is fitted at once; a lone part after a win is taken for you, and can be put back', async () => {
+  const { useInventory } = await import('../client/src/lib/stores/useInventory');
+  const { useCombat } = await import('../client/src/lib/stores/useCombat');
+  useInventory.getState().clearInventory();
+  const arm = { id: 'arm-a', name: '[VOLKOV] Test Arm', type: 'augmentation' as const, slot: 'right_arm' as const, rarity: 'common' as const, icon: '' };
+  useInventory.getState().receive([arm]);
+  assert.equal(useInventory.getState().equippedAugmentations.right_arm?.id, 'arm-a', 'the empty slot takes it');
+  useInventory.getState().receive([{ ...arm, id: 'arm-b' }]);
+  assert.equal(useInventory.getState().equippedAugmentations.right_arm?.id, 'arm-a', 'a filled slot keeps what it has');
+  assert.deepEqual(useInventory.getState().items.map(i => i.id), ['arm-b'], 'the second waits as a spare');
+  // Taken from a body into an empty slot, it's fitted; putting it back takes it off again
+  useInventory.getState().clearInventory();
+  const leg = { ...arm, id: 'leg-a', slot: 'left_leg' as const };
+  useCombat.setState({ strip: { bodies: [{ name: 'X', color: '#fff', items: [leg] }], picks: 1, taken: [] } });
+  useCombat.getState().takePart('leg-a');
+  assert.equal(useInventory.getState().equippedAugmentations.left_leg?.id, 'leg-a');
+  useCombat.getState().returnPart('leg-a');
+  assert.equal(useInventory.getState().equippedAugmentations.left_leg, null);
+  assert.deepEqual(useCombat.getState().strip?.taken, []);
+  useCombat.setState({ strip: null });
+  useInventory.getState().clearInventory();
+});

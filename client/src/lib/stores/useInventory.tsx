@@ -21,6 +21,8 @@ equippedWeapon: Weapon | null;
 spliced: Partial<Record<AugmentationSlot, Item | null>>;
 
 addItems: (newItems: Item[]) => void;
+/** New things for the host (a part taken, bought, found, given): an implant for an empty slot is fitted at once. */
+receive: (newItems: Item[]) => void;
 /** Splice a spare implant into its slot beside the fitted one (the caller checks the firmware and the pair limit). */
 spliceIn: (item: Item) => void;
 /** Take a spliced implant back out into the bag. */
@@ -52,6 +54,10 @@ return slots as EquippedAugmentations;
 export const useInventory = create<InventoryState>()(persist((set, get) => ({
 items: [],
 seen: [],
+receive: (newItems) => {
+get().addItems(newItems);
+for (const it of newItems) if (it.type === 'augmentation' && it.slot && !get().equippedAugmentations[it.slot as AugmentationSlot]) { get().equipAugmentation(it); get().markSeen([it.id]); }
+},
 markSeen: (ids) => { const fresh = ids.filter(id => !get().seen.includes(id)); if (fresh.length) set({ seen: [...get().seen, ...fresh].slice(-300) }); },
 gold: 0,
 equippedAugmentations: createEmptyAugmentations(),

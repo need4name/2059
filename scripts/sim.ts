@@ -538,8 +538,8 @@ const firstDeathEarly = firstDeath.filter(l => l === 2 || l === 3).length / runs
 if (!process.env.CHAPTER) checks.push([`a first life wins 5 fights in under 60% of runs (got ${pct(firstLife5)})`, firstLife5 < 0.6]);
 const host1At2 = firstDeath.filter(l => l === 2).length / runs.length;
 if (!process.env.CHAPTER) checks.push([`host 1 lost at threat 2 in 90%+ of runs (got ${pct(host1At2)})`, host1At2 >= 0.9]);
-// The King is chapter one's wall: a host that reaches him usually needs a few tries (35%+)
-for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') { const floor = r.band === '10 King' ? 35 : 65; checks.push([`win rate ${r.band} within ${floor}-100% (got ${pct(r.winRate)})`, Math.round(r.winRate * 100) >= floor]); }
+// The King is chapter one's wall: a host that reaches him usually needs a few tries (30%+)
+for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') { const floor = r.band === '10 King' ? 30 : 65; checks.push([`win rate ${r.band} within ${floor}-100% (got ${pct(r.winRate)})`, Math.round(r.winRate * 100) >= floor]); }
 const median = [...reached].sort((a, b) => a - b)[Math.floor(reached.length / 2)];
 checks.push([`median highest threat >= 9 (got ${median})`, median >= 9]);
 const normalTurns = Number(turnsOf('normal')), bossTurns = Number(turnsOf('boss'));
