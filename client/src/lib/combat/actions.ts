@@ -515,12 +515,12 @@ return types[idx % types.length];
 
 /** How much tougher each role is than a regular enemy of the same level. */
 export const ROLE_MULT: Record<EnemyRole, { hp: number; atk: number }> = {
-normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 3.8, atk: 4.4 },
+normal: { hp: 1, atk: 1 }, elite: { hp: 1.3, atk: 0.95 }, boss: { hp: 1.15, atk: 0.95 }, setpiece: { hp: 6, atk: 2.6 },
 };
 /** Compounding growth per level on top of the steady scaling, so every host meets a wall. */
 export const ENEMY_GROWTH = { hp: 1.06, atk: 1.047 };
 /** Overall enemy health and attack, the main knobs for fight length and difficulty. */
-export const ENEMY_TUNING = { hp: 0.39, atk: 1.34 };
+export const ENEMY_TUNING = { hp: 0.6, atk: 1.05 };
 /** How much softer enemies are than allies built from the same numbers: the easy-mode knob, enemies only. */
 export const ENEMY_EASE = { hp: 0.9, atk: 0.82, growth: 1.03 };
 /** The first threats bite harder (×1 + bite at threat 1, easing to ×1 by threat `until`), so a fresh host feels every hit:
@@ -538,7 +538,7 @@ const midBite = (level: number, k: 'atk' | 'hp') => {
   return 1 + (level <= MID_BITE.to ? full : full * (MID_BITE.fade - level) / (MID_BITE.fade - MID_BITE.to));
 };
 /** Past chapter one's first boss (threat 6 on, and every later chapter) enemies are built for a host with firmware. */
-export const FIRMWARE_ERA = { from: 6, hp: 1.5, atk: 1.6 };
+export const FIRMWARE_ERA = { from: 6, hp: 1.6, atk: 1.95 };
 const era = (level: number) => (level >= FIRMWARE_ERA.from || CHAPTERS.indexOf(activeChapter()) > 0 ? FIRMWARE_ERA : { hp: 1, atk: 1 });
 const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp') * era(level).hp, atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level, firstRun) * midBite(level, 'atk') * era(level).atk });
 
@@ -546,7 +546,7 @@ const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENE
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
-export const KING_EXTRA = { hp: 3.4, atk: 2.4 };
+export const KING_EXTRA = { hp: 3.4, atk: 3.1 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall

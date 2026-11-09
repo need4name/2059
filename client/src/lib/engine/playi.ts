@@ -56,6 +56,7 @@ export interface Perks {
   ventBonus: number;          // extra cooling on brace
   runaway: boolean;           // burnout at 100 heat costs no turn, critical crit chance 45%
   damageMult: number;         // all your damage
+  mend: number;               // extra mending: a share of max health healed at the start of each turn, at full structure
   extraSlots: number;         // extra fight-bar slots
   flankMult: number;          // multiplies flank bonuses
   firstStrikePrecise: boolean;
@@ -114,7 +115,7 @@ export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overru
 export const NO_PERKS: Perks = {
   moveBonus: 0, reflexMove: false, hazardMult: 1, sidestep: false, phaseStep: false,
   extraCooling: 0, startHeat: 20, hotTakenMult: 1, doubleActionHeat: 0, ventBonus: 0, runaway: false,
-  damageMult: 1, extraSlots: 0, flankMult: 1, firstStrikePrecise: false, finisherBonus: 0, chain: false,
+  damageMult: 1, mend: 0, extraSlots: 0, flankMult: 1, firstStrikePrecise: false, finisherBonus: 0, chain: false,
   healthCostMult: 1, structureMult: 1, startImplant: false, startPoints: 0, pickOfTwo: false, braceRepair: 0.4,
   maxHpBonus: 0, startBioStims: 0, priceMult: 1, holdfast: false, damageTakenMult: 1,
   allyHpMult: 1, allyXpMult: 1, coordinated: false, allySlots: 1,
@@ -152,12 +153,14 @@ export function perksFor(owned: readonly string[], setPoint: 0 | 50 = 0): Perks 
       case 'graft_1': p.healthCostMult = 0.5; break;
       case 'graft_2a': p.structureMult = 1.25; break;
       case 'graft_2b': p.startImplant = true; break;
+      case 'graft_2c': p.mend += 0.02; break;
       case 'graft_3': p.startPoints += 2; break;
       case 'graft_4': p.pickOfTwo = true; break;
       case 'graft_5': p.braceRepair = 0.8; break;
       case 'signal_1': p.maxHpBonus += 20; break;
       case 'signal_2a': p.startBioStims += 2; break;
       case 'signal_2b': p.priceMult = 0.8; break;
+      case 'signal_2c': p.mend += 0.01; break;
       case 'signal_3': p.holdfast = true; break;
       case 'signal_4': p.maxHpBonus += 40; break;
       case 'signal_5': p.damageTakenMult = 0.9; break;

@@ -312,7 +312,14 @@ const depthOf = (ch: number, lvl: number) => (ch <= 0 ? lvl : 10 + 30 * (ch - 1)
 interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deathsBefore: number; allies: number; timedOut: boolean; cls: string; ch: number; depth: number; hpStart: number; gear: number; hostWins: number; cards: number; foes: number; fwLevel: number; worn: number[]; gun: string | null }
 
 // DEATHS=1: what the fights a host dies in look like
-const deaths: { lvl: number; ch: number; start: number; turns: number; trace: number[]; stuns: number; biggest: number; burnouts: number; mal: number }[] = [];
+// Every line the fight log says (it keeps only its last few): for DEATHS=1
+const fightSaid: string[] = [];
+if (process.env.DEATHS) C.subscribe((st, prev) => { const a = st.combatLog[st.combatLog.length - 1]; if (a && a !== prev.combatLog[prev.combatLog.length - 1]) fightSaid.push(a.message); });
+const bigHits = new Map<string, number>();
+// An enemy's hit on you ("Name -- Move: N to health"), not an ally's hit on them or theirs on an ally
+const ALLY_NAMES = ALD.ALLIES.map(a => a.name);
+const onYou = (m: string) => / -- .*: \d+ to health/.test(m) && !ALLY_NAMES.some(n => m.startsWith(`${n} -- `));
+const deaths: { hits?: number[]; heavy?: number; lvl: number; ch: number; start: number; turns: number; trace: number[]; stuns: number; biggest: number; burnouts: number; mal: number }[] = [];
 let chaptersDone = 0, stuckAtDoor = 0, debugShown = false, rested = 0;
 function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   botState = seed * 7919 + 1;
@@ -343,7 +350,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     const worn = [0, 0, 0, 0, 0]; for (const it of Object.values(I.getState().equippedAugmentations)) if (it) worn[(RANK[it.rarity] ?? 1) - 1]++;
     const gun = I.getState().equippedWeapon?.rarity ?? null;
     const cards = Y.getState().owned.length, fwLevel = FW.getState().level(C.getState().playerClass);
-    C.getState().startRoomFight(); C.getState().dismissIntro(); const foeCount = C.getState().foes.length; const trace: number[] = []; let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
+    fightSaid.length = 0; C.getState().startRoomFight(); C.getState().dismissIntro(); const foeCount = C.getState().foes.length; const trace: number[] = []; let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { const k = C.getState().allyTurn; if (k !== null) allyTurnBot(k); else { trace.push(C.getState().player.currentHp / C.getState().player.maxHp); playerTurn(skill); turns++; } }
       drain(); const st = C.getState(); lowest = Math.min(lowest, st.player.currentHp / st.player.maxHp);
@@ -356,7 +363,11 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     if (!won && process.env.DEATHS) {
       const log = C.getState().combatLog.map(l => l.message);
       const t2 = [...trace, 0]; let biggest = 0; for (let k = 1; k < t2.length; k++) biggest = Math.max(biggest, t2[k - 1] - t2[k]);
-      deaths.push({ lvl: MAP.roomById(MP.getState().room).threat ?? 0, ch: CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter), start: trace[0] ?? 1, turns: trace.length, trace, stuns: log.filter(m => m.startsWith('STUNNED')).length, biggest, burnouts: log.filter(m => m.startsWith('BURNOUT')).length, mal: log.filter(m => m === 'MALFUNCTION').length });
+      // The enemy hits on you in this fight ("Name -- Move: N to health"), as shares of max health
+      const maxHp = C.getState().player.maxHp;
+      const hits = fightSaid.filter(m => onYou(m)).map(m => Number(m.match(/: (\d+) to health/)![1]) / maxHp);
+      for (const m of fightSaid.filter(m => onYou(m))) { const v = Number(m.match(/: (\d+) to health/)![1]) / maxHp; if (v > 1 / 3) { const k = `t${MAP.roomById(MP.getState().room).threat}${deathsBefore === 0 ? ' (first life)' : ''} ${m.split(':')[0]}`; bigHits.set(k, (bigHits.get(k) ?? 0) + 1); } }
+      deaths.push({ hits, lvl: MAP.roomById(MP.getState().room).threat ?? 0, ch: CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter), start: trace[0] ?? 1, turns: trace.length, trace, stuns: log.filter(m => m.startsWith('STUNNED')).length, biggest, burnouts: log.filter(m => m.startsWith('BURNOUT')).length, mal: log.filter(m => m === 'MALFUNCTION').length });
     }
     if (process.env.DEBUGLOSS && !won && Number(process.env.DEBUGLOSS) === lvl && !debugShown) { debugShown = true; console.log('LOSS', lvl, 'turns', turns, C.getState().foes.map(f => [f.unit.name, f.unit.currentHp, f.unit.maxHp])); console.log(C.getState().combatLog.slice(-8).map(l => l.message).join(' | ')); }
     const ch = CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter);
@@ -487,6 +498,14 @@ if (process.env.DEATHS && deaths.length) {
   console.log(`\nhosts lost: ${deaths.length}`);
   console.log(`  started the fight at 90%+ health: ${share(d => d.start >= 0.9)}; turns from the start to death: ${avg(d => d.turns)} (died within 3 turns: ${share(d => d.turns <= 3)})`);
   console.log(`  stunned at least once: ${share(d => d.stuns > 0)}; twice or more: ${share(d => d.stuns >= 2)}; burnouts: ${share(d => d.burnouts > 0)}; malfunctioned: ${share(d => d.mal > 0)}`);
+  const allHits = deaths.flatMap(d => d.hits ?? []);
+  const top = deaths.map(d => Math.max(0, ...(d.hits ?? [])));
+  console.log(`  enemy hits in those fights: ${allHits.length}; average ${Math.round(100 * allHits.reduce((a, b) => a + b, 0) / Math.max(1, allHits.length))}% of max health; the biggest single hit per death averages ${Math.round(100 * top.reduce((a, b) => a + b, 0) / Math.max(1, top.length))}%; a single hit over half: ${pct(top.filter(x => x > 0.5).length / top.length)}; hits over a third: ${pct(allHits.filter(x => x > 1 / 3).length / Math.max(1, allHits.length))}`);
+  console.log('  hits over a third of max health, most common:', Array.from(bigHits.entries()).sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, n]) => `${k} ×${n}`).join(' | '));
+  const lastStart = deaths.map(d => d.trace[d.trace.length - 1] ?? 1);
+  console.log(`  health at the start of the round that killed them: average ${Math.round(100 * lastStart.reduce((a, b) => a + b, 0) / lastStart.length)}%; from 70%+ (sudden): ${pct(lastStart.filter(x => x >= 0.7).length / lastStart.length)}; under 35% (worn down): ${pct(lastStart.filter(x => x < 0.35).length / lastStart.length)}`);
+  const wonF = all.filter(f => f.won && f.ch === 0);
+  console.log(`  won fights (chapter one): lowest health on average ${Math.round(100 * wonF.reduce((a, f) => a + f.lowest, 0) / Math.max(1, wonF.length))}%; dipped under half in ${pct(wonF.filter(f => f.lowest < 0.5).length / Math.max(1, wonF.length))}`);
   console.log(`  biggest loss between two of your turns: average ${Math.round(100 * Number(avg(d => d.biggest)))}% of max health; over half in one go: ${share(d => d.biggest > 0.5)}`);
   console.log(`  health at each turn, a few deaths: ${deaths.slice(0, 8).map(d => `[t${d.lvl}${d.ch ? ` ch${d.ch + 1}` : ''}: ${d.trace.map(x => Math.round(x * 100)).join(' ')}${d.stuns ? ` · ${d.stuns} stun` : ''}]`).join(' ')}`);
 }
@@ -524,8 +543,9 @@ for (const r of rows) if (r.fights >= 15 && r.band !== '1-3') { const floor = r.
 const median = [...reached].sort((a, b) => a - b)[Math.floor(reached.length / 2)];
 checks.push([`median highest threat >= 9 (got ${median})`, median >= 9]);
 const normalTurns = Number(turnsOf('normal')), bossTurns = Number(turnsOf('boss'));
-checks.push([`normal fights take <= 8 turns (got ${turnsOf('normal')})`, normalTurns <= 8]);
-if (!Number.isNaN(bossTurns)) checks.push([`boss fights take <= 16 turns (got ${turnsOf('boss')})`, bossTurns <= 16]);
+// (with mending, fights give and take: a little longer than before)
+checks.push([`normal fights take <= 9 turns (got ${turnsOf('normal')})`, normalTurns <= 9]);
+if (!Number.isNaN(bossTurns)) checks.push([`boss fights take <= 20 turns (got ${turnsOf('boss')})`, bossTurns <= 20]);
 // The signal should make steady progress, not snowball: best level after 10 and 20 hosts lost.
 // Allies keep their implants across hosts, so progress carries over a little more than it used to
 const best10 = med(bestBy(10)), best20 = med(bestBy(20));

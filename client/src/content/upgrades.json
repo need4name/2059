@@ -1095,6 +1095,48 @@
         "effect": {
           "spAttack": 4
         }
+      },
+      {
+        "id": "knit",
+        "name": "Knitting mesh",
+        "makers": [
+          "any"
+        ],
+        "effect": {
+          "perk": {
+            "mend": 0.01
+          }
+        }
+      },
+      {
+        "id": "mendcoil",
+        "name": "Mending coil",
+        "makers": [
+          "CROWN",
+          "HELIX"
+        ],
+        "effect": {
+          "perk": {
+            "mend": 0.015
+          }
+        }
+      },
+      {
+        "id": "mendweave",
+        "name": "Mender's weave",
+        "makers": [
+          "any"
+        ],
+        "parts": {
+          "regulator": [
+            "mender"
+          ]
+        },
+        "effect": {
+          "perk": {
+            "mend": 0.02
+          }
+        }
       }
     ]
   },

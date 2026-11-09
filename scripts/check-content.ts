@@ -73,7 +73,7 @@ const ally = z.object({
     }).strict(),
     passive: z.object({
       slot: z.enum(['brain', 'ears', 'nose', 'lungs', 'misc']), name: text,
-      passiveParts: z.object({ housing: z.enum(['light', 'stock', 'plated', 'sealed']), regulator: z.enum(['stock', 'sink', 'baffle', 'primer']), trait: z.enum(['tough', 'quick', 'charged', 'shod', 'shielded']).optional() }).strict(),
+      passiveParts: z.object({ housing: z.enum(['light', 'stock', 'plated', 'sealed']), regulator: z.enum(['stock', 'sink', 'baffle', 'primer', 'mender']), trait: z.enum(['tough', 'quick', 'charged', 'shod', 'shielded']).optional() }).strict(),
       stats: kitStats,
     }).strict(),
   }).strict(),
@@ -170,7 +170,7 @@ const upgradeKind = z.object({
   parts: z.object({
     lens: z.array(z.enum(['clear', 'stock', 'cracked'])).min(1), coupling: z.array(z.enum(['hydraulic', 'servo', 'arc', 'thermal'])).min(1),
     core: z.array(z.enum(['cold', 'stock', 'hot', 'pump'])).min(1), head: z.array(z.string().regex(/^[a-z]+$/)).min(1), mod: z.array(z.string().regex(/^[a-z]+$/)).min(1),
-    housing: z.array(z.enum(['light', 'stock', 'plated', 'sealed'])).min(1), regulator: z.array(z.enum(['stock', 'sink', 'baffle', 'primer'])).min(1),
+    housing: z.array(z.enum(['light', 'stock', 'plated', 'sealed'])).min(1), regulator: z.array(z.enum(['stock', 'sink', 'baffle', 'primer', 'mender'])).min(1),
     trait: z.array(z.enum(['tough', 'quick', 'charged', 'shod', 'shielded'])).min(1),
   }).partial().strict().optional(),
   effect: z.object({
@@ -180,7 +180,7 @@ const upgradeKind = z.object({
     perk: z.object({
       cooling: z.number().int().min(1).max(10), finisher: z.number().gt(0).max(1), flank: z.number().gt(0).max(1), firstLook: z.literal(true),
       partingCut: z.number().gt(0).max(1), sidestep: z.literal(true), hazardCut: z.number().gt(0).max(1), vent: z.number().int().min(1).max(15),
-      braceHeal: z.number().gt(0).max(0.2), structure: z.number().gt(0).max(0.5), toughness: z.number().gt(0).max(0.2), holdfast: z.literal(true), coolAct: z.number().int().min(16).max(60), specialHeatCut: z.number().gt(0).max(1),
+      braceHeal: z.number().gt(0).max(0.2), structure: z.number().gt(0).max(0.5), toughness: z.number().gt(0).max(0.2), holdfast: z.literal(true), coolAct: z.number().int().min(16).max(60), specialHeatCut: z.number().gt(0).max(1), mend: z.number().gt(0).max(0.05),
     }).partial().strict(),
   }).partial().strict().refine(e => Object.keys(e).length > 0, 'an upgrade must do something'),
 }).strict();

@@ -335,7 +335,7 @@ overclockActive: s.overclockActive, kizunaJustFired: s.kizunaJustFired,
 doubleActionReady: s.doubleActionReady,
 perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepReady, holdfastReady: s.holdfastReady,
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
-playerBurning: s.playerBurning, playerStunned: s.playerStunned, overload: s.overload,
+playerBurning: s.playerBurning, playerStunned: s.playerStunned, stunGuard: s.stunGuard ?? 0, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
 playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders,
 ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
@@ -672,7 +672,7 @@ combatLog: isKing
 ? PATCHWORK_KING_MONOLOGUE.slice(0, 2).map((line, i) => ({ ...createCombatLog(line, 'info'), id: `king_intro_${i}` }))
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
-save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
+save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
@@ -1184,6 +1184,9 @@ progression: s.progression,
 
 /** Every firmware a new host can wake with: Enforcer and Operative once a death opened them, then whatever going deep opened. */
 /** The host's health between fights: what it would start the next fight on, out of its max. */
+/** How fast this host mends: the share of max health healed at the start of each turn at full structure. */
+export const hostMend = (): number => Fight.MEND.base + (buildPlayer(useCombat.getState().playerClass).perks.mend ?? 0);
+
 export function hostHealth(): { hp: number; max: number } {
 const max = buildPlayer(useCombat.getState().playerClass).player.maxHp;
 return { hp: healthNow(useMap.getState(), max), max };

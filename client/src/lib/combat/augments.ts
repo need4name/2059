@@ -286,12 +286,13 @@ export const HOUSINGS: Record<string, Housing> = {
   plated: { label: 'Plated housing', structure: 1.35 },
   sealed: { label: 'Sealed housing', structure: 1, spDef: 3 },
 };
-export interface Regulator { label: string; cooling?: number; specialHeat?: number; startHeat?: number }
+export interface Regulator { label: string; cooling?: number; specialHeat?: number; startHeat?: number; /** Mending: a share of max health a turn at full structure (more on better grades). */ mend?: number }
 export const REGULATORS: Record<string, Regulator> = {
   stock:  { label: 'Stock regulator' },
   sink:   { label: 'Heat sink',      cooling: 1 },
   baffle: { label: 'Baffle',         specialHeat: 0.5 },
   primer: { label: 'Primer',         startHeat: 10 },
+  mender: { label: 'Mender',         mend: 0.012 },
 };
 export interface Trait { label: string; hp?: number; speed?: number; overload?: number; hazard?: number; spDef?: number }
 export const TRAITS: Record<string, Trait> = {
@@ -360,12 +361,12 @@ const MAKER_LEAN: Record<Maker, { lens: string; coupling: string; core: string; 
   VOLKOV:    { lens: 'clear',   coupling: 'hydraulic', core: 'hot',   housing: 'plated', regulator: 'primer' },
   TIANXIA:   { lens: 'stock',   coupling: 'hydraulic', core: 'stock', housing: 'plated', regulator: 'sink' },
   KIZUNA:    { lens: 'clear',   coupling: 'arc',       core: 'cold',  housing: 'light',  regulator: 'baffle' },
-  CROWN:     { lens: 'clear',   coupling: 'arc',       core: 'cold',  housing: 'sealed', regulator: 'sink' },
+  CROWN:     { lens: 'clear',   coupling: 'arc',       core: 'cold',  housing: 'sealed', regulator: 'mender' },
   CBN:       { lens: 'stock',   coupling: 'servo',     core: 'hot',   housing: 'light',  regulator: 'primer' },
   IOA:       { lens: 'cracked', coupling: 'thermal',   core: 'pump',  housing: 'light',  regulator: 'primer' },
   PARSU:     { lens: 'stock',   coupling: 'hydraulic', core: 'stock', housing: 'plated', regulator: 'baffle' },
   PATCHWORK: { lens: 'cracked', coupling: 'servo',     core: 'pump',  housing: 'stock',  regulator: 'stock' },
-  HELIX:     { lens: 'stock',   coupling: 'servo',     core: 'cold',  housing: 'sealed', regulator: 'sink' },
+  HELIX:     { lens: 'stock',   coupling: 'servo',     core: 'cold',  housing: 'sealed', regulator: 'mender' },
 };
 const lean = (maker: Maker, part: keyof typeof MAKER_LEAN[Maker], all: Record<string, unknown>) =>
   random() < 0.6 ? MAKER_LEAN[maker][part] : pick(Object.keys(all));
@@ -466,7 +467,7 @@ export function partsText(item: Item): string | null {
  * (heat shed a turn, special heat taken, starting heat) and traits (speed, Overload, hazards).
  * Housing and the Tough trait change stats instead (getTotalAugmentationBonuses).
  */
-export function partPerks<P extends { extraCooling: number; specialHeatTakenMult: number; startHeat: number; hazardMult: number; startOverload: number; partSpeed: number }>(perks: P, worn: (Item | null | undefined)[]): P {
+export function partPerks<P extends { extraCooling: number; specialHeatTakenMult: number; startHeat: number; hazardMult: number; startOverload: number; partSpeed: number; mend: number }>(perks: P, worn: (Item | null | undefined)[]): P {
   const p = { ...perks };
   for (const it of worn) {
     const pp = it?.passiveParts;
@@ -475,6 +476,8 @@ export function partPerks<P extends { extraCooling: number; specialHeatTakenMult
     if (reg?.cooling) p.extraCooling += reg.cooling;
     if (reg?.specialHeat) p.specialHeatTakenMult *= reg.specialHeat;
     if (reg?.startHeat) p.startHeat = Math.min(100, p.startHeat + reg.startHeat);
+    // A Mender mends more the better its grade (common ×1 up to legendary ×2)
+    if (reg?.mend) p.mend += reg.mend * (1 + 0.25 * ['common', 'uncommon', 'rare', 'epic', 'legendary'].indexOf(it!.rarity));
     if (tr?.speed) p.partSpeed += tr.speed;
     if (tr?.overload) p.startOverload += tr.overload;
     if (tr?.hazard) p.hazardMult *= tr.hazard;

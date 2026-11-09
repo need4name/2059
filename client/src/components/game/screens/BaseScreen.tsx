@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCombat, hostHealth } from '@/lib/stores/useCombat';
+import { useCombat, hostHealth, hostMend } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAugmentTrees, nodesOf, gunMove } from '@/lib/stores/useAugmentTrees';
@@ -580,6 +580,8 @@ function StatusTab() {
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />
+          {/* Mending: health back at the start of each turn, while structure holds (less as it wears) */}
+          <Stat label="Mending" value={`${Math.round(stats.maxHp * hostMend())} a turn`} tone="text-ok" />
           <Stat label="Move" value={`${moveTiles(perks.moveBonus + (tree.moveRange ?? 0))} tiles in reach`} />
           <Stat label="Attack" value={stats.physicalAttack} tone="text-amber-200" />
           <Stat label="Sp. Atk" value={stats.structuralAttack} tone="text-violet-300" />

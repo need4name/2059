@@ -192,6 +192,8 @@ export interface FightState {
   playerBurning: number;
   /** The player loses their next turn. */
   playerStunned: boolean;
+  /** Stun guard: 2 while a stun is costing you a turn, 1 through your next full turn; while above 0 you can't be stunned again. */
+  stunGuard?: number;
   /** The player is in the sea (see swimming on foes). */
   playerSwimming?: boolean;
   /** Turns of bleeding left on the player. */
@@ -271,7 +273,7 @@ export function foeRoster(f: Foe): CombatAction[] {
 export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
-  playerBurning: 0, playerStunned: false, playerSwimming: false, playerBleeding: 0, overload: 0,
+  playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
   playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
@@ -686,6 +688,8 @@ export function startPlayerTurn(s: FightState): FightState {
     doubleActionReady: (s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat) || redline,
     redlineUsed: s.redlineUsed || redline,
     noParting: false,
+    // The turn after a stun is the full turn the guard waits for
+    stunGuard: (s.stunGuard ?? 0) === 2 ? 1 : s.stunGuard ?? 0,
   };
 }
 
@@ -778,7 +782,8 @@ function hurt(s: FightState, b: Body, dmg: number, events: FightEvent[]): FightS
   return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, unit: { ...x.unit, currentHp: hp } } : x)) };
 }
 const stun = (s: FightState, b: Body): FightState =>
-  b.kind === 'player' ? { ...s, playerStunned: true }
+  // No stun-locks: a stunned host can't be stunned again until it has had a full turn
+  b.kind === 'player' ? ((s.stunGuard ?? 0) > 0 ? s : { ...s, playerStunned: true })
   : b.kind === 'foe' ? setFoe(s, b.i, { stunned: true })
   : { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, stunned: true } : x)) };
 
@@ -850,9 +855,24 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   const down = events.some(e => e.kind === 'playerDown');
   const swam = !!s.playerSwimming && !down;
   if (swam) state = climbOut(state, { kind: 'player' }, events);
+  // The frame mends the flesh: a share of max health, scaled by how much structure is left (none once it breaks)
+  if (!down) {
+    const mended = mendAmount(state);
+    if (mended > 0) { state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + mended } }; events.push(say(`Mending -- healed ${mended}`, 'heal')); }
+  }
   const skipTurn = (s.playerStunned || swam) && !down;
-  if (s.playerStunned && skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false }; }
+  if (s.playerStunned && skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false, stunGuard: 2 }; }
   return { state, events, skipTurn };
+}
+
+/** Mending: at the start of each of your turns you heal MEND.base (plus what parts, trees and the play-i tree add) of
+ *  your max health, times the share of your structure left. Structure kept up is health coming back. */
+export const MEND = { base: 0.06 };
+export function mendAmount(s: FightState): number {
+  const p = s.player;
+  if (p.currentHp <= 0 || p.currentHp >= p.maxHp || p.maxStructuralHp <= 0) return 0;
+  const share = Math.max(0, Math.min(1, p.currentStructuralHp / p.maxStructuralHp));
+  return Math.min(p.maxHp - p.currentHp, Math.round(p.maxHp * (MEND.base + (s.perks.mend ?? 0)) * share));
 }
 
 /**
@@ -879,9 +899,10 @@ export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: bool
 }
 
 /** The end of the player's turn: what allies set up for it (a mark, Coordinated) is spent. */
-/** The end of your turn: marks lapse, and running hot feeds Overload (more when critical). */
+/** The end of your turn: marks lapse, running hot feeds Overload (more when critical), and a full turn played
+ *  lifts the stun guard (a stun that cost this turn keeps it on through the next one). */
 export const endPlayerTurn = (s: FightState): FightState =>
-  gainOverload({ ...s, mark: null, allyHitFoes: [] }, s.playerHeat >= 86 ? OVERLOAD.critical : s.playerHeat >= HEAT.hotAt ? OVERLOAD.hot : 0);
+  gainOverload({ ...s, mark: null, allyHitFoes: [], stunGuard: (s.stunGuard ?? 0) === 1 ? 0 : s.stunGuard ?? 0 }, s.playerHeat >= 86 ? OVERLOAD.critical : s.playerHeat >= HEAT.hotAt ? OVERLOAD.hot : 0);
 
 /** Aim at a different foe (only living ones). */
 export function setTarget(s: FightState, i: number): FightState {

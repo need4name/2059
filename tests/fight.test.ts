@@ -280,7 +280,8 @@ test('a stunned enemy loses its turn and any wound-up heavy', () => {
 test('ending a turn on a fuel fire sets you burning, which ticks for two turns', () => {
   const g = arena([5, 3], [1, 3]);
   g.tiles[5][3] = { type: 'hazard', name: 'Fuel fire', hazardDamage: 8, art: 'fire' } as any;
-  const lit = Fight.applyPlayerHazard(fight({ grid: g })).state;
+  // (structure broken, so no mending covers the burn)
+  const lit = Fight.applyPlayerHazard(fight({ grid: g, player: { ...createPlayer(), currentStructuralHp: 0 } })).state;
   assert.equal(lit.playerBurning, Fight.BURN.turns);
   const t1 = Fight.playerConditions(lit);
   assert.ok(t1.state.player.currentHp < lit.player.currentHp);
@@ -1258,4 +1259,35 @@ test('the red counts an enemy that acts twice from where it would walk, a stunne
   const king = { ...s.foes[0], unit: createPatchworkKing(), scriptTurn: 0 };
   assert.deepEqual(Fight.foeRoster(king).map(a => a.name), PATCHWORK_KING_PHASES[0].map(a => a.name));
   assert.deepEqual(Fight.foeRoster({ ...king, scriptTurn: 3 }).map(a => a.name), PATCHWORK_KING_PHASES[1].map(a => a.name));
+});
+
+// ── Mending and the stun guard ───────────────────────────────────────────────
+test('the frame mends you at the start of each turn, by how much structure is left; parts, trees and cards add to it', () => {
+  const hurt = (structure: number) => fight({ player: { ...createPlayer(), currentHp: 50, maxStructuralHp: 40, currentStructuralHp: structure } });
+  const full = Fight.playerConditions(hurt(40)).state.player.currentHp - 50;
+  assert.equal(full, Math.round(createPlayer().maxHp * Fight.MEND.base), 'full structure: the whole rate');
+  assert.equal(Fight.playerConditions(hurt(20)).state.player.currentHp - 50, Math.round(createPlayer().maxHp * Fight.MEND.base * 0.5), 'half structure: half');
+  assert.equal(Fight.playerConditions(hurt(0)).state.player.currentHp, 50, 'broken: nothing');
+  const better = { ...hurt(40), perks: { ...hurt(40).perks, mend: 0.04 } };
+  assert.ok(Fight.playerConditions(better).state.player.currentHp - 50 > full);
+  const topped = fight({ player: { ...createPlayer(), maxStructuralHp: 40, currentStructuralHp: 40 } });
+  assert.equal(Fight.playerConditions(topped).state.player.currentHp, topped.player.maxHp, 'never past full');
+});
+
+test('no stun-locks: a stun that costs you a turn keeps further stuns off until you have played a full turn', () => {
+  let s = fight({ playerStunned: true });
+  const lost = Fight.playerConditions(s);
+  assert.equal(lost.skipTurn, true);
+  s = Fight.endPlayerTurn(lost.state);
+  assert.equal(s.stunGuard, 2);
+  // The enemies' round: a stun can't land
+  const g = Fight.knockBack({ ...s, grid: arena([0, 3], [1, 3]) }, { row: 1, col: 3 }, { kind: 'player' }, 5, []);
+  assert.equal(g.playerStunned, false, 'guarded: slammed into the rail, but not stunned');
+  // Your next turn is played in full; once it ends, stuns can land again
+  s = Fight.startPlayerTurn(s);
+  assert.equal(s.stunGuard, 1);
+  assert.equal(Fight.playerConditions(s).skipTurn, false);
+  s = Fight.endPlayerTurn(s);
+  assert.equal(s.stunGuard, 0);
+  assert.equal(Fight.knockBack({ ...s, grid: arena([0, 3], [1, 3]) }, { row: 1, col: 3 }, { kind: 'player' }, 5, []).playerStunned, true);
 });

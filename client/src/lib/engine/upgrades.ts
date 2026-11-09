@@ -29,6 +29,8 @@ export interface TreePerk {
   hazardCut?: number; vent?: number; braceHeal?: number; structure?: number; toughness?: number; holdfast?: boolean; coolAct?: number;
   /** Share off the heat special hits put into you (Damper, Faraday cage). */
   specialHeatCut?: number;
+  /** Extra mending: a share of max health a turn at full structure. */
+  mend?: number;
 }
 export interface UpgradeEffect {
   dmg?: number; heat?: number; steady?: boolean; precise?: boolean; guard?: number;
@@ -74,6 +76,7 @@ export function withTreePerks(p: Perks, t: TreePerk): Perks {
     holdfast: p.holdfast || !!t.holdfast,
     doubleActionHeat: Math.max(p.doubleActionHeat, t.coolAct ?? 0),
     specialHeatTakenMult: p.specialHeatTakenMult * cut(t.specialHeatCut),
+    mend: p.mend + (t.mend ?? 0),
   };
 }
 /** A node in an implant's tree. `cap` marks the end of a branch (legendary only on legendary parts). */
