@@ -37,7 +37,8 @@ export function VictoryScreen() {
           <button onClick={continueFromVictory} className="w-full py-1 text-center text-[13px] text-hud-dim underline-offset-2 hover:text-hud-text hover:underline">Stay here a while</button>
         </div>
       ) : (
-        <Btn variant="primary" size="lg" className="w-full" onClick={() => continueFromVictory()}>
+        // Until a part is taken, Go back stays quiet so the gold salvage is what draws the eye
+        <Btn variant={picksLeft > 0 ? 'secondary' : 'primary'} size="lg" className="w-full" onClick={() => continueFromVictory()}>
           Go back
         </Btn>
       )
@@ -82,12 +83,13 @@ export function VictoryScreen() {
         )}
 
         {strip && (
-          <div className={cx('rise-in slab space-y-3 rounded-[28px] p-4 transition', picksLeft > 0 && 'bg-gradient-to-b from-cred/[0.12] to-transparent')}>
+          <div className={cx('rise-in slab space-y-3 rounded-[28px] p-4 transition', picksLeft > 0 && 'salvage-call bg-[#1c1a17]')}>
             <div className="flex items-center gap-3">
               <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', picksLeft ? 'bg-cred/15 text-cred' : 'bg-ok/15 text-ok')}><Glyph name="implant" size={20} /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-display text-[16px] font-semibold text-white">Salvage</span>
+                  {picksLeft > 0 && <span className="salvage-take rounded-full bg-[#f2b33d] px-2.5 py-0.5 text-[12px] font-bold text-[#2a1a02]">Take {picksLeft}</span>}
                   {/* One dot per part you can take: filled while it's still yours to use */}
                   <span className="flex gap-1" aria-label={`${picksLeft} left to take`}>
                     {Array.from({ length: strip.picks }, (_, n) => <span key={n} className={cx('h-2 w-2 rounded-full', n < picksLeft ? 'bg-cred' : 'bg-white/15')} />)}
@@ -111,7 +113,7 @@ export function VictoryScreen() {
                     const parts = partsText(item);
                     return (
                       <button key={item.id} disabled={gone} onClick={toggle} aria-pressed={taken}
-                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-cred' : 'ring-white/[0.05] hover:ring-white/[0.15]', gone && 'opacity-40')}>
+                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-cred' : picksLeft > 0 ? 'ring-[#f2b33d]/45 hover:ring-[#f2b33d]' : 'ring-white/[0.05]', gone && 'opacity-40')}>
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
                           <span className={cx('block break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
@@ -121,7 +123,7 @@ export function VictoryScreen() {
                         </span>
                         {move?.type === 'attack' && <Footprint action={move} cell={5} className="shrink-0" />}
                         {!gone && (
-                          <span className={cx('key flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-bold', taken ? 'key-gold text-[#1a1003]' : 'text-cred animate-pulse')} aria-hidden>
+                          <span className={cx('key key-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[#1a1003]', !taken && 'salvage-take')} aria-hidden>
                             {taken ? '✓' : '+'}
                           </span>
                         )}

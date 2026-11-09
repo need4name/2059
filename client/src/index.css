@@ -184,3 +184,22 @@ a:focus-visible,
   50% { opacity: 1; filter: drop-shadow(0 0 10px rgba(56, 214, 240, 0.8)); }
 }
 .signal-pulse { animation: signal-pulse 3.2s ease-in-out infinite; }
+
+/* After a win, while a part is still yours to take: the salvage card's gold rim pulses outward (a solid ring, no blur),
+   and each part's gold + breathes, so it can't be missed */
+/* A slab with a gold rim (kept with the slab's own edge and lip), and an outline that pulses out from it */
+.salvage-call {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 2px #f2b33d, 0 4px 0 #8c5c0f;
+  outline: 2px solid rgba(242, 179, 61, 0.6);
+  animation: salvage-call 1.6s ease-out infinite;
+}
+@keyframes salvage-call {
+  0% { outline-offset: 0px; outline-color: rgba(242, 179, 61, 0.6); }
+  100% { outline-offset: 9px; outline-color: rgba(242, 179, 61, 0); }
+}
+@keyframes salvage-take {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+.salvage-take { animation: salvage-take 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .salvage-call, .salvage-take { animation: none; } }
