@@ -470,6 +470,11 @@ const defendGain = new Map<string, Gain>();       // 'player' or 'ally:k'
 const guardOutline = new Map<string, { color: string; dashed: boolean }>(); // tile -> outline
 let defendPick: Set<string> | null = null;        // tiles you can tap to choose who it covers
 let defendStepTo: TilePosition | null = null;
+// Brace: the structure (and any health) it mends flashes on your bars while it's picked
+if (selectedAction?.type === 'brace' && phase === 'player_turn') {
+  const b = Fight.braceAmounts(useCombat.getState());
+  if (b.structure || b.heal) defendGain.set('player', { now: b.heal, later: 0, sNow: b.structure, sLater: 0 });
+}
 if (selectedAction?.defend && phase === 'player_turn') {
   const fs = useCombat.getState(), d = selectedAction.defend;
   const { who, mult } = Fight.defendTargets(fs, selectedAction, fs.aim);

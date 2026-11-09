@@ -1,5 +1,5 @@
 import type { Item, CombatAction } from '@/lib/combat/types';
-import { displayName } from '../../lib/combat/augments';
+import { displayName, actionForItem, structureOf } from '../../lib/combat/augments';
 
 const STIM_TEXT: Record<NonNullable<Item['consumableEffect']>, { label: string; effect: string; icon: string }> = {
   bio_stim: { label: 'Bio-Stim', effect: 'Restore 60% HP', icon: '💉' },
@@ -24,6 +24,22 @@ export function implantStats(item: Item): string {
     item.evasionBonus ? `+${item.evasionBonus} dodge` : '',
   ].filter(Boolean);
   return parts.join(' · ') || 'No stat bonus';
+}
+
+/** How an implant compares with another for the same slot: each stat that differs (and an attack's damage), better first. */
+export function compareStats(next: Item, now: Item): { label: string; delta: number }[] {
+  const n = (v?: number) => v ?? 0;
+  const moveDmg = (it: Item) => { const a = actionForItem(it); return a?.type === 'attack' ? n(a.damage) : 0; };
+  const rows = [
+    { label: 'Atk', delta: n(next.attackBonus) - n(now.attackBonus) },
+    { label: 'Sp. Atk', delta: n(next.structuralAttackBonus) - n(now.structuralAttackBonus) },
+    { label: 'Def', delta: n(next.defenseBonus) - n(now.defenseBonus) },
+    { label: 'Sp. Def', delta: n(next.structuralDefenseBonus) - n(now.structuralDefenseBonus) },
+    { label: 'HP', delta: n(next.hpBonus) - n(now.hpBonus) },
+    { label: 'Structure', delta: structureOf(next) - structureOf(now) },
+    { label: 'damage', delta: moveDmg(next) && moveDmg(now) ? moveDmg(next) - moveDmg(now) : 0 },
+  ];
+  return rows.filter(r => r.delta !== 0).sort((a, b) => b.delta - a.delta);
 }
 
 export function passiveText(item: Item): string | null {

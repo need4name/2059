@@ -960,15 +960,25 @@ function foeOverheat(s: FightState, i: number, events: FightEvent[]): FightState
 
 // ── Player actions ───────────────────────────────────────────────────────────
 
+/** What a Brace would mend now: structure (a share of the bar, `braceRepair`) and health (Matron's link). */
+export function braceAmounts(s: FightState): { structure: number; heal: number } {
+  const p = s.player;
+  return {
+    structure: Math.max(0, Math.min(p.maxStructuralHp, p.currentStructuralHp + Math.ceil(p.maxStructuralHp * s.perks.braceRepair)) - p.currentStructuralHp),
+    heal: Math.max(0, Math.min(p.maxHp - p.currentHp, Math.round(p.maxHp * s.perks.braceHeal))),
+  };
+}
+
 /** Brace: guard up, cool down, repair part of the structure bar. */
 export function resolveBrace(s: FightState, action: CombatAction): Step {
   const { player } = s;
   const wasMalfunctioning = isMalfunctioning(player);
-  const structure = Math.min(player.maxStructuralHp, player.currentStructuralHp + Math.ceil(player.maxStructuralHp * s.perks.braceRepair));
+  const structure = player.currentStructuralHp + braceAmounts(s).structure;
   const heal = Math.min(player.maxHp - player.currentHp, Math.round(player.maxHp * s.perks.braceHeal));
   const events: FightEvent[] = [];
   if (wasMalfunctioning && structure > 0) events.push(say('STRUCTURAL INTEGRITY RESTORED -- system nominal'));
-  events.push(say(`${action.name} -- guard up${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
+  const repaired = structure - player.currentStructuralHp;
+  events.push(say(`${action.name} -- guard up${repaired > 0 ? `, +${repaired} structure` : ''}${heal > 0 ? `, +${heal} HP` : ''}`, heal > 0 ? 'heal' : 'info'));
   const heat = clampHeat(s.playerHeat + (action.heatGenerated ?? -25) - s.perks.ventBonus);
   let state: FightState = {
     ...s,

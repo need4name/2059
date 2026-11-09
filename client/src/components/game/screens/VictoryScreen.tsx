@@ -5,7 +5,8 @@ import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT
 import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
 import { levelStep } from '@/lib/engine/firmware';
 import { scrapValue } from '@/lib/combat/economy';
-import { implantStats, stimInfo, passiveText, nameOf } from '../itemText';
+import { implantStats, stimInfo, passiveText, nameOf, compareStats } from '../itemText';
+import { useInventory } from '@/lib/stores/useInventory';
 import { allyDef } from '@/lib/combat/allies';
 import { useAllies } from '@/lib/stores/useAllies';
 import { useMap } from '@/lib/stores/useMap';
@@ -14,6 +15,8 @@ import { nextChapter } from '@/lib/combat/chapters';
 
 export function VictoryScreen() {
   const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, returnPart, playerClass } = useCombat();
+  // What's fitted now, to compare each part with (and fit a taken one in its place)
+  const { equippedAugmentations, equipAugmentation } = useInventory();
   const items = currentLoot?.items ?? [];
   const picksLeft = strip ? strip.picks - strip.taken.length : 0;
   const scrap = strip ? scrapValue(strip.bodies.flatMap(b => b.items).filter(i => !strip.taken.includes(i.id))) : 0;
@@ -111,9 +114,14 @@ export function VictoryScreen() {
                     const toggle = () => (taken ? returnPart(item.id) : takePart(item.id));
                     const move = actionForItem(item);
                     const parts = partsText(item);
+                    // The implant in that slot now (not this one, if it was fitted on taking)
+                    const fitted = item.slot ? equippedAugmentations[item.slot] : null;
+                    const now = fitted && fitted.id !== item.id ? fitted : null;
+                    const diff = now ? compareStats(item, now) : [];
                     return (
-                      <button key={item.id} disabled={gone} onClick={toggle} aria-pressed={taken}
-                        className={cx('flex items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-cred' : picksLeft > 0 ? 'ring-[#f2b33d]/45 hover:ring-[#f2b33d]' : 'ring-white/[0.05]', gone && 'opacity-40')}>
+                      <div key={item.id} className="min-w-0 space-y-1.5">
+                      <button disabled={gone} onClick={toggle} aria-pressed={taken}
+                        className={cx('flex w-full min-w-0 items-center gap-3 rounded-2xl bg-gradient-to-r to-hud-panel/80 p-3 text-left ring-1 transition', RARITY_GLOW[item.rarity], taken ? 'ring-2 ring-cred' : picksLeft > 0 ? 'ring-[#f2b33d]/45 hover:ring-[#f2b33d]' : 'ring-white/[0.05]', gone && 'opacity-40')}>
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25 text-xl"><SlotIcon slot={item.slot} /></span>
                         <span className="min-w-0 flex-1">
                           <span className={cx('block break-words text-sm font-semibold leading-tight', RARITY_TEXT[item.rarity])}>{nameOf(item)}{item.signature ? ' ★' : ''}</span>
@@ -128,6 +136,18 @@ export function VictoryScreen() {
                           </span>
                         )}
                       </button>
+                      {/* Against what's fitted in that slot: what changes, and (once taken) fit it here */}
+                      {now && !gone && (
+                        <div className="flex flex-wrap items-center gap-1.5 px-1.5">
+                          <span className="text-[11px] text-hud-dim">vs {nameOf(now)}:</span>
+                          {diff.length ? diff.map(d => (
+                            <span key={d.label} className={cx('rounded-full px-2 py-0.5 text-[11px] font-semibold', d.delta > 0 ? 'bg-ok/15 text-ok' : 'bg-hostile/15 text-hostile')}>{d.delta > 0 ? '+' : ''}{d.delta} {d.label}</span>
+                          )) : <span className="text-[11px] text-hud-faint">the same</span>}
+                          {taken && <button onClick={() => equipAugmentation(item)} className="key key-primary ml-auto rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-[#03222b]">Fit it</button>}
+                        </div>
+                      )}
+                      {taken && fitted?.id === item.id && <div className="px-1.5 text-[11px] font-semibold text-ok">Fitted in {item.slot ? AUGMENTATION_SLOT_NAMES[item.slot].toLowerCase() : 'its slot'}</div>}
+                      </div>
                     );
                   })}
                 </div>

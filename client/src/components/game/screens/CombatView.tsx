@@ -169,6 +169,8 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[11px] font-semibold">
         {est && <span className={inRange ? 'text-hud-text' : 'text-hud-faint line-through'}>{est.min === est.max ? est.min : `${est.min}–${est.max}`}{struck.length > 1 ? ` ×${struck.length}` : ''}</span>}
         {action.defenseBoost && action.type === 'brace' ? <span className="text-sys">+{action.defenseBoost} guard</span> : null}
+        {/* Brace mends structure too: shown so it's never a surprise */}
+        {action.type === 'brace' && Fight.braceAmounts(s).structure > 0 ? <span className="text-slate-200">+{Fight.braceAmounts(s).structure} structure</span> : null}
         {defendSummary(action) && <span className="text-ok">{defendSummary(action)}</span>}
         {heat !== 0 && <span className={heat > 0 ? 'text-orange-300' : 'text-sys'}>{heat > 0 ? '+' : ''}{heat}°</span>}
         {crit > 0 && inRange && <span className="text-cred">{crit}% crit</span>}
