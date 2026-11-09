@@ -536,15 +536,17 @@ if (fs.aim) {
 
 // Every tile an enemy can hit on its next turn. Enemies attack before they
 // move, so standing outside these at the end of your turn is safe.
+// Enemies that act twice before your next turn walk between their two actions: their second reach counts too
+const twiceNow = phase === 'player_turn' ? Fight.doubleTurns(useCombat.getState(), useCombat.getState().clock, 'player') : [];
 const enemyReachableTiles = phase === 'player_turn' ? (() => {
-const union = Fight.dangerTiles(useCombat.getState());
+const union = Fight.dangerTiles(useCombat.getState(), false, twiceNow);
 return union.size ? union : null;
 })() : null;
 // How hard they'd land on each red tile (enemy sweet spots): bolder red where it hurts more
 const enemyWeights = phase === 'player_turn' ? Fight.dangerWeights(useCombat.getState()) : null;
 // Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
 const enemyShoveTiles = phase === 'player_turn' ? (() => {
-return Fight.dangerTiles(useCombat.getState(), true);
+return Fight.dangerTiles(useCombat.getState(), true, twiceNow);
 })() : null;
 
 // Tiles the player (or the ally being moved) can still move to this turn

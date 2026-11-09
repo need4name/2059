@@ -15,7 +15,7 @@ import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Ite
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
   calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
-  getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE,
+  getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE, PATCHWORK_KING_PHASES, kingPhase,
 } from '../combat/actions';
 import type { DamageResult } from '../combat/actions';
 import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
@@ -259,7 +259,9 @@ export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.inc
 const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
-  const roster = f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
+  // The Patchwork King fights from a script: what he can use next is his coming turn's phase
+  const king = f.unit.name === 'Patchwork King' && !f.unit.moves ? PATCHWORK_KING_PHASES[kingPhase(f.scriptTurn + 1)] : null;
+  const roster = king ?? f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
   if (!hasTrait(f, 'sighted') || roster.some(a => a.attackPattern === 'ranged')) return roster;
   const base = roster.find(a => a.type === 'attack' && !a.isHeavy);
   return [...roster, { type: 'attack', name: 'Optic shot', description: '', damage: Math.round((base?.damage ?? 10) * 0.8), accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 2, heatGenerated: 6, attackPattern: 'ranged' }];
@@ -414,17 +416,17 @@ export function windTick(s: FightState): Step {
  * wind would carry you from it into their reach (over an edge is not red: in the
  * water you can't be hit).
  */
-export function dangerTiles(s: FightState, onlyShoves = false): Set<string> {
+export function dangerTiles(s: FightState, onlyShoves = false, twice: number[] = []): Set<string> {
   const living = livingFoes(s);
   if (!s.wind) {
     const out = new Set<string>();
-    for (const { i } of living) foeThreatTiles(s, i, onlyShoves).forEach(k => out.add(k));
+    for (const { i } of living) foeThreatTiles(s, i, onlyShoves, twice.includes(i)).forEach(k => out.add(k));
     return out;
   }
   // The board after the push (a long countdown so a preview never rolls the wind's dice)
   const after = windTick({ ...s, wind: { ...s.wind, turnsLeft: 99 } }).state;
   const threat = new Set<string>();
-  for (const { i } of living) foeThreatTiles(after, i, onlyShoves).forEach(k => threat.add(k));
+  for (const { i } of living) foeThreatTiles(after, i, onlyShoves, twice.includes(i)).forEach(k => threat.add(k));
   const step = WIND_STEP[s.wind.dir];
   const others = [...after.foes.filter(isAlive).map(f => f.pos), ...after.allies.filter(allyAlive).map(a => a.pos)];
   const out = new Set<string>();
@@ -1557,21 +1559,41 @@ const approachPattern = (f: Foe): AttackPatternType | undefined =>
  * so ending your turn outside these tiles means it can't touch you. Other
  * enemies don't count as cover here (they may walk away first).
  */
-export function foeThreatTiles(s: FightState, i: number, onlyShoves = false): Set<string> {
+export function foeThreatTiles(s: FightState, i: number, onlyShoves = false, again = false): Set<string> {
   const out = new Set<string>();
   const f = s.foes[i];
-  if (!f || !isAlive(f) || f.pendingAction || f.stunned || f.swimming) return out;
+  if (!f || !isAlive(f) || f.swimming) return out;
   const shoves = (a: CombatAction) => a.attackPattern === 'knockback' || !!a.effects?.knock || !!a.effects?.pull;
   const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].filter(a => !onlyShoves || shoves(a));
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
-  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
-    const t = { row, col };
-    if (same(t, f.pos)) continue;
-    const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
+  const reachFrom = (from: TilePosition, t: TilePosition) => {
+    const view: CombatGrid = { ...s.grid, bossPosition: from, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
     for (const a of moves) {
-      const tiles = getHitTiles(f.pos, t, a.attackPattern ?? 'melee_long', view);
+      const tiles = getHitTiles(from, t, a.attackPattern ?? 'melee_long', view);
       if (tiles.some(x => same(x, t))) tiles.forEach(x => out.add(`${x.row},${x.col}`));
     }
+  };
+  // Its first action, from where it stands (a stunned enemy loses it; one winding up spends it on the heavy, shown apart)
+  const firstFree = !f.pendingAction && !f.stunned;
+  // Aimed at an ally instead, a wide shape (a beam, a sweep, a blast) can catch you on the way: those tiles count too
+  if (firstFree) for (const a of s.allies) if (allyAlive(a) && !a.swimming) {
+    const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: a.pos, occupied: occupied.filter(p => !same(p, a.pos)) };
+    for (const m of moves) {
+      const tiles = getHitTiles(f.pos, a.pos, m.attackPattern ?? 'melee_long', view);
+      if (tiles.some(x => same(x, a.pos)) && MULTI_HIT.has(m.attackPattern ?? 'melee_long')) tiles.forEach(x => out.add(`${x.row},${x.col}`));
+    }
+  }
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    const t = { row, col };
+    if (same(t, f.pos) || tileAt(t, s.grid)?.type === 'void') continue;
+    if (firstFree) reachFrom(f.pos, t);
+    // An enemy that acts again before your next turn walks after its first action, then strikes from there:
+    // where it walks depends on where you stand, so each tile is checked from the spot it would walk to
+    if (again && order(s) !== 'hold') {
+      const ready = setFoe({ ...s, grid: { ...s.grid, playerPosition: t } }, i, { stunned: false, pendingAction: null, pendingTiles: null });
+      const to = foeWalk(ready, i).state.foes[i]?.pos ?? f.pos;
+      if (!same(to, t)) reachFrom(to, t);
+    } else if (again) reachFrom(f.pos, t);
   }
   return out;
 }

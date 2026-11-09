@@ -1241,3 +1241,21 @@ test('enemies that fight with special moves carry more special-leaning implants'
   const avg = (lean: number) => { seedRandom(77); let n = 0, k = 0; for (let r = 0; r < 60; r++) for (const it of rollCarried(12, 3, 'normal', false, undefined, lean)) { n += specialShare(it); k++; } return n / k; };
   assert.ok(avg(0.9) > avg(0.1) + 0.15, `special fighters carry special parts (${avg(0.9).toFixed(2)} vs ${avg(0.1).toFixed(2)})`);
 });
+
+// ── The red is honest for the whole enemy round ──────────────────────────────
+test('the red counts an enemy that acts twice from where it would walk, a stunned one for its second go, and the King by his phase', async () => {
+  const { createPatchworkKing, PATCHWORK_KING_PHASES } = await import('../client/src/lib/combat/actions');
+  const s = fight();
+  const once = Fight.dangerTiles(s);
+  const twice = Fight.dangerTiles(s, false, [0]);
+  for (const k of Array.from(once)) assert.ok(twice.has(k), 'acting twice only adds to the red');
+  assert.ok(twice.size > once.size, 'its second go, after a walk, reaches further');
+  // Stunned: its first go is lost, but a second still lands
+  const stunned = { ...s, foes: s.foes.map(f => ({ ...f, stunned: true })) };
+  assert.equal(Fight.dangerTiles(stunned).size, 0);
+  assert.ok(Fight.dangerTiles(stunned, false, [0]).size > 0);
+  // The King: what he can use next is his coming phase, not a lone close-range strike
+  const king = { ...s.foes[0], unit: createPatchworkKing(), scriptTurn: 0 };
+  assert.deepEqual(Fight.foeRoster(king).map(a => a.name), PATCHWORK_KING_PHASES[0].map(a => a.name));
+  assert.deepEqual(Fight.foeRoster({ ...king, scriptTurn: 3 }).map(a => a.name), PATCHWORK_KING_PHASES[1].map(a => a.name));
+});

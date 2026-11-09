@@ -790,8 +790,11 @@ if (bossName === 'Patchwork King') return PATCHWORK_KING_PHASES.flat();
 return BOSS_ATTACKS[bossName] ?? [];
 }
 
+/** Which of the King's three phases a turn of his falls in. */
+export const kingPhase = (turnCount: number) => (turnCount <= 3 ? 0 : turnCount <= 6 ? 1 : 2);
+
 export function getPatchworkKingAction(turnCount: number): CombatAction {
-  const phaseIndex = turnCount <= 3 ? 0 : turnCount <= 6 ? 1 : 2;
+  const phaseIndex = kingPhase(turnCount);
   const phase = PATCHWORK_KING_PHASES[phaseIndex];
   return phase[Math.floor(random() * phase.length)];
 }

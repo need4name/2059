@@ -150,7 +150,7 @@ function playerTurn(skill: number) {
   for (const { f } of living) if (f.pendingTiles && botRandom() < skill) for (const t of f.pendingTiles) danger.add(`${t.row},${t.col}`);
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   // The red tiles are honest (enemies hit before they move): a sensible player prefers a safe tile it can still attack from
-  const red = F.dangerTiles(s as any);
+  const red = F.dangerTiles(s as any, false, F.doubleTurns(s as any, s.clock, 'player'));
   const opts = [g.playerPosition, ...Array.from(G.getPlayerReach(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   // Only dodge the red when there's a safe tile to fight from; otherwise walk in
   const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
@@ -377,6 +377,36 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
   return out;
 }
 
+// REDCHECK=1: do enemy hits land where the red said they would? At the start of each enemy phase the
+// red is noted; every hit you take in that phase is checked against it (where you stood when it landed).
+const redCheck = { hits: 0, outside: 0, outsideAfterMove: 0, foeMoved: 0, samples: [] as string[] };
+if (process.env.REDCHECK) {
+  let red: Set<string> | null = null, startPos = '', moved = false;
+  let pending: { at: string; moved: boolean; from: number; burning: boolean; foeMoved: boolean }[] = [];
+  let foeStart: string[] = [];
+  // The fight log keeps only its last few lines: keep every new line here
+  const said: string[] = [];
+  C.subscribe((st, prev) => {
+    const lastNow = st.combatLog[st.combatLog.length - 1];
+    if (lastNow && lastNow !== prev.combatLog[prev.combatLog.length - 1]) said.push(lastNow.message);
+    if (st.phase === 'enemy_turn' && prev.phase !== 'enemy_turn') { foeStart = st.foes.map(f => `${f.pos.row},${f.pos.col}`); red = F.dangerTiles(prev as any, false, F.doubleTurns(prev as any, prev.clock, 'player')); for (const f of prev.foes) for (const t of f.pendingTiles ?? []) red.add(`${t.row},${t.col}`); startPos = `${st.grid.playerPosition.row},${st.grid.playerPosition.col}`; moved = false; pending = []; }
+    if (st.phase !== 'enemy_turn') {
+      // The phase is over: read what each hit was from the log that followed it
+      for (const h of pending) {
+        const text = said.slice(h.from, h.from + 3).join(' | ');
+        if (h.burning || /BURN|BLEED|Burnout|drown|alarm|cable|fire|bilge|hazard/i.test(text)) continue;
+        redCheck.hits++;
+        if (!red?.has(h.at)) { redCheck.outside++; if (h.moved) redCheck.outsideAfterMove++; if (redCheck.samples.length < 10) redCheck.samples.push(`stood ${h.at} (started ${startPos}${h.moved ? ', moved this phase' : ''}${h.foeMoved ? ', the enemy had moved first' : ''}): ${text.slice(0, 150)}`); }
+        if (!red?.has(h.at) && h.foeMoved) redCheck.foeMoved++;
+      }
+      pending = []; red = null; return;
+    }
+    const at = `${prev.grid.playerPosition.row},${prev.grid.playerPosition.col}`;
+    if (st.player.currentHp < prev.player.currentHp && red) pending.push({ at, moved, from: said.length, foeMoved: (() => { const k = (prev as any).actingFoe; return typeof k === 'number' && foeStart[k] !== `${prev.foes[k]?.pos.row},${prev.foes[k]?.pos.col}`; })(), burning: (prev as any).playerBurning > 0 || (prev as any).playerBleeding > 0 });
+    if (`${st.grid.playerPosition.row},${st.grid.playerPosition.col}` !== at) moved = true;
+  });
+}
+
 // ── Run and report ─────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const RUNS = Number(process.env.RUNS ?? 20), FIGHTS = Number(process.env.FIGHTS ?? 250), SKILL = Number(process.env.SKILL ?? 0.8);
@@ -460,6 +490,7 @@ if (process.env.DEATHS && deaths.length) {
   console.log(`  biggest loss between two of your turns: average ${Math.round(100 * Number(avg(d => d.biggest)))}% of max health; over half in one go: ${share(d => d.biggest > 0.5)}`);
   console.log(`  health at each turn, a few deaths: ${deaths.slice(0, 8).map(d => `[t${d.lvl}${d.ch ? ` ch${d.ch + 1}` : ''}: ${d.trace.map(x => Math.round(x * 100)).join(' ')}${d.stuns ? ` · ${d.stuns} stun` : ''}]`).join(' ')}`);
 }
+if (process.env.REDCHECK) { console.log(`\nenemy hits: ${redCheck.hits}; landed outside the red: ${redCheck.outside} (after you were moved that phase: ${redCheck.outsideAfterMove}; the enemy had already moved that phase: ${redCheck.foeMoved})`); for (const x of redCheck.samples) console.log('  ' + x); }
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);
