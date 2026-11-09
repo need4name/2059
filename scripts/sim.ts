@@ -314,6 +314,57 @@ interface Fight { lvl: number; won: boolean; turns: number; lowest: number; deat
 // DEATHS=1: what the fights a host dies in look like
 // Every line the fight log says (it keeps only its last few): for DEATHS=1
 const fightSaid: string[] = [];
+// LEDGER=1, in numbers: damage dealt, taken and healed, by where it came from (read from the fight log's lines)
+const runMoves: Record<string, { uses: number; damage: number }>[] = [];
+const sums = new Map<string, number>(); const counts = new Map<string, number>();
+const addTo = (k: string, n: number) => { sums.set(k, (sums.get(k) ?? 0) + n); counts.set(k, (counts.get(k) ?? 0) + 1); };
+const count = (k: string) => counts.set(k, (counts.get(k) ?? 0) + 1);
+function ledgerLine(m: string) {
+  const num = (re: RegExp) => { const x = m.match(re); return x ? Number(x[1]) : 0; };
+  const ally = ALD.ALLIES.find(a => m.startsWith(`${a.name} -- `) || m.startsWith(`${a.name} `));
+  if (/^Mending -- healed (\d+)/.test(m)) return addTo('heal: mending', num(/healed (\d+)/));
+  if (/^BIO-STIM -- \+(\d+)/.test(m)) return addTo('heal: stims', num(/\+(\d+)/));
+  if (/guard up/.test(m)) { const st = num(/\+(\d+) structure/), hp = num(/\+(\d+) HP/); if (st) addTo('structure: brace repair', st); if (hp) addTo('heal: brace (Matron link)', hp); count('used: brace'); return; }
+  if (/^Bleeding: -(\d+)/.test(m)) return addTo('taken: bleeding', num(/-(\d+)/));
+  if (/^Burning: -(\d+)/.test(m)) return addTo('taken: burning', num(/-(\d+)/));
+  if (/^BURNOUT -- -(\d+)/.test(m)) return addTo('taken: burnout (your own heat)', num(/-(\d+)/));
+  if (/^You slam into .*: -(\d+)/.test(m)) return addTo('taken: slammed into something (knockback)', num(/-(\d+)/));
+  if (/^You takes? (\d+) from the impact/.test(m)) return addTo('taken: hit by a knocked body', num(/(\d+) from/));
+  if (/^STUNNED -- you lose this turn/.test(m)) return count('you: turns lost to stuns');
+  if (/^You are slowed/.test(m)) return count('you: slowed');
+  if (/^You are bleeding/.test(m)) return count('you: started bleeding');
+  if (/^You are dragged/.test(m)) return count('you: dragged (pull)');
+  if (/^Knocked back a tile/.test(m)) return count('you: knocked back');
+  if (/^The water takes your feet/.test(m)) return count('you: knocked into the sea');
+  if (/^MALFUNCTION$/.test(m)) return count('you: structure broken (malfunction)');
+  if (/^Dealt (\d+) to health/.test(m)) { addTo(`dealt: your attacks${/FLANK/.test(m) ? ' (flanking)' : ''}`, num(/Dealt (\d+)/)); return; }
+  if (/^Running cool: one more action/.test(m)) return count('you: cool double action (Operative)');
+  if (/takedown, act again/.test(m)) return count('you: takedown chain (Enforcer)');
+  if (/the body screams/.test(m)) return count('you: surge');
+  if (/^(Vent burst|Burnout): .* -(\d+)/.test(m)) return addTo('dealt: heat bursts (venting / burnout)', num(/-(\d+)/));
+  if (/ is bleeding: -(\d+)/.test(m) && !ally) return addTo('dealt: enemy bleeding', num(/-(\d+)/));
+  if (/ burns: -(\d+)|is burning: -(\d+)/.test(m) && !ally) return addTo('dealt: enemy burning', num(/-(\d+)/));
+  if (/ slams into .*: -(\d+)/.test(m) && !ally && !m.startsWith('You')) return addTo('dealt: enemies slammed by knockback', num(/-(\d+)/));
+  if (/ goes into the sea: -(\d+)/.test(m) && !ally) return addTo('dealt: enemies knocked into the sea', num(/-(\d+)/));
+  if (/OVERHEATS -- -(\d+)/.test(m)) return addTo('dealt: enemies overheating (heat pushed in)', num(/-(\d+)/));
+  if (/ patches up: \+(\d+)/.test(m) && !ally) return addTo('enemy: heals itself', num(/\+(\d+)/));
+  if (/ is stunned$/.test(m) && !ally) return count('enemy: stunned');
+  if (/ is knocked back$/.test(m) && !ally) return count('enemy: knocked back');
+  if (/ is charging /.test(m)) return count('enemy: winds up a heavy');
+  if (/: MALFUNCTION$/.test(m) && !ally) return count('enemy: structure broken (malfunction)');
+  const hit = m.match(/^(.+?) -- (.+?): (\d+) to (?:(\w+)'s )?health/);
+  if (hit) {
+    const [, who, move, n, onAlly] = hit;
+    if (ally && who === ally.name) return addTo('dealt: allies', Number(n));
+    if (onAlly) return addTo('ally took: enemy hits', Number(n));
+    if (/Parting blow/.test(move)) return addTo('taken: parting blows (walking away)', Number(n));
+    if (/Close-Quarters Strike/.test(move)) return addTo('taken: close-quarters strikes', Number(n));
+    return addTo('taken: enemy attacks', Number(n));
+  }
+}
+// LEDGER=1: every line the fight log says, as shapes (numbers and names folded), counted: what actually happens in fights
+const ledger = new Map<string, number>();
+if (process.env.LEDGER) C.subscribe((st, prev) => { const a = st.combatLog[st.combatLog.length - 1]; if (a && a !== prev.combatLog[prev.combatLog.length - 1]) { ledgerLine(a.message); const k = a.message.replace(/\d+/g, '#').replace(/^[^-:]{2,40} -- /, 'X -- ').slice(0, 70); ledger.set(k, (ledger.get(k) ?? 0) + 1); } });
 if (process.env.DEATHS) C.subscribe((st, prev) => { const a = st.combatLog[st.combatLog.length - 1]; if (a && a !== prev.combatLog[prev.combatLog.length - 1]) fightSaid.push(a.message); });
 const bigHits = new Map<string, number>();
 // An enemy's hit on you ("Name -- Move: N to health"), not an ally's hit on them or theirs on an ally
@@ -385,6 +436,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
       C.getState().setRunSeed(seed * 31 + C.getState().progression.deathCount);
     }
   }
+  runMoves.push(JSON.parse(JSON.stringify(useRunStats.getState().total.moves)));
   return out;
 }
 
@@ -510,6 +562,12 @@ if (process.env.DEATHS && deaths.length) {
   console.log(`  health at each turn, a few deaths: ${deaths.slice(0, 8).map(d => `[t${d.lvl}${d.ch ? ` ch${d.ch + 1}` : ''}: ${d.trace.map(x => Math.round(x * 100)).join(' ')}${d.stuns ? ` · ${d.stuns} stun` : ''}]`).join(' ')}`);
 }
 if (process.env.REDCHECK) { console.log(`\nenemy hits: ${redCheck.hits}; landed outside the red: ${redCheck.outside} (after you were moved that phase: ${redCheck.outsideAfterMove}; the enemy had already moved that phase: ${redCheck.foeMoved})`); for (const x of redCheck.samples) console.log('  ' + x); }
+if (process.env.LEDGER) {
+  const moves: Record<string, { uses: number; damage: number }> = {};
+  for (const r of runMoves) for (const [k, v] of Object.entries(r)) { moves[k] ??= { uses: 0, damage: 0 }; moves[k].uses += v.uses; moves[k].damage += v.damage; }
+  console.log('\nSUMS', JSON.stringify({ sums: Object.fromEntries(sums), counts: Object.fromEntries(counts), moves, fights: all.length, won: all.filter(f => f.won).length, turns: all.reduce((n, f) => n + f.turns, 0) }));
+}
+if (process.env.LEDGER) console.log('\nLEDGER', JSON.stringify(Array.from(ledger.entries()).sort((x, y) => y[1] - x[1]).slice(0, 160)));
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);

@@ -198,8 +198,10 @@ accuracy: 'precise',
  * Share of the rolled damage that lands, per accuracy tier. Unreliable moves
  * can match a precise hit on a good roll; malfunctioning hardware can't.
  */
-export const ACCURACY_RANGE: Record<'precise' | 'variable' | 'unreliable' | 'malfunction', [number, number]> = {
-precise: [1, 1], variable: [0.7, 0.95], unreliable: [0.5, 1.0], malfunction: [0.25, 0.6],
+// `malfunction`: an enemy whose structure is broken hits badly (breaking it is the reward); `hostBroken`: your own broken
+// structure costs you less, so you can still fight your way back
+export const ACCURACY_RANGE: Record<'precise' | 'variable' | 'unreliable' | 'malfunction' | 'hostBroken', [number, number]> = {
+precise: [1, 1], variable: [0.7, 0.95], unreliable: [0.5, 1.0], malfunction: [0.25, 0.6], hostBroken: [0.55, 0.8],
 };
 
 export const DEFENSE_K = 40;
@@ -303,7 +305,7 @@ strDamage  = Math.floor(strDamage  * rangeMult);
 // Accuracy-tier variance (malfunction has its own, harsher range)
 // Evasion shifts the variance floor down per point, capped at -0.30
 const evasionPenalty = Math.min(0.30, (defender.evasion || 0) * 0.015);
-const tier = isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
+const tier = isMalfunctioning ? (attacker.id === 'player' ? 'hostBroken' : 'malfunction') : (action.accuracy ?? 'variable');
 let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
 const variance = lo + random() * (hi - lo);
@@ -347,7 +349,7 @@ let str  = Math.max(0, Math.floor(mitigate(baseStr, strDef)));
 const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
 * (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
 phys = Math.floor(phys * mult); str = Math.floor(str * mult);
-const tier = opts.isMalfunctioning ? 'malfunction' : (action.accuracy ?? 'variable');
+const tier = opts.isMalfunctioning ? (attacker.id === 'player' ? 'hostBroken' : 'malfunction') : (action.accuracy ?? 'variable');
 const [lo, hi] = ACCURACY_RANGE[tier];
 const at = (v: number) => Math.max(3, Math.floor(phys * v) + Math.floor(str * v));
 // What reaches health: physical past whatever structure is left, plus all the special
