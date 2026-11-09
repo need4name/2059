@@ -8,7 +8,7 @@ import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
-import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, hasCover, tilePath, type Open } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -461,7 +461,7 @@ let aimedMove: ReturnType<typeof moveKind> = null;
 let struckFoes: Set<number> | null = null;
 let aimedAccuracy: string | undefined;
 let aimedAim: TilePosition | null = null;
-const hitPreview = new Map<number, { min: number; max: number }>();
+const hitPreview = new Map<number, { min: number; max: number; sMin: number; sMax: number }>();
 // Where the previewed attack comes from: you, or the ally whose turn it is
 let attackFrom: TilePosition = grid.playerPosition;
 // A defensive move's preview: what each one it covers gets back (shares of their bars), the outline of its guard, where it steps you
@@ -493,7 +493,7 @@ if (allyTurn !== null && allyPicked !== null && phase === 'player_turn') {
   if (al && mv?.effect === 'attack') {
     attackFrom = al.pos;
     struckFoes = new Set(Fight.allyStruck(fs, allyTurn, allyPicked));
-    for (const i of Array.from(struckFoes)) { const e = Fight.estimateAllyHit(fs, allyTurn, allyPicked, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax }); }
+    for (const i of Array.from(struckFoes)) { const e = Fight.estimateAllyHit(fs, allyTurn, allyPicked, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax, sMin: Math.max(0, e.min - e.healthMin), sMax: Math.max(0, e.max - e.healthMax) }); }
     aimedMove = moveKind(mv);
     aimedTiles = new Set(Array.from(struckFoes).map(i => `${fs.foes[i].pos.row},${fs.foes[i].pos.col}`));
   } else if (al && mv?.effect === 'defend' && mv.defend) {
@@ -529,7 +529,7 @@ if (fs.aim) {
   struckFoes = new Set(Fight.struckAt(fs, selectedAction, playerClass, fs.aim));
   aimedAccuracy = selectedAction.accuracy;
   aimedAim = fs.aim;
-  for (const i of Array.from(struckFoes)) { const e = Fight.estimateHit(fs, selectedAction, playerClass, fs.aim, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax }); }
+  for (const i of Array.from(struckFoes)) { const e = Fight.estimateHit(fs, selectedAction, playerClass, fs.aim, i); if (e) hitPreview.set(i, { min: e.healthMin, max: e.healthMax, sMin: Math.max(0, e.min - e.healthMin), sMax: Math.max(0, e.max - e.healthMax) }); }
 }
 
 }
@@ -919,16 +919,14 @@ const playerHpPercent = player.currentHp / player.maxHp;
 const barWidth = tileW * 0.9;
 const barY = playerPos.y + tileH / 2 + 5;
 
-drawUnitBar(ctx, playerPos.x, barY, barWidth, playerHpPercent, '#4ade80');
+// Health, and the structure bar under it
+const playerSf = player.maxStructuralHp > 0 ? player.currentStructuralHp / player.maxStructuralHp : null;
+drawUnitBar(ctx, playerPos.x, barY, barWidth, playerHpPercent, '#4ade80', playerSf);
 const gain = defendGain.get('player');
 if (gain) {
-  drawGainFlash(ctx, playerPos.x, barY, barWidth, 5, playerHpPercent, gain.now, gain.later, now);
-  // Repairs show on a thin structure bar under it while you choose
-  if ((gain.sNow || gain.sLater) && player.maxStructuralHp > 0) {
-    const sf = player.currentStructuralHp / player.maxStructuralHp;
-    drawUnitBar(ctx, playerPos.x, barY + 7, barWidth, sf, '#cbd5e1');
-    drawGainFlash(ctx, playerPos.x, barY + 7, barWidth, 5, sf, gain.sNow, gain.sLater, now);
-  }
+  drawGainFlash(ctx, playerPos.x, barY, barWidth, UNIT_BAR.h, playerHpPercent, gain.now, gain.later, now);
+  // Repairs flash on the structure bar while you choose
+  if ((gain.sNow || gain.sLater) && playerSf !== null) drawGainFlash(ctx, playerPos.x, barY + UNIT_BAR.h + UNIT_BAR.gap, barWidth, UNIT_BAR.s, playerSf, gain.sNow, gain.sLater, now);
 }
 });
 
@@ -958,7 +956,7 @@ ctx.restore();
 overlay.push(() => {
 const size = Math.max(tileW * 1.05, 28);
 const bw = tileW * 0.9, by = ap.y + tileH / 2 + 5;
-drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color);
+drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color, a.unit.maxStructuralHp > 0 ? a.unit.currentStructuralHp / a.unit.maxStructuralHp : null);
 const ag = defendGain.get(`ally:${k}`);
 if (ag) drawGainFlash(ctx, ap.x, by, bw, 5, a.unit.currentHp / a.unit.maxHp, ag.now, ag.later, now);
 ctx.font = `700 ${Math.max(10, Math.floor(tileW * 0.2))}px Manrope, sans-serif`;
@@ -1026,7 +1024,7 @@ ctx.restore();
 } });
 overlay.push(() => {
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
-drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444');
+drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444', f.unit.maxStructuralHp > 0 ? f.unit.currentStructuralHp / f.unit.maxStructuralHp : null);
 // The health this hit will take flashes on the bar: bright for what it will surely take, faint for what it might
 const pv = phase === 'player_turn' ? hitPreview.get(i) : undefined;
 if (pv && f.unit.maxHp > 0) {
@@ -1037,6 +1035,14 @@ if (pv && f.unit.maxHp > 0) {
   ctx.fillRect(at(hp - pv.max), barY, at(hp - pv.min) - at(hp - pv.max), 5);
   ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.4 * blink})`;
   ctx.fillRect(at(hp - pv.min), barY, at(hp) - at(hp - pv.min), 5);
+  // ...and the structure it will wear away, on the thin bar under it
+  if (f.unit.maxStructuralHp > 0 && pv.sMax > 0) {
+    const sp = f.unit.currentStructuralHp, sy = barY + UNIT_BAR.h + UNIT_BAR.gap, sat = (v: number) => x0 + barW * Math.max(0, Math.min(1, v / f.unit.maxStructuralHp));
+    ctx.fillStyle = `rgba(255,255,255,${0.25 + 0.2 * blink})`;
+    ctx.fillRect(sat(sp - pv.sMax), sy, sat(sp - pv.sMin) - sat(sp - pv.sMax), UNIT_BAR.s);
+    ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.4 * blink})`;
+    ctx.fillRect(sat(sp - pv.sMin), sy, sat(sp) - sat(sp - pv.sMin), UNIT_BAR.s);
+  }
   ctx.restore();
 }
 // A shove or a drag: the arrow on the edge it will cross, stopped by a bar if something's in the way

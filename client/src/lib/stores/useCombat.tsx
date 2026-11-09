@@ -45,11 +45,13 @@ import { withClass, withSplice, withResonance, firmwareXpFor, levelStep, firmwar
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 
-// Pacing (ms)
-const ENEMY_TURN_DELAY = 700;
+// Pacing (ms). Attacks play at ATTACK_PACE (half again as slow as they were), so each hit can be followed:
+// the pauses around an attack stretch with it; walking keeps its own pace.
+export const ATTACK_PACE = 1.5;
+const ENEMY_TURN_DELAY = Math.round(700 * ATTACK_PACE);
 const ENEMY_STEP_DELAY = 550;
-const TURN_HANDOFF_DELAY = 600;
-const FOE_GAP_DELAY = 450;
+const TURN_HANDOFF_DELAY = Math.round(600 * ATTACK_PACE);
+const FOE_GAP_DELAY = Math.round(450 * ATTACK_PACE);
 
 export interface Strip { bodies: { name: string; color: string; items: Item[] }[]; picks: number; taken: string[] }
 

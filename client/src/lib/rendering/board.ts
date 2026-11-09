@@ -739,19 +739,36 @@ export function drawSeams(ctx: Ctx, cells: { x: number; y: number; w: number; h:
 }
 
 /** A unit's health bar on the board: a rounded dark trough with a lit fill. */
-export function drawUnitBar(ctx: Ctx, cx: number, y: number, w: number, frac: number, color: string) {
-  const h = 5, r = h / 2, x = cx - w / 2;
-  const pill = (px: number, pw: number) => {
+/** Where a unit's thin structure bar sits under its health bar (UNIT_BAR.gap below it, UNIT_BAR.s tall). */
+export const UNIT_BAR = { h: 5, gap: 2, s: 3, structure: '#cbd5e1' };
+
+/**
+ * The bars under a unit: health (5px, in its colour) and, when it has a structure bar, a thin
+ * one under it (light grey, like the HUD's), on one dark backing plate. `structure` is null for none.
+ */
+export function drawUnitBar(ctx: Ctx, cx: number, y: number, w: number, frac: number, color: string, structure: number | null = null) {
+  const x = cx - w / 2;
+  const pill = (px: number, py: number, pw: number, h: number) => {
+    const r = h / 2;
     ctx.beginPath();
-    ctx.moveTo(px + r, y); ctx.lineTo(px + pw - r, y); ctx.arc(px + pw - r, y + r, r, -Math.PI / 2, Math.PI / 2);
-    ctx.lineTo(px + r, y + h); ctx.arc(px + r, y + r, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath();
+    ctx.moveTo(px + r, py); ctx.lineTo(px + pw - r, py); ctx.arc(px + pw - r, py + r, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(px + r, py + h); ctx.arc(px + r, py + r, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath();
   };
+  const fill = (py: number, h: number, f: number, c: string, shine: boolean) => {
+    const fw = Math.max(0, Math.min(1, f)) * w;
+    if (fw <= 0.5) return;
+    pill(x, py, Math.max(fw, h), h); ctx.fillStyle = c; ctx.fill();
+    if (shine) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + h / 2, py + 1, Math.max(0, fw - h), 1); }
+  };
+  const { h, gap, s } = UNIT_BAR;
+  const plate = structure === null ? h : h + gap + s;
   ctx.save();
-  pill(x - 1.5, w + 3); ctx.fillStyle = 'rgba(4,7,12,0.85)'; ctx.fill();
-  const fw = Math.max(0, Math.min(1, frac)) * w;
-  if (fw > 0.5) {
-    pill(x, Math.max(fw, h)); ctx.fillStyle = color; ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + r, y + 1, Math.max(0, fw - h), 1);
+  pill(x - 1.5, y - 1.5, w + 3, plate + 3); ctx.fillStyle = 'rgba(4,7,12,0.85)'; ctx.fill();
+  fill(y, h, frac, color, true);
+  if (structure !== null) {
+    // The empty part of the structure track stays faintly visible, so a broken bar reads as broken
+    pill(x, y + h + gap, w, s); ctx.fillStyle = 'rgba(203,213,225,0.12)'; ctx.fill();
+    fill(y + h + gap, s, structure, UNIT_BAR.structure, false);
   }
   ctx.restore();
 }

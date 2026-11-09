@@ -8,7 +8,7 @@ export interface SpriteAnimation {
 export const ANIMATIONS: Record<AnimationState, SpriteAnimation> = {
   idle: { frames: 4, frameDuration: 250 },
   walk: { frames: 6, frameDuration: 120 },
-  attack: { frames: 5, frameDuration: 100 },
+  attack: { frames: 5, frameDuration: 150 }, // half again as slow as it was (ATTACK_PACE), so a hit can be followed
   defend: { frames: 3, frameDuration: 150 },
   hurt: { frames: 3, frameDuration: 150 },
 };
