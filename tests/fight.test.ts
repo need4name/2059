@@ -1400,3 +1400,17 @@ test('a King hurt past three-quarters sheds a part even with structure left, but
   const refitted = { ...once, foes: [{ ...once.foes[0], parts: ['plate', 'hook', 'crown'] as any }] };
   assert.deepEqual(Fight.kingCheck(refitted).state.foes[0].parts, ['plate', 'hook', 'crown'], 'bolted back on, it stays on until he breaks again');
 });
+
+test('the red says what a tile costs: a heavy locked on it adds its hit, a shove gives the way you go', () => {
+  const s = fight({ grid: arena([6, 3], [4, 3]) });
+  const knock: CombatAction = { ...hitFor(30, 1), attackPattern: 'melee_long', effects: { knock: true } };
+  const shoving = { ...s, foes: [{ ...s.foes[0], unit: { ...s.foes[0].unit, moves: [knock] } }] };
+  const d = Fight.dangerInfo(shoving, 1).get('5,3');
+  assert.ok(d && d.damage > 0);
+  assert.deepEqual(d!.shove, { dr: 1, dc: 0 }, 'pushed straight away from it');
+  const heavy: CombatAction = { ...hitFor(60, 1), attackPattern: 'aoe', isHeavy: true };
+  const winding = { ...s, foes: [{ ...s.foes[0], pendingAction: heavy, pendingTiles: [{ row: 6, col: 3 }, { row: 6, col: 2 }], pendingAim: { row: 6, col: 3 } }] };
+  const h = Fight.dangerInfo(winding, 1);
+  assert.ok(h.get('6,3')?.heavy && (h.get('6,3')?.damage ?? 0) > 0, 'the locked tiles carry the heavy');
+  assert.equal(h.get('5,3'), undefined, 'winding up, it threatens nothing else');
+});

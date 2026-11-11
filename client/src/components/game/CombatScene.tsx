@@ -137,7 +137,6 @@ export function CombatScene() {
 const canvasRef = useRef<HTMLCanvasElement>(null);
 const { player, boss, phase, grid, playerClass, combatLog, selectedAction, aim, inputLocked, originalPosition, playerMoveRange, foes, target, fightId, reflexMoveOpen, perks, allies, allyMoveMode, playerBurning, playerStunned, allyTurn, allyPicked } = useCombat();
 const living = foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
-const charging = living.filter(x => x.f.pendingAction);
 const damageEffectsRef = useRef<DamageEffect[]>([]);
 const floatingEffectsRef = useRef<FloatingEffect[]>([]);
 const animationRef = useRef<number>();
@@ -551,13 +550,9 @@ const enemyReachableTiles = phase === 'player_turn' ? (() => {
 const union = Fight.dangerTiles(useCombat.getState(), false, twiceNow);
 return union.size ? union : null;
 })() : null;
-// How hard they'd land on each red tile (enemy sweet spots): bolder red where it hurts more
-// How hard you'd be hit on each red tile, against your health now: the darker, the more it takes; a tile that would kill you is marked
-const enemyDamage = phase === 'player_turn' ? Fight.dangerDamage(useCombat.getState(), useCombat.getState().farmLevel ?? useCombat.getState().bossLevel) : null;
-// Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
-const enemyShoveTiles = phase === 'player_turn' ? (() => {
-return Fight.dangerTiles(useCombat.getState(), true, twiceNow);
-})() : null;
+// What each red tile says: the damage you'd take there (its number in the corner, its darkness against your health now),
+// a white arrow if the hit would shove or drag you, stripes where a wound-up heavy is locked on, a skull if it would kill you
+const enemyDanger = phase === 'player_turn' ? Fight.dangerInfo(useCombat.getState(), useCombat.getState().farmLevel ?? useCombat.getState().bossLevel) : null;
 
 // Tiles the player (or the ally being moved) can still move to this turn
 const allyTiles = allyMoveMode !== null && phase === 'player_turn' && !inputLocked
@@ -613,12 +608,6 @@ const tileW = firstTilePos.tileW;
 const tileH = firstTilePos.tileH;
 
 
-// Where a charged heavy attack will land next turn - step out of it to dodge
-const heavyZone = charging.length ? (() => {
-const zone = new Set<string>();
-for (const { f } of charging) (f.pendingTiles ?? []).forEach(t => zone.add(`${t.row},${t.col}`));
-return zone;
-})() : null;
 const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 // Mud flats about to go under (the tide comes in at the start of next round)
 const tideNow = useCombat.getState().tide;
@@ -665,6 +654,9 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   const isInEnemyRange = enemyReachableTiles ? enemyReachableTiles.has(`${row},${col}`) : false;
   // Only an enemy's second go reaches here (it acts twice: hits, walks, hits again): a fainter, dashed red
   const isLaterOnly = isInEnemyRange && !!enemyNowTiles && !enemyNowTiles.has(`${row},${col}`);
+  const danger = enemyDanger?.get(`${row},${col}`);
+  // Solid red: something will hit you here on its next go (a wound-up heavy always does)
+  const isRed = !isBossTile && !!danger && danger.damage > 0 && ((isInEnemyRange && !isLaterOnly) || !!danger.heavy);
 
   // Aimed tiles take the move's damage type: amber physical, violet special, blended between
   const getAttackColor = (): { fill: string; stroke: string } => {
@@ -684,7 +676,8 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (kingNow && kingNow.rings < 3 && grid.tiles?.[row]?.[col]?.breaks === kingNow.rings + 1) drawBreaking(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, now);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
-    : isInEnemyRange && !isBossTile ? (isLaterOnly ? 'rgba(150,20,40,0.08)' : 'rgba(170,20,40,0.72)')
+    : isRed ? 'rgb(200,24,48)'
+    : isInEnemyRange && !isBossTile && isLaterOnly ? 'rgba(150,20,40,0.08)'
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   // Lights out: once the alarm trips the floor goes dark (never red: red means danger); tiles beside a cold pod stay cool blue
@@ -700,11 +693,45 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (tint) {
     ctx.fillStyle = tint;
     if (isAimed && !isHovered) ctx.globalAlpha = Math.max(0.3, Math.min(1, 0.35 + ((aimedWeight.get(`${row},${col}`) ?? 1) - 0.7) * 0.9));
-    else if (!isAimed && !isHovered && isInEnemyRange && !isLaterOnly) ctx.globalAlpha = Fight.dangerShade(enemyDamage?.get(`${row},${col}`) ?? 0, player.currentHp);
+    else if (!isAimed && !isHovered && isRed) ctx.globalAlpha = Fight.dangerShade(danger!.damage, player.currentHp);
     ctx.fill();
     ctx.globalAlpha = 1;
+    const showDanger = isRed && !isAimed && !isHovered;
+    // A wound-up heavy: the same red, striped (it's locked: it lands here for sure)
+    if (showDanger && danger!.heavy) {
+      ctx.save();
+      roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
+      ctx.clip();
+      ctx.strokeStyle = `rgba(255,220,220,${0.4 + 0.2 * pulse})`;
+      ctx.lineWidth = Math.max(2, tileW * 0.05);
+      const step = tileW * 0.2;
+      for (let i = -tileW; i < tileW; i += step) { ctx.beginPath(); ctx.moveTo(pos.x - tileW / 2 + i, pos.y + tileH / 2); ctx.lineTo(pos.x - tileW / 2 + i + tileW, pos.y - tileH / 2); ctx.stroke(); }
+      ctx.restore();
+    }
+    // A shove or drag: a small white arrow the way you'd go
+    if (showDanger && danger!.shove && (danger!.shove.dr || danger!.shove.dc)) {
+      const { dr, dc } = danger!.shove;
+      ctx.save();
+      ctx.translate(pos.x + dc * tileW * 0.22, pos.y + dr * tileH * 0.22);
+      ctx.rotate(Math.atan2(dr, dc));
+      const a = tileW * 0.13;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-a, -a * 0.25, a * 1.2, a * 0.5);
+      ctx.beginPath(); ctx.moveTo(a * 0.2, -a * 0.75); ctx.lineTo(a, 0); ctx.lineTo(a * 0.2, a * 0.75); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    // What you'd lose here, in the corner
+    if (showDanger) {
+      ctx.save();
+      ctx.font = `700 ${Math.max(9, Math.floor(tileW * 0.17))}px Manrope, sans-serif`;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.fillStyle = '#ffffff';
+      const tx = pos.x + tileW / 2 - gap - tileW * 0.06, ty = pos.y + tileH / 2 - gap - tileH * 0.04;
+      ctx.strokeText(`-${danger!.damage}`, tx, ty); ctx.fillText(`-${danger!.damage}`, tx, ty);
+      ctx.restore();
+    }
     // A hit here would kill you: a small pixel skull on the floor
-    const lethal = !isAimed && !isHovered && isInEnemyRange && !isLaterOnly && !isBossTile && (enemyDamage?.get(`${row},${col}`) ?? 0) >= player.currentHp;
+    const lethal = showDanger && danger!.damage >= player.currentHp;
     if (lethal) {
       const u = Math.max(1, Math.round(tileW / 22)), sx = Math.round(pos.x - 2.5 * u), sy = Math.round(pos.y - 2.5 * u);
       ctx.fillStyle = 'rgba(255,225,225,0.85)';
@@ -783,9 +810,6 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   } else if (isHovered) {
     ctx.strokeStyle = '#d8c89a';
     ctx.lineWidth = 2;
-  } else if (isInEnemyRange) {
-    ctx.strokeStyle = 'rgba(240,82,79,0.7)'; // red border for enemy reach
-    ctx.lineWidth = 1.5;
   } else {
     ctx.strokeStyle = 'rgba(0,0,0,0)';
     ctx.lineWidth = 0;
@@ -793,25 +817,6 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (ctx.lineWidth) ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
-  if (enemyShoveTiles?.has(`${row},${col}`) && !isAimed) {
-    ctx.strokeStyle = '#b07cff';
-    ctx.lineWidth = 2;
-    roundRectPath(ctx, pos.x - tileW / 2 + gap + 3, pos.y - tileH / 2 + gap + 3, tileW - gap * 2 - 6, tileH - gap * 2 - 6, radius * 0.7);
-    ctx.stroke();
-  }
-
-  // Charged heavy attack danger zone
-  if (heavyZone?.has(`${row},${col}`)) {
-    ctx.globalAlpha = 0.4 * pulse + 0.35;
-    ctx.fillStyle = '#ff7a00';
-    roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = '#ffb347';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
     // Red: going here hurts (parting blow, an enemy's reach, a hazard). Blue: it's safe

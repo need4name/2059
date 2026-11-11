@@ -1655,39 +1655,70 @@ export function foeThreatTiles(s: FightState, i: number, onlyShoves = false, aga
   return out;
 }
 
+/** What the red on one tile says: what you'd lose there, whether a hit there shoves or drags you (and which way), whether a wound-up heavy is locked on it. */
+export interface DangerTile { damage: number; shove?: { dr: number; dc: number }; heavy?: boolean }
+
 /**
- * How much you'd lose standing on each tile when the enemies next act (their first go,
- * from where they stand): for each enemy, its worst normal attack that reaches the tile
- * (its typical roll, the sweet spot there, your guard, your heat), added up over every
- * enemy that can reach it. The red is shaded by this, against your health now.
+ * Each red tile, for the enemies' next go: for each enemy, its worst normal attack that
+ * reaches the tile from where it stands (its typical roll, the sweet spot there, your
+ * guard and heat), added up over every enemy that reaches it; a wound-up heavy adds its
+ * hit to every tile it's locked on. A hit that shoves or drags you there gives the way
+ * you'd go. The red is shaded by the damage, against your health now (`dangerShade`).
  */
-export function dangerDamage(s: FightState, level: number): Map<string, number> {
-  const out = new Map<string, number>();
+export function dangerInfo(s: FightState, level: number): Map<string, DangerTile> {
+  const out = new Map<string, DangerTile>();
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
   const heatTaken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
+  const tile = (t: TilePosition) => { const k = `${t.row},${t.col}`; let d = out.get(k); if (!d) { d = { damage: 0 }; out.set(k, d); } return d; };
+  const hitOn = (f: Foe, a: CombatAction, t: TilePosition, aim: TilePosition) => {
+    const pattern = a.attackPattern ?? 'melee_long';
+    const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning });
+    return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1);
+  };
+  const shoveOf = (f: Foe, a: CombatAction, t: TilePosition) => {
+    if (order(s) === 'noShoves') return undefined;
+    const away = { dr: Math.sign(t.row - f.pos.row), dc: Math.sign(t.col - f.pos.col) };
+    if (a.attackPattern === 'knockback' || a.effects?.knock) return away;
+    if (a.effects?.pull || f.parts?.includes('hook')) return { dr: -away.dr, dc: -away.dc };
+    return undefined;
+  };
   for (const { f } of livingFoes(s)) {
-    if (f.pendingAction || f.stunned || f.swimming) continue;
+    if (f.swimming) continue;
+    // A heavy being wound up lands on its locked tiles
+    if (f.pendingAction && f.pendingTiles) {
+      const a = scaleBossAction(f.pendingAction, level);
+      for (const t of f.pendingTiles) {
+        const d = tile(t);
+        d.damage += Math.round(hitOn(f, a, t, f.pendingAim ?? t)); d.heavy = true;
+        d.shove = d.shove ?? shoveOf(f, a, t);
+      }
+      continue;
+    }
+    if (f.stunned) continue;
     const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => scaleBossAction(a, level));
-    const armed = hasTrait(f, 'armed') ? 1.1 : 1;
     for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
       const t = { row, col };
       if (same(t, f.pos)) continue;
       const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
-      let worst = 0;
+      let worst = 0, push: DangerTile['shove'];
       for (const a of moves) {
-        const pattern = a.attackPattern ?? 'melee_long';
-        if (!getHitTiles(f.pos, t, pattern, view).some(x => same(x, t))) continue;
-        const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning });
-        worst = Math.max(worst, ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, t, t) * heatTaken * armed);
+        if (!getHitTiles(f.pos, t, a.attackPattern ?? 'melee_long', view).some(x => same(x, t))) continue;
+        const v = hitOn(f, a, t, t);
+        if (v > worst) worst = v;
+        push = push ?? shoveOf(f, a, t);
       }
-      if (worst > 0) { const k = `${row},${col}`; out.set(k, (out.get(k) ?? 0) + Math.round(worst)); }
+      if (worst > 0) { const d = tile(t); d.damage += Math.round(worst); d.shove = d.shove ?? push; }
     }
   }
   return out;
 }
 
-/** How dark a red tile is: faint for a scratch, solid once it would take 40% of the health you have now. */
-export const dangerShade = (damage: number, hpNow: number) => Math.max(0.15, Math.min(1, damage / Math.max(1, hpNow * 0.4)));
+/** Just the damage on each red tile (see dangerInfo). */
+export const dangerDamage = (s: FightState, level: number): Map<string, number> =>
+  new Map(Array.from(dangerInfo(s, level).entries()).map(([k, d]) => [k, d.damage]));
+
+/** How dark a red tile is: barely there for a scratch, deep red once it would take 60% of the health you have now. */
+export const dangerShade = (damage: number, hpNow: number) => 0.1 + 0.8 * Math.min(1, damage / Math.max(1, hpNow * 0.6));
 
 export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined, victim = victimOf(s, i)): boolean {
   const g = foeView(s, i, victim);
