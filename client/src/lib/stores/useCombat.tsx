@@ -1,3 +1,4 @@
+import { buildFx, type FxPacket } from '../combat/fx';
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import { saveStorage } from '../save';
@@ -52,6 +53,8 @@ const ENEMY_TURN_DELAY = Math.round(700 * ATTACK_PACE);
 const ENEMY_STEP_DELAY = 550;
 const TURN_HANDOFF_DELAY = Math.round(600 * ATTACK_PACE);
 const FOE_GAP_DELAY = Math.round(450 * ATTACK_PACE);
+/** How long the last blow of a fight plays on the board before the win or loss screen. */
+const FINAL_BLOW_DELAY = 1400;
 
 export interface Strip { bodies: { name: string; color: string; items: Item[] }[]; picks: number; taken: string[] }
 
@@ -71,6 +74,8 @@ chapterDone?: boolean;
 }
 
 interface CombatState extends FightState {
+/** What the screen plays back: each step's blows and what they changed (lib/combat/fx.ts). Not saved. */
+fx: FxPacket[];
 phase: CombatPhase;
 player: Character;
 /** The enemy screens name (the one you're aiming at, or the last one standing). */
@@ -270,7 +275,7 @@ overclockActive: false, kizunaJustFired: false,
 const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
 
 /** A firmware holder's health over an ordinary elite's. */
-const HOLDER_HP = 1.7;
+const HOLDER_HP = 2.1;
 
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants
@@ -318,11 +323,13 @@ let doer: Doer = { kind: 'other' };
 let heldStart: { fightId: number; begin: () => void } | null = null;
 
 // Runs fn after ms, but only if the same fight is still in progress.
+// Once the last blow of a fight has landed, nothing else in it runs (only the win or loss screen, after a beat)
+let overAt: number | null = null;
 const later = (fn: () => void, ms: number) => {
 const id = get().fightId;
 setTimeout(() => {
 const s = get();
-if (s.fightId !== id || !isFightPhase(s.phase)) return;
+if (s.fightId !== id || !isFightPhase(s.phase) || overAt === id) return;
 fn();
 }, ms);
 };
@@ -349,10 +356,11 @@ ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 
 // Save an engine state, keeping the grid's enemy position on the current target
 // (older screen code still reads it) and the headline enemy up to date.
-const save = (state: FightState) => {
+const save = (state: FightState, packet: FxPacket | null = null) => {
 const target = state.foes[state.target] ?? state.foes[0];
 set({
 ...state,
+...(packet ? { fx: [...get().fx.slice(-15), packet] } : {}),
 grid: target ? { ...state.grid, bossPosition: target.pos, occupied: [...state.foes.filter(f => f !== target && Fight.isAlive(f)).map(f => f.pos), ...state.allies.filter(Fight.allyAlive).map(a => a.pos)] } : state.grid,
 ...(target ? { boss: target.unit } : {}),
 });
@@ -373,13 +381,20 @@ foeDown: 'foeDown', allyDown: 'allyDown', extraAction: 'chain', playerDown: 'def
 
 // Apply an engine step: save its state, write its log lines, play its sounds.
 // Returns true if the fight ended (and handles the ending).
+const finalBlow = (end: () => void) => {
+const id = get().fightId;
+overAt = id;
+set({ inputLocked: true });
+setTimeout(() => { const s = get(); if (s.fightId === id && isFightPhase(s.phase)) end(); }, FINAL_BLOW_DELAY);
+};
+
 const apply = (raw: Step): boolean => {
 // The King's fight: a broken King sheds a part, a part under you is yours
 const k = Fight.kingCheck(raw.state);
 const step: Step = k.events.length || k.state !== raw.state ? { state: k.state, events: [...raw.events, ...k.events] } : raw;
 // The Self page's numbers: what changed, credited to whoever acted (engine/runStats.ts)
 const before = fightState();
-save(step.state);
+save(step.state, buildFx(before, step.state, step.events));
 useRunStats.getState().add(tally(before, step.state, doer, step.events));
 doer = { kind: 'other' };
 for (const e of step.events) {
@@ -387,12 +402,14 @@ if (e.kind === 'log') log(e.message, e.type);
 else if (e.kind === 'holdfast') set({ holdfastSpent: true });
 else if (e.kind in CUE) useAudio.getState().play(CUE[e.kind]!);
 }
-if (step.events.some(e => e.kind === 'playerDown')) { handlePlayerDefeated(); return true; }
-if (step.events.some(e => e.kind === 'allFoesDown')) { handleBossDefeated(); return true; }
+// The last blow plays out on the board (it lands, the body falls) before the screen changes
+if (step.events.some(e => e.kind === 'playerDown')) { finalBlow(handlePlayerDefeated); return true; }
+if (step.events.some(e => e.kind === 'allFoesDown')) { finalBlow(handleBossDefeated); return true; }
 return false;
 };
 
 const beginPlayerTurn = () => {
+if (overAt === get().fightId) return; // the fight is over: only its ending plays
 save(Fight.startPlayerTurn(fightState()));
 // Burning ticks now; a stun costs the whole turn
 set({ actingFoe: null });
@@ -486,6 +503,7 @@ useAudio.getState().playSuccess();
 // After the player's action resolves: hazard tick, then either a bonus
 // action (double action) or the enemy's turn.
 const finishPlayerAction = (allowDouble: boolean) => {
+if (overAt === get().fightId) return; // the fight is over: only its ending plays
 set({ reflexMoveOpen: false });
 // Walking away from an enemy you started beside: it gets a parting blow
 const from = get().originalPosition;
@@ -520,6 +538,7 @@ nextActor();
 
 // Whoever the clock says is next takes their turn (the last one's turn is spent first)
 const nextActor = () => {
+if (overAt === get().fightId) return; // the fight is over: only its ending plays
 let { clock } = get();
 const done = get().acting;
 if (done === 'player') save(Fight.endPlayerTurn(fightState()));
@@ -550,6 +569,7 @@ set({ phase: 'player_turn', inputLocked: false, allyTurn: k, allyPicked: null, a
 
 // Ally k's turn is over (it acted, or the player ended it)
 const endAllyTurn = () => {
+if (overAt === get().fightId) return; // the fight is over: only its ending plays
 if (get().allyTurn === null) return;
 set({ allyTurn: null, allyPicked: null, allyMoveMode: null, allyOrigin: null, phase: 'enemy_turn', inputLocked: true });
 later(nextActor, FOE_GAP_DELAY);
@@ -557,6 +577,7 @@ later(nextActor, FOE_GAP_DELAY);
 
 // Foe i takes its turn: attack (or wind up, or walk), then walk, then whoever is next.
 const runFoeTurn = (i: number) => {
+if (overAt === get().fightId) return; // the fight is over: only its ending plays
 const s = get();
 set({ actingFoe: i });
 const level = s.farmLevel ?? s.bossLevel;
@@ -723,6 +744,7 @@ allyTurn: null,
 allyPicked: null,
 allyOrigin: null,
 actingFoe: null,
+fx: [],
 clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
 hostBestThreat: 0,
 fightIntro: null,
@@ -910,6 +932,7 @@ finishPlayerAction(false);
 },
 
 executePlayerTurn: () => {
+if (overAt === get().fightId) return;
 if (get().allyTurn !== null) return; // an ally's turn: only its moves
 const { playerClass, selectedAction, phase, inputLocked } = get();
 const heatBefore = get().playerHeat;

@@ -247,7 +247,9 @@ export type FightEvent =
   | { kind: 'holdfast' }
   | { kind: 'allyDown'; ally: number }
   /** Sound cues only: a body thrown into something, a burn tick, a heavy wound up, a Surge. */
-  | { kind: 'collide' } | { kind: 'burn' } | { kind: 'telegraph' } | { kind: 'surge' };
+  | { kind: 'collide' } | { kind: 'burn' } | { kind: 'telegraph' } | { kind: 'surge' }
+  /** For the screen only: a blow thrown, by whom, from where, at what, over which tiles, in which shape (the fight plays it back). */
+  | { kind: 'strike'; by: Body; from: TilePosition; aim: TilePosition; tiles: TilePosition[]; pattern: AttackPatternType; physical: number; name: string; heavy?: boolean };
 
 export interface Step { state: FightState; events: FightEvent[] }
 
@@ -730,6 +732,11 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
   // Resonance (Splice): 0.6x for every spliced pair worn (at least one, up to three)
   const mult = kind === 'piledriver' ? 2 : kind === 'overwatch' ? 1.2 : kind === 'overrun' ? 0.8 : kind === 'resonance' ? 0.6 * Math.max(1, Math.min(3, s.perks.splicedNow ?? 0)) : OVERLOAD.mult;
   const action = { ...SURGE, damage: Math.max(20, Math.round(bestDamage * mult)) };
+  {
+    const pp = s.grid.playerPosition, reach = Math.min(3, SURGE_REACH[kind]), tiles: TilePosition[] = [];
+    for (let row = pp.row - reach; row <= pp.row + reach; row++) for (let col = pp.col - reach; col <= pp.col + reach; col++) if (inBounds({ row, col }, s.grid) && tileAt({ row, col }, s.grid)?.type !== 'void' && !(row === pp.row && col === pp.col)) tiles.push({ row, col });
+    events.push({ kind: 'strike', by: { kind: 'player' }, from: pp, aim: pp, tiles, pattern: 'aoe', physical: 0.5, name: SURGE_NAME[kind] });
+  }
   const targets = surgeTargets(s);
   for (const i of targets) {
     const foe = state.foes[i];
@@ -760,7 +767,7 @@ const burnDamage = (maxHp: number) => Math.max(BURN.min, Math.round(maxHp * BURN
 export const WATER = { share: 0.05, min: 3 };
 const maxHpOf = (s: FightState, b: Body) => (b.kind === 'player' ? s.player.maxHp : b.kind === 'foe' ? s.foes[b.i].unit.maxHp : s.allies[b.k].unit.maxHp);
 
-type Body = { kind: 'player' } | { kind: 'foe'; i: number } | { kind: 'ally'; k: number };
+export type Body = { kind: 'player' } | { kind: 'foe'; i: number } | { kind: 'ally'; k: number };
 function bodyAt(s: FightState, p: TilePosition): Body | null {
   if (same(s.grid.playerPosition, p)) return { kind: 'player' };
   const i = s.foes.findIndex(f => isAlive(f) && same(f.pos, p));
@@ -1459,6 +1466,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
 
   let state: FightState = s;
   const struck = foesStruck(s, action, playerClass, aim);
+  if (aim) events.push({ kind: 'strike', by: { kind: 'player' }, from: grid.playerPosition, aim, tiles: aimTiles(s, action, playerClass, aim), pattern: attackPatternOf(action, playerClass), physical: action.physicalRatio ?? 0.7, name: action.name });
   // A knockback shoves the nearest one it hits
   const pushed = struck.slice().sort((a, b) => chebyshev(grid.playerPosition, s.foes[a].pos) - chebyshev(grid.playerPosition, s.foes[b].pos))[0];
   const heatPush = (hot.heatTransfer ?? 0) + s.perks.transferBonus;
@@ -1804,13 +1812,15 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
       events: [say(`${foe.unit.name}: ${action.name} -- guard up`)],
     };
   }
-  if (victim >= 0 && s.allies[victim]) return hitAlly(s, i, victim, action, level, sweet);
+  const pattern0 = action.attackPattern ?? 'melee_long';
+  const strike: FightEvent = { kind: 'strike', by: { kind: 'foe', i }, from: foe.pos, aim: aim ?? at, tiles: getHitTiles(foe.pos, aim ?? at, pattern0, { ...grid, bossPosition: foe.pos, playerPosition: aim ?? at }), pattern: pattern0, physical: action.physicalRatio ?? 0.7, name: action.name, ...(action.isHeavy ? { heavy: true } : {}) };
+  if (victim >= 0 && s.allies[victim]) { const r = hitAlly(s, i, victim, action, level, sweet); return { ...r, events: [strike, ...r.events] }; }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet;
   const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
-  const events: FightEvent[] = [];
+  const events: FightEvent[] = [strike];
   const held = holdOn(s, Math.max(0, player.currentHp - dmg.bioDamage - spill), events);
   const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
@@ -2140,6 +2150,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
   const i = move.effect === 'attack' ? Math.max(0, allyAimFoe(s, k, m)) : s.target, foe = s.foes[i];
   if (move.effect === 'attack') {
     const struck = allyStruck(s, k, m);
+    if (foe) { const pat = move.attackPattern ?? 'melee_long'; events.push({ kind: 'strike', by: { kind: 'ally', k }, from: a.pos, aim: foe.pos, tiles: getHitTiles(a.pos, foe.pos, pat, allyView(s, k, i)), pattern: pat, physical: move.physicalRatio ?? 0.7, name: move.name }); }
     let dealt = 0;
     for (const j of struck.length ? struck : [i]) {
       const f = state.foes[j];

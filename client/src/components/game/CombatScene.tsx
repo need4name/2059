@@ -9,6 +9,7 @@ import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawDoll } from '@/lib/rendering/dolls';
+import { FxDirector } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
@@ -125,6 +126,17 @@ startTime: number;
 duration: number; // ms
 }
 
+/** The pale chunk on a bar: what a blow just took, draining away (see FxDirector.chunk). */
+function drawChunk(ctx: CanvasRenderingContext2D, cx: number, y: number, w: number, ch: { hp: [number, number]; s: [number, number] } | null) {
+  if (!ch) return;
+  const x0 = cx - w / 2, seg = (a: number, b: number) => [x0 + w * Math.max(0, Math.min(1, a)), w * Math.max(0, Math.min(1, b) - Math.max(0, Math.min(1, a)))];
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,240,230,0.85)';
+  const [hx, hw] = seg(ch.hp[0], ch.hp[1]); if (hw > 0.5) ctx.fillRect(hx, y, hw, UNIT_BAR.h);
+  const [sx, sw] = seg(ch.s[0], ch.s[1]); if (sw > 0.5) ctx.fillRect(sx, y + UNIT_BAR.h + UNIT_BAR.gap, sw, UNIT_BAR.s);
+  ctx.restore();
+}
+
 // Ease-out cubic for smooth deceleration
 function easeOutCubic(t: number): number {
 return 1 - Math.pow(1 - t, 3);
@@ -153,6 +165,10 @@ const prevPlayerPos = useRef({ row: grid.playerPosition.row, col: grid.playerPos
 // Player has normal animation speed, drunkard has slow lazy idle
 const playerAnimator = useRef(new SpriteAnimator(false));
 const allyAnimator = useRef(new SpriteAnimator(false));
+// The fight played back: each blow winds up, travels, lands (see fightFx.ts)
+const fx = useRef<FxDirector | null>(null);
+if (!fx.current) fx.current = new FxDirector();
+const director = fx.current;
 
 // Each enemy has its own animator, slide animation and damage tracking
 interface FoeVisual { animator: SpriteAnimator; moveAnim: MovementAnim | null; prevPos: { row: number; col: number }; prevHp: number }
@@ -210,39 +226,21 @@ return { x, y, tileW, tileH };
 
 };
 
-// Track damage and create effects
+// Damage numbers, flashes and hurt poses come from the playback now (fightFx.ts), when each blow lands
 useEffect(() => {
-const canvas = canvasRef.current;
-if (!canvas || !canvas.width || !canvas.height) return;
-
-const width = canvas.width / (window.devicePixelRatio || 1);
-const height = canvas.height / (window.devicePixelRatio || 1);
-
-if (player.currentHp < prevPlayerHp.current) {
-const damage = prevPlayerHp.current - player.currentHp;
-const pos = gridToScreen(grid.playerPosition.row, grid.playerPosition.col, width, height);
-
-damageEffectsRef.current.push({
-id: Math.random().toString(),
-damage,
-x: pos.x,
-y: pos.y - 50,
-startTime: Date.now(),
-});
-}
-prevPlayerHp.current = player.currentHp;
-
-foes.forEach((f, i) => {
-const v = foeVisual(i);
-if (f.unit.currentHp < v.prevHp) {
-const pos = gridToScreen(f.pos.row, f.pos.col, width, height);
-damageEffectsRef.current.push({ id: Math.random().toString(), damage: v.prevHp - f.unit.currentHp, x: pos.x, y: pos.y - 50, startTime: Date.now() });
-v.animator.setState('hurt');
-}
-v.prevHp = f.unit.currentHp;
-});
-
-}, [player.currentHp, foeSignature, grid.playerPosition, grid.cols, grid.rows]);
+director.onSwing = key => {
+  if (key === 'player') playerAnimator.current.setState('attack');
+  else if (key.startsWith('foe:')) foeVisual(Number(key.slice(4))).animator.setState('attack');
+  else allyAnimator.current.setState('attack');
+};
+director.onHurt = key => {
+  if (key === 'player') playerAnimator.current.setState('hurt');
+  else if (key.startsWith('foe:')) foeVisual(Number(key.slice(4))).animator.setState('hurt');
+  else allyAnimator.current.setState('hurt');
+};
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+useEffect(() => { director.reset(); }, [fightId]);
 
 // Track phase changes and combat log for floating messages
 useEffect(() => {
@@ -305,45 +303,8 @@ prevPhase.current = phase;
 if (combatLog.length > prevLogLength.current) {
 const newLogs = combatLog.slice(prevLogLength.current);
 
-for (const log of newLogs) {
-// Show critical/important messages as floating text
-if (log.type === 'critical' && !log.message.includes('Victory') && !log.message.includes('Defeat')) {
-floatingEffectsRef.current.push({
-id: Math.random().toString(),
-message: 'CRITICAL HIT!',
-type: 'critical',
-x: centerX,
-y: centerY + 40,
-startTime: Date.now(),
-duration: 1000,
-});
-} else if (log.type === 'malfunction') {
-const playerPos = gridToScreen(grid.playerPosition.row, grid.playerPosition.col, width, height);
-floatingEffectsRef.current.push({
-id: Math.random().toString(),
-message: 'MALFUNCTION',
-type: 'critical',
-x: playerPos.x,
-y: playerPos.y - 60,
-startTime: Date.now(),
-duration: 1500,
-});
-} else if (log.type === 'heal') {
-const healMatch = log.message.match(/healed? (?:for )?(\d+)/i);
-if (healMatch) {
-const playerPos = gridToScreen(grid.playerPosition.row, grid.playerPosition.col, width, height);
-floatingEffectsRef.current.push({
-id: Math.random().toString(),
-message: `+${healMatch[1]} HP`,
-type: 'heal',
-x: playerPos.x,
-y: playerPos.y - 60,
-startTime: Date.now(),
-duration: 1200,
-});
-}
-}
-}
+// Crits, breaks and heals show where they happen, from the playback (fightFx.ts)
+void newLogs;
 }
 
 // Always update to current length
@@ -353,15 +314,8 @@ prevLogLength.current = combatLog.length;
 
 // Trigger animation states based on combat events
 useEffect(() => {
-// Detect player taking damage (hurt animation)
-if (player.currentHp < prevPlayerHp.current) {
-playerAnimator.current.setState('hurt');
-}
-
-// Phase-based animations
-if (phase === 'enemy_turn') {
-foes.forEach((f, i) => { if (f.unit.currentHp > 0) foeVisual(i).animator.setState('attack'); });
-} else if (phase === 'player_turn') {
+// Back to standing when it's your turn (blows set their own poses as they play)
+if (phase === 'player_turn') {
 // Both idle
 if (playerAnimator.current.getState() !== 'hurt' && playerAnimator.current.getState() !== 'attack') {
 playerAnimator.current.setState('idle');
@@ -591,6 +545,19 @@ const height = canvas.height / dpr;
 // === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
 const tileset = (grid.tilesetOf ? chapterById(grid.tilesetOf) : activeChapter()).tileset;
 const now = Date.now();
+// The playback: take in new blows, place everyone, shake the view for a big hit
+{
+  const st = useCombat.getState();
+  director.feed(st.fx, now);
+  const places = new Map<string, { row: number; col: number }>([['player', st.grid.playerPosition]]);
+  st.foes.forEach((f, i) => places.set(`foe:${i}`, f.pos));
+  st.allies.forEach((a, k) => places.set(`ally:${k}`, a.pos));
+  const t0 = gridToScreen(0, 0, width, height);
+  director.frame(now, (r, c) => { const q = gridToScreen(r, c, width, height); return { x: q.x, y: q.y }; }, t0.tileW, places);
+}
+const shake = director.shakeOffset(now);
+ctx.save();
+ctx.translate(shake.x, shake.y);
 drawSea(ctx, width, height, tileset, now);
 
 // Vignette for focus
@@ -933,8 +900,12 @@ if (progress >= 1) {
 
 }
 
-// Draw player character (Wanderer) using pixel sprites
-const playerPos = gridToScreen(playerVisualRow, playerVisualCol, width, height);
+// While a blow is landing on you or throwing you, the playback places you
+if (director.owns('player')) { const w = director.where('player', grid.playerPosition, now); playerVisualRow = w.row; playerVisualCol = w.col; }
+const pJolt = director.jolt('player', now);
+const pHop = director.where('player', grid.playerPosition, now).hop;
+const playerPos0 = gridToScreen(playerVisualRow, playerVisualCol, width, height);
+const playerPos = { ...playerPos0, x: playerPos0.x + pJolt.dx, y: playerPos0.y + pJolt.dy - pHop * tileH };
 // Characters stand about 1.45 tiles tall, over the tile behind them, feet where the shadow is
 const DOLL = 1.45;
 const spriteSize = Math.max(tileW * DOLL, 34);
@@ -947,7 +918,7 @@ drawFootShadow(ctx, playerPos.x, playerPos.y + tileH * 0.36, tileW);
 const owned = useAugmentTrees.getState().owned;
 const hostSpec = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0);
 const pTop = dollTop(playerPos.y, spriteSize);
-drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft);
+drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft, { white: pJolt.white });
 
 drawStatus(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, playerBurning > 0, playerStunned, now);
 if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, tileset.sea, now);
@@ -959,9 +930,11 @@ const playerHpPercent = player.currentHp / player.maxHp;
 const barWidth = tileW * 0.9;
 const barY = playerPos.y + tileH / 2 + 5;
 
-// Health, and the structure bar under it
-const playerSf = player.maxStructuralHp > 0 ? player.currentStructuralHp / player.maxStructuralHp : null;
-drawUnitBar(ctx, playerPos.x, barY, barWidth, playerHpPercent, '#4ade80', playerSf);
+// Health, and the structure bar under it (as they were until the blow lands, then the pale chunk drains)
+const pShown = director.shown('player');
+const playerSf = player.maxStructuralHp > 0 ? (pShown?.structure ?? player.currentStructuralHp) / player.maxStructuralHp : null;
+drawUnitBar(ctx, playerPos.x, barY, barWidth, pShown ? pShown.hp / player.maxHp : playerHpPercent, '#4ade80', playerSf);
+drawChunk(ctx, playerPos.x, barY, barWidth, director.chunk('player', now));
 const gain = defendGain.get('player');
 if (gain) {
   drawGainFlash(ctx, playerPos.x, barY, barWidth, UNIT_BAR.h, playerHpPercent, gain.now, gain.later, now);
@@ -972,8 +945,11 @@ if (gain) {
 
 // Allies: a host body in the ally's colour ring, with a bar in its colour
 allies.forEach((a, k) => {
-if (a.unit.currentHp <= 0) return;
-const ap = gridToScreen(a.pos.row, a.pos.col, width, height);
+const key = `ally:${k}`;
+if (a.unit.currentHp <= 0 && !director.visible(key)) return;
+const aw = director.where(key, a.pos, now), aj = director.jolt(key, now), aFall = director.falling(key, now);
+const ap0 = gridToScreen(aw.row, aw.col, width, height);
+const ap = { ...ap0, x: ap0.x + aj.dx, y: ap0.y + aj.dy - aw.hop * tileH };
 const color = a.unit.spriteColor || '#38d6f0';
 depth.push({ y: ap.y, draw: () => {
 drawFootShadow(ctx, ap.x, ap.y + tileH * 0.36, tileW);
@@ -989,7 +965,7 @@ const size = Math.max(tileW * DOLL, 34);
 const aTop = dollTop(ap.y, size);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
-drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
+drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col, { white: aj.white, fall: aFall ?? 0 });
 drawStatus(ctx, ap.x, aTop + size * 0.12, size * 0.8, a.burning > 0, a.stunned, now);
 if (a.swimming) drawSwimming(ctx, ap.x, aTop + size * 0.12, size * 0.8, tileset.sea, now);
 ctx.restore();
@@ -997,7 +973,10 @@ ctx.restore();
 overlay.push(() => {
 const size = Math.max(tileW * DOLL, 34);
 const bw = tileW * 0.9, by = ap.y + tileH / 2 + 5;
-drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color, a.unit.maxStructuralHp > 0 ? a.unit.currentStructuralHp / a.unit.maxStructuralHp : null);
+if (aFall !== null) return;
+const aShown = director.shown(key);
+drawUnitBar(ctx, ap.x, by, bw, (aShown?.hp ?? a.unit.currentHp) / a.unit.maxHp, color, a.unit.maxStructuralHp > 0 ? (aShown?.structure ?? a.unit.currentStructuralHp) / a.unit.maxStructuralHp : null);
+drawChunk(ctx, ap.x, by, bw, director.chunk(key, now));
 const ag = defendGain.get(`ally:${k}`);
 if (ag) drawGainFlash(ctx, ap.x, by, bw, 5, a.unit.currentHp / a.unit.maxHp, ag.now, ag.later, now);
 ctx.font = `700 ${Math.max(10, Math.floor(tileW * 0.2))}px Manrope, sans-serif`;
@@ -1011,10 +990,11 @@ ctx.fillText(a.unit.name, ap.x, dollTop(ap.y, size) + size * 0.1);
 });
 });
 
-// Draw every living enemy, with a ring under the one you're aiming at
-for (const { f, i } of living) {
+// Draw every enemy still standing on screen (a blow not yet landed, or falling), with a ring under the one you're aiming at
+for (const { f, i } of foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0 || director.visible(`foe:${x.i}`))) {
 const v = foeVisual(i);
-let visRow = f.pos.row, visCol = f.pos.col;
+const fKey = `foe:${i}`, fFall = director.falling(fKey, now), fj = director.jolt(fKey, now);
+let visRow = f.pos.row, visCol = f.pos.col, fHop = 0;
 if (v.moveAnim) {
 const progress = Math.min(1, (Date.now() - v.moveAnim.startTime) / v.moveAnim.duration);
 const eased = easeOutCubic(progress);
@@ -1022,13 +1002,28 @@ visRow = v.moveAnim.fromRow + (v.moveAnim.toRow - v.moveAnim.fromRow) * eased;
 visCol = v.moveAnim.fromCol + (v.moveAnim.toCol - v.moveAnim.fromCol) * eased;
 if (progress >= 1) { v.moveAnim = null; v.animator.setState('idle'); }
 }
-const fp = gridToScreen(visRow, visCol, width, height);
-const isTarget = i === target;
+if (director.owns(fKey) || fFall !== null) { const w = director.where(fKey, f.pos, now); visRow = w.row; visCol = w.col; fHop = w.hop; }
+const fp0 = gridToScreen(visRow, visCol, width, height);
+const fp = { ...fp0, x: fp0.x + fj.dx, y: fp0.y + fj.dy - fHop * tileH };
+const isTarget = i === target && fFall === null;
 const size = Math.max(tileW * DOLL, 34);
 const fTop = dollTop(fp.y, size);
 
 depth.push({ y: fp.y, draw: () => {
 drawFootShadow(ctx, fp.x, fp.y + tileH * 0.36, tileW);
+// Winding up a heavy: a hot glow at its feet and embers rising, brighter as it builds
+if (f.pendingAction && fFall === null) {
+  const beat = 0.5 + 0.5 * Math.sin(now / 140);
+  ctx.save();
+  const glow = ctx.createRadialGradient(fp.x, fp.y + tileH * 0.32, 0, fp.x, fp.y + tileH * 0.32, tileW * 0.6);
+  glow.addColorStop(0, `rgba(255,120,40,${0.55 + 0.3 * beat})`); glow.addColorStop(1, 'rgba(255,60,20,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(fp.x, fp.y + tileH * 0.32, tileW * 0.6, tileH * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+  for (let e = 0; e < 6; e++) {
+    const k = ((now / 900) + e / 6) % 1, ex = fp.x + Math.sin(e * 2.3 + now / 400) * tileW * 0.3, ey = fp.y + tileH * 0.3 - k * tileH * 1.3;
+    ctx.globalAlpha = 1 - k; ctx.fillStyle = e % 2 ? '#ffd27a' : '#ff7a3a'; const sz = Math.max(2, Math.round(tileW * 0.045)); ctx.fillRect(Math.round(ex), Math.round(ey), sz, sz);
+  }
+  ctx.restore();
+}
 if (isTarget && foes.length > 1 && !reachableTiles) {
 ctx.save();
 ctx.strokeStyle = 'rgba(248,113,113,0.9)';
@@ -1043,14 +1038,17 @@ const stumble = v.animator.getStumbleOffset();
 ctx.save();
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
 drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
-v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col);
+v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, { white: fj.white, fall: fFall ?? 0 });
 ctx.restore();
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
 if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.sea, now);
 } });
 overlay.push(() => {
+if (fFall !== null) return;
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
-drawUnitBar(ctx, fp.x, barY, barW, f.unit.currentHp / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444', f.unit.maxStructuralHp > 0 ? f.unit.currentStructuralHp / f.unit.maxStructuralHp : null);
+const fShown = director.shown(fKey);
+drawUnitBar(ctx, fp.x, barY, barW, (fShown?.hp ?? f.unit.currentHp) / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444', f.unit.maxStructuralHp > 0 ? (fShown?.structure ?? f.unit.currentStructuralHp) / f.unit.maxStructuralHp : null);
+drawChunk(ctx, fp.x, barY, barW, director.chunk(fKey, now));
 // The health this hit will take flashes on the bar: bright for what it will surely take, faint for what it might
 const pv = phase === 'player_turn' ? hitPreview.get(i) : undefined;
 if (pv && f.unit.maxHp > 0) {
@@ -1096,9 +1094,19 @@ ctx.fillText(label, fp.x, ly);
 });
 }
 
+// Blows landing: the struck tiles flash under everyone
+director.drawUnder(ctx, now);
 // Back to front: whatever stands nearer the bottom covers what's behind it
 depth.sort((a, b) => a.y - b.y).forEach(d => d.draw());
 overlay.forEach(o => o());
+// Shots in flight, sparks and numbers over everything
+director.drawOver(ctx, now, (text, x, y, alpha, color, big) => {
+  ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
+  ctx.font = `800 ${Math.round(tileW * (text.length > 5 ? 0.19 : big ? 0.42 : 0.3))}px Sora, Manrope, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(3, tileW * 0.07); ctx.strokeStyle = 'rgba(8,10,14,0.9)'; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
+});
 
 // Draw damage numbers
 // (now: the frame time set at the top of the frame)
@@ -1144,6 +1152,7 @@ drawFloatingMessage(ctx, effect.message, { x: effect.x, y }, effect.type, alpha,
 
 });
 
+ctx.restore();
 animationRef.current = requestAnimationFrame(animate);
 };
 

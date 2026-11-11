@@ -600,12 +600,29 @@ function canvasFor(spec: DollSpec, state: AnimationState, frame: number): HTMLCa
   return c;
 }
 
+const whites = new Map<string, HTMLCanvasElement>();
+/** The same pose as a white silhouette: the one-frame flash when a blow lands. */
+function whiteOf(spec: DollSpec, state: AnimationState, frame: number): HTMLCanvasElement {
+  const key = `${JSON.stringify(spec)}|${state}|${frame}`;
+  const hit = whites.get(key);
+  if (hit) return hit;
+  const src = canvasFor(spec, state, frame);
+  const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(src, 0, 0);
+  ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+  if (whites.size > 200) whites.clear();
+  whites.set(key, c);
+  return c;
+}
+
 /**
  * Draw a character in the box (x, y, size) that a regular 48-pixel body fills; bigger
  * bodies (bosses) grow up and out from the same feet. Faces right unless flipped.
  */
-export function drawDoll(ctx: CanvasRenderingContext2D, spec: DollSpec, x: number, y: number, size: number, state: AnimationState, frame: number, faceLeft = false) {
-  const img = canvasFor(spec, state, frame);
+export function drawDoll(ctx: CanvasRenderingContext2D, spec: DollSpec, x: number, y: number, size: number, state: AnimationState, frame: number, faceLeft = false,
+  opts: { white?: boolean; fall?: number } = {}) {
+  const img = opts.white ? whiteOf(spec, state, frame) : canvasFor(spec, state, frame);
   const S = FRAMES[spec.frame].S;
   const unit = size / 48;
   const w = img.width * unit, h = img.height * unit;
@@ -614,6 +631,14 @@ export function drawDoll(ctx: CanvasRenderingContext2D, spec: DollSpec, x: numbe
   ctx.save();
   const smooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
+  // Falling: it tips over backwards from its feet, sinks and fades
+  if (opts.fall) {
+    const k = opts.fall, dir = faceLeft ? 1 : -1;
+    ctx.globalAlpha *= 1 - Math.max(0, (k - 0.55) / 0.45);
+    ctx.translate(feetX, feetY + k * size * 0.05);
+    ctx.rotate(dir * Math.min(1, k * 1.4) * Math.PI * 0.45);
+    ctx.translate(-feetX, -feetY);
+  }
   if (faceLeft) { ctx.translate(left + w, topY); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); }
   else ctx.drawImage(img, left, topY, w, h);
   ctx.imageSmoothingEnabled = smooth;
