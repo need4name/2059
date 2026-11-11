@@ -1,4 +1,5 @@
-import type { ReactNode, ButtonHTMLAttributes } from 'react';
+import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes } from 'react';
+import { drawDoll, type DollSpec } from '@/lib/rendering/dolls';
 import type { ItemRarity } from '@/lib/combat/types';
 import type { AttackPatternType, AugmentationSlot, CombatAction, PlayerClass } from '@/lib/combat/types';
 import { attackFootprint, attackPatternOf } from '@/lib/engine/fight';
@@ -370,4 +371,26 @@ const SLOT_GLYPH: Record<AugmentationSlot | 'stim' | 'gun', GlyphName> = {
 /** The pixel icon for a body slot (or a stim). Left limbs are mirrored. */
 export function SlotIcon({ slot, size = 22, className }: { slot?: AugmentationSlot | 'stim' | 'gun'; size?: number; className?: string }) {
   return <Glyph name={slot ? SLOT_GLYPH[slot] : 'implant'} size={size} className={className} flip={slot === 'left_arm' || slot === 'left_leg'} />;
+}
+
+/** A character drawn large and breathing (idle), e.g. the host on the Self page. */
+export function DollView({ spec, size = 168 }: { spec: DollSpec; size?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const key = JSON.stringify(spec);
+  useEffect(() => {
+    let frame = 0, alive = true;
+    const draw = () => {
+      const c = ref.current; const ctx = c?.getContext('2d');
+      if (!c || !ctx || !alive) return;
+      ctx.clearRect(0, 0, c.width, c.height);
+      const box = c.height * 0.86;
+      drawDoll(ctx, spec, (c.width - box) / 2, c.height - box - c.height * 0.04, box, 'idle', frame % 2);
+      frame++;
+    };
+    draw();
+    const t = window.setInterval(draw, 600);
+    return () => { alive = false; window.clearInterval(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return <canvas ref={ref} width={size * 2} height={size * 2} style={{ width: size, height: size, imageRendering: 'pixelated' }} aria-hidden />;
 }

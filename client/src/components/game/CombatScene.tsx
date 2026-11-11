@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
-import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
+import { SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';

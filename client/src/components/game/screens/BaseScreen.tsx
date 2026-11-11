@@ -13,7 +13,8 @@ import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, firmwarePa
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { gunName } from '@/lib/combat/guns';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
-import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
+import { Screen, Panel, Card, Label, Btn, Meter, Stat, ConfirmDialog, Sheet, Page, Footprint, Glyph, SlotIcon, Segmented, DollView, RARITY_TEXT, cx, damageTypeRgb, damageTypeText, type GlyphName } from '../hud';
+import { hostDoll } from '@/lib/rendering/dollSpecs';
 import { Inventory } from '../Inventory';
 import { useActionPool } from '../useActionPool';
 import { rangeText, effectsText, defendText, nameOf } from '../itemText';
@@ -574,9 +575,14 @@ function StatusTab() {
   const perks = usePlayi(s => s.perks)();
   const notes = useJournal(s => s.notes);
 
+  const owned = useAugmentTrees(st => st.owned);
+  const look = hostDoll(playerClass, equippedAugmentations as Record<string, Item | null>, it => owned[it.id]?.length ?? 0);
+
   return (
     <div className="space-y-3">
       <Panel label="This body">
+        {/* The host as it stands: its firmware's body, wearing what it has fitted */}
+        <div className="mb-3 flex justify-center"><DollView spec={look} /></div>
         <div className="grid grid-cols-3 gap-x-4 gap-y-5">
           <Stat label="Health" value={stats.maxHp} tone="text-ok" />
           <Stat label="Structure" value={stats.maxStructuralHp} />

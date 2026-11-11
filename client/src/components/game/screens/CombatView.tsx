@@ -286,15 +286,18 @@ function OverloadBar() {
 /** A small pixel portrait of a character. */
 function Portrait({ id, size = 26 }: { id: string; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  // The host's portrait follows what it's wearing
+  const playerClass = useCombat(st => st.playerClass), allies = useCombat(st => st.allies);
+  const equipped = useInventory(st => st.equippedAugmentations), owned = useAugmentTrees(st => st.owned);
+  const spec = portraitDoll(id, () => hostDoll(playerClass, equipped as Record<string, any>, it => owned[it.id]?.length ?? 0), allies.map(a => a.id));
+  const key = JSON.stringify(spec);
   useEffect(() => {
     const c = ref.current; if (!c) return;
     const ctx = c.getContext('2d'); if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
     // Head and shoulders: draw the character large and let the canvas crop it
-    const host = () => { const owned = useAugmentTrees.getState().owned; return hostDoll(useCombat.getState().playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0); };
-    const spec = portraitDoll(id, host, useCombat.getState().allies.map(a => a.id));
     drawDollHead(ctx, spec, c.width * 0.5, c.height * 0.56, c.width / 15);
-  }, [id]);
+  }, [key]);
   // Canvases fill their parent (index.css), so the box sets the size
   return <div className="overflow-hidden rounded-full bg-hud-panel" style={{ width: size, height: size }}><canvas ref={ref} width={size * 2} height={size * 2} style={{ imageRendering: 'pixelated' }} /></div>;
 }
