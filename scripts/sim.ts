@@ -337,6 +337,12 @@ function ledgerLine(m: string) {
   if (/^BURNOUT -- -(\d+)/.test(m)) return addTo('taken: burnout (your own heat)', num(/-(\d+)/));
   if (/^You slam into .*: -(\d+)/.test(m)) return addTo('taken: slammed into something (knockback)', num(/-(\d+)/));
   if (/^You takes? (\d+) from the impact/.test(m)) return addTo('taken: hit by a knocked body', num(/(\d+) from/));
+  if (/^You go into the sea: -(\d+)/.test(m)) return addTo('taken: knocked into the sea', num(/-(\d+)/));
+  if (/^The water takes your feet/.test(m)) return count('you: caught by the tide');
+  if (/ is swept off its feet/.test(m)) return count('enemy: caught by the tide');
+  if (/^You climb out of the sea/.test(m)) return count('you: turns spent climbing out of the sea');
+  if (/ on (.+): -(\d+)(, catches fire)?$/.test(m) && !ally) { const x = m.match(/ on (.+): -(\d+)/)!; addTo(`dealt: enemies on hazards (${x[1]})`, Number(x[2])); if (/catches fire/.test(m)) count('enemy: set on fire by a hazard'); return; }
+  if (/^([A-Z][a-z]+(?: [a-z]+)*): -(\d+) HP(, you catch fire)?$/.test(m)) { const x = m.match(/^(.+?): -(\d+) HP/)!; addTo(`taken: hazard (${x[1]})`, Number(x[2])); if (/catch fire/.test(m)) count('you: set on fire by a hazard'); return; }
   if (/^STUNNED -- you lose this turn/.test(m)) return count('you: turns lost to stuns');
   if (/^You are slowed/.test(m)) return count('you: slowed');
   if (/^You are bleeding/.test(m)) return count('you: started bleeding');

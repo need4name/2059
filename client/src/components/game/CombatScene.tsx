@@ -543,6 +543,8 @@ if (fs.aim) {
 // move, so standing outside these at the end of your turn is safe.
 // Enemies that act twice before your next turn walk between their two actions: their second reach counts too
 const twiceNow = phase === 'player_turn' ? Fight.doubleTurns(useCombat.getState(), useCombat.getState().clock, 'player') : [];
+// Where an enemy can hit you on its first go, from where it stands now (solid red)
+const enemyNowTiles = phase === 'player_turn' ? Fight.dangerTiles(useCombat.getState()) : null;
 const enemyReachableTiles = phase === 'player_turn' ? (() => {
 const union = Fight.dangerTiles(useCombat.getState(), false, twiceNow);
 return union.size ? union : null;
@@ -657,6 +659,8 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // Check if tile is in enemy's attack range (danger zone for player)
   const isInEnemyRange = enemyReachableTiles ? enemyReachableTiles.has(`${row},${col}`) : false;
+  // Only an enemy's second go reaches here (it acts twice: hits, walks, hits again): a fainter, dashed red
+  const isLaterOnly = isInEnemyRange && !!enemyNowTiles && !enemyNowTiles.has(`${row},${col}`);
 
   // Aimed tiles take the move's damage type: amber physical, violet special, blended between
   const getAttackColor = (): { fill: string; stroke: string } => {
@@ -674,7 +678,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   else drawDeckTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, tileset);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
-    : isInEnemyRange && !isBossTile ? 'rgba(150,20,40,0.42)'
+    : isInEnemyRange && !isBossTile ? (isLaterOnly ? 'rgba(150,20,40,0.08)' : 'rgba(150,20,40,0.42)')
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   // Lights out: once the alarm trips the floor goes dark (never red: red means danger); tiles beside a cold pod stay cool blue
@@ -690,9 +694,18 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (tint) {
     ctx.fillStyle = tint;
     if (isAimed && !isHovered) ctx.globalAlpha = Math.max(0.3, Math.min(1, 0.35 + ((aimedWeight.get(`${row},${col}`) ?? 1) - 0.7) * 0.9));
-    else if (!isAimed && !isHovered && isInEnemyRange) ctx.globalAlpha = Math.max(0.4, Math.min(1, 0.55 + ((enemyWeights?.get(`${row},${col}`) ?? 1) - 0.8) * 1.2));
+    else if (!isAimed && !isHovered && isInEnemyRange && !isLaterOnly) ctx.globalAlpha = Math.max(0.4, Math.min(1, 0.55 + ((enemyWeights?.get(`${row},${col}`) ?? 1) - 0.8) * 1.2));
     ctx.fill();
     ctx.globalAlpha = 1;
+    if (isLaterOnly && !isAimed && !isHovered && !isBossTile) {
+      ctx.save();
+      ctx.setLineDash([Math.max(2, tileW * 0.06), Math.max(2, tileW * 0.06)]);
+      ctx.lineWidth = Math.max(1.5, tileW * 0.04);
+      ctx.strokeStyle = 'rgba(235,70,90,0.85)';
+      roundRectPath(ctx, pos.x - tileW / 2 + gap * 1.6, pos.y - tileH / 2 + gap * 1.6, tileW - gap * 3.2, tileH - gap * 3.2, radius * 0.8);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
   // ...and on your own tile when the move carries you: a dash or leap toward the aim, a step back away from it
   if (isPlayerTile && aimedTiles && aimedAim && (aimedMove === 'dash' || aimedMove === 'leap' || aimedMove === 'retreat')) {
