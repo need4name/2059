@@ -1656,33 +1656,38 @@ export function foeThreatTiles(s: FightState, i: number, onlyShoves = false, aga
 }
 
 /**
- * How hard the enemies' normal attacks would land on each tile of the red zone if you stood there
- * (their sweet spots: the hardest of any enemy's moves). The board shades the red by it.
+ * How much you'd lose standing on each tile when the enemies next act (their first go,
+ * from where they stand): for each enemy, its worst normal attack that reaches the tile
+ * (its typical roll, the sweet spot there, your guard, your heat), added up over every
+ * enemy that can reach it. The red is shaded by this, against your health now.
  */
-export function dangerWeights(s: FightState): Map<string, number> {
+export function dangerDamage(s: FightState, level: number): Map<string, number> {
   const out = new Map<string, number>();
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
-  for (const { f, i } of livingFoes(s)) {
+  const heatTaken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
+  for (const { f } of livingFoes(s)) {
     if (f.pendingAction || f.stunned || f.swimming) continue;
-    const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS];
+    const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => scaleBossAction(a, level));
+    const armed = hasTrait(f, 'armed') ? 1.1 : 1;
     for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
       const t = { row, col };
       if (same(t, f.pos)) continue;
       const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
+      let worst = 0;
       for (const a of moves) {
         const pattern = a.attackPattern ?? 'melee_long';
-        const tiles = getHitTiles(f.pos, t, pattern, view);
-        if (!tiles.some(x => same(x, t))) continue;
-        // Aimed at you there: how hard it lands on your tile
-        const w = tileWeight(pattern, f.pos, t, t);
-        const k = `${row},${col}`;
-        if ((out.get(k) ?? 0) < w) out.set(k, w);
+        if (!getHitTiles(f.pos, t, pattern, view).some(x => same(x, t))) continue;
+        const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning });
+        worst = Math.max(worst, ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, t, t) * heatTaken * armed);
       }
+      if (worst > 0) { const k = `${row},${col}`; out.set(k, (out.get(k) ?? 0) + Math.round(worst)); }
     }
-    void i;
   }
   return out;
 }
+
+/** How dark a red tile is: faint for a scratch, solid once it would take 40% of the health you have now. */
+export const dangerShade = (damage: number, hpNow: number) => Math.max(0.15, Math.min(1, damage / Math.max(1, hpNow * 0.4)));
 
 export function canFoeHit(s: FightState, i: number, pattern: AttackPatternType | undefined, victim = victimOf(s, i)): boolean {
   const g = foeView(s, i, victim);

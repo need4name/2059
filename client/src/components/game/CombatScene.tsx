@@ -552,7 +552,8 @@ const union = Fight.dangerTiles(useCombat.getState(), false, twiceNow);
 return union.size ? union : null;
 })() : null;
 // How hard they'd land on each red tile (enemy sweet spots): bolder red where it hurts more
-const enemyWeights = phase === 'player_turn' ? Fight.dangerWeights(useCombat.getState()) : null;
+// How hard you'd be hit on each red tile, against your health now: the darker, the more it takes; a tile that would kill you is marked
+const enemyDamage = phase === 'player_turn' ? Fight.dangerDamage(useCombat.getState(), useCombat.getState().farmLevel ?? useCombat.getState().bossLevel) : null;
 // Of those, the tiles where the hit also drags or shoves you (a purple edge): mind the water behind you
 const enemyShoveTiles = phase === 'player_turn' ? (() => {
 return Fight.dangerTiles(useCombat.getState(), true, twiceNow);
@@ -683,7 +684,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (kingNow && kingNow.rings < 3 && grid.tiles?.[row]?.[col]?.breaks === kingNow.rings + 1) drawBreaking(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, now);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
-    : isInEnemyRange && !isBossTile ? (isLaterOnly ? 'rgba(150,20,40,0.08)' : 'rgba(150,20,40,0.42)')
+    : isInEnemyRange && !isBossTile ? (isLaterOnly ? 'rgba(150,20,40,0.08)' : 'rgba(170,20,40,0.72)')
     : null;
   roundRectPath(ctx, pos.x - tileW / 2 + gap, pos.y - tileH / 2 + gap, tileW - gap * 2, tileH - gap * 2, radius);
   // Lights out: once the alarm trips the floor goes dark (never red: red means danger); tiles beside a cold pod stay cool blue
@@ -699,9 +700,16 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (tint) {
     ctx.fillStyle = tint;
     if (isAimed && !isHovered) ctx.globalAlpha = Math.max(0.3, Math.min(1, 0.35 + ((aimedWeight.get(`${row},${col}`) ?? 1) - 0.7) * 0.9));
-    else if (!isAimed && !isHovered && isInEnemyRange && !isLaterOnly) ctx.globalAlpha = Math.max(0.4, Math.min(1, 0.55 + ((enemyWeights?.get(`${row},${col}`) ?? 1) - 0.8) * 1.2));
+    else if (!isAimed && !isHovered && isInEnemyRange && !isLaterOnly) ctx.globalAlpha = Fight.dangerShade(enemyDamage?.get(`${row},${col}`) ?? 0, player.currentHp);
     ctx.fill();
     ctx.globalAlpha = 1;
+    // A hit here would kill you: a small pixel skull on the floor
+    const lethal = !isAimed && !isHovered && isInEnemyRange && !isLaterOnly && !isBossTile && (enemyDamage?.get(`${row},${col}`) ?? 0) >= player.currentHp;
+    if (lethal) {
+      const u = Math.max(1, Math.round(tileW / 22)), sx = Math.round(pos.x - 2.5 * u), sy = Math.round(pos.y - 2.5 * u);
+      ctx.fillStyle = 'rgba(255,225,225,0.85)';
+      for (const [x, y, w] of [[1, 0, 3], [0, 1, 5], [0, 2, 1], [2, 2, 1], [4, 2, 1], [1, 3, 3], [1, 4, 1], [3, 4, 1]]) ctx.fillRect(sx + x * u, sy + y * u, w * u, u);
+    }
     if (isLaterOnly && !isAimed && !isHovered && !isBossTile) {
       ctx.save();
       ctx.setLineDash([Math.max(2, tileW * 0.06), Math.max(2, tileW * 0.06)]);

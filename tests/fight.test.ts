@@ -985,9 +985,16 @@ test("enemy attacks work like yours: sweet spots, and wide shapes hit everyone i
   const far = fight({ grid: arena([6, 3], [4, 3]) });
   const lost = (st: FightState, a: CombatAction) => st.player.currentHp - Fight.resolveFoeAction(st, 0, a, 1).state.player.currentHp;
   assert.ok(lost(far, reach) > lost(near, reach), 'the tip of a reach hits harder');
-  // The red zone is shaded by how hard it would land
-  const w = Fight.dangerWeights(near);
-  assert.ok(w.size > 0);
+  // The red zone is shaded by how much you'd lose there: the tip of a reach costs more than hugging it
+  const withReach = (st: FightState) => ({ ...st, foes: [{ ...st.foes[0], unit: { ...st.foes[0].unit, moves: [reach] } }] });
+  const dmg = Fight.dangerDamage(withReach(near), 1);
+  assert.ok((dmg.get('6,3') ?? 0) > (dmg.get('5,3') ?? 0), 'standing at the tip costs more');
+  // Two enemies that both reach a tile add up
+  const pair = withReach(near);
+  const two = { ...pair, foes: [pair.foes[0], { ...pair.foes[0], pos: { row: 4, col: 4 } }] };
+  assert.ok((Fight.dangerDamage(two, 1).get('5,3') ?? 0) > (dmg.get('5,3') ?? 0));
+  // The shade is measured against your health now
+  assert.ok(Fight.dangerShade(20, 40) > Fight.dangerShade(20, 200));
   // A wide enemy sweep hits the ally beside you as well
   const ally = { id: 'bale', unit: createPlayer(), pos: { row: 5, col: 4 }, moves: [], move: 2, cooldowns: [], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false } as unknown as FightState['allies'][number];
   const sweep: CombatAction = { ...hitFor(30, 1), attackPattern: 'sweep_arc' };
