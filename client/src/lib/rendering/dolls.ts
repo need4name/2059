@@ -9,7 +9,7 @@
 import type { AnimationState } from './pixelSprites';
 
 export type Team = 'you' | 'ally' | 'enemy';
-export type MakerKey = 'volkov' | 'tianxia' | 'helix' | 'kizuna' | 'crown' | 'cbn' | 'ioa' | 'parsu' | 'patchwork';
+export type MakerKey = 'volkov' | 'tianxia' | 'helix' | 'kizuna' | 'crown' | 'cbn' | 'ioa' | 'parsu' | 'patchwork' | 'unmarked';
 export type BodySlot = 'left_arm' | 'right_arm' | 'left_leg' | 'right_leg' | 'eyes' | 'ears' | 'nose' | 'brain' | 'lungs' | 'misc';
 /** One fitted implant as drawn: its maker, its rarity (0 common .. 4 legendary) and upgrade nodes taken. */
 export interface PartLook { maker: MakerKey; tier: number; ups?: number }
@@ -22,7 +22,7 @@ export interface Frame {
   skin: string; cloth: string; skin2?: string; cloth2?: string; hair?: string; eyes?: string; accent?: string;
   neck?: number; stitches?: boolean; rags?: boolean; plates?: boolean; slabs?: string; coat?: number; collar?: boolean;
   scarf?: string; scarfLen?: number; harness?: boolean; pack?: boolean; cap?: string; cloak?: boolean; seam?: boolean;
-  uneven?: boolean; robe?: boolean; king?: boolean; drone?: boolean;
+  uneven?: boolean; robe?: boolean; king?: boolean; drone?: boolean; drip?: boolean; special?: 'swarm' | 'quadruped' | 'gantry';
 }
 
 export interface DollSpec {
@@ -50,12 +50,13 @@ const MAKERS: Record<MakerKey, Pal> = {
   ioa:       { main: '#5a7a9a', dark: '#24364a', lit: '#8aaccc', light: '#4ad8ff' },
   parsu:     { main: '#a8987a', dark: '#5e5240', lit: '#d0c4a4', light: '#ffd890' },
   patchwork: { main: '#7a848c', dark: '#3a4248', lit: '#a0aab2', light: '#ffcf4a' },
+  unmarked:  { main: '#b4b0a6', dark: '#6e6a62', lit: '#d8d4ca', light: '#f0ece2' },
 };
 const PATCH_CYCLE: MakerKey[] = ['volkov', 'tianxia', 'helix', 'cbn', 'ioa'];
 /** Cheap off-white plastic: what a common part is moulded from, in its maker's shape. */
 const COMMON: Pal = { main: '#b4b0a6', dark: '#6e6a62', lit: '#d8d4ca', light: '#f0ece2', stripe: '#5a564e', seam: '#8a867c', gem: '#8a867c', graft: '#8a867c', stitch: '#4a463e' };
 const pal = (maker: MakerKey, tier: number, seg = 0): Pal =>
-  tier <= 0 ? COMMON : maker === 'patchwork' ? MAKERS[PATCH_CYCLE[seg % PATCH_CYCLE.length]] : MAKERS[maker];
+  tier <= 0 || maker === 'unmarked' ? COMMON : maker === 'patchwork' ? MAKERS[PATCH_CYCLE[seg % PATCH_CYCLE.length]] : MAKERS[maker];
 const RUBBER = '#2a2d31', RUBBER_LIT = '#454a50', OUTLINE = '#0a0f14';
 const TEAM: Record<Team, string> = { you: '#eef8ff', ally: '#2ee6c8', enemy: '#ff4a3a' };
 
@@ -85,6 +86,11 @@ export const FRAMES = {
   boss:         { S: 56, shoulder: 7, hip: 5, top: 23, bot: 37, lean: 0, headR: 5, headRy: 6, headY: 15, armLen: 15, skin: '#9a7a64', cloth: '#3a4652' },
   bossBrute:    { S: 56, shoulder: 10, hip: 7, top: 22, bot: 38, lean: 0, headR: 5, headRy: 5, headY: 15, armLen: 16, skin: '#8a6e5a', cloth: '#3a4652', neck: 6 },
   king:         { S: 56, shoulder: 10, hip: 7, top: 22, bot: 38, lean: 1, headR: 5, headRy: 6, headY: 14, armLen: 16, skin: '#8a7a6a', skin2: '#6e7c86', cloth: '#3e2a48', robe: true, king: true, neck: 5 },
+  sleeper:      { S: 48, shoulder: 4, hip: 3, top: 22, bot: 32, lean: 3, headR: 4, headRy: 5, headY: 17, armLen: 14, skin: '#a8a49c', cloth: '#c8d4d8', coat: 9, drip: true },
+  bigSleeper:   { S: 56, shoulder: 6, hip: 5, top: 26, bot: 38, lean: 4, headR: 5, headRy: 6, headY: 20, armLen: 16, skin: '#a8a49c', cloth: '#c8d4d8', coat: 11, drip: true },
+  swarm:        { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'swarm' },
+  quadruped:    { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'quadruped' },
+  gantry:       { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'gantry' },
   drone:        { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#000000', drone: true },
 } satisfies Record<string, Frame>;
 export type FrameId = keyof typeof FRAMES;
@@ -128,6 +134,7 @@ const LIMB: Record<MakerKey, { up: number; fore: number; hand: 'fist' | 'claw' |
   ioa:       { up: 3, fore: 4, hand: 'hand', decal: 'lamp' },
   parsu:     { up: 4, fore: 5, hand: 'fist', decal: 'grain' },
   patchwork: { up: 3, fore: 4, hand: 'hand', decal: 'patch' },
+  unmarked:  { up: 3, fore: 4, hand: 'hand' },
 };
 
 /** An arm hanging from the shoulder (sx, sy). Returns where its hand is. */
@@ -292,6 +299,7 @@ export function paintDoll(spec: DollSpec, state: AnimationState, frame: number):
   const g = makeGrid(F.S), P = api(g);
   const pose = poseOf(state, frame);
   if (F.drone) { paintDrone(g, P, spec, pose); return finish(g, spec.team); }
+  if (F.special) { paintMachine(g, P, F, spec, pose); return finish(g, spec.team); }
   const parts = spec.parts ?? {};
   const chest = new Set(spec.chest ?? []);
   const accent = F.accent ?? '#00d4ff';
@@ -306,6 +314,7 @@ export function paintDoll(spec: DollSpec, state: AnimationState, frame: number):
   if (F.cloak || F.robe || chest.has('cape')) for (let y = top; y <= S - 4; y++) { const w = Math.floor((y - top) / 4); P.rect(tl - 2 - w, y, (tr - tl) + 3 + w, 1, shade(F.cloth, -0.45)); }
   if (chest.has('tank')) { shell(P, tl - 4, top + 1, 4, 8, { main: accent, dark: shade(accent, -0.4), lit: shade(accent, 0.3), light: accent }); }
   paintBackParts(P, parts, tl, top, bot);
+  if (F.drip) { const dx = tl - 7; P.rect(dx, top - 10, 1, S - top + 7, '#8a949c'); P.rect(dx - 2, S - 3, 5, 1, '#5a646e'); shell(P, dx - 2, top - 10, 4, 6, { main: '#d8eef0', dark: '#8aa8b0', lit: '#ffffff', light: '#ffffff' }); for (let i = 0; i < 6; i++) P.px(dx + 2 + Math.floor(i / 2), top - 4 + i, '#7ad0d8'); }
   if (F.pack) { P.rect(tl - 6, top + 1, 6, 10, '#5a6a5a'); P.rect(tl - 6, top + 1, 6, 1, '#7a8a7a'); P.rect(tl - 5, top - 3, 1, 4, '#6a7278'); P.px(tl - 5, top - 4, '#f2b33d'); }
   if (F.harness) { P.rect(tl - 2, top - 4, 1, bot - top + 5, '#6a7278'); P.rect(tl - 2, top - 4, tr - tl + 5, 1, '#6a7278'); P.rect(tr + 2, top - 4, 1, 6, '#6a7278'); P.px(tl - 2, top - 5, '#f2b33d'); }
   // ── Back arm ──
@@ -441,6 +450,50 @@ function finish(g: Grid, team: Team): Grid {
   return { S, c: res, glow: g.glow };
 }
 
+/** Bodies that aren't people: a drone swarm, a four-legged loader, a crane on the ceiling rails. Built from their maker's plastic. */
+function paintMachine(g: Grid, P: Painter, F: Frame, spec: DollSpec, pose: Pose) {
+  const maker = (spec.parts?.right_arm?.maker ?? spec.parts?.left_arm?.maker ?? 'ioa') as MakerKey;
+  const p = MAKERS[maker];
+  const eye = spec.look?.accent ?? '#ff5a3a';
+  const dx = pose.dx, by = pose.by;
+  if (F.special === 'swarm') {
+    // Many small drones, moving as one
+    const spots = [[16, 10], [30, 8], [23, 18], [12, 24], [34, 22], [22, 30], [30, 34]];
+    spots.forEach(([x, y], n) => {
+      const bob = ((n + by) % 2), cx = x + dx, cy = y + bob;
+      P.rect(cx - 4, cy - 3, 3, 1, '#c8ccd0'); P.rect(cx + 2, cy - 3, 3, 1, '#c8ccd0');
+      shell(P, cx - 2, cy - 2, 5, 4, p); P.px(cx + 1, cy, eye);
+    });
+    g.glow.push({ x: 23 + dx, y: 18, col: eye, r: 3 });
+    return;
+  }
+  if (F.special === 'quadruped') {
+    // A loader on four plastic legs: a box body, a sensor head at the front, a cargo frame
+    const top = 20 + by;
+    for (const [x, back] of [[12, true], [18, false], [28, true], [34, false]] as [number, boolean][]) {
+      const lx = x + dx + (pose.legPhase && back ? pose.legPhase : 0);
+      shell(P, lx, top + 8, 3, 8, p, back ? c => shade(c, -0.25) : same); P.rect(lx, top + 16, 3, 1, RUBBER); shell(P, lx - 1, top + 17, 4, 8, p, back ? c => shade(c, -0.25) : same); P.rect(lx - 2, 45, 6, 2, RUBBER);
+    }
+    shell(P, 9 + dx, top, 30, 10, p);
+    if (p.stripe) for (let x = 12; x < 36; x += 4) P.rect(x + dx, top + 7, 2, 2, p.stripe);
+    P.rect(12 + dx, top - 5, 1, 5, '#6a7278'); P.rect(22 + dx, top - 5, 1, 5, '#6a7278'); P.rect(12 + dx, top - 5, 11, 1, '#6a7278');
+    shell(P, 37 + dx, top + 1, 7, 6, p); P.rect(40 + dx, top + 3, 3, 2, '#1a1a1a'); P.px(42 + dx, top + 3, eye);
+    g.glow.push({ x: 42 + dx, y: top + 3, col: eye, r: 3 });
+    return;
+  }
+  // Gantry: a trolley on the ceiling rail, a cab hanging below, a claw reaching down
+  P.rect(2, 3, 44, 2, '#5a646e'); P.rect(2, 3, 44, 1, '#8a949c');
+  shell(P, 16 + dx, 5, 16, 5, p);
+  P.rect(23 + dx, 10, 2, 8 + by, RUBBER);
+  shell(P, 15 + dx, 18 + by, 18, 11, p);
+  if (p.stripe) for (let x = 16; x < 32; x += 3) P.px(x + dx, 27 + by, p.stripe);
+  P.rect(27 + dx, 21 + by, 4, 3, '#1a1a1a'); P.px(29 + dx, 22 + by, eye);
+  g.glow.push({ x: 29 + dx, y: 22 + by, col: eye, r: 3 });
+  const reach = pose.reach ? 8 : 0;
+  P.rect(23 + dx, 29 + by, 2, 6 + reach, '#6a7278');
+  for (const [x, y] of [[20, 35], [21, 37], [22, 39], [27, 35], [26, 37], [25, 39]]) P.rect(x + dx, y + by + reach, 2, 2, p.lit);
+}
+
 // ── Drawing ─────────────────────────────────────────────────────────────────
 
 const PAD = 6;
@@ -490,7 +543,7 @@ export function drawDoll(ctx: CanvasRenderingContext2D, spec: DollSpec, x: numbe
 export function drawDollHead(ctx: CanvasRenderingContext2D, spec: DollSpec, cx: number, cy: number, unit: number) {
   const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
   const img = canvasFor(spec, 'idle', 0);
-  const hx = F.drone ? 24 : Math.round(F.S / 2) + F.lean + 1, hy = F.drone ? 22 : F.headY + 1;
+  const hx = F.drone || F.special ? 24 : Math.round(F.S / 2) + F.lean + 1, hy = F.drone ? 22 : F.special === 'gantry' ? 23 : F.special ? 22 : F.headY + 1;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, cx - (hx + PAD + 0.5) * unit, cy - (hy + PAD + 0.5) * unit, img.width * unit, img.height * unit);

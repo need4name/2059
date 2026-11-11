@@ -7,6 +7,8 @@ import data from '../../content/figures.json';
 import type { AnimationState } from './pixelSprites';
 
 export interface FigureSpec {
+  /** The body it stands in (a frame in dolls.ts) and whose plastic its built-in limbs are. */
+  body?: string; maker?: string;
   build: 'slim' | 'medium' | 'heavy' | 'hunched';
   skin: string; cloth: string; accent: string; eyes: string; hair: string;
   head: 'bare' | 'hood' | 'helmet' | 'visor' | 'mask' | 'surgical' | 'cap' | 'scarf' | 'crown' | 'blank';

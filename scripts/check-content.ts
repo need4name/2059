@@ -11,6 +11,7 @@ import { ALLY_LINKS } from '../client/src/lib/combat/allies';
 import chapters from '../client/src/content/chapters.json';
 import { MAPS } from '../client/src/lib/engine/map';
 import figures from '../client/src/content/figures.json';
+import { FRAMES } from '../client/src/lib/rendering/dolls';
 import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
 import firmware from '../client/src/content/firmware.json';
@@ -139,6 +140,8 @@ const mapFile = z.object({
   }).strict()).min(2),
 }).strict();
 const figure = z.object({
+  body: z.enum(Object.keys(FRAMES) as [string, ...string[]]).optional(),
+  maker: z.enum(['volkov', 'tianxia', 'helix', 'kizuna', 'crown', 'cbn', 'ioa', 'parsu', 'patchwork', 'unmarked']).optional(),
   build: z.enum(['slim', 'medium', 'heavy', 'hunched']),
   skin: hex, cloth: hex, accent: hex, eyes: hex, hair: hex,
   head: z.enum(HEAD_KINDS), arms: z.tuple([z.enum(ARM_KINDS), z.enum(ARM_KINDS)]),

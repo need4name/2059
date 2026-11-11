@@ -37,25 +37,34 @@ export function hostDoll(playerClass: PlayerClass, equipped: Record<string, Item
   return { frame: FIRMWARE_FRAME[playerClass] ?? 'unclassified', team: 'you', parts: partsOf(Object.values(equipped), upsOf) };
 }
 
-// Old builds become bodies; arms an enemy was always drawn with stay as built-in parts
+// Without a body named, a build picks one
 const BUILD_FRAME: Record<FigureSpec['build'], FrameId> = { slim: 'stalker', medium: 'standard', heavy: 'brute', hunched: 'crawler' };
-const INNATE_ARM: Partial<Record<ArmKind, PartLook>> = {
-  metal: { maker: 'patchwork', tier: 0 }, crane: { maker: 'tianxia', tier: 1 }, claw: { maker: 'cbn', tier: 0 },
-  blade: { maker: 'kizuna', tier: 0 }, pump: { maker: 'tianxia', tier: 0 },
-};
 
-/** Someone's look from figures.json, as a doll with nothing carried yet. */
-function lookOf(id: string, team: Team, big = false): DollSpec {
+// Bodies a boss keeps as they are (everything else grows into a boss body)
+const OWN_SHAPE = new Set<FrameId>(['boss', 'bossBrute', 'bigSleeper', 'king', 'drone', 'swarm', 'quadruped', 'gantry']);
+
+/** Someone's look from figures.json, as a doll with nothing carried yet: its body, and built-in limbs in its maker's plastic. */
+function lookOf(id: string, team: Team, big = false, grade = 0): DollSpec {
   const f = FIGURES[id];
   if (!f) return { frame: big ? 'boss' : 'standard', team };
-  const isDrone = id === 'Seeding Drone' || id === 'Drone Swarm';
-  let frame: FrameId = isDrone ? 'drone' : BUILD_FRAME[f.build] ?? 'standard';
-  if (big && !isDrone) frame = f.build === 'heavy' ? 'bossBrute' : 'boss';
+  let frame: FrameId = (f.body as FrameId | undefined) ?? BUILD_FRAME[f.build] ?? 'standard';
+  if (big && !OWN_SHAPE.has(frame)) frame = f.build === 'heavy' ? 'bossBrute' : 'boss';
+  const maker = (f.maker ?? 'patchwork') as MakerKey;
+  // Better-kept enemies wear better plastic
+  const lift = grade >= 3 ? 1 : 0;
+  const innate = (kind: ArmKind): PartLook | undefined => {
+    if (kind === 'flesh') return undefined;
+    if (maker === 'unmarked') return { maker, tier: 0 };
+    if (kind === 'blade') return { maker: 'kizuna', tier: 1 + lift };
+    return { maker, tier: (kind === 'crane' ? 2 : 1) + lift };
+  };
   const parts: DollSpec['parts'] = {};
-  const back = INNATE_ARM[f.arms[0]], front = INNATE_ARM[f.arms[1]];
+  const back = innate(f.arms[0]), front = innate(f.arms[1]);
   if (back) parts.left_arm = back;
   if (front) parts.right_arm = front;
-  if (f.legs === 'metal') { parts.left_leg = { maker: 'patchwork', tier: 0 }; parts.right_leg = { maker: 'patchwork', tier: 0 }; }
+  if (f.legs === 'metal') { const leg = maker === 'unmarked' ? { maker, tier: 0 } : { maker, tier: 1 + lift }; parts.left_leg = leg; parts.right_leg = leg; }
+  // Machines are all maker: they carry it on their frame
+  if (frame === 'swarm' || frame === 'quadruped' || frame === 'gantry') parts.right_arm = { maker, tier: 1 };
   return {
     frame, team, parts,
     look: { skin: f.skin, cloth: f.cloth, accent: f.accent, eyes: f.eyes, hair: f.hair },
@@ -66,7 +75,7 @@ function lookOf(id: string, team: Team, big = false): DollSpec {
 /** An enemy: its look, a bigger body for bosses, and the implants it carries over the top. */
 export function foeDoll(unit: Character, kingParts?: string[]): DollSpec {
   if (unit.name === 'Patchwork King') return { frame: 'king', team: 'enemy', parts: partsOf(unit.carried ?? []), kingParts: kingParts ?? ['plate', 'hook', 'crown'], look: { accent: '#e8c060' } };
-  const spec = lookOf(unit.name, 'enemy', !!unit.enrage);
+  const spec = lookOf(unit.name, 'enemy', !!unit.enrage, unit.grade ?? 0);
   return { ...spec, parts: { ...spec.parts, ...partsOf(unit.carried ?? []) } };
 }
 
