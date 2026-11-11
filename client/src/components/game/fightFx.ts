@@ -52,13 +52,15 @@ export class FxDirector {
   private rings: { at: TilePosition; born: number; color: string; reach: number }[] = [];
   private particles: Particle[] = [];
   private numbers: Number_[] = [];
+  private waves: { tiles: TilePosition[]; born: number; rising: boolean; c0: number; c1: number }[] = [];
   private shakeUntil = 0;
+  private leftAt = 0;
   private shakeAmp = 0;
   /** Called when a blow starts (the attacker swings) and when it lands on someone. */
   onSwing: (key: string, faceTo: TilePosition) => void = () => {};
   onHurt: (key: string) => void = () => {};
 
-  reset() { this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
+  reset() { this.leftAt = 0; this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
 
   /** New packets from the store (anything not seen yet). */
   feed(packets: FxPacket[], now: number) {
@@ -116,6 +118,7 @@ export class FxDirector {
     this.tileFlashes = this.tileFlashes.filter(f => now - f.born < 420);
     this.shots = this.shots.filter(s => now < s.born + s.dur + 200);
     this.rings = this.rings.filter(r => now - r.born < 500);
+    this.waves = this.waves.filter(w => now - w.born < 1400);
     this.throws.forEach((t, k) => { if (now - t.start > FX.shove) this.throws.delete(k); });
     this.dying.forEach((d, k) => { if (now - d.start > FX.death) this.dying.delete(k); });
   }
@@ -158,6 +161,8 @@ export class FxDirector {
       } else if (p.collide && (lost > 0 || sLost > 0) && strike) this.dust(at, t0);
       if (c.wet && same(c.pos[0], c.pos[1])) this.splash(c.pos[1]);
       if (c.down && c.key !== 'player') { this.dying.set(c.key, { start: t0 + 80, pos: c.pos[1] }); this.shed(c.pos[1], t0 + 260); }
+      // Host lost: the body drops, and the signal leaves it, a pale shape rising in a drift of cyan
+      if (c.down && c.key === 'player') { this.dying.set('player', { start: t0 + 80, pos: c.pos[1] }); this.leftAt = t0 + 380; this.signal(c.pos[1], t0 + 380); }
     }
     if (bigHit > 0.15 || p.crit) { this.shakeAmp = Math.min(9, 3 + bigHit * 18 + (p.crit ? 3 : 0)); this.shakeUntil = t0 + FX.shake; }
     if (p.surge) this.shakeAmp = Math.max(this.shakeAmp, 6), this.shakeUntil = Math.max(this.shakeUntil, t0 + FX.shake * 1.4);
@@ -171,6 +176,30 @@ export class FxDirector {
       this.particles.push({ x: c.x, y: c.y - this.tile * 0.35, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + up * u, g: up < 0 ? -0.02 : 0.12 * u, life: 380 + Math.random() * 260, born, color: Math.random() < 0.3 ? '#ffffff' : color, size: Math.max(2, Math.round((1 + Math.random() * 1.6) * u * 1.6)) });
     }
   }
+  private signal(at: TilePosition, born: number) {
+    const c = this.toScreen(at.row, at.col), u = this.tile / 64;
+    for (let k = 0; k < 28; k++) this.particles.push({ x: c.x + (Math.random() - 0.5) * this.tile * 0.5, y: c.y - this.tile * (0.2 + Math.random() * 0.6), vx: (Math.random() - 0.5) * 0.5 * u, vy: -(0.4 + Math.random() * 0.9) * u, g: -0.004 * u, life: 1100 + Math.random() * 500, born: born + Math.random() * 400, color: Math.random() < 0.35 ? '#e8fbff' : '#38d6f0', size: Math.max(2, Math.round((1 + Math.random()) * 2 * u)) });
+  }
+  /** The tide turning: a line of foam sweeps across the mud (in when it rises, out when it falls), spray where it breaks. */
+  wave(tiles: TilePosition[], rising: boolean, now: number) {
+    if (!tiles.length) return;
+    const cols = tiles.map(t => t.col);
+    this.waves.push({ tiles, born: now, rising, c0: Math.min(...cols), c1: Math.max(...cols) });
+    const u = this.tile / 64;
+    for (const t of tiles) if (Math.random() < 0.35) { const c = this.toScreen(t.row, t.col); for (let k = 0; k < 3; k++) this.particles.push({ x: c.x + (Math.random() - 0.5) * this.tile * 0.6, y: c.y, vx: (Math.random() - 0.5) * u, vy: -(1 + Math.random() * 1.5) * u, g: 0.1 * u, life: 500, born: now + (t.col - Math.min(...cols)) * 90, color: Math.random() < 0.5 ? '#e8f8ff' : '#7ac8e8', size: Math.round(2.5 * u) }); }
+  }
+  /** Raft breaking away: its lashed plastic comes apart into pieces that drift off on the water and fade. */
+  debris(tiles: TilePosition[], centre: TilePosition, now: number) {
+    const u = this.tile / 64, plastic = ['#d8d0b8', '#b8b098', '#e4ecef', '#5a7a9a', '#2a2d31'];
+    for (const t of tiles) for (let k = 0; k < 3; k++) {
+      const c = this.toScreen(t.row, t.col), dx = t.col - centre.col, dy = t.row - centre.row, d = Math.max(1, Math.hypot(dx, dy));
+      this.particles.push({ x: c.x + (Math.random() - 0.5) * this.tile * 0.7, y: c.y + (Math.random() - 0.5) * this.tile * 0.7, vx: (dx / d) * (0.25 + Math.random() * 0.4) * u, vy: (dy / d) * (0.2 + Math.random() * 0.3) * u, g: 0, life: 1800 + Math.random() * 600, born: now + Math.random() * 200, color: plastic[Math.floor(Math.random() * plastic.length)], size: Math.round((4 + Math.random() * 5) * u) });
+    }
+  }
+
+  /** The signal leaving the host: 0..1 as the pale shape rises and fades (null when it isn't). */
+  leaving(now: number): number | null { if (!this.leftAt || now < this.leftAt) return null; const k = (now - this.leftAt) / 1000; return k > 1 ? null : k; }
+
   /** A falling body sheds its implants: little moulded pieces that pop off and bounce on the deck. */
   private shed(at: TilePosition, born: number) {
     const c = this.toScreen(at.row, at.col), u = this.tile / 64;
@@ -237,6 +266,25 @@ export class FxDirector {
   /** Under the bodies: the struck tiles flashing, rings. */
   drawUnder(ctx: CanvasRenderingContext2D, now: number) {
     const T = this.tile;
+    for (const w of this.waves) {
+      // One front of water rolling across the mud: a soft wash with a thin line of foam at its edge
+      const k = (now - w.born) / 1100;
+      const left = this.toScreen(0, w.c0).x - T / 2, right = this.toScreen(0, w.c1).x + T / 2;
+      const front = w.rising ? left + (right - left) * k : right - (right - left) * k;
+      for (const t of w.tiles) {
+        const c = this.toScreen(t.row, t.col);
+        const d = (w.rising ? front - c.x : c.x - front) / T; // tiles behind the front are wet
+        if (d < -0.6 || d > 1.6) continue;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, 1 - Math.abs(d - 0.3) / 1.3)) * 0.55;
+        ctx.fillStyle = '#6ac0e0'; ctx.fillRect(c.x - T / 2 + 2, c.y - T / 2 + 2, T - 4, T - 4);
+        ctx.restore();
+      }
+      if (k < 1) { ctx.save(); ctx.globalAlpha = Math.sin(Math.min(1, k) * Math.PI) * 0.9; ctx.fillStyle = '#eefaff';
+        const rows = w.tiles.map(t => t.row), top = this.toScreen(Math.min(...rows), 0).y - T / 2, bot = this.toScreen(Math.max(...rows), 0).y + T / 2;
+        for (let y = top; y < bot; y += Math.max(3, T * 0.08)) ctx.fillRect(front + Math.sin(y * 0.15 + now / 90) * T * 0.06 - 2, y, Math.max(2, T * 0.06), Math.max(2, T * 0.05));
+        ctx.restore(); }
+    }
     for (const f of this.tileFlashes) {
       const age = now - f.born; if (age < 0) continue;
       const a = Math.max(0, 1 - age / 380);

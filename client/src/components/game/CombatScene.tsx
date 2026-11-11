@@ -118,6 +118,8 @@ duration: number;
 
 // Movement animation state
 interface MovementAnim {
+/** The tiles it walks through, start to end (one step at a time). */
+path?: { row: number; col: number }[];
 fromRow: number;
 fromCol: number;
 toRow: number;
@@ -137,10 +139,35 @@ function drawChunk(ctx: CanvasRenderingContext2D, cx: number, y: number, w: numb
   ctx.restore();
 }
 
-// Ease-out cubic for smooth deceleration
-function easeOutCubic(t: number): number {
-return 1 - Math.pow(1 - t, 3);
+/** The way a body walks between two tiles: a shortest path over open ground (8 ways), or straight if there's none. */
+function pathBetween(grid: { rows: number; cols: number; tiles?: { type: string }[][] }, from: { row: number; col: number }, to: { row: number; col: number }) {
+  const key = (r: number, c: number) => r * 1000 + c;
+  const open = (r: number, c: number) => r >= 0 && c >= 0 && r < grid.rows && c < grid.cols && grid.tiles?.[r]?.[c]?.type !== 'obstacle' && grid.tiles?.[r]?.[c]?.type !== 'void';
+  const prev = new Map<number, number>([[key(from.row, from.col), -1]]);
+  const q = [from];
+  while (q.length) {
+    const p = q.shift()!;
+    if (p.row === to.row && p.col === to.col) break;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const r = p.row + dr, c = p.col + dc;
+      if ((dr || dc) && (open(r, c) || (r === to.row && c === to.col)) && !prev.has(key(r, c))) { prev.set(key(r, c), key(p.row, p.col)); q.push({ row: r, col: c }); }
+    }
+  }
+  if (!prev.has(key(to.row, to.col))) return [from, to];
+  const out: { row: number; col: number }[] = [];
+  for (let k = key(to.row, to.col); k !== -1; k = prev.get(k)!) out.unshift({ row: Math.floor(k / 1000), col: k % 1000 });
+  return out.length > 9 ? [from, to] : out;
 }
+/** Where along a walk a body is (0..1), a steady step at a time with a little bob on each. */
+function along(anim: MovementAnim, k: number): { row: number; col: number; bob: number } {
+  const path = anim.path && anim.path.length > 1 ? anim.path : [{ row: anim.fromRow, col: anim.fromCol }, { row: anim.toRow, col: anim.toCol }];
+  const steps = path.length - 1, at = Math.min(steps - 1e-6, k * steps), i = Math.floor(at), f = at - i;
+  const a = path[i], b = path[i + 1];
+  return { row: a.row + (b.row - a.row) * f, col: a.col + (b.col - a.col) * f, bob: Math.sin(f * Math.PI) * 0.05 };
+}
+/** How long a walk takes: about a sixth of a second a tile. */
+const walkTime = (path: { row: number; col: number }[]) => Math.max(220, (path.length - 1) * 170);
+
 
 /** Which way each wind direction points on screen. */
 const WIND_VEC: Record<string, { dx: number; dy: number }> = { north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 }, east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 } };
@@ -159,6 +186,11 @@ const [hoveredTile, setHoveredTile] = useState<{ row: number; col: number } | nu
 
 // Movement animation state for smooth sliding
 const playerMoveAnim = useRef<MovementAnim | null>(null);
+// Allies walk too: where each was, and its walk if it's moving
+// What the world was last frame (to see the tide turn, the raft break, a part fall), and parts skidding to rest
+const worldWas = useRef<{ tide: boolean | null; rings: number; loose: Set<string> }>({ tide: null, rings: 0, loose: new Set() });
+const skids = useRef(new Map<string, { from: { row: number; col: number }; start: number }>());
+const allyMoves = useRef(new Map<number, { prev: { row: number; col: number }; anim: MovementAnim | null }>());
 const prevPlayerPos = useRef({ row: grid.playerPosition.row, col: grid.playerPosition.col });
 
 // Sprite animators for characters
@@ -240,7 +272,7 @@ director.onHurt = key => {
 };
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
-useEffect(() => { director.reset(); }, [fightId]);
+useEffect(() => { director.reset(); allyMoves.current.clear(); skids.current.clear(); worldWas.current = { tide: null, rings: 0, loose: new Set() }; }, [fightId]);
 
 // Track phase changes and combat log for floating messages
 useEffect(() => {
@@ -336,18 +368,19 @@ playerAnimator.current.setState('defend');
 
 // Detect position changes and trigger smooth movement animations
 useEffect(() => {
-const MOVE_DURATION = 250; // 250ms for smooth slide
 
 // Check if player position changed
 if (prevPlayerPos.current.row !== grid.playerPosition.row ||
 prevPlayerPos.current.col !== grid.playerPosition.col) {
+const path = pathBetween(grid, prevPlayerPos.current, grid.playerPosition);
 playerMoveAnim.current = {
+path,
 fromRow: prevPlayerPos.current.row,
 fromCol: prevPlayerPos.current.col,
 toRow: grid.playerPosition.row,
 toCol: grid.playerPosition.col,
 startTime: Date.now(),
-duration: MOVE_DURATION,
+duration: walkTime(path),
 };
 playerAnimator.current.setState('walk');
 prevPlayerPos.current = { row: grid.playerPosition.row, col: grid.playerPosition.col };
@@ -356,13 +389,24 @@ prevPlayerPos.current = { row: grid.playerPosition.row, col: grid.playerPosition
 foes.forEach((f, i) => {
 const v = foeVisual(i);
 if (v.prevPos.row !== f.pos.row || v.prevPos.col !== f.pos.col) {
-v.moveAnim = { fromRow: v.prevPos.row, fromCol: v.prevPos.col, toRow: f.pos.row, toCol: f.pos.col, startTime: Date.now(), duration: MOVE_DURATION };
+const path = pathBetween(grid, v.prevPos, f.pos);
+v.moveAnim = { path, fromRow: v.prevPos.row, fromCol: v.prevPos.col, toRow: f.pos.row, toCol: f.pos.col, startTime: Date.now(), duration: walkTime(path) };
 v.animator.setState('walk');
 v.prevPos = { ...f.pos };
 }
 });
 
-}, [grid.playerPosition.row, grid.playerPosition.col, foeSignature]);
+allies.forEach((a, k) => {
+const m = allyMoves.current.get(k);
+if (!m) { allyMoves.current.set(k, { prev: { ...a.pos }, anim: null }); return; }
+if (m.prev.row !== a.pos.row || m.prev.col !== a.pos.col) {
+const path = pathBetween(grid, m.prev, a.pos);
+m.anim = { path, fromRow: m.prev.row, fromCol: m.prev.col, toRow: a.pos.row, toCol: a.pos.col, startTime: Date.now(), duration: walkTime(path) };
+m.prev = { ...a.pos };
+}
+});
+
+}, [grid.playerPosition.row, grid.playerPosition.col, foeSignature, allies.map(a => `${a.pos.row},${a.pos.col}`).join('|')]);
 
 useEffect(() => {
 const canvas = canvasRef.current;
@@ -381,11 +425,15 @@ ctx.imageSmoothingEnabled = false;
 let lastWidth = 0;
 let lastHeight = 0;
 
-const resize = () => {
+// Setting a canvas's size wipes it: only resize when the size really changed, and draw again at once
+let drawNow: (() => void) | null = null;
+const resize = (redraw = true) => {
 const dpr = window.devicePixelRatio || 1;
 const rect = canvas.getBoundingClientRect();
-canvas.width = rect.width * dpr;
-canvas.height = rect.height * dpr;
+const w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+if (canvas.width === w && canvas.height === h) return;
+canvas.width = w;
+canvas.height = h;
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 // Re-apply after resize (some browsers reset this)
@@ -396,12 +444,13 @@ ctx.imageSmoothingEnabled = false;
 
 lastWidth = rect.width;
 lastHeight = rect.height;
+if (redraw && drawNow) { if (animationRef.current) cancelAnimationFrame(animationRef.current); drawNow(); }
 };
 
 resize();
 
 // Observe both canvas and its parent for better mobile support
-const resizeObserver = new ResizeObserver(resize);
+const resizeObserver = new ResizeObserver(() => resize());
 resizeObserver.observe(canvas);
 if (canvas.parentElement) {
 resizeObserver.observe(canvas.parentElement);
@@ -534,7 +583,7 @@ const animate = () => {
 // Fallback: check if size changed and resize if needed (handles Safari toolbar collapse)
 const rect = canvas.getBoundingClientRect();
 if (rect.width !== lastWidth || rect.height !== lastHeight) {
-resize();
+resize(false);
 }
 
 // Derive dimensions from canvas buffer size
@@ -554,6 +603,30 @@ const now = Date.now();
   st.allies.forEach((a, k) => places.set(`ally:${k}`, a.pos));
   const t0 = gridToScreen(0, 0, width, height);
   director.frame(now, (r, c) => { const q = gridToScreen(r, c, width, height); return { x: q.x, y: q.y }; }, t0.tileW, places);
+}
+// The world turning: the tide, the King's raft breaking up, his parts skidding away
+{
+  const st = useCombat.getState();
+  const tideHigh = st.tide ? st.tide.high : null;
+  if (worldWas.current.tide !== null && tideHigh !== null && tideHigh !== worldWas.current.tide) {
+    const mud: { row: number; col: number }[] = [];
+    st.grid.tiles.forEach((r, row) => r.forEach((t, col) => { if (t.tidal) mud.push({ row, col }); }));
+    director.wave(mud, tideHigh, now);
+  }
+  worldWas.current.tide = tideHigh;
+  const rings = st.king?.rings ?? 0;
+  if (rings > worldWas.current.rings) {
+    const gone: { row: number; col: number }[] = [];
+    st.grid.tiles.forEach((r, row) => r.forEach((t, col) => { if (t.type === 'void' && t.breaks === rings) gone.push({ row, col }); }));
+    director.debris(gone, { row: Math.floor(st.grid.rows / 2), col: Math.floor(st.grid.cols / 2) }, now);
+  }
+  worldWas.current.rings = rings;
+  const kingAt = st.foes.find(f => f.parts)?.pos;
+  for (const l of st.king?.loose ?? []) {
+    const k = `${l.id}`;
+    if (!worldWas.current.loose.has(k) && kingAt) skids.current.set(k, { from: { ...kingAt }, start: now });
+  }
+  worldWas.current.loose = new Set((st.king?.loose ?? []).map(l => `${l.id}`));
 }
 const shake = director.shakeOffset(now);
 ctx.save();
@@ -801,7 +874,16 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
 
   // A part torn off the King, waiting for whoever gets there first
   const loose = kingNow?.loose.find(l => l.pos.row === row && l.pos.col === col);
-  if (loose) drawLoosePart(ctx, loose.id, pos.x, pos.y, tileW, now);
+  if (loose) {
+    // A part just knocked off skids from the King to where it lands, spinning
+    const sk = skids.current.get(loose.id);
+    const k = sk ? Math.min(1, (now - sk.start) / 420) : 1;
+    if (sk && k < 1) {
+      const from = gridToScreen(sk.from.row, sk.from.col, width, height), e = 1 - Math.pow(1 - k, 3);
+      const x = from.x + (pos.x - from.x) * e, y = from.y + (pos.y - from.y) * e - Math.sin(k * Math.PI) * tileH * 0.4;
+      overlay.push(() => { ctx.save(); ctx.translate(x, y); ctx.rotate((1 - k) * Math.PI * 2.5); drawLoosePart(ctx, loose.id, 0, 0, tileW, now); ctx.restore(); });
+    } else { skids.current.delete(loose.id); drawLoosePart(ctx, loose.id, pos.x, pos.y, tileW, now); }
+  }
 
   // Draw obstacles and hazards with simple markers
   const tile = grid.tiles?.[row]?.[col];
@@ -885,12 +967,9 @@ let playerVisualCol = grid.playerPosition.col;
 if (playerMoveAnim.current) {
 const elapsed = Date.now() - playerMoveAnim.current.startTime;
 const progress = Math.min(1, elapsed / playerMoveAnim.current.duration);
-const eased = easeOutCubic(progress);
-
-playerVisualRow = playerMoveAnim.current.fromRow + 
-  (playerMoveAnim.current.toRow - playerMoveAnim.current.fromRow) * eased;
-playerVisualCol = playerMoveAnim.current.fromCol + 
-  (playerMoveAnim.current.toCol - playerMoveAnim.current.fromCol) * eased;
+const step = along(playerMoveAnim.current, progress);
+playerVisualRow = step.row - step.bob;
+playerVisualCol = step.col;
 
 // Clear animation when complete
 if (progress >= 1) {
@@ -918,7 +997,11 @@ drawFootShadow(ctx, playerPos.x, playerPos.y + tileH * 0.36, tileW);
 const owned = useAugmentTrees.getState().owned;
 const hostSpec = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0);
 const pTop = dollTop(playerPos.y, spriteSize);
-drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft, { white: pJolt.white });
+const pFall = director.falling('player', now);
+drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0 });
+// The signal leaving: the host's shape, pale, rising out of the body and thinning away
+const leave = director.leaving(now);
+if (leave !== null) { ctx.save(); ctx.globalAlpha = 0.55 * (1 - leave); drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop - leave * tileH * 1.1, spriteSize, 'idle', 0, playerFacingLeft, { white: true }); ctx.restore(); }
 
 drawStatus(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, playerBurning > 0, playerStunned, now);
 if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, tileset.sea, now);
@@ -947,7 +1030,14 @@ if (gain) {
 allies.forEach((a, k) => {
 const key = `ally:${k}`;
 if (a.unit.currentHp <= 0 && !director.visible(key)) return;
-const aw = director.where(key, a.pos, now), aj = director.jolt(key, now), aFall = director.falling(key, now);
+let aw = director.where(key, a.pos, now);
+const aj = director.jolt(key, now), aFall = director.falling(key, now);
+const am = allyMoves.current.get(k)?.anim;
+if (am && !director.owns(key)) {
+  const kk = Math.min(1, (now - am.startTime) / am.duration);
+  const st = along(am, kk); aw = { row: st.row - st.bob, col: st.col, hop: 0 };
+  if (kk >= 1) allyMoves.current.get(k)!.anim = null;
+}
 const ap0 = gridToScreen(aw.row, aw.col, width, height);
 const ap = { ...ap0, x: ap0.x + aj.dx, y: ap0.y + aj.dy - aw.hop * tileH };
 const color = a.unit.spriteColor || '#38d6f0';
@@ -997,9 +1087,8 @@ const fKey = `foe:${i}`, fFall = director.falling(fKey, now), fj = director.jolt
 let visRow = f.pos.row, visCol = f.pos.col, fHop = 0;
 if (v.moveAnim) {
 const progress = Math.min(1, (Date.now() - v.moveAnim.startTime) / v.moveAnim.duration);
-const eased = easeOutCubic(progress);
-visRow = v.moveAnim.fromRow + (v.moveAnim.toRow - v.moveAnim.fromRow) * eased;
-visCol = v.moveAnim.fromCol + (v.moveAnim.toCol - v.moveAnim.fromCol) * eased;
+const step = along(v.moveAnim, progress);
+visRow = step.row - step.bob; visCol = step.col;
 if (progress >= 1) { v.moveAnim = null; v.animator.setState('idle'); }
 }
 if (director.owns(fKey) || fFall !== null) { const w = director.where(fKey, f.pos, now); visRow = w.row; visCol = w.col; fHop = w.hop; }
@@ -1155,6 +1244,7 @@ drawFloatingMessage(ctx, effect.message, { x: effect.x, y }, effect.type, alpha,
 ctx.restore();
 animationRef.current = requestAnimationFrame(animate);
 };
+drawNow = animate;
 
 animate();
 

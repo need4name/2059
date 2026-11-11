@@ -264,13 +264,14 @@ function paintBackParts(P: Painter, parts: DollSpec['parts'] & object, tl: numbe
   if (sp) { const p = pal(sp.maker, sp.tier); for (let y = top - 1; y <= bot; y += 2) { P.rect(tl - 1, y, 2, 1, p.main); P.px(tl - 1, y + 1, p.dark); } if (sp.tier >= 2) for (let k = 0; k < 3; k++) P.rect(tl - 2 - k, top - 2 - k * 2, 1, 2, p.lit); if (sp.tier >= 3) P.glow(tl - 3, top - 4, p.light, 4); }
 }
 
-interface Pose { dx: number; by: number; legPhase: number; reach: boolean }
+interface Pose { dx: number; by: number; legPhase: number; reach: boolean; /** 0-3 through an idle cycle, -1 otherwise. */ idle: number }
 function poseOf(state: AnimationState, f: number): Pose {
-  if (state === 'walk') return { dx: 0, by: f % 2, legPhase: [0, 1, 0, -1, 0, 1][f % 6], reach: false };
-  if (state === 'attack') return { dx: [0, 1, 3, 2, 1][f % 5], by: 0, legPhase: 0, reach: f % 5 >= 1 && f % 5 <= 3 };
-  if (state === 'defend') return { dx: 0, by: 1, legPhase: 0, reach: true };
-  if (state === 'hurt') return { dx: [-2, -1, 0][f % 3], by: 0, legPhase: 0, reach: false };
-  return { dx: 0, by: f % 2, legPhase: 0, reach: false };
+  if (state === 'walk') return { dx: 0, by: f % 2, legPhase: [0, 1, 0, -1, 0, 1][f % 6], reach: false, idle: -1 };
+  if (state === 'attack') return { dx: [0, 1, 3, 2, 1][f % 5], by: 0, legPhase: 0, reach: f % 5 >= 1 && f % 5 <= 3, idle: -1 };
+  if (state === 'defend') return { dx: 0, by: 1, legPhase: 0, reach: true, idle: -1 };
+  if (state === 'hurt') return { dx: [-2, -1, 0][f % 3], by: 0, legPhase: 0, reach: false, idle: -1 };
+  // Idle: a slow breath (down on the out-breath)
+  return { dx: 0, by: [0, 0, 1, 1][f % 4], legPhase: 0, reach: false, idle: f % 4 };
 }
 
 /** The front arm thrust forward: painted hanging, then turned to point the way the character faces. */
@@ -278,15 +279,22 @@ function paintArmForward(P: Painter, g: Grid, F: Frame, part: PartLook | undefin
   const T = makeGrid(g.S), TP = api(T);
   const ox = 10, oy = 4;
   paintArm(TP, F, part, ox, oy, true);
-  for (let y = 0; y < T.S; y++) for (let x = 0; x < T.S; x++) { const col = T.c[y][x]; if (col) P.px(sx + (y - oy) + 1, sy + (ox + 2 - x), col); }
-  for (const gl of T.glow) g.glow.push({ ...gl, x: sx + (gl.y - oy) + 1, y: sy + (ox + 2 - gl.x) });
-  return { x: sx + F.armLen + 1, y: sy + 1 };
+  // A Volkov arm punches out on its piston; a Tianxia claw reaches a little further
+  const thrust = part?.maker === 'volkov' ? 3 : part?.maker === 'tianxia' ? 1 : 0;
+  // The piston rod shows in the gap as the forearm shoots out
+  if (thrust) { P.rect(sx + 5, sy, thrust + 2, 2, '#2a2d31'); P.rect(sx + 5, sy, thrust + 2, 1, '#8a949c'); }
+  for (let y = 0; y < T.S; y++) for (let x = 0; x < T.S; x++) { const col = T.c[y][x]; if (col) P.px(sx + (y - oy) + 1 + (y - oy > 4 ? thrust : 0), sy + (ox + 2 - x), col); }
+  for (const gl of T.glow) g.glow.push({ ...gl, x: sx + (gl.y - oy) + 1 + thrust, y: sy + (ox + 2 - gl.x) });
+  // A Kizuna blade leaves a short bright arc behind its edge
+  if (part?.maker === 'kizuna') { const tip = sx + F.armLen + 4; for (let k = 0; k < 6; k++) P.px(tip - k, sy - 2 - Math.round(Math.sin(k / 5 * Math.PI) * 3), k % 2 ? '#f0b0ff88' : '#ffffffaa'); }
+  return { x: sx + F.armLen + 1 + thrust, y: sy + 1 };
 }
 
 function paintDrone(g: Grid, P: Painter, spec: DollSpec, pose: Pose) {
   const p = MAKERS[(spec.look?.accent ? 'tianxia' : 'tianxia')];
   const cloth = spec.look?.cloth ?? p.main, accent = spec.look?.accent ?? '#a8e0d0';
-  const cx = 24 + pose.dx, cy = 22 - pose.by;
+  // A drone hovers: a slow rise and fall
+  const cx = 24 + pose.dx, cy = 22 - (pose.idle >= 0 ? [0, 1, 2, 1][pose.idle] : pose.by);
   P.rect(cx - 14, cy - 8, 10, 1, '#c8ccd0'); P.rect(cx + 4, cy - 8, 10, 1, '#c8ccd0');
   P.rect(cx - 10, cy - 7, 1, 3, '#5a646e'); P.rect(cx + 9, cy - 7, 1, 3, '#5a646e');
   P.rect(cx - 10, cy - 4, 20, 2, shade(cloth, -0.4));
@@ -308,6 +316,8 @@ export function paintDoll(spec: DollSpec, state: AnimationState, frame: number):
   const accent = F.accent ?? '#00d4ff';
   const S = F.S, cx = Math.round(S / 2) + pose.dx;
   const top = F.top + pose.by, bot = F.bot + pose.by;
+  // Sleepers sway where they stand
+  if (F.drip && pose.idle >= 0) F.lean += [0, 1, 1, 0][pose.idle];
   const tl = cx - F.shoulder + F.lean, tr = cx + F.shoulder + F.lean - 1;
   const hl = cx - F.hip, hr = cx + F.hip - 1;
   const hx = cx + F.lean + 1, hy = F.headY + pose.by;
@@ -526,7 +536,8 @@ function paintMachine(g: Grid, P: Painter, F: Frame, spec: DollSpec, pose: Pose)
     // Many small drones, moving as one
     const spots = [[16, 10], [30, 8], [23, 18], [12, 24], [34, 22], [22, 30], [30, 34]];
     spots.forEach(([x, y], n) => {
-      const bob = ((n + by) % 2), cx = x + dx, cy = y + bob;
+      // Each drone in the swarm keeps its own small jitter
+      const j = pose.idle >= 0 ? pose.idle : by, bob = [0, 1, 0, -1][(n * 3 + j) % 4], cx = x + dx + ((n + j) % 3 === 0 ? 1 : 0), cy = y + bob;
       P.rect(cx - 4, cy - 3, 3, 1, '#c8ccd0'); P.rect(cx + 2, cy - 3, 3, 1, '#c8ccd0');
       shell(P, cx - 2, cy - 2, 5, 4, p); P.px(cx + 1, cy, eye);
     });
@@ -544,7 +555,9 @@ function paintMachine(g: Grid, P: Painter, F: Frame, spec: DollSpec, pose: Pose)
     const reach = pose.reach ? 4 : 0;
     for (let x = 38; x < 52 + reach; x++) P.rect(x + dx, 23 + by, 1, 3, (x % 4 < 2) ? p.main : (p.stripe ?? p.dark));
     P.rect(50 + reach + dx, 26 + by, 1, 6, WIRE); for (const [x, y] of [[49, 32], [49, 33], [50, 34], [52, 33], [52, 32]]) P.px(x + reach + dx, y + by, '#d8dcd6');
-    for (const [x, y, r] of [[22, 6, 4], [30, 4, 5], [38, 7, 3], [26, 9, 3]]) { P.oval(x + dx, y - by, r, Math.max(2, r - 1), '#e8eef2'); P.px(x + dx - 1, y - by - 1, '#ffffff'); }
+    // It breathes cloud: the puffs drift up and off as it idles
+    const drift = pose.idle >= 0 ? pose.idle : 0;
+    for (const [x, y, r] of [[22, 6, 4], [30, 4, 5], [38, 7, 3], [26, 9, 3]]) { P.oval(x + dx + drift, y - by - drift, r, Math.max(2, r - 1), '#e8eef2'); P.px(x + dx + drift - 1, y - by - drift - 1, '#ffffff'); }
     g.glow.push({ x: 23 + dx, y: 25 + by, col: '#ff5a3a', r: 3 });
     return;
   }
@@ -588,11 +601,13 @@ function canvasFor(spec: DollSpec, state: AnimationState, frame: number): HTMLCa
   c.width = grid.S + PAD * 2; c.height = grid.S + PAD * 2;
   const ctx = c.getContext('2d')!;
   // Glows under the pixels: soft light from lit parts
+  // Lit parts breathe with the idle: the glow swells and settles
+  const swell = state === 'idle' ? [1, 1.18, 1.35, 1.18][frame % 4] : 1;
   for (const gl of grid.glow) {
-    const gx = gl.x + PAD + 0.5, gy = gl.y + PAD + 0.5;
-    const rad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gl.r);
+    const gx = gl.x + PAD + 0.5, gy = gl.y + PAD + 0.5, r = gl.r * swell;
+    const rad = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
     rad.addColorStop(0, `${gl.col}aa`); rad.addColorStop(1, `${gl.col}00`);
-    ctx.fillStyle = rad; ctx.fillRect(gx - gl.r, gy - gl.r, gl.r * 2, gl.r * 2);
+    ctx.fillStyle = rad; ctx.fillRect(gx - r, gy - r, r * 2, r * 2);
   }
   for (let y = 0; y < grid.S; y++) for (let x = 0; x < grid.S; x++) { const col = grid.c[y][x]; if (col) { ctx.fillStyle = col; ctx.fillRect(x + PAD, y + PAD, 1, 1); } }
   if (cache.size > 600) cache.clear();
