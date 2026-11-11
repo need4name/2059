@@ -751,6 +751,9 @@ export const COLLISION = { share: 0.3, min: 4 };
 /** Burning: a share of max health each turn, for this many turns. */
 export const BURN = { share: 0.04, min: 3, turns: 2 };
 const burnDamage = (maxHp: number) => Math.max(BURN.min, Math.round(maxHp * BURN.share));
+/** Climbing out of the sea: cold and the climb cost a share of max health, as well as the turn. */
+export const WATER = { share: 0.05, min: 3 };
+const maxHpOf = (s: FightState, b: Body) => (b.kind === 'player' ? s.player.maxHp : b.kind === 'foe' ? s.foes[b.i].unit.maxHp : s.allies[b.k].unit.maxHp);
 
 type Body = { kind: 'player' } | { kind: 'foe'; i: number } | { kind: 'ally'; k: number };
 function bodyAt(s: FightState, p: TilePosition): Body | null {
@@ -808,10 +811,24 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   }
   const solid = !inBounds(to, s.grid) || isImpassable(to, s.grid) || other !== null;
   if (!solid) {
+    const moved = who.kind === 'player' ? { ...s, grid: { ...s.grid, playerPosition: to } }
+      : who.kind === 'foe' ? setFoe(s, who.i, { pos: to })
+      : { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
+    // Thrown onto a damaging tile: it hits at once, as hard as slamming into something (no stun), and fire sets them alight
+    const tile = tileAt(to, s.grid);
+    if (tile?.type === 'hazard' && !(who.kind === 'foe' && hasTrait(s.foes[who.i], 'filtered'))) {
+      const base = Math.max(hazardDamageAt(to, s.grid), Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
+      const dmg = Math.round(base * (who.kind === 'player' ? s.perks.hazardMult : 1));
+      const fire = BURNING_ART.includes(tile.art ?? '');
+      events.push(say(`${who.kind === 'player' ? 'You are' : `${nameOf(s, who)} is`} thrown onto ${tile.name ?? 'the hazard'}: -${dmg}${fire ? (who.kind === 'player' ? ', you catch fire' : ', catches fire') : ''}`, 'critical'), { kind: 'collide' });
+      const hurtState = hurt(moved, who, dmg, events);
+      if (!fire) return hurtState;
+      if (who.kind === 'player') return { ...hurtState, playerBurning: BURN.turns };
+      if (who.kind === 'foe') return setFoe(hurtState, who.i, { burning: BURN.turns });
+      return { ...hurtState, allies: hurtState.allies.map((x, n) => (n === who.k ? { ...x, burning: BURN.turns } : x)) };
+    }
     events.push(say(who.kind === 'player' ? 'Knocked back a tile' : `${nameOf(s, who)} is knocked back`));
-    if (who.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: to } };
-    if (who.kind === 'foe') return setFoe(s, who.i, { pos: to });
-    return { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
+    return moved;
   }
   const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
   const into = other ? nameOf(s, other) : !inBounds(to, s.grid) ? 'the rail' : tileAt(to, s.grid)?.type === 'void' ? 'the water' : (tileAt(to, s.grid)?.name ?? 'cover');
@@ -831,11 +848,13 @@ function climbOut(s: FightState, b: Body, events: FightEvent[]): FightState {
     const d = chebyshev(p, from) + (tileAt(p, s.grid)?.type === 'hazard' ? 0.5 : 0);
     if (d < bestD) { bestD = d; best = p; }
   }
-  events.push(say(`${b.kind === 'player' ? 'You climb' : `${nameOf(s, b)} climbs`} out of the sea`));
+  const dmg = Math.max(WATER.min, Math.round(maxHpOf(s, b) * WATER.share));
+  events.push(say(`${b.kind === 'player' ? 'You climb' : `${nameOf(s, b)} climbs`} out of the sea: -${dmg}, turn lost`, 'damage'));
   const to = best ?? from;
-  if (b.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: to }, playerSwimming: false };
-  if (b.kind === 'foe') return setFoe(s, b.i, { pos: to, swimming: false });
-  return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, pos: to, swimming: false, acted: true, moved: true } : x)) };
+  const out = hurt(s, b, dmg, events);
+  if (b.kind === 'player') return { ...out, grid: { ...out.grid, playerPosition: to }, playerSwimming: false };
+  if (b.kind === 'foe') return setFoe(out, b.i, { pos: to, swimming: false });
+  return { ...out, allies: out.allies.map((x, n) => (n === b.k ? { ...x, pos: to, swimming: false, acted: true, moved: true } : x)) };
 }
 
 /** Start of the player's turn, after cooling: burning ticks; a stun or a climb out of the sea costs the whole turn. */
@@ -856,7 +875,7 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   const swam = !!s.playerSwimming && !down;
   if (swam) state = climbOut(state, { kind: 'player' }, events);
   // The frame mends the flesh: a share of max health, scaled by how much structure is left (none once it breaks)
-  if (!down) {
+  if (!events.some(e => e.kind === 'playerDown')) {
     const mended = mendAmount(state);
     if (mended > 0) { state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + mended } }; events.push(say(`Mending -- healed ${mended}`, 'heal')); }
   }
@@ -1844,6 +1863,7 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
   }
   if (f.swimming) {
     state = climbOut(state, { kind: 'foe', i }, events);
+    if (!isAlive(state.foes[i])) state = afterFoeChanges(state, events);
     return { state, events, walkAfter: false };
   }
   if (f.stunned) {

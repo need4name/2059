@@ -461,6 +461,32 @@ test('the player in the sea is left alone, then spends the next turn climbing ou
   assert.equal(turn.state.playerSwimming, false);
 });
 
+test('climbing out of the sea costs health as well as the turn', () => {
+  const grid = arena([5, 3], [2, 3]);
+  grid.tiles[6][3] = { type: 'void' } as any;
+  const s = fight({ grid, playerHeat: 0 });
+  const wet = Fight.knockBack(s, { row: 4, col: 3 }, { kind: 'player' }, 40, []);
+  const turn = Fight.playerConditions({ ...wet, player: { ...wet.player, currentStructuralHp: 0 } });
+  const cost = Math.max(Fight.WATER.min, Math.round(wet.player.maxHp * Fight.WATER.share));
+  assert.equal(turn.state.player.currentHp, wet.player.currentHp - cost);
+  assert.ok(JSON.stringify(turn.events).includes('turn lost'), 'the log says the turn is gone');
+});
+
+test('thrown onto a damaging tile: it hits at once, as hard as a slam, and fire sets them alight', () => {
+  const grid = arena([5, 3], [4, 3]);
+  grid.tiles[3][3] = { type: 'hazard', name: 'Fuel fire', hazardDamage: 8, art: 'fire' } as any;
+  const s = fight({ grid });
+  const thrown = Fight.knockBack(s, { row: 5, col: 3 }, { kind: 'foe', i: 0 }, 60, []);
+  assert.deepEqual(thrown.foes[0].pos, { row: 3, col: 3 });
+  assert.equal(s.foes[0].unit.currentHp - thrown.foes[0].unit.currentHp, Math.round(60 * Fight.COLLISION.share * s.perks.collisionMult));
+  assert.equal(thrown.foes[0].burning, Fight.BURN.turns);
+  assert.ok(!thrown.foes[0].stunned, 'no stun: nothing solid was hit');
+  const light = Fight.knockBack(s, { row: 5, col: 3 }, { kind: 'foe', i: 0 }, 5, []);
+  assert.equal(s.foes[0].unit.currentHp - light.foes[0].unit.currentHp, 8, 'never less than the tile itself');
+  const filtered = { ...s, foes: [{ ...s.foes[0], unit: { ...s.foes[0].unit, traits: ['filtered'] } }] } as any;
+  assert.equal(Fight.knockBack(filtered, { row: 5, col: 3 }, { kind: 'foe', i: 0 }, 60, []).foes[0].unit.currentHp, s.foes[0].unit.currentHp, 'filtered enemies shrug it off');
+});
+
 // ── Implant parts and the new shapes ────────────────────────────────────────
 
 test('bolts stop at the first body, pierces go through, long shots skip the near tiles, lobs hit a plus', () => {
