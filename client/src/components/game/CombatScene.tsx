@@ -3,13 +3,15 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { drawWanderer, drawDrunkard, SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
-import { ENEMY_GRADES } from '@/lib/combat/actions';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
-import { drawFigure } from '@/lib/rendering/figures';
+import { drawDoll } from '@/lib/rendering/dolls';
+import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
+import { useInventory } from '@/lib/stores/useInventory';
+import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
 
@@ -920,24 +922,22 @@ if (progress >= 1) {
 
 // Draw player character (Wanderer) using pixel sprites
 const playerPos = gridToScreen(playerVisualRow, playerVisualCol, width, height);
-const spriteSize = Math.max(tileW * 1.2, 30);
+// Characters stand about 1.45 tiles tall, over the tile behind them, feet where the shadow is
+const DOLL = 1.45;
+const spriteSize = Math.max(tileW * DOLL, 34);
+const dollTop = (cy: number, size: number) => cy + tileH * 0.36 - size + size / 48 * 2;
 const playerFacingLeft = grid.playerPosition.col > grid.bossPosition.col;
 
 depth.push({ y: playerPos.y, draw: () => {
 drawFootShadow(ctx, playerPos.x, playerPos.y + tileH * 0.36, tileW);
-drawFigure(
-ctx,
-'host',
-playerPos.x - spriteSize / 2,
-playerPos.y - spriteSize / 2 - 8,
-spriteSize,
-playerAnimator.current.getState(),
-playerAnimator.current.getFrame(),
-playerFacingLeft
-);
+// The host: its firmware's body, wearing what it has fitted
+const owned = useAugmentTrees.getState().owned;
+const hostSpec = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0);
+const pTop = dollTop(playerPos.y, spriteSize);
+drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft);
 
-drawStatus(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, playerBurning > 0, playerStunned, now);
-if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, playerPos.y - spriteSize / 2 - 8, spriteSize, tileset.sea, now);
+drawStatus(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, playerBurning > 0, playerStunned, now);
+if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, tileset.sea, now);
 } });
 
 overlay.push(() => {
@@ -972,16 +972,17 @@ ctx.beginPath();
 ctx.ellipse(ap.x, ap.y + tileH * 0.32, tileW * 0.42, tileH * 0.16, 0, 0, Math.PI * 2);
 ctx.stroke();
 ctx.restore();
-const size = Math.max(tileW * 1.05, 28);
+const size = Math.max(tileW * DOLL, 34);
+const aTop = dollTop(ap.y, size);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
-drawFigure(ctx, a.id, ap.x - size / 2, ap.y - size / 2 - 6, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
-drawStatus(ctx, ap.x, ap.y - size / 2 - 6, size, a.burning > 0, a.stunned, now);
-if (a.swimming) drawSwimming(ctx, ap.x, ap.y - size / 2 - 6, size, tileset.sea, now);
+drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col);
+drawStatus(ctx, ap.x, aTop + size * 0.12, size * 0.8, a.burning > 0, a.stunned, now);
+if (a.swimming) drawSwimming(ctx, ap.x, aTop + size * 0.12, size * 0.8, tileset.sea, now);
 ctx.restore();
 } });
 overlay.push(() => {
-const size = Math.max(tileW * 1.05, 28);
+const size = Math.max(tileW * DOLL, 34);
 const bw = tileW * 0.9, by = ap.y + tileH / 2 + 5;
 drawUnitBar(ctx, ap.x, by, bw, a.unit.currentHp / a.unit.maxHp, color, a.unit.maxStructuralHp > 0 ? a.unit.currentStructuralHp / a.unit.maxStructuralHp : null);
 const ag = defendGain.get(`ally:${k}`);
@@ -991,9 +992,9 @@ ctx.textAlign = 'center';
 ctx.textBaseline = 'bottom';
 ctx.lineWidth = 3;
 ctx.strokeStyle = '#000';
-ctx.strokeText(a.unit.name, ap.x, ap.y - size / 2 - 4);
+ctx.strokeText(a.unit.name, ap.x, dollTop(ap.y, size) + size * 0.1);
 ctx.fillStyle = color;
-ctx.fillText(a.unit.name, ap.x, ap.y - size / 2 - 4);
+ctx.fillText(a.unit.name, ap.x, dollTop(ap.y, size) + size * 0.1);
 });
 });
 
@@ -1010,7 +1011,8 @@ if (progress >= 1) { v.moveAnim = null; v.animator.setState('idle'); }
 }
 const fp = gridToScreen(visRow, visCol, width, height);
 const isTarget = i === target;
-const size = Math.max(tileW * (living.length > 1 ? 1.2 : 1.4), 30);
+const size = Math.max(tileW * DOLL, 34);
+const fTop = dollTop(fp.y, size);
 
 depth.push({ y: fp.y, draw: () => {
 drawFootShadow(ctx, fp.x, fp.y + tileH * 0.36, tileW);
@@ -1027,27 +1029,11 @@ ctx.restore();
 const stumble = v.animator.getStumbleOffset();
 ctx.save();
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
-drawFigure(ctx, f.unit.name, fp.x - size / 2 + stumble.x, fp.y - size / 2 - 8 + stumble.y, size,
+drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col);
 ctx.restore();
-drawStatus(ctx, fp.x, fp.y - size / 2 - 8, size, f.burning > 0, f.stunned, now);
-if (f.swimming) drawSwimming(ctx, fp.x, fp.y - size / 2 - 8, size, tileset.sea, now);
-// Implant glows: one per implant carried, in the colour of its grade, so upgraded enemies look upgraded
-if (f.unit.grade !== undefined && f.unit.implants?.length) {
-const gc = ENEMY_GRADES[f.unit.grade].color;
-const spots: [number, number][] = [[-0.12, -0.28], [0.16, -0.02], [-0.16, 0.12], [0.1, 0.26]];
-ctx.save();
-ctx.shadowColor = gc; ctx.shadowBlur = 6 + f.unit.grade * 3;
-ctx.fillStyle = gc;
-f.unit.implants.slice(0, 4).forEach((_, n) => {
-const [ox, oy] = spots[n];
-ctx.globalAlpha = 0.65 + 0.35 * Math.sin(Date.now() / 300 + n);
-ctx.beginPath();
-ctx.arc(fp.x + ox * size, fp.y - 8 + oy * size, Math.max(1.6, size * (0.03 + f.unit.grade! * 0.006)), 0, Math.PI * 2);
-ctx.fill();
-});
-ctx.restore();
-}
+drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
+if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.sea, now);
 } });
 overlay.push(() => {
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;

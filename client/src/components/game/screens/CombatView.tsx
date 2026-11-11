@@ -12,7 +12,9 @@ import { Footprint, Btn, Chip, Meter, Sheet, Glyph, SlotIcon, cx } from '../hud'
 import { stimInfo, statusText, defendSummary } from '../itemText';
 import * as Fight from '@/lib/engine/fight';
 import type { AllyMove } from '@/lib/combat/allies';
-import { drawFigure } from '@/lib/rendering/figures';
+import { drawDollHead } from '@/lib/rendering/dolls';
+import { hostDoll, portraitDoll } from '@/lib/rendering/dollSpecs';
+import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
 
 const CRIT_PCT = { cool: 0, warm: 8, hot: 18, critical: 30 } as const;
 
@@ -288,8 +290,10 @@ function Portrait({ id, size = 26 }: { id: string; size?: number }) {
     const c = ref.current; if (!c) return;
     const ctx = c.getContext('2d'); if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
-    // Head and shoulders: draw the figure large and let the canvas crop it
-    drawFigure(ctx, id, -c.width * 0.45, -c.height * 0.05, c.width * 1.9, 'idle', 0, false);
+    // Head and shoulders: draw the character large and let the canvas crop it
+    const host = () => { const owned = useAugmentTrees.getState().owned; return hostDoll(useCombat.getState().playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0); };
+    const spec = portraitDoll(id, host, useCombat.getState().allies.map(a => a.id));
+    drawDollHead(ctx, spec, c.width * 0.5, c.height * 0.56, c.width / 15);
   }, [id]);
   // Canvases fill their parent (index.css), so the box sets the size
   return <div className="overflow-hidden rounded-full bg-hud-panel" style={{ width: size, height: size }}><canvas ref={ref} width={size * 2} height={size * 2} style={{ imageRendering: 'pixelated' }} /></div>;
