@@ -8,7 +8,7 @@ import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
-import { drawSea, drawDeckTile, drawMudTile, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawFigure } from '@/lib/rendering/figures';
 import { activeChapter, chapterById } from '@/lib/combat/chapters';
 import type { AttackPatternType, TilePosition, CombatGrid } from '@/lib/combat/types';
@@ -174,9 +174,9 @@ const foeSignature = foes.map(f => `${f.pos.row},${f.pos.col},${f.unit.currentHp
 const bounds = useMemo(() => {
 let r0 = grid.rows, r1 = -1, c0 = grid.cols, c1 = -1;
 for (let r = 0; r < grid.rows; r++) for (let c = 0; c < grid.cols; c++) {
-// Tidal ground counts even when the sea is over it, so the board doesn't resize with the tide
+// Tidal ground counts even when the sea is over it, and so does raft that has broken away, so the board doesn't resize
 const t = grid.tiles?.[r]?.[c];
-if (t?.type === 'void' && !t.tidal) continue;
+if (t?.type === 'void' && !t.tidal && !t.breaks) continue;
 r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c);
 }
 return r1 < 0 ? { r0: 0, c0: 0, rows: grid.rows, cols: grid.cols } : { r0, c0, rows: r1 - r0 + 1, cols: c1 - c0 + 1 };
@@ -620,6 +620,7 @@ const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 180);
 // Mud flats about to go under (the tide comes in at the start of next round)
 const tideNow = useCombat.getState().tide;
 const floodNext = !!tideNow && !tideNow.high && tideNow.turnsLeft === 1;
+const kingNow = useCombat.getState().king;
 const alarmOn = !!useCombat.getState().alarm?.on;
 const windNow = useCombat.getState().wind;
 const dimPulse = 0.5 + 0.5 * Math.sin(now / 600);
@@ -676,6 +677,8 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   const open = openOf(row, col);
   if (grid.tiles?.[row]?.[col]?.art === 'mud') drawMudTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, floodNext, now);
   else drawDeckTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, tileset);
+  // The King's raft: the ring that breaks away when he next loses a part
+  if (kingNow && kingNow.rings < 3 && grid.tiles?.[row]?.[col]?.breaks === kingNow.rings + 1) drawBreaking(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, now);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
     : isInEnemyRange && !isBossTile ? (isLaterOnly ? 'rgba(150,20,40,0.08)' : 'rgba(150,20,40,0.42)')
@@ -813,6 +816,10 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // A part torn off the King, waiting for whoever gets there first
+  const loose = kingNow?.loose.find(l => l.pos.row === row && l.pos.col === col);
+  if (loose) drawLoosePart(ctx, loose.id, pos.x, pos.y, tileW, now);
 
   // Draw obstacles and hazards with simple markers
   const tile = grid.tiles?.[row]?.[col];

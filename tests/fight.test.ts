@@ -7,7 +7,7 @@ import type { FightState } from '../client/src/lib/engine/fight';
 import { seedRandom, random } from '../client/src/lib/engine/rng';
 import { createPlayer, createBoss, PLAYER_ACTIONS } from '../client/src/lib/combat/actions';
 import type { CombatGrid, CombatAction } from '../client/src/lib/combat/types';
-import { getReachableTiles } from '../client/src/lib/combat/grid';
+import { getReachableTiles, buildArena, chebyshev } from '../client/src/lib/combat/grid';
 import { canHitTarget, getHitTiles } from '../client/src/lib/combat/patterns';
 import { rollParts, QUIRKS, actionForItem } from '../client/src/lib/combat/augments';
 import { ITEMS_2059 } from '../client/src/lib/combat/items2059';
@@ -1282,9 +1282,9 @@ test('the red counts an enemy that acts twice from where it would walk, a stunne
   assert.equal(Fight.dangerTiles(stunned).size, 0);
   assert.ok(Fight.dangerTiles(stunned, false, [0]).size > 0);
   // The King: what he can use next is his coming phase, not a lone close-range strike
-  const king = { ...s.foes[0], unit: createPatchworkKing(), scriptTurn: 0 };
+  const king = Fight.newFoe(createPatchworkKing(), s.foes[0].pos, 20);
   assert.deepEqual(Fight.foeRoster(king).map(a => a.name), PATCHWORK_KING_PHASES[0].map(a => a.name));
-  assert.deepEqual(Fight.foeRoster({ ...king, scriptTurn: 3 }).map(a => a.name), PATCHWORK_KING_PHASES[1].map(a => a.name));
+  assert.deepEqual(Fight.foeRoster({ ...king, parts: ['crown'] }).map(a => a.name), PATCHWORK_KING_PHASES[2].map(a => a.name));
 });
 
 // ── Mending and the stun guard ───────────────────────────────────────────────
@@ -1316,4 +1316,80 @@ test('no stun-locks: a stun that costs you a turn keeps further stuns off until 
   s = Fight.endPlayerTurn(s);
   assert.equal(s.stunGuard, 0);
   assert.equal(Fight.knockBack({ ...s, grid: arena([0, 3], [1, 3]) }, { row: 1, col: 3 }, { kind: 'player' }, 5, []).playerStunned, true);
+});
+
+// ── The Patchwork King ──────────────────────────────────────────────────────
+
+const THRONE = ['~1111111~', '122222221', '123333321', '123.E.321', '123p..321', '123...321', '123..p321', '123.P.321', '123333321', '122222221', '~1111111~'];
+function kingFight(): FightState {
+  const grid = buildArena(THRONE);
+  const king = Fight.newFoe({ ...createBoss(5), name: 'Patchwork King' }, grid.bossPosition, 20);
+  return fight({ grid, foes: [king], king: { loose: [], spoils: [], rings: 0 } });
+}
+
+test('the King wears three parts: the plate softens hits, the crown speeds him, his phase is the parts he has lost', () => {
+  const s = kingFight();
+  assert.deepEqual(s.foes[0].parts, ['plate', 'hook', 'crown']);
+  assert.equal(Fight.kingPhaseOf(s.foes[0]), 0);
+  const bare = { ...s, foes: [{ ...s.foes[0], parts: [] as any[] }] };
+  assert.ok(Fight.speedOf(s, 0) > Fight.speedOf(bare, 0), 'the crown: he acts sooner');
+  const near = { ...s, grid: { ...s.grid, playerPosition: { row: 4, col: 4 } } };
+  const hit = (st: FightState) => { seedRandom(9); return st.foes[0].unit.currentHp - Fight.resolvePlayerAttack(st, hitFor(30), 'none').state.foes[0].unit.currentHp; };
+  assert.ok(hit(near) < hit({ ...near, foes: [{ ...near.foes[0], parts: [] }] }), 'the plate: he takes less');
+  assert.equal(Fight.kingPhaseOf(bare.foes[0]), 2);
+});
+
+test('breaking the King sheds a part: his structure comes back, a part lands on the raft and the outer ring breaks away', () => {
+  const s = kingFight();
+  const onEdge = { ...s, grid: { ...s.grid, playerPosition: { row: 0, col: 4 } } };
+  const broken = { ...onEdge, foes: [{ ...onEdge.foes[0], unit: { ...onEdge.foes[0].unit, currentStructuralHp: 0 }, malfunctioning: true }] };
+  const out = Fight.kingCheck(broken).state;
+  assert.deepEqual(out.foes[0].parts, ['hook', 'crown']);
+  assert.equal(out.foes[0].unit.currentStructuralHp, out.foes[0].unit.maxStructuralHp);
+  assert.equal(Fight.kingPhaseOf(out.foes[0]), 1);
+  assert.equal(out.king!.rings, 1);
+  assert.equal(out.king!.loose.length, 1);
+  assert.equal(out.grid.tiles[0][4].type, 'void', 'ring one is sea now');
+  assert.equal(out.grid.tiles[1][4].type, 'empty', 'ring two holds');
+  assert.equal(out.playerSwimming, true, 'standing on it, you went in');
+  assert.notEqual(out.grid.tiles[out.king!.loose[0].pos.row][out.king!.loose[0].pos.col].type, 'void');
+  assert.equal(Fight.kingCheck(out).events.length, 0, 'nothing more happens until he breaks again');
+});
+
+test('you take a fallen part by standing on it, and it is one use; he bolts it back on if he gets beside it first', () => {
+  const s = kingFight();
+  const fallen = { ...s, king: { loose: [{ id: 'plate' as const, pos: { row: 4, col: 4 } }], spoils: [], rings: 1 }, foes: [{ ...s.foes[0], parts: ['hook', 'crown'] as any }] };
+  // You get there first
+  const mine = Fight.kingCheck({ ...fallen, grid: { ...fallen.grid, playerPosition: { row: 4, col: 4 } } }).state;
+  assert.deepEqual(mine.king!.spoils, ['plate']);
+  assert.equal(mine.king!.loose.length, 0);
+  const move = Fight.kingSpoils(mine)[0];
+  assert.equal(move.spoil, 'plate');
+  seedRandom(3);
+  assert.deepEqual(Fight.resolvePlayerAttack(mine, move, 'none').state.king!.spoils, [], 'used up');
+  // He gets there first: beside it on his turn, he bolts it back on
+  seedRandom(4);
+  const his = Fight.foeTurn(fallen, 0, 10).state;
+  assert.deepEqual(his.foes[0].parts, ['plate', 'hook', 'crown']);
+  assert.equal(his.king!.loose.length, 0);
+  // Someone standing on it stops him
+  const blocked = Fight.foeTurn({ ...fallen, grid: { ...fallen.grid, playerPosition: { row: 4, col: 4 } } }, 0, 10).state;
+  assert.deepEqual(blocked.foes[0].parts, ['hook', 'crown']);
+});
+
+test('the King walks back toward a fallen part', () => {
+  const s = kingFight();
+  const far = { ...s, king: { loose: [{ id: 'plate' as const, pos: { row: 7, col: 3 } }], spoils: [], rings: 0 }, foes: [{ ...s.foes[0], parts: ['hook', 'crown'] as any, pos: { row: 1, col: 4 } }], grid: { ...s.grid, playerPosition: { row: 2, col: 7 } } };
+  const walked = Fight.foeWalk(far, 0).state;
+  assert.ok(chebyshev(walked.foes[0].pos, { row: 7, col: 3 }) < chebyshev(far.foes[0].pos, { row: 7, col: 3 }));
+});
+
+test('a King hurt past three-quarters sheds a part even with structure left, but not twice for the same quarter', () => {
+  const s = kingFight();
+  const u = s.foes[0].unit;
+  const hurt = { ...s, foes: [{ ...s.foes[0], unit: { ...u, currentHp: Math.round(u.maxHp * 0.7) } }] };
+  const once = Fight.kingCheck(hurt).state;
+  assert.deepEqual(once.foes[0].parts, ['hook', 'crown']);
+  const refitted = { ...once, foes: [{ ...once.foes[0], parts: ['plate', 'hook', 'crown'] as any }] };
+  assert.deepEqual(Fight.kingCheck(refitted).state.foes[0].parts, ['plate', 'hook', 'crown'], 'bolted back on, it stays on until he breaks again');
 });

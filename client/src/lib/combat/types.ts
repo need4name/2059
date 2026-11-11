@@ -65,6 +65,8 @@ maxTargets?: number;
 focused?: boolean;
 /** A move that comes from an implant (the Wretch makes these hit harder). */
 fromImplant?: boolean;
+/** A part torn off the Patchwork King: one use, then it's gone. */
+spoil?: 'plate' | 'hook' | 'crown';
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */
 effects?: ActionEffects;
 /** A defensive implant move (type 'defend'): what it does for you or your allies (engine/fight.ts resolveDefend). */
@@ -299,6 +301,8 @@ art?: string;
 tidal?: boolean;
 /** A cold pod: standing next to one cools you while the alarm is on. */
 cold?: boolean;
+/** Lashed raft: this tile breaks away into the sea when the King loses his Nth part (1, 2, 3). */
+breaks?: number;
 }
 
 export interface CombatGrid {

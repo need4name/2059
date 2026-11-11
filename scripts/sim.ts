@@ -145,7 +145,9 @@ function playerTurn(skill: number) {
   const stims = I.getState().items.filter((i: any) => i.type === 'consumable');
   if (s.player.currentHp < s.player.maxHp * 0.35) { const bio = stims.find((i: any) => i.consumableEffect === 'bio_stim'); if (bio) { s.useConsumableItem(bio.id); return; } }
   const living = s.foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
-  const atks = slots.filter(a => a.type !== 'brace' && a.damage).sort((a, b) => (b.damage || 0) - (a.damage || 0));
+  // Parts torn off the King are one-use moves: the bot spends them first
+  const spoils = F.kingSpoils(s as any).map((a, n) => ({ ...a, key: `spoil-${a.spoil}-${n}` }));
+  const atks = [...spoils, ...slots.filter(a => a.type !== 'brace' && a.damage).sort((a, b) => (b.damage || 0) - (a.damage || 0))];
   const g = s.grid;
   // Could this attack hit anyone if the bot stood at pos? (the game's own aiming rules)
   const canHitFrom = (pos: any, a: any) => F.canPlayerHitAny({ ...(s as any), grid: { ...g, playerPosition: pos } }, a, s.playerClass);
@@ -158,7 +160,7 @@ function playerTurn(skill: number) {
   const opts = [g.playerPosition, ...Array.from(G.getPlayerReach(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
   // Only dodge the red when there's a safe tile to fight from; otherwise walk in
   const canAttackSomewhere = opts.some(p => atks.some(a => canHitFrom(p, a)));
-  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if ((canAttackSomewhere || SMART) && red.has(`${pos.row},${pos.col}`)) v -= (SMART ? 70 : 20) * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if ((s as any).alarm?.on && F.besideColdPod(s as any, pos)) v += 25 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };
+  const score = (pos: any) => { let v = 0; if (danger.has(`${pos.row},${pos.col}`)) v -= 100; if (g.tiles[pos.row][pos.col].type === 'hazard') v -= 30; if ((canAttackSomewhere || SMART) && red.has(`${pos.row},${pos.col}`)) v -= (SMART ? 70 : 20) * skill; if (F.partingFoes(s as any, g.playerPosition, pos).length) v -= 15 * skill; if ((s as any).alarm?.on && F.besideColdPod(s as any, pos)) v += 25 * skill; if ((s as any).king?.loose.some((l: any) => l.pos.row === pos.row && l.pos.col === pos.col)) v += 60 * skill; if (atks.some(a => canHitFrom(pos, a))) v += 50; v -= nearest(pos); return v; };
   const best = opts.sort((a, b) => score(b) - score(a))[0];
   if (s.playerHeat < 100 && (best.row !== g.playerPosition.row || best.col !== g.playerPosition.col)) s.moveTentatively(best);
   const pos = C.getState().grid.playerPosition; const brace = slots.find(a => a.type === 'brace');
@@ -586,6 +588,8 @@ if (process.env.LEDGER) {
   console.log('\nSUMS', JSON.stringify({ sums: Object.fromEntries(sums), counts: Object.fromEntries(counts), moves, fights: all.length, won: all.filter(f => f.won).length, turns: all.reduce((n, f) => n + f.turns, 0) }));
 }
 if (process.env.LEDGER) console.log('\nLEDGER', JSON.stringify(Array.from(ledger.entries()).sort((x, y) => y[1] - x[1]).slice(0, 160)));
+// LEDGER=King (or any word): every line shape containing it, however rare
+if (process.env.LEDGER && process.env.LEDGER !== '1') console.log('\nLEDGER-FIND', JSON.stringify(Array.from(ledger.entries()).filter(([k]) => k.toLowerCase().includes(process.env.LEDGER!.toLowerCase())).sort((x, y) => y[1] - x[1])));
 // The curve: threats 4-9 by how many hosts the signal had lost before the fight
 const midBy = (lo: number, hi: number) => { const f = all.filter(x => x.ch === 0 && x.lvl >= 4 && x.lvl <= 9 && x.deathsBefore >= lo && x.deathsBefore <= hi); return { n: f.length, rate: f.length ? f.filter(x => x.won).length / f.length : NaN }; };
 const mid12 = midBy(1, 2), mid34 = midBy(3, 4), mid5 = midBy(5, 999);

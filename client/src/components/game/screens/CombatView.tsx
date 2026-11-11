@@ -4,7 +4,7 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, getMechanicTag, LoadoutAction } from '@/lib/stores/useLoadout';
 import { useAudio } from '@/lib/stores/useAudio';
-import { ENEMY_TRAITS } from '@/lib/combat/actions';
+import { ENEMY_TRAITS, kingPart } from '@/lib/combat/actions';
 import { getHeatPhase } from '@/lib/combat/types';
 import { CombatScene } from '../CombatScene';
 import { HeatBar } from '../HeatBar';
@@ -88,7 +88,8 @@ function CombatHud() {
           </div>
           <Meter value={boss.currentHp} max={boss.maxHp} tone="hostile" className="h-2" align="right" />
           {boss.grade !== undefined && (
-            <div className="truncate text-right text-[10px]" title={[...(boss.implants ?? []), ...(boss.traits ?? []).map(t => ENEMY_TRAITS[t]?.text ?? t)].join('\n')}>
+            <div className="truncate text-right text-[10px]" title={[...(boss.implants ?? []), ...(target?.parts ?? []).map(p => kingPart(p).text), ...(boss.traits ?? []).map(t => ENEMY_TRAITS[t]?.text ?? t)].join('\n')}>
+              {target?.parts?.length ? <span className="text-cred">{target.parts.map(p => kingPart(p).name).join(' · ')}{boss.traits?.length ? ' · ' : ''}</span> : null}
               {boss.traits?.length ? <span className="text-hud-dim">{boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(' · ')}</span> : null}
             </div>
           )}
@@ -132,7 +133,7 @@ function CombatHud() {
   );
 }
 
-function SlotButton({ action }: { action: LoadoutAction }) {
+function SlotButton({ action, gold }: { action: LoadoutAction; gold?: boolean }) {
   const s = useCombat();
   const { player, grid, playerHeat, selectedAction, setSelectedAction, phase, inputLocked } = s;
   const selected = (selectedAction as LoadoutAction | null)?.key === action.key;
@@ -158,7 +159,7 @@ function SlotButton({ action }: { action: LoadoutAction }) {
       disabled={phase !== 'player_turn' || inputLocked || stepOnly || !usable}
       aria-pressed={selected}
       className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
-        selected ? 'key key-selected' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale')}
+        selected ? 'key key-selected' : gold ? 'key key-gold' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale')}
     >
       <span className={`line-clamp-2 w-full font-display text-[13px] font-semibold leading-tight ${tone}`}>{action.name}</span>
       {isAttack ? (
@@ -347,6 +348,18 @@ function TurnStrip() {
   );
 }
 
+/** Parts torn off the Patchwork King: one use each, in a row above your own moves. */
+function Spoils() {
+  const s = useCombat();
+  const spoils = Fight.kingSpoils(s);
+  if (!spoils.length) return null;
+  return (
+    <div className="mb-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(2, spoils.length)}, minmax(0, 1fr))` }}>
+      {spoils.map((a, n) => <SlotButton key={`spoil-${a.spoil}-${n}`} action={{ ...a, key: `spoil-${a.spoil}-${n}`, unlocked: true, source: 'base' } as LoadoutAction} gold />)}
+    </div>
+  );
+}
+
 function ActionBar() {
   const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
   const { items } = useInventory();
@@ -360,6 +373,7 @@ function ActionBar() {
     <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
       {allyTurn !== null ? <AllyTurnPanel k={allyTurn} /> : <>
       <OverloadBar />
+      <Spoils />
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="well flex min-h-[64px] items-center justify-center rounded-2xl text-[11px] text-hud-faint">Empty</div>

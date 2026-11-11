@@ -452,7 +452,7 @@ traits?: string[]; enrage?: { at: number; gain: string[]; line: string }; signat
 }
 const ENEMY_DATA = enemyContent as unknown as {
 enemies: Record<string, EnemyData>;
-patchworkKing: { color: string; dossier: string; firstSight: string; phases: CombatAction[][]; monologue: string[] };
+patchworkKing: { color: string; dossier: string; firstSight: string; phases: CombatAction[][]; monologue: string[]; parts: KingPart[] };
 };
 const enemyType = (name: string) => ({ name, ...ENEMY_DATA.enemies[name] });
 // Who you fight comes from the active chapter's cast (content/chapters.json)
@@ -549,7 +549,7 @@ const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENE
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
-export const KING_EXTRA = { hp: 2.6, atk: 3.3 };
+export const KING_EXTRA = { hp: 1.4, atk: 1.6 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
@@ -793,6 +793,12 @@ type,
 }
 
 export const PATCHWORK_KING_PHASES: CombatAction[][] = ENEMY_DATA.patchworkKing.phases;
+
+/** The parts bolted onto the Patchwork King, in the order they come off (content/enemies.json). */
+export type KingPartId = 'plate' | 'hook' | 'crown';
+export interface KingPart { id: KingPartId; name: string; text: string; move: CombatAction }
+export const KING_PARTS: KingPart[] = ENEMY_DATA.patchworkKing.parts;
+export const kingPart = (id: KingPartId) => KING_PARTS.find(p => p.id === id)!;
 
 /** Every attack an enemy can use (the King's scripted phases included). */
 export function getBossRoster(bossName: string): CombatAction[] {

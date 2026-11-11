@@ -772,3 +772,65 @@ export function drawUnitBar(ctx: Ctx, cx: number, y: number, w: number, frac: nu
   }
   ctx.restore();
 }
+
+// ── The Patchwork King's parts ───────────────────────────────────────────────
+
+const PART_PAINT: Record<string, Paint> = {
+  // A dented hull plate, riveted, with rust
+  plate: px => {
+    for (let y = 4; y < 13; y++) for (let x = 2; x < 14; x++) {
+      const edge = y === 4 || y === 12 || x === 2 || x === 13;
+      px(x, y, edge ? '#8a98a6' : (x * 3 + y * 5) % 11 === 0 ? '#9a5a32' : '#6c7a88');
+    }
+    for (const [x, y] of [[3, 5], [12, 5], [3, 11], [12, 11]]) px(x, y, '#d8e0e8');
+    px(7, 8, '#4c5864'); px(8, 8, '#4c5864'); px(8, 9, '#9a5a32');
+  },
+  // A crane hook on a frayed cable
+  hook: px => {
+    for (let y = 1; y < 7; y++) px(8, y, y % 2 ? '#c8b088' : '#8a7454');
+    for (let y = 7; y < 9; y++) for (let x = 7; x < 10; x++) px(x, y, '#7a8692');
+    const curve = [[8, 9], [8, 10], [8, 11], [7, 12], [6, 13], [5, 13], [4, 12], [4, 11], [5, 10], [9, 10], [9, 11], [9, 12], [8, 13]];
+    for (const [x, y] of curve) px(x, y, '#aab4be');
+    px(4, 10, '#d8e0e8'); px(3, 11, '#5a646e');
+  },
+  // A crown of other people's grafts: gold, steel and red wire
+  crown: px => {
+    for (let x = 3; x < 13; x++) for (let y = 9; y < 12; y++) px(x, y, (x + y) % 4 === 0 ? '#c8902e' : '#e8b84a');
+    for (const [x, h, c] of [[3, 4, '#e8b84a'], [6, 5, '#aab4be'], [8, 6, '#e8b84a'], [10, 4, '#d84a4a'], [12, 5, '#e8b84a']] as [number, number, string][])
+      for (let y = 9 - h; y < 9; y++) px(x, y, c);
+    px(5, 10, '#d84a4a'); px(9, 10, '#4ab8d8'); px(11, 10, '#d84a4a');
+    for (let x = 3; x < 13; x++) px(x, 12, '#8a5a1e');
+  },
+};
+
+/** A part torn off the King, lying on the raft: flat on the floor, with a slow glint so it reads as something to take. */
+export function drawLoosePart(ctx: Ctx, id: string, cx: number, cy: number, s: number, now: number) {
+  const paint = PART_PAINT[id];
+  if (!paint) return;
+  const img = sprite(`part:${id}`, paint, '#071014');
+  const size = s * 0.7;
+  ctx.save();
+  const glow = 0.25 + 0.2 * Math.sin(now / 300);
+  ctx.fillStyle = `rgba(255,205,110,${glow})`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + s * 0.18, s * 0.36, s * 0.13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  blit(ctx, img, cx - size / 2, cy - size * 0.55, size, size);
+}
+
+/** Raft lashings that give way when the King next loses a part: a pulsing waterline, like mud before the tide. */
+export function drawBreaking(ctx: Ctx, x: number, y: number, w: number, h: number, open: Open, r: number, now: number) {
+  const a = 0.3 + 0.22 * Math.sin(now / 260);
+  ctx.save();
+  ctx.beginPath();
+  tilePath(ctx, x, y, w, h, open, r);
+  ctx.clip();
+  ctx.fillStyle = `rgba(70,150,190,${a * 0.6})`;
+  ctx.fillRect(x, y, w, h);
+  ctx.setLineDash([Math.max(2, w * 0.08), Math.max(2, w * 0.06)]);
+  ctx.strokeStyle = `rgba(150,220,240,${a + 0.25})`;
+  ctx.lineWidth = Math.max(2, w * 0.05);
+  ctx.stroke();
+  ctx.restore();
+}

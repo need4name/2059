@@ -262,7 +262,7 @@ const enemy = z.object({
 
 const enemyFile = z.object({
   enemies: z.record(enemy),
-  patchworkKing: z.object({ color: z.string(), dossier: text, firstSight: z.string().trim().min(1).max(110), phases: z.array(z.array(action).min(1)).length(3), monologue: z.array(text).min(4) }).strict(),
+  patchworkKing: z.object({ color: z.string(), dossier: text, firstSight: z.string().trim().min(1).max(110), phases: z.array(z.array(action).min(1)).length(3), monologue: z.array(text).min(4), parts: z.array(z.object({ id: z.enum(['plate', 'hook', 'crown']), name: z.string().trim().min(1).max(30), text: z.string().trim().min(1).max(90), move: action }).strict()).length(3) }).strict(),
 }).strict();
 
 export function checkContent(): string[] {

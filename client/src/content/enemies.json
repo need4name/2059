@@ -3944,7 +3944,7 @@
   },
   "patchworkKing": {
     "color": "#fbbf24",
-    "dossier": "He sits on a throne of other people’s parts and wears a crown of grafts. Someone built him once, then threw him away. Three phases.",
+    "dossier": "He sits on a throne of other people’s parts and wears a crown of grafts. Someone built him once, then threw him away.",
     "phases": [
       [
         {
@@ -4053,6 +4053,66 @@
       "You still breathe. He finds that... inconvenient.",
       "There is no negotiation. Only settlement."
     ],
-    "firstSight": "A crown of other people's parts. It wears them like it earned them."
+    "firstSight": "A crown of other people's parts. It wears them like it earned them.",
+    "parts": [
+      {
+        "id": "plate",
+        "name": "Hull plate",
+        "text": "A plate bolted over the chest: he takes a third less damage",
+        "move": {
+          "type": "attack",
+          "name": "Hull Plate Ram",
+          "description": "",
+          "damage": 26,
+          "accuracy": "precise",
+          "physicalRatio": 0.9,
+          "heatTransfer": 6,
+          "heatGenerated": 10,
+          "attackPattern": "knockback",
+          "effects": {
+            "knock": true
+          }
+        }
+      },
+      {
+        "id": "hook",
+        "name": "Salvage hook",
+        "text": "A hook on a cable: whoever he hits is dragged a tile closer",
+        "move": {
+          "type": "attack",
+          "name": "Salvage Hook",
+          "description": "",
+          "damage": 22,
+          "accuracy": "precise",
+          "physicalRatio": 0.7,
+          "heatTransfer": 8,
+          "heatGenerated": 8,
+          "attackPattern": "grapple",
+          "effects": {
+            "pull": true,
+            "stun": 0.5
+          }
+        }
+      },
+      {
+        "id": "crown",
+        "name": "Crown of grafts",
+        "text": "A crown of other people's grafts: he acts sooner",
+        "move": {
+          "type": "attack",
+          "name": "Crown of Grafts",
+          "description": "",
+          "damage": 34,
+          "accuracy": "precise",
+          "physicalRatio": 0.5,
+          "heatTransfer": 20,
+          "heatGenerated": 12,
+          "attackPattern": "burst",
+          "effects": {
+            "slow": true
+          }
+        }
+      }
+    ]
   }
 }

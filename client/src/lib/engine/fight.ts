@@ -15,7 +15,7 @@ import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Ite
 import { getHeatMultipliers, getFlankBonus } from '../combat/types';
 import {
   calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
-  getPatchworkKingAction, PATCHWORK_KING_MONOLOGUE, PATCHWORK_KING_PHASES, kingPhase,
+  PATCHWORK_KING_MONOLOGUE, PATCHWORK_KING_PHASES, KING_PARTS, kingPart, type KingPartId,
 } from '../combat/actions';
 import type { DamageResult } from '../combat/actions';
 import { canHitTarget, getHitTiles, tileWeight, MULTI_HIT } from '../combat/patterns';
@@ -131,6 +131,8 @@ export interface Foe {
   hasted?: number;
   /** A boss has passed its half-health turn. */
   enraged: boolean;
+  /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
+  parts?: KingPartId[];
 }
 
 /** An ally on the field. Knocked out allies sit out the rest of the fight. */
@@ -213,6 +215,8 @@ export interface FightState {
   wind?: { dir: WindDir; turnsLeft: number } | null;
   /** The dreamer inside the host has flinched this fight (once at most). */
   flinchUsed?: boolean;
+  /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
+  king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
   noParting?: boolean;
   /** Overload, 0 to 100: fills from trading blows; full unlocks one Signal Surge. */
@@ -258,11 +262,11 @@ const hittable = (f: Foe) => isAlive(f) && !f.swimming;
 /** Does this enemy carry an implant that gives it this trait? */
 export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
 /** Damage an enemy takes: a spine brace cuts it. */
-const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1);
+const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
   // The Patchwork King fights from a script: what he can use next is his coming turn's phase
-  const king = f.unit.name === 'Patchwork King' && !f.unit.moves ? PATCHWORK_KING_PHASES[kingPhase(f.scriptTurn + 1)] : null;
+  const king = f.parts ? PATCHWORK_KING_PHASES[kingPhaseOf(f)] : null;
   const roster = king ?? f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
   if (!hasTrait(f, 'sighted') || roster.some(a => a.attackPattern === 'ranged')) return roster;
   const base = roster.find(a => a.type === 'attack' && !a.isHeavy);
@@ -274,7 +278,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -287,7 +291,8 @@ function holdOn(s: FightState, hp: number, events: FightEvent[]): { hp: number; 
 export const livingFoes = (s: FightState) => s.foes.map((f, i) => ({ f, i })).filter(x => isAlive(x.f));
 
 export function newFoe(unit: Character, pos: TilePosition, heat: number): Foe {
-  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null, burning: 0, stunned: false, enraged: false };
+  return { unit, pos, heat, defenseBoost: 0, malfunctioning: false, chargingHeavy: false, pendingAction: null, scriptTurn: 0, pendingVictim: null, pendingTiles: null, burning: 0, stunned: false, enraged: false,
+    ...(unit.name === 'Patchwork King' && !unit.moves ? { parts: KING_PARTS.map(p => p.id) } : {}) };
 }
 
 export const allyAlive = (a: Ally) => a.unit.currentHp > 0;
@@ -544,7 +549,7 @@ export function speedOf(s: FightState, a: Actor): number {
   } else {
     const f = s.foes[a];
     v = SPEED.base + implantDrive(f.unit.carried ?? []) + (hasTrait(f, 'fast') ? SPEED.fast : 0) - (f.heat >= SPEED.hot ? SPEED.hotPenalty : 0)
-      + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0);
+      + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0) + (f.parts?.includes('crown') ? KING.crown : 0);
   }
   return Math.round(v * 10) / 10;
 }
@@ -1337,7 +1342,9 @@ function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEve
  */
 function foeHitEffects(s: FightState, i: number, who: Body, action: CombatAction, dealt: number, events: FightEvent[]): FightState {
   const pinned = (who.kind === 'player' && s.ward?.anchored) || (who.kind === 'ally' && s.allies[who.k]?.ward?.anchored);
-  const fx = (order(s) === 'noShoves' || pinned) && action.effects ? { ...action.effects, knock: false, pull: false } : action.effects;
+  // The King's salvage hook drags whoever he hits
+  const hooked = s.foes[i]?.parts?.includes('hook') && action.type === 'attack' ? { ...(action.effects ?? {}), pull: true } : action.effects;
+  const fx = (order(s) === 'noShoves' || pinned) && hooked ? { ...hooked, knock: false, pull: false } : hooked;
   if (!fx) return s;
   const alive = who.kind === 'player' ? s.player.currentHp > 0 : who.kind === 'ally' ? allyAlive(s.allies[who.k]) : true;
   if (!alive) return s;
@@ -1426,6 +1433,8 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
 
 /** An attack or special aimed at a tile (the best aim if none is given). Everyone on the struck tiles is hit. */
 export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
+  // A part torn off the King is used up
+  if (action.spoil && s.king) { const k = s.king.spoils.indexOf(action.spoil); if (k >= 0) s = { ...s, king: { ...s.king, spoils: s.king.spoils.filter((_, n) => n !== k) } }; }
   const events0: FightEvent[] = [];
   const { player, grid, playerHeat } = s;
   const heatMult = getHeatMultipliers(playerHeat);
@@ -1568,12 +1577,10 @@ export function chooseFoeAction(s: FightState, i: number): Step & { action: Comb
   const foe = s.foes[i];
   const { unit } = foe;
   const grid = foeView(s, i);
-  if (unit.name === 'Patchwork King') {
-    const turn = foe.scriptTurn + 1;
-    const events: FightEvent[] = [];
-    if (turn === 4) events.push(say(PATCHWORK_KING_MONOLOGUE[2]));
-    if (turn === 7) events.push(say(PATCHWORK_KING_MONOLOGUE[3]));
-    return { action: getPatchworkKingAction(turn), state: setFoe(s, i, { scriptTurn: turn }), events };
+  if (foe.parts) {
+    // The King fights from his phase's script, and his phase is how many parts he has lost
+    const phase = PATCHWORK_KING_PHASES[kingPhaseOf(foe)];
+    return { action: phase[Math.floor(random() * phase.length)], state: setFoe(s, i, { scriptTurn: foe.scriptTurn + 1 }), events: [] };
   }
   // Its victim is in the sea: nothing to hit this turn
   if (victimOf(s, i) === -1 && s.playerSwimming) return { action: null, state: s, events: [] };
@@ -1871,6 +1878,8 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
     state = setFoe(state, i, { stunned: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
     return { state, events, walkAfter: false };
   }
+  const refit = kingRefit(state, i, events);
+  if (refit) return { state: refit, events, walkAfter: false };
   const act = foeAct(state, i, level);
   return { ...act, events: [...events, ...act.events] };
 }
@@ -1942,6 +1951,12 @@ export function foeWalk(s: FightState, i: number): Step {
   const spots = [foe.pos, ...Array.from(getReachableTiles(foe.pos, { ...view, bossPosition: offBoard }, range)).map(keyOf)].filter(p => !same(p, prey));
   const covers = (from: TilePosition, t: TilePosition) =>
     patterns.some(p => canHitTarget(from, t, p, { ...view, bossPosition: from, playerPosition: t, occupied: (view.occupied ?? []).filter(o => !same(o, t)) }));
+  // The King goes back for a fallen part: he ends as close to it as he can (beside it is enough)
+  const goal = kingGoal(s, foe);
+  if (goal && chebyshev(foe.pos, goal) > KING.refit) {
+    const near = spots.filter(p => !same(p, goal)).sort((a, b) => Math.max(KING.refit, chebyshev(a, goal)) - Math.max(KING.refit, chebyshev(b, goal)) || (covers(b, prey) ? 1 : 0) - (covers(a, prey) ? 1 : 0))[0];
+    if (near && chebyshev(near, goal) < chebyshev(foe.pos, goal)) return { state: setFoe(s, i, { pos: near }), events: [] };
+  }
   let best = foe.pos, bestScore = -Infinity, onPrey = false;
   // Mud that floods at the start of next round is a bad place to stop
   const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
@@ -2170,6 +2185,109 @@ function allyDefend(s: FightState, k: number, m: number, events: FightEvent[]): 
   events.push(say(`${s.allies[k].unit.name} -- ${move.name}${said.length ? `: ${said.join(', ')}` : ''}`, said.length ? 'heal' : 'info'));
   return state;
 }
+
+// ── The Patchwork King ───────────────────────────────────────────────────────
+// He wears three salvaged parts (KING_PARTS): a hull plate (he takes less damage),
+// a salvage hook (his hits drag you closer) and a crown of grafts (he acts sooner).
+// Each time his structure breaks (and the first time his health passes 3/4, 1/2
+// and 1/4), the outermost part falls onto the raft, his structure comes back (a
+// new layer under it) and his phase moves on; the first
+// time each part falls, a ring of the raft's lashings gives and breaks away into
+// the sea. He goes back for a fallen part and bolts it on again when he's beside
+// it and nobody stands on it. You take a part by ending an action on its tile: it
+// becomes a one-use move (its `move`).
+
+export const KING = { plate: 0.75, crown: 2, refit: 1 };
+
+/** The King's phase: how many of his parts are off (0-2). */
+export const kingPhaseOf = (f: Foe) => Math.min(PATCHWORK_KING_PHASES.length - 1, KING_PARTS.length - (f.parts?.length ?? KING_PARTS.length));
+
+/** Where a falling part lands: two tiles from him if it can, on open raft that isn't the next to break, nobody on it. */
+function partLanding(s: FightState, from: TilePosition): TilePosition | null {
+  const king = s.king!;
+  let best: TilePosition | null = null, bestScore = Infinity;
+  for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
+    const p = { row, col };
+    const t = tileAt(p, s.grid);
+    if (!t || t.type !== 'empty' || bodyAt(s, p) || king.loose.some(l => same(l.pos, p))) continue;
+    const score = Math.abs(chebyshev(p, from) - 2) * 10 + (t.breaks === king.rings + 1 ? 5 : 0) - chebyshev(p, s.grid.playerPosition) * 0.1 + (row * s.grid.cols + col) * 1e-4;
+    if (score < bestScore) { bestScore = score; best = p; }
+  }
+  return best;
+}
+
+/** Ring `n` of the raft breaks away: its tiles become sea; whoever stands on them is in the water; parts on them sink. */
+function breakRing(s: FightState, n: number, events: FightEvent[]): FightState {
+  const breaking = (p: TilePosition) => tileAt(p, s.grid)?.breaks === n;
+  if (!s.grid.tiles.some(r => r.some(t => t.breaks === n))) return s;
+  const tiles = s.grid.tiles.map(r => r.map(t => (t.breaks === n ? { type: 'void' as const, breaks: n } : t)));
+  let state: FightState = { ...s, grid: { ...s.grid, tiles } };
+  events.push(say('The lashings give: the edge of the raft breaks away', 'critical'), { kind: 'collide' });
+  if (breaking(s.grid.playerPosition) && !s.playerSwimming) { state = { ...state, playerSwimming: true }; events.push(say('The raft goes from under you: you are in the sea', 'critical')); }
+  state.foes.forEach((f, i) => {
+    if (isAlive(f) && !f.swimming && breaking(f.pos)) { state = setFoe(state, i, { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null }); events.push(say(`${f.unit.name} goes into the sea with it`)); }
+  });
+  state = { ...state, allies: state.allies.map(a => (allyAlive(a) && !a.swimming && breaking(a.pos) ? { ...a, swimming: true, taunting: false } : a)) };
+  const sunk = state.king!.loose.filter(l => breaking(l.pos));
+  for (const l of sunk) events.push(say(`The ${kingPart(l.id).name.toLowerCase()} sinks`));
+  return { ...state, king: { ...state.king!, loose: state.king!.loose.filter(l => !breaking(l.pos)), rings: n } };
+}
+
+/**
+ * After anything happens in the King's fight: a broken King sheds a part (and the raft
+ * may break), and a part under you is yours. Safe to call any time; a no-op otherwise.
+ */
+export function kingCheck(s: FightState): Step {
+  if (!s.king) return { state: s, events: [] };
+  let state = s;
+  const events: FightEvent[] = [];
+  state.foes.forEach((f, i) => {
+    // A part comes off when his structure breaks, or the first time his health passes each quarter (so it always happens)
+    const passed = Math.floor((1 - f.unit.currentHp / f.unit.maxHp) * (KING_PARTS.length + 1));
+    if (!f.parts?.length || !isAlive(f) || (f.unit.currentStructuralHp > 0 && passed <= state.king!.rings)) return;
+    const id = f.parts[0];
+    const lost = KING_PARTS.length - f.parts.length + 1;
+    // The part comes away; there's another layer of salvage under it. Whatever he was winding up is lost.
+    state = setFoe(state, i, { parts: f.parts.slice(1), malfunctioning: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null,
+      unit: { ...f.unit, currentStructuralHp: f.unit.maxStructuralHp } });
+    const at = partLanding(state, f.pos);
+    events.push(say(`The ${kingPart(id).name.toLowerCase()} tears off the King${at ? ' and skids across the raft' : ' and into the sea'}`, 'critical'), { kind: 'collide' });
+    if (at) state = { ...state, king: { ...state.king!, loose: [...state.king!.loose, { id, pos: at }] } };
+    const line = PATCHWORK_KING_MONOLOGUE[1 + lost];
+    if (line) events.push(say(line));
+    if (lost > state.king!.rings) state = breakRing(state, lost, events);
+  });
+  // A part under you (out of the water) is yours: one use
+  const mine = state.king!.loose.find(l => same(l.pos, state.grid.playerPosition));
+  if (mine && !state.playerSwimming && state.player.currentHp > 0) {
+    state = { ...state, king: { ...state.king!, loose: state.king!.loose.filter(l => l !== mine), spoils: [...state.king!.spoils, mine.id] } };
+    events.push(say(`You tear the ${kingPart(mine.id).name.toLowerCase()} free: ${kingPart(mine.id).move.name}, once`, 'heal'));
+  }
+  return { state, events };
+}
+
+/** The King's own turn, before he acts: beside a fallen part nobody stands on, he bolts it back on (that's his action). */
+function kingRefit(s: FightState, i: number, events: FightEvent[]): FightState | null {
+  const f = s.foes[i];
+  if (!f.parts || !s.king?.loose.length || f.pendingAction) return null;
+  const part = s.king.loose.find(l => chebyshev(l.pos, f.pos) <= KING.refit && !bodyAt(s, l.pos));
+  if (!part) return null;
+  const order = KING_PARTS.map(p => p.id);
+  const parts = [...f.parts, part.id].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  events.push(say(`The King bolts the ${kingPart(part.id).name.toLowerCase()} back on`, 'critical'));
+  return { ...setFoe(s, i, { parts, pos: part.pos }), king: { ...s.king, loose: s.king.loose.filter(l => l !== part) } };
+}
+
+/** The tile the King is walking to, if a fallen part is waiting for him (and nobody's on it). */
+const kingGoal = (s: FightState, f: Foe): TilePosition | null => {
+  if (!f.parts || !s.king?.loose.length) return null;
+  const free = s.king.loose.filter(l => !bodyAt(s, l.pos)).sort((a, b) => chebyshev(a.pos, f.pos) - chebyshev(b.pos, f.pos));
+  return free[0]?.pos ?? null;
+};
+
+/** The one-use moves you've torn off the King, ready for the fight bar. */
+export const kingSpoils = (s: FightState): CombatAction[] =>
+  (s.king?.spoils ?? []).map(id => ({ ...kingPart(id).move, spoil: id }));
 
 // ── Hazards ──────────────────────────────────────────────────────────────────
 
