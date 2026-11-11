@@ -41,7 +41,7 @@ export function hostDoll(playerClass: PlayerClass, equipped: Record<string, Item
 const BUILD_FRAME: Record<FigureSpec['build'], FrameId> = { slim: 'stalker', medium: 'standard', heavy: 'brute', hunched: 'crawler' };
 
 // Bodies a boss keeps as they are (everything else grows into a boss body)
-const OWN_SHAPE = new Set<FrameId>(['boss', 'bossBrute', 'bigSleeper', 'king', 'drone', 'swarm', 'quadruped', 'gantry']);
+const OWN_SHAPE = new Set<FrameId>(['boss', 'bossBrute', 'bigSleeper', 'king', 'drone', 'swarm', 'quadruped', 'gantry', 'tower']);
 
 /** Someone's look from figures.json, as a doll with nothing carried yet: its body, and built-in limbs in its maker's plastic. */
 function lookOf(id: string, team: Team, big = false, grade = 0): DollSpec {
@@ -64,7 +64,7 @@ function lookOf(id: string, team: Team, big = false, grade = 0): DollSpec {
   if (front) parts.right_arm = front;
   if (f.legs === 'metal') { const leg = maker === 'unmarked' ? { maker, tier: 0 } : { maker, tier: 1 + lift }; parts.left_leg = leg; parts.right_leg = leg; }
   // Machines are all maker: they carry it on their frame
-  if (frame === 'swarm' || frame === 'quadruped' || frame === 'gantry') parts.right_arm = { maker, tier: 1 };
+  if (frame === 'swarm' || frame === 'quadruped' || frame === 'gantry' || frame === 'tower') parts.right_arm = { maker, tier: 1 };
   return {
     frame, team, parts,
     look: { skin: f.skin, cloth: f.cloth, accent: f.accent, eyes: f.eyes, hair: f.hair },
@@ -76,7 +76,8 @@ function lookOf(id: string, team: Team, big = false, grade = 0): DollSpec {
 export function foeDoll(unit: Character, kingParts?: string[]): DollSpec {
   if (unit.name === 'Patchwork King') return { frame: 'king', team: 'enemy', parts: partsOf(unit.carried ?? []), kingParts: kingParts ?? ['plate', 'hook', 'crown'], look: { accent: '#e8c060' } };
   const spec = lookOf(unit.name, 'enemy', !!unit.enrage, unit.grade ?? 0);
-  return { ...spec, parts: { ...spec.parts, ...partsOf(unit.carried ?? []) } };
+  const machine = ['swarm', 'quadruped', 'gantry', 'tower', 'drone'].includes(spec.frame);
+  return { ...spec, signature: unit.name, parts: { ...spec.parts, ...(machine ? {} : partsOf(unit.carried ?? [])) } };
 }
 
 /** An ally: its look and whatever implants it wears. */

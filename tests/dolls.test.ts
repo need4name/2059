@@ -33,3 +33,12 @@ test('the King loses his parts from his body as they come off', () => {
   const king = { name: 'Patchwork King' } as any;
   assert.notDeepEqual(paintDoll(foeDoll(king, ['plate', 'hook', 'crown']), 'idle', 0).c, paintDoll(foeDoll(king, ['crown']), 'idle', 0).c);
 });
+
+test('bosses wear their own signature pieces', async () => {
+  const { SIGNATURES } = await import('../client/src/lib/rendering/dolls');
+  for (const name of Object.keys(SIGNATURES)) {
+    const plain = paintDoll({ ...foeDoll({ name, enrage: {} } as any), signature: undefined }, 'idle', 0);
+    assert.notDeepEqual(paintDoll(foeDoll({ name, enrage: {} } as any), 'idle', 0).c, plain.c, name);
+  }
+  assert.equal(foeDoll({ name: 'The Storm Tower', enrage: {} } as any).frame, 'tower');
+});

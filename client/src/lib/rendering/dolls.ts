@@ -22,7 +22,7 @@ export interface Frame {
   skin: string; cloth: string; skin2?: string; cloth2?: string; hair?: string; eyes?: string; accent?: string;
   neck?: number; stitches?: boolean; rags?: boolean; plates?: boolean; slabs?: string; coat?: number; collar?: boolean;
   scarf?: string; scarfLen?: number; harness?: boolean; pack?: boolean; cap?: string; cloak?: boolean; seam?: boolean;
-  uneven?: boolean; robe?: boolean; king?: boolean; drone?: boolean; drip?: boolean; special?: 'swarm' | 'quadruped' | 'gantry';
+  uneven?: boolean; robe?: boolean; king?: boolean; drone?: boolean; drip?: boolean; special?: 'swarm' | 'quadruped' | 'gantry' | 'tower';
 }
 
 export interface DollSpec {
@@ -36,6 +36,8 @@ export interface DollSpec {
   weapon?: Weapon;
   /** The Patchwork King's own parts still bolted on (they come off in the fight). */
   kingParts?: string[];
+  /** A boss's own signature pieces, by its name (see SIGNATURES). */
+  signature?: string;
 }
 
 // ── Makers: plastic colours ─────────────────────────────────────────────────
@@ -90,6 +92,7 @@ export const FRAMES = {
   bigSleeper:   { S: 56, shoulder: 6, hip: 5, top: 26, bot: 38, lean: 4, headR: 5, headRy: 6, headY: 20, armLen: 16, skin: '#a8a49c', cloth: '#c8d4d8', coat: 11, drip: true },
   swarm:        { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'swarm' },
   quadruped:    { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'quadruped' },
+  tower:        { S: 56, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#8a7a6a', cloth: '#3a4652', special: 'tower' },
   gantry:       { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#3a4652', special: 'gantry' },
   drone:        { S: 48, shoulder: 0, hip: 0, top: 0, bot: 0, lean: 0, headR: 0, headRy: 0, headY: 0, armLen: 0, skin: '#000000', cloth: '#000000', drone: true },
 } satisfies Record<string, Frame>;
@@ -309,8 +312,11 @@ export function paintDoll(spec: DollSpec, state: AnimationState, frame: number):
   const hl = cx - F.hip, hr = cx + F.hip - 1;
   const hx = cx + F.lean + 1, hy = F.headY + pose.by;
   const clothDark = shade(F.cloth, -0.35), clothLit = shade(F.cloth, 0.22);
+  const sig = spec.signature ? SIGNATURES[spec.signature] : undefined;
+  const G: Geo = { F, S, cx, tl, tr, top, bot, hx, hy, pose, accent };
 
   // ── Behind the body ──
+  sig?.back?.(P, g, G);
   if (F.cloak || F.robe || chest.has('cape')) for (let y = top; y <= S - 4; y++) { const w = Math.floor((y - top) / 4); P.rect(tl - 2 - w, y, (tr - tl) + 3 + w, 1, shade(F.cloth, -0.45)); }
   if (chest.has('tank')) { shell(P, tl - 4, top + 1, 4, 8, { main: accent, dark: shade(accent, -0.4), lit: shade(accent, 0.3), light: accent }); }
   paintBackParts(P, parts, tl, top, bot);
@@ -373,8 +379,68 @@ export function paintDoll(spec: DollSpec, state: AnimationState, frame: number):
     const hand = pose.reach ? paintArmForward(P, g, F, parts.right_arm, tr, top + 1) : paintArm(P, F, parts.right_arm, tr, top + 1, true);
     paintWeapon(P, F, spec.weapon, hand, pose, tr, top, accent);
   }
+  sig?.front?.(P, g, G);
+  if (sig?.ghost) ghostOf(g, sig.ghost.dx, sig.ghost.tint);
   return finish(g, spec.team);
 }
+
+// ── Bosses' signature pieces ────────────────────────────────────────────────
+interface Geo { F: Frame; S: number; cx: number; tl: number; tr: number; top: number; bot: number; hx: number; hy: number; pose: Pose; accent: string }
+type Touch = (P: Painter, g: Grid, G: Geo) => void;
+/** An afterimage: the body again, faint and a few pixels behind. */
+function ghostOf(g: Grid, dx: number, tint: string) {
+  const src = g.c.map(r => r.slice());
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (src[y][x] && !src[y][x]!.endsWith('55')) { const nx = x + dx; if (nx >= 0 && nx < g.S && !g.c[y][nx]) g.c[y][nx] = `${tint}55`; }
+}
+const BONE = '#e8e0cc', WIRE = '#2a2d31';
+export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: { dx: number; tint: string } }> = {
+  // Fits limbs to whoever pays, and has fitted most of them to itself: a third arm from its back, a welder's visor, an apron
+  'The Fitter': {
+    back: (P, _g, G) => paintArm(P, G.F, { maker: 'volkov', tier: 2 }, G.tl - 6, G.top - 4, false),
+    front: (P, g, G) => { P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, G.bot - G.top + 2, '#6a4a2e'); P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, 1, '#8a6a4a'); P.rect(G.hx - 3, G.hy - 1, 8, 2, '#1c1a18'); P.rect(G.hx, G.hy - 1, 4, 1, '#ff8a2a'); g.glow.push({ x: G.hx + 2, y: G.hy - 1, col: '#ff8a2a', r: 4 }); },
+  },
+  // Wired into every chip on the water: a dish on its back, cables into the floor, a ring of listening chips round its head
+  'The Listener': {
+    back: (P, _g, G) => { P.oval(G.hx - 7, G.hy - 5, 5, 5, '#8a99a2'); P.oval(G.hx - 7, G.hy - 5, 3, 3, '#5a6a74'); P.px(G.hx - 7, G.hy - 5, '#4ad8ff'); for (let i = 0; i < 14; i++) { P.px(G.tl - 2 - Math.floor(i / 3), G.top + 4 + i * 2, WIRE); P.px(G.tl - 4 - Math.floor(i / 2), G.top + 6 + i * 2, '#2a5a6a'); } },
+    front: (P, g, G) => { const r = G.F.headR + 3; for (let a = 0; a < 12; a++) { const t = (a / 12) * Math.PI * 2; P.px(G.hx + Math.round(Math.cos(t) * r), G.hy + Math.round(Math.sin(t) * (r - 1)), a % 3 ? '#2a5a6a' : '#4ad8ff'); } g.glow.push({ x: G.hx, y: G.hy, col: '#4ad8ff', r: 6 }); for (const [x, y] of [[G.tl + 2, G.top + 5], [G.tr - 2, G.top + 9], [G.cx, G.bot - 2]]) P.px(x, y, '#7ad0e8'); },
+  },
+  // A captain grown into her ship: a mast and a torn sail on her back, ribs for a keel, cables for hair
+  'The Living Vessel': {
+    back: (P, _g, G) => { P.rect(G.tl - 3, 2, 2, G.top, '#6a4a2e'); P.rect(G.tl - 1, 5, 9, 1, '#6a4a2e'); for (let y = 6; y < G.top - 2; y++) for (let x = G.tl - 1; x < G.tl + 8; x++) if ((x * 7 + y * 3) % 11) P.px(x, y, y % 4 ? '#d8d0b8' : '#b8b098'); },
+    front: (P, _g, G) => { for (let k = 0; k < 4; k++) { const y = G.top + 3 + k * 3; P.rect(G.tl + 1, y, G.tr - G.tl - 1, 1, BONE); P.px(G.tl + 1, y + 1, BONE); P.px(G.tr - 1, y + 1, BONE); } for (let i = 0; i < 4; i++) P.rect(G.hx - G.F.headR + i * 2, G.hy + 2, 1, 6 + i, i % 2 ? WIRE : '#5a646e'); },
+  },
+  // Fused to the scanning array: an arch round it with a red scan line, cables into its back
+  'The Registrar': {
+    back: (P, g, G) => { const l = G.tl - 7, r = G.tr + 7, t = G.top - 16; shell(P, l, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, r - 2, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, l, t, r - l + 1, 3, MAKERS.ioa); P.rect(l + 3, t + 3, r - l - 5, 1, '#ff3a3a'); g.glow.push({ x: G.cx, y: t + 3, col: '#ff3a3a', r: 6 }); for (let i = 0; i < 8; i++) P.px(l + 3 + i, G.top + 2 + i, WIRE); },
+  },
+  // Keeps the count, one over: tally marks on its chest and a clipboard held like a wall
+  'The Count': {
+    front: (P, _g, G) => { const y = G.top + 3; for (let k = 0; k < 4; k++) P.rect(G.tl + 2 + k * 2, y, 1, 5, '#22262a'); P.rect(G.tl + 1, y + 2, 8, 1, '#22262a'); P.rect(G.tl + 11, y, 1, 5, '#ff5a3a'); shell(P, G.tr + 2, G.top - 2, 7, 11, { main: '#a8865a', dark: '#5a4428', lit: '#c8a67a', light: '#ffffff' }); P.rect(G.tr + 3, G.top, 5, 7, '#f0ece2'); for (let y2 = G.top + 1; y2 < G.top + 7; y2 += 2) P.rect(G.tr + 4, y2, 3, 1, '#8a8e86'); P.rect(G.tr + 4, G.top - 3, 3, 2, '#5a646e'); },
+  },
+  // The oldest sleeper: its pod open behind it, long hair, more lines in its arms
+  'The First Sleeper': {
+    back: (P, _g, G) => { const l = G.tl - 9, w = G.tr - G.tl + 18, t = G.top - 18; P.oval(l + Math.floor(w / 2), t + 20, Math.floor(w / 2), 22, '#b8d0d8'); P.oval(l + Math.floor(w / 2), t + 21, Math.floor(w / 2) - 2, 20, '#8aa8b4'); for (let i = 0; i < 3; i++) P.rect(l + 3 + i * 3, t + 2, 1, 14, '#7ad0d8'); },
+    front: (P, _g, G) => { for (let i = 0; i < 5; i++) P.rect(G.hx - G.F.headR + i * 2, G.hy - 3, 1, 10 + (i % 2) * 3, '#d8d4ca'); },
+  },
+  // The dream made of your memories: it trails a faint second self
+  'The Long Sleeper': { ghost: { dx: -4, tint: '#9ac8ff' } },
+  // Keeps every worker in step: a speaker horn on its shoulder, a whistle, a baton beating time
+  'The Overseer': {
+    back: (P, _g, G) => { P.rect(G.tl - 2, G.top - 6, 2, 6, WIRE); for (let i = 0; i < 4; i++) P.rect(G.tl - 4 - i, G.top - 9 - i, 4 + i * 2, 1, i === 3 ? '#e07a1e' : '#c8ccd0'); },
+    front: (P, _g, G) => { P.px(G.hx + 4, G.hy + 3, '#e4ecef'); P.px(G.hx + 5, G.hy + 3, '#e4ecef'); P.rect(G.tr + 2, G.top - 8, 1, 10, '#2a2e32'); P.rect(G.tr + 1, G.top - 5, 3, 2, '#e07a1e'); },
+  },
+  // Signs off every order: a pen as long as an arm, a red seal on its chest
+  'The Signatory': {
+    front: (P, g, G) => { P.oval(G.tl + 3, G.top + 5, 2, 2, '#c82a2a'); P.px(G.tl + 3, G.top + 5, '#ff8a7a'); for (let i = 0; i < 12; i++) P.rect(G.tr + 2 + Math.floor(i / 2), G.top + 12 - i, 2, 1, i < 2 ? '#e8c060' : '#1c1e22'); g.glow.push({ x: G.tr + 2, y: G.top + 12, col: '#e8c060', r: 3 }); },
+  },
+  // The light coming down the corridor: a lens for a face, a halo behind, too bright to look at
+  'The Pass': {
+    back: (P, g, G) => { P.oval(G.hx, G.hy, G.F.headR + 6, G.F.headR + 6, '#fff4c0'); P.oval(G.hx, G.hy, G.F.headR + 4, G.F.headR + 4, '#ffe08a'); for (let k = 0; k < 8; k++) { const t = (k / 8) * Math.PI * 2; for (let d = 9; d < 14; d++) P.px(G.hx + Math.round(Math.cos(t) * d), G.hy + Math.round(Math.sin(t) * d), '#fff4c0'); } g.glow.push({ x: G.hx, y: G.hy, col: '#fff4c0', r: 12 }); },
+    front: (P, _g, G) => { P.oval(G.hx + 1, G.hy, G.F.headR - 1, G.F.headR - 1, '#ffffff'); P.oval(G.hx + 1, G.hy, 1, 1, '#ffe08a'); },
+  },
+  // The fastest thing you'll fight: it leaves itself behind
+  'The Lead Operator': { ghost: { dx: -5, tint: '#c8a0ff' } },
+};
 
 function paintWeapon(P: Painter, F: Frame, w: Weapon | undefined, hand: { x: number; y: number }, pose: Pose, tr: number, top: number, accent: string) {
   const METAL_LIT = '#b8c4cc';
@@ -465,6 +531,21 @@ function paintMachine(g: Grid, P: Painter, F: Frame, spec: DollSpec, pose: Pose)
       shell(P, cx - 2, cy - 2, 5, 4, p); P.px(cx + 1, cy, eye);
     });
     g.glow.push({ x: 23 + dx, y: 18, col: eye, r: 3 });
+    // The Weather: one drone leads, bigger than the rest
+    if (spec.signature === 'The Weather') { shell(P, 19 + dx, 15 + by, 10, 7, p); P.rect(20 + dx, 13 + by, 8, 1, '#c8ccd0'); P.rect(22 + dx, 17 + by, 4, 2, '#1a1a1a'); P.px(25 + dx, 17 + by, '#ffffff'); g.glow.push({ x: 25 + dx, y: 18 + by, col: '#ffffff', r: 5 }); }
+    return;
+  }
+  if (F.special === 'tower') {
+    // An air-lift tower that breathes cloud, with its crew fused into the crane arm
+    for (const x of [18, 34]) shell(P, x + dx, 12, 3, 41, p);
+    for (let y = 14; y < 52; y += 6) { for (let i = 0; i < 14; i++) P.px(20 + dx + i, y + Math.floor(i / 3), '#5a646e'); for (let i = 0; i < 14; i++) P.px(33 + dx - i, y + Math.floor(i / 3), '#5a646e'); }
+    P.rect(14 + dx, 52, 26, 3, '#3a4248');
+    shell(P, 16 + dx, 22 + by, 22, 8, p); P.rect(19 + dx, 24 + by, 6, 3, '#1a2a34'); P.oval(22 + dx, 25 + by, 1, 1, '#8a7a6a'); P.px(23 + dx, 25 + by, '#ff5a3a');
+    const reach = pose.reach ? 4 : 0;
+    for (let x = 38; x < 52 + reach; x++) P.rect(x + dx, 23 + by, 1, 3, (x % 4 < 2) ? p.main : (p.stripe ?? p.dark));
+    P.rect(50 + reach + dx, 26 + by, 1, 6, WIRE); for (const [x, y] of [[49, 32], [49, 33], [50, 34], [52, 33], [52, 32]]) P.px(x + reach + dx, y + by, '#d8dcd6');
+    for (const [x, y, r] of [[22, 6, 4], [30, 4, 5], [38, 7, 3], [26, 9, 3]]) { P.oval(x + dx, y - by, r, Math.max(2, r - 1), '#e8eef2'); P.px(x + dx - 1, y - by - 1, '#ffffff'); }
+    g.glow.push({ x: 23 + dx, y: 25 + by, col: '#ff5a3a', r: 3 });
     return;
   }
   if (F.special === 'quadruped') {
