@@ -544,6 +544,8 @@ const midBite = (level: number, k: 'atk' | 'hp') => {
 export const FIRMWARE_ERA = { from: 6, hp: 1.5, atk: 1.75 };
 const era = (level: number) => (level >= FIRMWARE_ERA.from || CHAPTERS.indexOf(activeChapter()) > 0 ? FIRMWARE_ERA : { hp: 1, atk: 1 });
 const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENEMY_EASE.hp * Math.pow(ENEMY_GROWTH.hp, level - 1) * midBite(level, 'hp') * era(level).hp, atk: ENEMY_TUNING.atk * ENEMY_EASE.atk * Math.pow(ENEMY_EASE.growth, level - 1) * earlyBite(level, firstRun) * midBite(level, 'atk') * era(level).atk });
+/** How much tougher and harder-hitting a regular enemy is at a threat (allies are built the same way, to keep pace). */
+export const enemyGrowthAt = (level: number) => growth(level, false);
 
 /** Which enemy waits at a given threat level (matches createBoss and the level-10 King). */
 // The Patchwork King is a wall: a level-10 boss with these multipliers.

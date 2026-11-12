@@ -875,6 +875,19 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (ctx.lineWidth) ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
+  // Ward's cover: a small shield in the bottom-left of each tile it covers (blows there land lighter; the number sits bottom-right)
+  if (Fight.walled(useCombat.getState(), { row, col }) && !isBossTile) {
+    const u = Math.max(1, Math.round(tileW * 0.022));
+    const sx = Math.round(pos.x - tileW / 2 + gap + u * 4), sy = Math.round(pos.y + tileH / 2 - gap - u * 10);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(sx - u, sy - u, u * 7, u * 6); ctx.fillRect(sx, sy + u * 5, u * 5, u); ctx.fillRect(sx + u, sy + u * 6, u * 3, u);
+    ctx.fillStyle = '#8fd8ff';
+    ctx.fillRect(sx, sy, u * 5, u * 4); ctx.fillRect(sx + u, sy + u * 4, u * 3, u); ctx.fillRect(sx + u * 2, sy + u * 5, u, u);
+    ctx.fillStyle = '#e8f8ff'; ctx.fillRect(sx + u, sy + u, u, u * 2);
+    ctx.restore();
+  }
   // Movement options: a soft cyan marker on each reachable tile
   if (moveTiles?.has(`${row},${col}`) && !isBossTile) {
     // Red: going here hurts (parting blow, an enemy's reach, a hazard). Blue: it's safe
@@ -1061,7 +1074,30 @@ if (gain) {
 // Allies: a host body in the ally's colour ring, with a bar in its colour
 allies.forEach((a, k) => {
 const key = `ally:${k}`;
-if (a.unit.currentHp <= 0 && !director.visible(key)) return;
+// Knocked out: it lies where it fell, faded, with the rounds until it gets back up
+if (a.unit.currentHp <= 0 && !director.visible(key)) {
+  const dp = gridToScreen(a.pos.row, a.pos.col, width, height);
+  const size = Math.max(tileW * DOLL, 34), top = dollTop(dp.y, size);
+  const left = a.downed ?? Fight.ALLY_RULES.getUp;
+  depth.push({ y: dp.y, draw: () => {
+    ctx.save(); ctx.globalAlpha = 0.7;
+    // Lying on its back (0.7 of the way through the fall: flat, not yet faded)
+    // It tips over from its feet, so shift it back the other way to lie on its own tile
+    const faceL = a.pos.col > grid.bossPosition.col, back = (faceL ? -1 : 1) * size * 0.32;
+    drawDoll(ctx, allyDoll(a.id, a.unit), dp.x - size / 2 + back, top - size * 0.08, size, 'idle', 0, faceL, { fall: 0.7 });
+    ctx.restore();
+  } });
+  overlay.push(() => {
+    const r = Math.max(8, tileW * 0.13), cy = dp.y - tileH * 0.05;
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,14,20,0.85)'; ctx.beginPath(); ctx.arc(dp.x, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = a.unit.spriteColor || '#38d6f0'; ctx.stroke();
+    ctx.font = `800 ${Math.max(10, Math.floor(r * 1.2))}px Manrope, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8f4ff'; ctx.fillText(String(left), dp.x, cy + 1);
+    ctx.restore();
+  });
+  return;
+}
 let aw = director.where(key, a.pos, now);
 const aj = director.jolt(key, now), aFall = director.falling(key, now);
 const am = allyMoves.current.get(k)?.anim;

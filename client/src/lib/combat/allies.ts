@@ -4,10 +4,11 @@
 
 import data from '../../content/allies.json';
 import type { Character, CombatAction, Item, ItemRarity, AugmentationSlot, DefendSpec, ActionEffects } from './types';
-import { BOSS_SCALING, ENEMY_GROWTH, ENEMY_TUNING, scaleBossAction } from './actions';
+import { BOSS_SCALING, ENEMY_GROWTH, ENEMY_TUNING, scaleBossAction, enemyGrowthAt } from './actions';
 import { actionForItem, makerOf, normaliseItem, structureOf, HOUSINGS, TRAITS, partsSpDef, type Maker } from './augments';
 import { hashSeed } from '../engine/rng';
 import type { Perks } from '../engine/playi';
+import type { AllyRule } from '../engine/fight';
 
 export type AllyEffect = 'attack' | 'taunt' | 'heal' | 'mark' | 'guard' | 'defend';
 
@@ -22,6 +23,8 @@ export interface AllyMove extends CombatAction {
 
 export interface AllyDef {
   id: string; name: string; maker: string; role: string; unlockLevel: number; color: string; blurb: string;
+  /** What it does in a fight that nobody else does (engine/fight.ts, ALLY_RULES), and that said plainly. */
+  rule: AllyRule; ruleText: string;
   /** Health relative to a regular enemy of the unlock level. */
   hp: number;
   /** Base attack and defence, before the unlock level's scaling. */
@@ -118,11 +121,12 @@ export const fitsAlly = (def: AllyDef, item: Item) => def.affinity.includes(make
 export const ALLY_STRUCTURE = { perLevel: 0.1 };
 
 /** The ally's body at a level, built like a regular enemy of its unlock level, plus its kit's and your implants' stats and structure. */
-export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear = {}): Character {
-  const L = def.unlockLevel, S = BOSS_SCALING;
+export function allyUnit(def: AllyDef, level: number, hpMult = 1, gear: AllyGear = {}, fightLevel?: number): Character {
+  // Built like a regular enemy of the fight it's in (so it keeps pace as threats climb), or of its unlock level outside a fight
+  const L = fightLevel ?? def.unlockLevel, S = BOSS_SCALING;
   const lv = Math.pow(ALLY_LEVEL_GROWTH, level - 1);
-  const gHp = ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, L - 1);
-  const gAtk = ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, L - 1);
+  const g = fightLevel !== undefined ? enemyGrowthAt(L) : { hp: ENEMY_TUNING.hp * Math.pow(ENEMY_GROWTH.hp, L - 1), atk: ENEMY_TUNING.atk * Math.pow(ENEMY_GROWTH.atk, L - 1) };
+  const gHp = g.hp, gAtk = g.atk;
   const hp = Math.round((S.hpBase + L * S.hpPerLevel + L * L * S.hpQuadratic) * gHp * def.hp * lv * hpMult * ALLY_TUNING.hp);
   const atk = (def.attack + (L - 1) * S.atkPerLevel) * gAtk * lv * ALLY_TUNING.atk;
   const dfn = (def.defense + (L - 1) * S.defPerLevel) * lv;

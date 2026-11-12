@@ -1443,3 +1443,75 @@ test('the red counts a wide blow aimed at an ally that would catch you, parting 
   assert.ok(Fight.secondGoDamage(beside, 1, [0]) > 0);
   assert.equal(Fight.secondGoDamage(beside, 1, []), 0);
 });
+
+// ── Ally roles ───────────────────────────────────────────────────────────────
+const allyOf = (rule: Fight.AllyRule, at: [number, number], over: Partial<FightState['allies'][number]> = {}) => ({
+  id: rule, rule, unit: { ...createPlayer(), id: `ally-${rule}`, name: rule }, pos: { row: at[0], col: at[1] }, moves: [], move: 2, cooldowns: [],
+  moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false, ...over,
+}) as unknown as FightState['allies'][number];
+
+test('a knocked-out ally gets back up two rounds later on 30% health, a round sooner with Matron or if restless', () => {
+  const down = (rule: Fight.AllyRule) => allyOf(rule, [6, 3], { unit: { ...createPlayer(), name: rule, currentHp: 0 } as any });
+  let s = fight({ allies: [down('anchor')] });
+  // It misses two whole rounds, and is back at the start of the third
+  s = Fight.allyRecovery(Fight.allyRecovery(s).state).state;
+  assert.equal(s.allies[0].unit.currentHp, 0, 'still down through two rounds');
+  s = Fight.allyRecovery(s).state;
+  assert.equal(s.allies[0].unit.currentHp, Math.round(s.allies[0].unit.maxHp * Fight.ALLY_RULES.getUpHp), 'up on 30%');
+  const twice = (st: FightState) => Fight.allyRecovery(Fight.allyRecovery(st).state).state;
+  assert.ok(twice(fight({ allies: [down('anchor'), allyOf('medic', [6, 5])] })).allies[0].unit.currentHp > 0, 'Matron gets it up a round sooner');
+  assert.ok(twice(fight({ allies: [down('restless')] })).allies[0].unit.currentHp > 0, 'restless is back up sooner');
+});
+
+test('Ward: blows on you land lighter within a tile of it, and the red says so', () => {
+  const s = fight({ allies: [allyOf('wall', [8, 0])] });
+  const near = { ...s, allies: [allyOf('wall', [5, 2])] };
+  const at = `${s.grid.playerPosition.row},${s.grid.playerPosition.col}`;
+  const open = Fight.dangerInfo(s, 1).get(at)?.damage ?? 0, walled = Fight.dangerInfo(near, 1).get(at)?.damage ?? 0;
+  assert.ok(open > 0 && walled < open, `the red is lighter beside Ward (${walled} vs ${open})`);
+  assert.ok(Fight.walled(near, s.grid.playerPosition) && !Fight.walled(s, s.grid.playerPosition));
+});
+
+test('Bale cannot be shoved, and an enemy beside it cannot walk away', () => {
+  const grid = arena([8, 3], [2, 3]);
+  const s = fight({ grid, allies: [allyOf('anchor', [3, 3])] });
+  const shoved = Fight.knockBack(s, { row: 2, col: 3 }, { kind: 'ally', k: 0 }, 20, []);
+  assert.deepEqual(shoved.allies[0].pos, { row: 3, col: 3 }, 'Bale stays put');
+  const walk = Fight.foeWalk(s, 0);
+  assert.deepEqual(walk.state.foes[0].pos, { row: 2, col: 3 }, 'the enemy beside Bale is pinned');
+});
+
+test('Ninety cannot be stunned', () => {
+  const s = fight({ allies: [allyOf('restless', [6, 3])] });
+  const after = Fight.stun(s, { kind: "ally", k: 0 });
+  assert.equal(after.allies[0].stunned, false);
+});
+
+test('Matron patches up whoever is most hurt at the start of her turn', () => {
+  const s = fight({ player: { ...createPlayer(), currentHp: 40 }, allies: [allyOf('medic', [6, 3])] });
+  const after = Fight.startAllyTurn(s, 0).state;
+  assert.ok(after.player.currentHp > 40);
+});
+
+test('Ghostline spots an enemy: your hits on it land as if from behind, and enemies go for you before it', () => {
+  const s = fight({ allies: [allyOf('spotter', [3, 3])] });
+  const after = Fight.startAllyTurn(s, 0).state;
+  assert.equal(after.spotted, 0);
+  assert.equal(Fight.flankOn(after, after.grid.playerPosition, { kind: 'foe', i: 0 }), Fight.FLANK.back);
+  // The enemy at (4,3) is next to both: it still goes for you
+  assert.equal(Fight.victimOf(after, 0), -1);
+});
+
+test('Tally draws an enemy near you onto itself', () => {
+  const grid = arena([5, 3], [3, 3]);
+  const s = fight({ grid, allies: [allyOf('decoy', [5, 4])] });
+  assert.equal(Fight.victimOf(s, 0), 0);
+  const plain = fight({ grid, allies: [allyOf('anchor', [7, 6])] });
+  assert.equal(Fight.victimOf(plain, 0), -1, 'otherwise the nearest goes for you');
+});
+
+test('ally health keeps pace with the fight it is in', async () => {
+  const { allyUnit, ALLIES: ALLY_DEFS } = await import('../client/src/lib/combat/allies');
+  const def = ALLY_DEFS[0];
+  assert.ok(allyUnit(def, 1, 1, {}, 8).maxHp > allyUnit(def, 1, 1, {}, 1).maxHp);
+});

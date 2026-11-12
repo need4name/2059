@@ -104,13 +104,13 @@ export const useAllies = create<AlliesState>()(persist((set, get) => ({
 }));
 
 /** The party as fight-ready allies (positions are filled in when the fight starts). */
-export function partyForFight(perks: Perks) {
+export function partyForFight(perks: Perks, fightLevel?: number) {
   const st = useAllies.getState();
   return st.party.map(id => allyDef(id)).filter(d => !!d).map(def => {
     const { level } = st.progress(def!.id);
     const gear = st.gear[def!.id] ?? {};
     const moves = allyMoves(def!, level, gear);
-    return { id: def!.id, unit: allyUnit(def!, level, perks.allyHpMult, gear), moves, move: def!.move, cooldowns: moves.map(() => 0), speed: def!.speed };
+    return { id: def!.id, rule: def!.rule, unit: allyUnit(def!, level, perks.allyHpMult, gear, fightLevel), moves, move: def!.move, cooldowns: moves.map(() => 0), speed: def!.speed };
   });
 }
 

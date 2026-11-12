@@ -57,6 +57,7 @@ const allyMove = z.object({
 const kitStats = z.object({ attackBonus: z.number().int().min(1).max(10), defenseBonus: z.number().int().min(1).max(10), hpBonus: z.number().int().min(1).max(30), structuralAttackBonus: z.number().int().min(1).max(10), structuralDefenseBonus: z.number().int().min(1).max(10), evasionBonus: z.number().int().min(1).max(5) }).partial().strict();
 const ally = z.object({
   id: z.string().regex(/^[a-z]+$/), name: text, maker: text, role: text,
+  rule: z.enum(['anchor', 'medic', 'spotter', 'wall', 'hammer', 'decoy', 'restless', 'scout']), ruleText: z.string().trim().min(1).max(140),
   unlockLevel: z.number().int().min(1).max(200), color: z.string().regex(/^#[0-9a-f]{6}$/i), blurb: text,
   hp: z.number().min(0.3).max(3), attack: z.number().min(0).max(40), defense: z.number().min(0).max(40),
   move: z.number().int().min(1).max(4),

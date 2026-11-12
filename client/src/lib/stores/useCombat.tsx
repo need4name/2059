@@ -529,6 +529,8 @@ later(nextActor, ENEMY_TURN_DELAY);
 const beginRound = () => {
 // The tide turns at the start of a round (boards with mud flats only)
 if (apply(Fight.tideTick(fightState()))) return;
+// Knocked-out allies count down and get back up
+if (apply(Fight.allyRecovery(fightState()))) return;
 if (apply(Fight.alarmTick(fightState()))) return;
 if (apply(Fight.ordersTick(fightState()))) return;
 save(Fight.tickSpeed(fightState()));
@@ -680,7 +682,7 @@ const player = farm ? fresh : { ...fresh, currentHp: healthNow(useMap.getState()
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
 const strain = useStrain.getState().active;
 const units = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
-const party = partyForFight(perks);
+const party = partyForFight(perks, level);
 // The arena makes room for how far you move and how many bodies are on it
 // Map fights use the room's own drawn arena; farm fights roll one
 const fightRoom = !farm ? roomById(useMap.getState().room) : undefined;

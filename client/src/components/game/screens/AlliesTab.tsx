@@ -38,6 +38,7 @@ function AllyCard({ def }: { def: AllyDef }) {
             <span className="font-display text-[16px] font-semibold text-white">{def.name}</span>
             <span className="text-xs text-hud-dim">Lv {level}</span>
           </div>
+          <div className="text-[13px] leading-snug text-hud-text">{def.ruleText}</div>
         </div>
         {along && <span className="rounded-full bg-ok/15 px-2.5 py-1 text-[11px] font-semibold text-ok">With you</span>}
       </header>

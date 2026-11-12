@@ -159,6 +159,10 @@ export interface Ally {
   swimming?: boolean;
   /** Its own speed: allies take their own turns on the clock (SPEED.base is average). */
   speed?: number;
+  /** What it does that nobody else does (ALLY_RULES; from allies.json). */
+  rule?: AllyRule;
+  /** Knocked out: rounds until it gets back up. */
+  downed?: number;
 }
 
 export interface FightState {
@@ -215,6 +219,8 @@ export interface FightState {
   wind?: { dir: WindDir; turnsLeft: number } | null;
   /** The dreamer inside the host has flinched this fight (once at most). */
   flinchUsed?: boolean;
+  /** The enemy Ghostline has spotted this round: your hits (and allies') land on it as if from behind. */
+  spotted?: number | null;
   /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
   king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -280,7 +286,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -628,6 +634,50 @@ export function viewFor(s: FightState, i: number): CombatGrid {
 }
 
 /** Who foe i goes for: -1 for the player, or an ally's index. */
+// ── Ally rules ───────────────────────────────────────────────────────────────
+// Each ally does one thing nobody else does (`rule` in allies.json):
+// anchor (Bale): can't be shoved or dragged, and an enemy beside it can't walk away;
+// medic (Matron): heals whoever is most hurt at the start of her turn, and gets the knocked-out up sooner;
+// spotter (Ghostline): spots an enemy each turn (your hits on it land as if from behind), and enemies find it hard to reach;
+// wall (Ward): you and allies within a tile of it take less;
+// hammer (Breaker): every hit shoves and crushes;
+// decoy (Tally): draws enemies near you onto itself, and some hits on it strike a copy instead;
+// restless (Ninety): can't be stunned, and gets back up a round sooner;
+// scout (Dust): every hit slows.
+export type AllyRule = 'anchor' | 'medic' | 'spotter' | 'wall' | 'hammer' | 'decoy' | 'restless' | 'scout';
+export const ALLY_RULES = { getUp: 2, medicGetUp: 1, getUpHp: 0.3, medicHeal: 0.06, wall: 0.7, decoyMiss: 0.25 };
+const allyWith = (s: FightState, rule: AllyRule) => s.allies.findIndex(a => allyAlive(a) && !a.swimming && a.rule === rule);
+/** Standing within a tile of Ward: blows on you land at ALLY_RULES.wall. */
+export const walled = (s: FightState, at: TilePosition) => s.allies.some(a => allyAlive(a) && !a.swimming && a.rule === 'wall' && chebyshev(a.pos, at) <= 1);
+
+/** Where a knocked-out ally gets up: where it fell, or the nearest open deck if someone is standing there now. */
+function getUpSpot(s: FightState, at: TilePosition): TilePosition {
+  const taken = (t: TilePosition) => same(t, s.grid.playerPosition) || s.foes.some(f => isAlive(f) && same(f.pos, t)) || s.allies.some(x => allyAlive(x) && same(x.pos, t));
+  const open = (t: TilePosition) => { const k = tileAt(t, s.grid)?.type; return t.row >= 0 && t.col >= 0 && t.row < s.grid.rows && t.col < s.grid.cols && k !== 'obstacle' && k !== 'void' && !taken(t); };
+  if (open(at)) return at;
+  for (let r = 1; r < Math.max(s.grid.rows, s.grid.cols); r++)
+    for (let dr = -r; dr <= r; dr++) for (let dc = -r; dc <= r; dc++) {
+      const t = { row: at.row + dr, col: at.col + dc };
+      if (Math.max(Math.abs(dr), Math.abs(dc)) === r && open(t)) return t;
+    }
+  return at;
+}
+
+/** A new round: knocked-out allies count down, and get back up (on 30% health) when it runs out (sooner with Matron). */
+export function allyRecovery(s: FightState): Step {
+  const events: FightEvent[] = [];
+  const quick = allyWith(s, 'medic') >= 0;
+  const allies = s.allies.map(a => {
+    if (allyAlive(a)) return a.downed !== undefined ? { ...a, downed: undefined } : a;
+    const left = (a.downed ?? (quick || a.rule === 'restless' ? ALLY_RULES.medicGetUp : ALLY_RULES.getUp) + 1) - 1;
+    if (left > 0) return { ...a, downed: left };
+    const hp = Math.max(1, Math.round(a.unit.maxHp * ALLY_RULES.getUpHp));
+    events.push(say(`${a.unit.name} gets back up`, 'heal'));
+    return { ...a, downed: undefined, stunned: false, burning: 0, swimming: false, unit: { ...a.unit, currentHp: hp }, pos: getUpSpot(s, a.pos) };
+  });
+  return { state: { ...s, allies }, events };
+}
+
 // ── Facing ───────────────────────────────────────────────────────────────────
 // A body faces whoever it's going after: an enemy its victim (you, or the ally it's
 // turned on), you the enemy you're aiming at, an ally its nearest enemy. A blow from
@@ -661,7 +711,7 @@ export function flankFrom(from: TilePosition, at: TilePosition, facing: Dir): nu
   return dot > 0 ? 0 : dot === 0 ? FLANK.side : FLANK.back;
 }
 export const flankOn = (s: FightState, from: TilePosition, who: Body) =>
-  flankFrom(from, who.kind === 'player' ? s.grid.playerPosition : who.kind === 'foe' ? s.foes[who.i].pos : s.allies[who.k].pos, facingOf(s, who));
+  who.kind === 'foe' && s.spotted === who.i && !same(from, s.foes[who.i].pos) ? FLANK.back : flankFrom(from, who.kind === 'player' ? s.grid.playerPosition : who.kind === 'foe' ? s.foes[who.i].pos : s.allies[who.k].pos, facingOf(s, who));
 
 export function victimOf(s: FightState, i: number): number {
   const from = s.foes[i].pos;
@@ -669,12 +719,22 @@ export function victimOf(s: FightState, i: number): number {
   const taunt = s.allies.findIndex(a => allyAlive(a) && !a.swimming && a.taunting && chebyshev(from, a.pos) <= TAUNT_RANGE);
   if (taunt >= 0) return taunt;
   // Nobody in the sea can be reached: the player only counts while on deck
-  let best = -1, bestDist = s.playerSwimming ? Infinity : chebyshev(from, s.grid.playerPosition);
+  const toYou = s.playerSwimming ? Infinity : chebyshev(from, s.grid.playerPosition);
+  // Tally draws an enemy near you onto itself
+  const decoy = allyWith(s, 'decoy');
+  if (decoy >= 0 && chebyshev(from, s.allies[decoy].pos) <= toYou + 1 && chebyshev(s.allies[decoy].pos, s.grid.playerPosition) <= 2) return decoy;
+  let best = -1, bestDist = toYou;
   s.allies.forEach((a, k) => {
     if (!allyAlive(a) || a.swimming) return;
-    const d = chebyshev(from, a.pos);
+    // Ghostline keeps out of reach: only the enemy right on top of it goes for it
+    const d = chebyshev(from, a.pos) + (a.rule === 'spotter' ? 2 : 0);
     if (d < bestDist) { best = k; bestDist = d; }
   });
+  // Enemies spread out: if another enemy is already nearest that ally and you're about as close, this one comes for you
+  if (best >= 0 && toYou <= bestDist + 1) {
+    const taken = s.foes.some((f, j) => j < i && isAlive(f) && !f.swimming && chebyshev(f.pos, s.allies[best].pos) < Math.min(chebyshev(f.pos, s.grid.playerPosition), ...s.allies.filter((a, k) => k !== best && allyAlive(a)).map(a => chebyshev(f.pos, a.pos))));
+    if (taken) return -1;
+  }
   return best;
 }
 
@@ -831,7 +891,8 @@ function hurt(s: FightState, b: Body, dmg: number, events: FightEvent[]): FightS
   if (hp <= 0 && a.unit.currentHp > 0) { events.push(say(`${a.unit.name} is knocked out`, 'critical')); events.push({ kind: 'allyDown', ally: b.k }); }
   return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, unit: { ...x.unit, currentHp: hp } } : x)) };
 }
-const stun = (s: FightState, b: Body): FightState =>
+export const stun = (s: FightState, b: Body): FightState =>
+  b.kind === 'ally' && s.allies[b.k]?.rule === 'restless' ? s :
   // No stun-locks: a stunned host can't be stunned again until it has had a full turn
   b.kind === 'player' ? ((s.stunGuard ?? 0) > 0 ? s : { ...s, playerStunned: true })
   : b.kind === 'foe' ? setFoe(s, b.i, { stunned: true })
@@ -843,6 +904,8 @@ const stun = (s: FightState, b: Body): FightState =>
  * damage and a stun, and a body it hits takes the same damage.
  */
 export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
+  // Bale doesn't move
+  if (who.kind === 'ally' && s.allies[who.k]?.rule === 'anchor') { events.push(say(`${s.allies[who.k].unit.name} doesn't budge`)); return s; }
   const at = posOf(s, who);
   const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
   const to = { row: at.row + step.row, col: at.col + step.col };
@@ -961,6 +1024,24 @@ export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: bool
   }
   if (a.stunned) { events.push(say(`${a.unit.name} is stunned and loses the turn`, 'critical')); return { state: setAlly(state, k, { stunned: false, acted: true, moved: true }), events, skipTurn: true }; }
   if (a.swimming) { state = climbOut(state, { kind: 'ally', k }, events); return { state, events, skipTurn: true }; }
+  // Matron: whoever is most hurt (you or an ally) gets a little back
+  if (a.rule === 'medic') {
+    const bodies: Body[] = [{ kind: 'player' }, ...state.allies.map((_, n) => ({ kind: 'ally' as const, k: n })).filter(b => allyAlive(state.allies[b.k]))];
+    const unitOf = (b: Body) => (b.kind === 'player' ? state.player : state.allies[(b as { k: number }).k].unit);
+    const worst = bodies.map(b => ({ b, gap: 1 - unitOf(b).currentHp / unitOf(b).maxHp })).sort((x, y) => y.gap - x.gap)[0];
+    if (worst && worst.gap > 0) {
+      const u = unitOf(worst.b), heal = Math.min(u.maxHp - u.currentHp, Math.max(3, Math.round(u.maxHp * ALLY_RULES.medicHeal)));
+      if (worst.b.kind === 'player') state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + heal } };
+      else if (worst.b.kind === 'ally') { const kk = worst.b.k; state = setAlly(state, kk, { unit: { ...state.allies[kk].unit, currentHp: state.allies[kk].unit.currentHp + heal } }); }
+      events.push(say(`${a.unit.name} patches ${worst.b.kind === 'player' ? 'you' : unitOf(worst.b).name} up: +${heal}`, 'heal'));
+    }
+  }
+  // Ghostline: spots the nearest enemy; your hits on it land as if from behind until its next turn
+  if (a.rule === 'spotter') {
+    const near = livingFoes(state).filter(x => !x.f.swimming).sort((x, y) => chebyshev(a.pos, x.f.pos) - chebyshev(a.pos, y.f.pos))[0];
+    state = { ...state, spotted: near ? near.i : null };
+    if (near) events.push(say(`${a.unit.name} spots ${near.f.unit.name}'s blind side`));
+  }
   return { state, events, skipTurn: false };
 }
 
@@ -1363,6 +1444,7 @@ export function foesStruck(s: FightState, action: CombatAction, playerClass: Pla
 
 /** Drag a body straight toward `toward`, tile by tile, until a body, cover or water is in the way. */
 function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEvent[]): FightState {
+  if (b.kind === 'ally' && s.allies[b.k]?.rule === 'anchor') { events.push(say(`${s.allies[b.k].unit.name} doesn't budge`)); return s; }
   let at = posOf(s, b);
   const step = { row: Math.sign(toward.row - at.row), col: Math.sign(toward.col - at.col) };
   let moved = 0;
@@ -1719,7 +1801,7 @@ export function dangerInfo(s: FightState, level: number): Map<string, DangerTile
     const aimAt = s.foes[s.target] && isAlive(s.foes[s.target]) ? s.foes[s.target].pos : f.pos;
     const flank = flankFrom(f.pos, t, toward(t, aimAt));
     const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning, flankBonus: flank });
-    return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1);
+    return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1) * (walled(s, t) ? ALLY_RULES.wall : 1);
   };
   const shoveOf = (f: Foe, a: CombatAction, t: TilePosition) => {
     if (order(s) === 'noShoves') return undefined;
@@ -1894,7 +1976,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const strike: FightEvent = { kind: 'strike', by: { kind: 'foe', i }, from: foe.pos, aim: aim ?? at, tiles: getHitTiles(foe.pos, aim ?? at, pattern0, { ...grid, bossPosition: foe.pos, playerPosition: aim ?? at }), pattern: pattern0, physical: action.physicalRatio ?? 0.7, name: action.name, ...(action.isHeavy ? { heavy: true } : {}) };
   if (victim >= 0 && s.allies[victim]) { const r = hitAlly(s, i, victim, action, level, sweet); return { ...r, events: [strike, ...r.events] }; }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
-  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet;
+  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet * (walled(s, grid.playerPosition) ? ALLY_RULES.wall : 1);
   const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, flankOn(s, foe.pos, { kind: 'player' }), chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
@@ -1937,6 +2019,11 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
 function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number, sweet = 1): Step {
   const foe = s.foes[i], ally = s.allies[k];
+  // Tally: some blows strike one of the other copies of it
+  if (ally.rule === 'decoy' && random() < ALLY_RULES.decoyMiss) {
+    return { state: setFoe(s, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events: [say(`${foe.unit.name} -- ${action.name}: strikes the wrong ${ally.unit.name}`)] };
+  }
+  if (walled(s, ally.pos)) sweet *= ALLY_RULES.wall;
   const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
   // Its structure bar soaks the physical part first, like yours
   const lost = dmg.bioDamage;
@@ -2065,6 +2152,9 @@ export function foeWalk(s: FightState, i: number): Step {
   const foe = s.foes[i];
   if (!foe || !isAlive(foe) || order(s) === 'hold') return { state: s, events: [] };
   if (foe.heat >= 100) return { state: s, events: [say(`${foe.unit.name}: OVERHEATED -- movement locked`)] };
+  // Bale holds whatever is beside it
+  const anchor = s.allies.find(a => allyAlive(a) && !a.swimming && a.rule === 'anchor' && chebyshev(a.pos, foe.pos) === 1);
+  if (anchor) return { state: s, events: [say(`${foe.unit.name} is pinned by ${anchor.unit.name}`)] };
   const view = foeView(s, i);
   const prey = view.playerPosition;
   const patterns = Array.from(new Set([...foeRoster(foe).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => a.attackPattern ?? 'melee_long')));
@@ -2221,7 +2311,11 @@ export function allyDefendTargets(s: FightState, k: number, m: number): { who: (
 
 /** Ally k uses move m. Check canAllyUse first. */
 export function resolveAllyMove(s: FightState, k: number, m: number): Step {
-  const a = s.allies[k], move = a.moves[m];
+  const a = s.allies[k], base = a.moves[m];
+  // Breaker's every hit shoves and crushes; Dust's every hit slows
+  const move = base.effect !== 'attack' ? base
+    : a.rule === 'hammer' ? { ...base, effects: { ...(base.effects ?? {}), knock: true, crush: true } }
+    : a.rule === 'scout' ? { ...base, effects: { ...(base.effects ?? {}), slow: true } } : base;
   const events: FightEvent[] = [];
   let state = setAlly(s, k, { acted: true, cooldowns: a.cooldowns.map((c, n) => (n === m ? move.cooldown ?? 0 : c)) });
   // An attack goes for whoever it can reach (the player's target first); marks go on the player's target

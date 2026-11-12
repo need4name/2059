@@ -2,7 +2,7 @@
   "about": "Allies: other minds in metal the signal can link with, met in rooms on the map. One joins each host (two with Second link). unlockLevel sets their strength: stats are relative to a regular enemy of that level (match it to the threat where they are met); moves never change. Allies gain levels across hosts (+8% a level, up to 10). Each wears two implants (a limb and one other) and gets more from its affinity makers; the link is what riding with it does for you. `speed` is how often it takes its own turn (10 is average, like an unhurried host). `story` is three lines the ally lets slip at levels 3, 6 and 10 (ALLY_STORY_AT): they show on the Allies page and go into the journal.",
   "allies": [
     {
-      "id": "bale",
+      "id": "bale", "rule": "anchor", "ruleText": "Holds the line: can't be shoved or dragged, and an enemy beside it can't walk away.",
       "speed": 8,
       "name": "Bale",
       "maker": "Tianxia",
@@ -77,7 +77,7 @@
       }
     },
     {
-      "id": "matron",
+      "id": "matron", "rule": "medic", "ruleText": "Rounds: patches up whoever is most hurt each turn, and gets the knocked-out up a round sooner.",
       "speed": 10,
       "name": "Matron",
       "maker": "Crown",
@@ -150,7 +150,7 @@
       }
     },
     {
-      "id": "ghostline",
+      "id": "ghostline", "rule": "spotter", "ruleText": "Blind side: spots an enemy each turn, and your hits on it land as if from behind. Hard to reach.",
       "speed": 12,
       "name": "Ghostline",
       "maker": "Kizuna",
@@ -223,7 +223,7 @@
       }
     },
     {
-      "id": "ward",
+      "id": "ward", "rule": "wall", "ruleText": "Stand behind me: you and allies within a tile of it take 30% less.",
       "speed": 9,
       "name": "Ward",
       "maker": "Helix",
@@ -297,7 +297,7 @@
       }
     },
     {
-      "id": "breaker",
+      "id": "breaker", "rule": "hammer", "ruleText": "Every hit shoves the enemy back, and slams into whatever's behind it twice as hard.",
       "speed": 11,
       "name": "Breaker",
       "maker": "Volkov",
@@ -305,7 +305,7 @@
       "unlockLevel": 30,
       "color": "#ef4444",
       "blurb": "Operator limbs on a cheap torso. The mind inside asks for one thing: something to hit.",
-      "hp": 1.0,
+      "hp": 0.8,
       "attack": 14,
       "defense": 5,
       "move": 2,
@@ -374,7 +374,7 @@
       }
     },
     {
-      "id": "tally",
+      "id": "tally", "rule": "decoy", "ruleText": "Which one is me: draws enemies near you onto itself, and one blow in four strikes a copy instead.",
       "speed": 11,
       "name": "Tally",
       "maker": "IOA",
@@ -447,7 +447,7 @@
       }
     },
     {
-      "id": "ninety",
+      "id": "ninety", "rule": "restless", "ruleText": "Never sleeps: can't be stunned, and gets back up a round sooner when knocked out.",
       "speed": 10,
       "name": "Ninety",
       "maker": "Helix",
@@ -520,7 +520,7 @@
       }
     },
     {
-      "id": "dust",
+      "id": "dust", "rule": "scout", "ruleText": "Every hit slows the enemy for two rounds.",
       "speed": 10,
       "name": "Dust",
       "maker": "Tianxia",
