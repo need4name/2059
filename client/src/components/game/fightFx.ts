@@ -62,10 +62,14 @@ export class FxDirector {
   onSwing: (key: string, faceTo: TilePosition) => void = () => {};
   onHurt: (key: string) => void = () => {};
 
-  reset() { this.guardsUp.clear(); this.flashUntil = 0; this.leftAt = 0; this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
+  /** Set until the first feed after opening or a new fight: whatever is in the store then is already history. */
+  private fresh = true;
+  reset() { this.fresh = true; this.guardsUp.clear(); this.flashUntil = 0; this.leftAt = 0; this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
 
   /** New packets from the store (anything not seen yet). */
   feed(packets: FxPacket[], now: number) {
+    // A board that has only just opened plays nothing from before it was there
+    if (this.fresh) { this.fresh = false; this.seen = Math.max(this.seen, ...packets.map(p => p.id)); return; }
     for (const p of packets) {
       if (p.id <= this.seen) continue;
       this.seen = p.id;

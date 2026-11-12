@@ -258,6 +258,8 @@ return { player, moveRange: Fight.moveReach(perks.moveBonus + (treeBonus.moveRan
 function freshFightState(grid: CombatGrid) {
 return {
 combatLog: [] as CombatLog[],
+// The last fight's playback mustn't replay at the start of this one
+fx: [] as FxPacket[],
 playerDefenseBoost: 0,
 currentLoot: null, lastVictory: null, pendingShop: false,
 introCompleted: true,
