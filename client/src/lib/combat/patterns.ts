@@ -282,27 +282,29 @@ export function tileWeight(type: AttackPatternType, from: TilePosition, aim: Til
   const d = cheb(from, tile);
   const at = (p: TilePosition) => p.row === tile.row && p.col === tile.col;
   const dir = { row: sign(aim.row - from.row), col: sign(aim.col - from.col) };
+  // Every shape has a strong spot and a weak one (roughly double and half): where you stand in it matters
   switch (type) {
-    case 'melee_long': return d === 1 ? 0.85 : 1.15;                  // the tip of the reach
-    case 'diagonal_cross': return d === 1 ? 1.1 : 0.85;
+    case 'melee_long': return d === 1 ? 0.6 : 1.6;                    // the tip of the reach; hugging it smothers the blow
+    case 'diagonal_cross': return d === 1 ? 1.5 : 0.6;                // close in, it cuts; at the ends it scratches
     case 'cone': {
-      if (d === 1) return 1.2;                                         // the point of the wedge
+      if (d === 1) return 1.7;                                         // the point of the wedge
       const axis = Math.abs(aim.row - from.row) >= Math.abs(aim.col - from.col) ? { row: sign(aim.row - from.row), col: 0 } : { row: 0, col: sign(aim.col - from.col) };
-      return at({ row: from.row + axis.row * 2, col: from.col + axis.col * 2 }) ? 0.95 : 0.7;
+      return at({ row: from.row + axis.row * 2, col: from.col + axis.col * 2 }) ? 1 : 0.5; // the edges barely graze
     }
-    case 'aoe': return at(aim) ? 1.3 : 0.75;                           // the heart of the blast
-    case 'lob': return at(aim) ? 1.2 : 0.8;
-    case 'ranged': return d <= 3 ? 1.1 : 0.85;                         // best at 2-3 tiles
-    case 'bolt': return d <= 2 ? 1.1 : d === 3 ? 1 : 0.85;
-    case 'pierce': return Math.max(0.8, 1.1 - 0.1 * (d - 1));          // weakens through each body
-    case 'longshot': return d >= 4 ? 1.15 : 0.85;                      // a sniper's shot wants distance
-    case 'sweep_arc': return at({ row: from.row + dir.row, col: from.col + dir.col }) ? 1.15 : 0.8;
-    case 'knockback': return d === 1 ? 1.15 : d === 2 ? 1 : 0.85;
-    case 'charge': return d === 1 ? 0.8 : d === 2 ? 1 : 1.2;           // momentum builds down the lane
-    case 'grapple': return d === 1 ? 0.85 : 1.05;
-    case 'beam': return d <= 2 ? 1.1 : d <= 4 ? 1 : 0.8;
-    case 'burst': return tile.row === from.row || tile.col === from.col ? 1 : 0.85;
-    default: return 1;                                                 // strike, lunge, ring: one even hit
+    case 'aoe': return at(aim) ? 2 : 0.5;                              // the heart of the blast crushes; the ring is a glancing blow
+    case 'lob': return at(aim) ? 1.8 : 0.5;
+    case 'ranged': return d <= 2 ? 1.5 : d === 3 ? 1 : 0.6;           // best close for a pistol-range shot
+    case 'bolt': return d <= 1 ? 1.5 : d === 2 ? 1.25 : d === 3 ? 0.9 : 0.6;
+    case 'pierce': return Math.max(0.5, 1.5 - 0.3 * (d - 1));          // weakens through everything it passes
+    case 'longshot': return d >= 4 ? 1.7 : 0.6;                        // a sniper's shot wants distance
+    case 'sweep_arc': return at({ row: from.row + dir.row, col: from.col + dir.col }) ? 1.6 : 0.55; // the middle of the swing
+    case 'knockback': return d === 1 ? 1.6 : d === 2 ? 1 : 0.6;
+    case 'charge': return d === 1 ? 0.5 : d === 2 ? 1 : 1.8;           // momentum builds down the lane
+    case 'grapple': return d === 1 ? 0.6 : d === 2 ? 1 : 1.5;          // reeled in from far, it tears
+    case 'beam': return d <= 2 ? 1.5 : d <= 4 ? 1 : 0.55;              // it spreads and fades with distance
+    case 'burst': return tile.row === from.row || tile.col === from.col ? 1.4 : 0.6; // straight out hard, the corners soft
+    case 'ring': return tile.row === from.row || tile.col === from.col ? 1.4 : 0.7;
+    default: return 1;                                                 // strike, lunge: one even hit
   }
 }
 

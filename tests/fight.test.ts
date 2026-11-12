@@ -919,9 +919,22 @@ test('the attack diagram matches the real rules: arm sides and flank bonus', () 
   // Every tile it shows can really be aimed at or hit from there
   const at = (r: number, c: number) => both.tiles.find(t => t.row === r && t.col === c)?.mult;
   const { row, col } = both.me;
-  assert.equal(at(row - 1, col), 1, 'straight ahead: no bonus');
-  assert.equal(at(row, col - 1), 1.15, 'from the side: +15%');
-  assert.equal(at(row + 1, col), 1.3, 'from behind: +30%');
+  // The picture shows the shape alone: flanking depends on which way the one you hit faces, so it's on the board, not the card
+  assert.equal(at(row - 1, col), 1);
+  assert.equal(at(row, col - 1), 1);
+  assert.equal(at(row + 1, col), 1);
+});
+
+test('bodies face whoever they are going after, and blows from behind or the side land harder', () => {
+  // Enemy at 4,3 facing you below it (5,3): from the front no bonus, from its side some, from behind most
+  const s = fight({ grid: arena([5, 3], [4, 3]) });
+  assert.deepEqual(Fight.facingOf(s, { kind: 'foe', i: 0 }), { dr: 1, dc: 0 });
+  assert.equal(Fight.flankOn(s, { row: 5, col: 3 }, { kind: 'foe', i: 0 }), 0);
+  assert.equal(Fight.flankOn(s, { row: 4, col: 2 }, { kind: 'foe', i: 0 }), Fight.FLANK.side);
+  assert.equal(Fight.flankOn(s, { row: 3, col: 3 }, { kind: 'foe', i: 0 }), Fight.FLANK.back);
+  // You face the enemy you aim at: one that comes at your back hits harder
+  assert.deepEqual(Fight.facingOf(s, { kind: 'player' }), { dr: -1, dc: 0 });
+  assert.equal(Fight.flankOn(s, { row: 6, col: 3 }, { kind: 'player' }), Fight.FLANK.back);
 });
 
 test('movement is an area: reach grows slowly with points and comes out round', () => {
@@ -1001,7 +1014,7 @@ test("enemy attacks work like yours: sweet spots, and wide shapes hit everyone i
   const s = { ...near, allies: [ally], foes: [{ ...near.foes[0], unit: { ...near.foes[0].unit, moves: [sweep], heavyMoves: [] } }] };
   seedRandom(3);
   const after = Fight.foeTurn(s, 0, 1).state;
-  if (after.player.currentHp < s.player.currentHp) assert.ok(after.allies[0].unit.currentHp < ally.unit.currentHp, 'the sweep caught the ally too');
+  if (after.player.currentHp < s.player.currentHp) assert.ok(after.allies[0].unit.currentHp + after.allies[0].unit.currentStructuralHp < ally.unit.currentHp + ally.unit.currentStructuralHp, 'the sweep caught the ally too');
 });
 
 test('seven-part implants: lens sets the aim, coupling the damage type, core trades heat for power', async () => {

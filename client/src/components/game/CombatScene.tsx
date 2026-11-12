@@ -6,7 +6,6 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
-import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawDoll } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
@@ -533,7 +532,12 @@ if (fs.aim) {
   const tiles = Fight.aimTiles(fs, selectedAction, playerClass, fs.aim);
   aimedTiles = new Set(tiles.map(t => `${t.row},${t.col}`));
   // How hard it lands on each of those tiles (side, back and the shape's sweet spot): bolder where it hits harder
-  for (const t of tiles) aimedWeight.set(`${t.row},${t.col}`, (1 + getFlankBonus(grid.playerPosition, t)) * Fight.sweetSpot(selectedAction, playerClass, grid.playerPosition, fs.aim, t));
+  for (const t of tiles) {
+    // A body on the tile takes it from behind or the side harder (it faces whoever it's going after)
+    const i = fs.foes.findIndex(f => Fight.isAlive(f) && f.pos.row === t.row && f.pos.col === t.col);
+    const flank = i >= 0 ? Fight.flankOn(fs, grid.playerPosition, { kind: 'foe', i }) : 0;
+    aimedWeight.set(`${t.row},${t.col}`, (1 + flank) * Fight.sweetSpot(selectedAction, playerClass, grid.playerPosition, fs.aim, t));
+  }
   aimedMove = moveKind(selectedAction, playerClass);
   struckFoes = new Set(Fight.struckAt(fs, selectedAction, playerClass, fs.aim));
   aimedAccuracy = selectedAction.accuracy;
@@ -1124,6 +1128,9 @@ if (director.owns(fKey) || fFall !== null) { const w = director.where(fKey, f.po
 const fp0 = gridToScreen(visRow, visCol, width, height);
 const fp = { ...fp0, x: fp0.x + fj.dx, y: fp0.y + fj.dy - fHop * tileH };
 const isTarget = i === target && fFall === null;
+// It faces whoever it's going after (its back is where blows land hardest)
+const fDir = Fight.isAlive(f) ? Fight.facingOf(useCombat.getState(), { kind: 'foe', i }) : { dr: 0, dc: 0 };
+const fFacingLeft = fDir.dc !== 0 ? fDir.dc < 0 : f.pos.col > grid.playerPosition.col;
 const size = Math.max(tileW * DOLL, 34);
 const fTop = dollTop(fp.y, size);
 
@@ -1156,7 +1163,7 @@ const stumble = v.animator.getStumbleOffset();
 ctx.save();
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
 drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
-v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, { white: fj.white, fall: fFall ?? 0 });
+v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0 });
 ctx.restore();
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
 { const rise = director.guarding(fKey, now); if (fFall === null && (rise !== null || f.defenseBoost > 0)) drawGuard(ctx, fp.x, fp.y, tileW, f.pos.col > grid.playerPosition.col, now, rise, '#ff9a7a'); }

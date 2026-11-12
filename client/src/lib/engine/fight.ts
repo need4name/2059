@@ -12,7 +12,7 @@
 // player wins ties) unless an ally is drawing fire.
 
 import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
-import { getHeatMultipliers, getFlankBonus } from '../combat/types';
+import { getHeatMultipliers } from '../combat/types';
 import {
   calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
   PATCHWORK_KING_MONOLOGUE, PATCHWORK_KING_PHASES, KING_PARTS, kingPart, type KingPartId,
@@ -628,6 +628,41 @@ export function viewFor(s: FightState, i: number): CombatGrid {
 }
 
 /** Who foe i goes for: -1 for the player, or an ally's index. */
+// ── Facing ───────────────────────────────────────────────────────────────────
+// A body faces whoever it's going after: an enemy its victim (you, or the ally it's
+// turned on), you the enemy you're aiming at, an ally its nearest enemy. A blow from
+// behind that lands harder, from the side a little harder (FLANK), both ways.
+
+export const FLANK = { side: 0.2, back: 0.45 };
+type Dir = { dr: number; dc: number };
+const toward = (a: TilePosition, b: TilePosition): Dir => ({ dr: Math.sign(b.row - a.row), dc: Math.sign(b.col - a.col) });
+
+/** Which way a body faces right now. */
+export function facingOf(s: FightState, who: Body): Dir {
+  if (who.kind === 'foe') {
+    const f = s.foes[who.i], v = victimOf(s, who.i);
+    const at = v >= 0 && s.allies[v] ? s.allies[v].pos : s.grid.playerPosition;
+    return toward(f.pos, at);
+  }
+  if (who.kind === 'player') {
+    const t = s.foes[s.target];
+    const aimAt = t && isAlive(t) ? t.pos : livingFoes(s)[0]?.f.pos;
+    return aimAt ? toward(s.grid.playerPosition, aimAt) : { dr: -1, dc: 0 };
+  }
+  const a = s.allies[who.k];
+  const near = livingFoes(s).sort((x, y) => chebyshev(a.pos, x.f.pos) - chebyshev(a.pos, y.f.pos))[0];
+  return near ? toward(a.pos, near.f.pos) : { dr: -1, dc: 0 };
+}
+
+/** The extra a blow from `from` gets on a body facing `facing` at `at`: none from the front, FLANK.side from the side, FLANK.back from behind. */
+export function flankFrom(from: TilePosition, at: TilePosition, facing: Dir): number {
+  if (!facing.dr && !facing.dc) return 0;
+  const v = toward(at, from), dot = v.dr * facing.dr + v.dc * facing.dc;
+  return dot > 0 ? 0 : dot === 0 ? FLANK.side : FLANK.back;
+}
+export const flankOn = (s: FightState, from: TilePosition, who: Body) =>
+  flankFrom(from, who.kind === 'player' ? s.grid.playerPosition : who.kind === 'foe' ? s.foes[who.i].pos : s.allies[who.k].pos, facingOf(s, who));
+
 export function victimOf(s: FightState, i: number): number {
   const from = s.foes[i].pos;
   // A taunting ally draws only the enemies near it: where you put it matters
@@ -1228,7 +1263,7 @@ export function attackFootprint(action: CombatAction, playerClass: PlayerClass =
       // (only the aim must be on the arm's side; a wide swing can still spill across, as in a real fight)
       if (same(t, me)) continue;
       const range = flat ? 1 : getRangeBand(chebyshev(me, t), action.rangeOptimal!);
-      const mult = (1 + getFlankBonus(me, t)) * range * sweetSpot(action, playerClass, me, aim, t);
+      const mult = range * sweetSpot(action, playerClass, me, aim, t);
       const k = `${t.row},${t.col}`;
       // A tile several aims can land on shows its best
       if ((seen.get(k)?.mult ?? 0) < mult) seen.set(k, { row: t.row, col: t.col, mult });
@@ -1279,7 +1314,7 @@ export function estimateHit(s: FightState, action: CombatAction, playerClass: Pl
   return estimateDamage(s.player, foe.unit, action, {
     defenseBoost: foe.defenseBoost ?? 0,
     heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(s.playerHeat).dealt) * sweetSpot(action, playerClass, s.grid.playerPosition, aim, foe.pos) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
-    flankBonus: getFlankBonus(s.grid.playerPosition, foe.pos),
+    flankBonus: hasTrait(foe, 'alert') ? 0 : flankOn(s, s.grid.playerPosition, { kind: 'foe', i }) * s.perks.flankMult,
     tileDistance: chebyshev(s.grid.playerPosition, foe.pos),
     isMalfunctioning: s.playerMalfunctioning,
     bypassStructuralDefense: s.player.bypassStructuralDefense,
@@ -1485,7 +1520,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
       (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
-      hasTrait(foe, 'alert') ? 0 : getFlankBonus(grid.playerPosition, foe.pos) * s.perks.flankMult, dist, s.playerMalfunctioning,
+      hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i }) * s.perks.flankMult, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
       s.perks.runaway ? 0.45 : 0.30,
@@ -1680,7 +1715,10 @@ export function dangerInfo(s: FightState, level: number): Map<string, DangerTile
   const tile = (t: TilePosition) => { const k = `${t.row},${t.col}`; let d = out.get(k); if (!d) { d = { damage: 0 }; out.set(k, d); } return d; };
   const hitOn = (f: Foe, a: CombatAction, t: TilePosition, aim: TilePosition) => {
     const pattern = a.attackPattern ?? 'melee_long';
-    const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning });
+    // Standing there you'd face the enemy you're aiming at: a blow from behind or the side lands harder
+    const aimAt = s.foes[s.target] && isAlive(s.foes[s.target]) ? s.foes[s.target].pos : f.pos;
+    const flank = flankFrom(f.pos, t, toward(t, aimAt));
+    const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning, flankBonus: flank });
     return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1);
   };
   const shoveOf = (f: Foe, a: CombatAction, t: TilePosition) => {
@@ -1857,7 +1895,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   if (victim >= 0 && s.allies[victim]) { const r = hitAlly(s, i, victim, action, level, sweet); return { ...r, events: [strike, ...r.events] }; }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet;
-  const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, 0, chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, flankOn(s, foe.pos, { kind: 'player' }), chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [strike];
@@ -1899,7 +1937,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
 /** Foe i's attack landing on an ally. Allies have no structure bar: half the structural part spills onto the body. */
 function hitAlly(s: FightState, i: number, k: number, action: CombatAction, level: number, sweet = 1): Step {
   const foe = s.foes[i], ally = s.allies[k];
-  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, 0, chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
+  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
   // Its structure bar soaks the physical part first, like yours
   const lost = dmg.bioDamage;
   const hp = Math.max(0, ally.unit.currentHp - lost);
@@ -2162,7 +2200,7 @@ export function allyStruck(s: FightState, k: number, m: number): number[] {
 export function estimateAllyHit(s: FightState, k: number, m: number, i: number) {
   const a = s.allies[k], move = a?.moves[m], foe = s.foes[i];
   if (!a || !move?.damage || !foe) return null;
-  return estimateDamage(a.unit, foe.unit, move, { defenseBoost: foe.defenseBoost ?? 0, flankBonus: hasTrait(foe, 'alert') ? 0 : getFlankBonus(a.pos, foe.pos), tileDistance: chebyshev(a.pos, foe.pos) });
+  return estimateDamage(a.unit, foe.unit, move, { defenseBoost: foe.defenseBoost ?? 0, flankBonus: hasTrait(foe, 'alert') ? 0 : flankOn(s, a.pos, { kind: 'foe', i }), tileDistance: chebyshev(a.pos, foe.pos) });
 }
 /** Who ally k's defensive move m covers: itself and, for moves with reach, the player and allies within reach of it. */
 export function allyDefendTargets(s: FightState, k: number, m: number): { who: ({ kind: 'player' } | { kind: 'ally'; k: number })[]; mult: number } {
@@ -2195,7 +2233,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
     for (const j of struck.length ? struck : [i]) {
       const f = state.foes[j];
       if (!f || !isAlive(f)) continue;
-      const dmg = calculateDamage(a.unit, f.unit, move, f.defenseBoost, takenBy(f), hasTrait(f, 'alert') ? 0 : getFlankBonus(a.pos, f.pos), chebyshev(a.pos, f.pos), false, 0);
+      const dmg = calculateDamage(a.unit, f.unit, move, f.defenseBoost, takenBy(f), hasTrait(f, 'alert') ? 0 : flankOn(s, a.pos, { kind: 'foe', i: j }), chebyshev(a.pos, f.pos), false, 0);
       const hp = Math.max(0, f.unit.currentHp - dmg.bioDamage);
       const structure = Math.max(0, f.unit.currentStructuralHp - dmg.structuralDamage);
       dealt += f.unit.currentHp - hp;

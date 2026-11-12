@@ -275,7 +275,7 @@ overclockActive: false, kizunaJustFired: false,
 const GROUP_SCALE: Record<number, { hp: number; atk: number }> = { 1: { hp: 1, atk: 1 }, 2: { hp: 0.6, atk: 0.7 }, 3: { hp: 0.45, atk: 0.55 } };
 
 /** A firmware holder's health over an ordinary elite's. */
-const HOLDER_HP = 2.1;
+const HOLDER_HP = 2.4;
 
 function planFoes(level: number, firstRun: boolean, farm: boolean, roomEnemy?: string): Character[] {
 // Threat 10 is the chapter's set piece: the Patchwork King, or the Echo wearing your last body's implants

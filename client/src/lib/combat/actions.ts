@@ -549,7 +549,7 @@ const growth = (level: number, firstRun = false) => ({ hp: ENEMY_TUNING.hp * ENE
 // The Patchwork King is a wall: a level-10 boss with these multipliers.
 export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
-export const KING_EXTRA = { hp: 1.4, atk: 1.6 };
+export const KING_EXTRA = { hp: 1.2, atk: 1.05 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
