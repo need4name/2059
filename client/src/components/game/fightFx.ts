@@ -53,6 +53,8 @@ export class FxDirector {
   private particles: Particle[] = [];
   private numbers: Number_[] = [];
   private waves: { tiles: TilePosition[]; born: number; rising: boolean; c0: number; c1: number }[] = [];
+  private guardsUp = new Map<string, number>();
+  private flashUntil = 0;
   private shakeUntil = 0;
   private leftAt = 0;
   private shakeAmp = 0;
@@ -60,7 +62,7 @@ export class FxDirector {
   onSwing: (key: string, faceTo: TilePosition) => void = () => {};
   onHurt: (key: string) => void = () => {};
 
-  reset() { this.leftAt = 0; this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
+  reset() { this.guardsUp.clear(); this.flashUntil = 0; this.leftAt = 0; this.queue = []; this.active = []; this.held.clear(); this.throws.clear(); this.flashes.clear(); this.recoils.clear(); this.dying.clear(); this.chunks.clear(); this.tileFlashes = []; this.shots = []; this.rings = []; this.particles = []; this.numbers = []; }
 
   /** New packets from the store (anything not seen yet). */
   feed(packets: FxPacket[], now: number) {
@@ -100,6 +102,7 @@ export class FxDirector {
         if (RANGED.has(s.pattern)) this.shots.push({ s, born: now + FX.windup * squeeze, dur: sc.impact - FX.windup * squeeze });
       }
       for (const w of sc.p.windups) this.burst(`foe:${w}`, null, '#ff8a3a', 14, now, -1.2);
+      for (const g of sc.p.guards ?? []) this.guardsUp.set(g, now);
     }
   }
 
@@ -165,7 +168,17 @@ export class FxDirector {
       if (c.down && c.key === 'player') { this.dying.set('player', { start: t0 + 80, pos: c.pos[1] }); this.leftAt = t0 + 380; this.signal(c.pos[1], t0 + 380); }
     }
     if (bigHit > 0.15 || p.crit) { this.shakeAmp = Math.min(9, 3 + bigHit * 18 + (p.crit ? 3 : 0)); this.shakeUntil = t0 + FX.shake; }
-    if (p.surge) this.shakeAmp = Math.max(this.shakeAmp, 6), this.shakeUntil = Math.max(this.shakeUntil, t0 + FX.shake * 1.4);
+    if (p.surge) {
+      // Overload: the body screams. A white flash, a double shockwave from the host, streaks flying out
+      this.shakeAmp = Math.max(this.shakeAmp, 7); this.shakeUntil = Math.max(this.shakeUntil, t0 + FX.shake * 1.6);
+      this.flashUntil = now + 240;
+      const from = p.strikes[0]?.from ?? this.pos.get('player');
+      if (from) {
+        this.rings.push({ at: from, born: now, color: '#7fe9ff', reach: 3 }, { at: from, born: now + 140, color: '#ffffff', reach: 2.2 });
+        const c = this.toScreen(from.row, from.col), u = this.tile / 64;
+        for (let k = 0; k < 26; k++) { const a = (k / 26) * Math.PI * 2; this.particles.push({ x: c.x, y: c.y - this.tile * 0.35, vx: Math.cos(a) * 5 * u, vy: Math.sin(a) * 3 * u, g: 0, life: 360, born: now, color: k % 3 ? '#7fe9ff' : '#ffffff', size: Math.round(3 * u) }); }
+      }
+    }
   }
 
   private burst(key: string, at: TilePosition | null, color: string, n: number, born: number, up: number) {
@@ -305,9 +318,13 @@ export class FxDirector {
     }
   }
 
+  /** A guard going up on someone just now (0..1 through it), or null. */
+  guarding(key: string, now: number): number | null { const t = this.guardsUp.get(key); if (t === undefined) return null; const k = (now - t) / 650; if (k > 1) { this.guardsUp.delete(key); return null; } return Math.max(0, k); }
+
   /** Over the bodies: shots in flight, sparks, numbers. */
   drawOver(ctx: CanvasRenderingContext2D, now: number, drawNumber: (text: string, x: number, y: number, alpha: number, color: string, big: boolean) => void) {
     const T = this.tile;
+    if (now < this.flashUntil) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 0.45 * ((this.flashUntil - now) / 240); ctx.fillStyle = '#eafcff'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
     for (const sh of this.shots) {
       const k = (now - sh.born) / Math.max(1, sh.dur); if (k < 0) continue;
       const a = this.toScreen(sh.s.from.row, sh.s.from.col), farTile = sh.s.tiles.reduce((m, t) => (dist(sh.s.from, t) > dist(sh.s.from, m) ? t : m), sh.s.aim);
@@ -368,4 +385,25 @@ export function dmgColor(physical: number): string {
 }
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+/**
+ * A guard: a curved wall of small moulded plates in front of a body. `rise` 0..1 plays it going
+ * up (plates snapping in one by one, a flash), and without it, it's the faint wall that holds
+ * while the guard lasts.
+ */
+export function drawGuard(ctx: CanvasRenderingContext2D, cx: number, cy: number, tile: number, faceLeft: boolean, now: number, rise: number | null, color = '#7fe9ff') {
+  const n = 7, r = tile * 0.46, dir = faceLeft ? -1 : 1;
+  ctx.save();
+  for (let k = 0; k < n; k++) {
+    const t = k / (n - 1), a = (-0.55 + t * 1.1) * Math.PI * 0.5;
+    const shown = rise === null ? 1 : Math.max(0, Math.min(1, (rise * 1.6 - t * 0.6) * 2));
+    if (shown <= 0) continue;
+    const x = cx + dir * Math.cos(a) * r, y = cy - tile * 0.38 + Math.sin(a) * r * 1.1;
+    const w = tile * 0.12 * (0.6 + 0.4 * shown), h = tile * 0.2 * (0.6 + 0.4 * shown);
+    ctx.globalAlpha = rise === null ? 0.28 + 0.08 * Math.sin(now / 300 + k) : Math.min(1, shown) * (1 - Math.max(0, (rise - 0.6) / 0.4) * 0.7);
+    ctx.fillStyle = color; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x - w / 2, y - h / 2, w, Math.max(1, h * 0.18));
+  }
+  ctx.restore();
 }

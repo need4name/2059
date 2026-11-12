@@ -403,16 +403,18 @@ function ghostOf(g: Grid, dx: number, tint: string) {
   for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (src[y][x] && !src[y][x]!.endsWith('55')) { const nx = x + dx; if (nx >= 0 && nx < g.S && !g.c[y][nx]) g.c[y][nx] = `${tint}55`; }
 }
 const BONE = '#e8e0cc', WIRE = '#2a2d31';
+/** Where a boss is in its idle (0-3), for its own small motions. */
+const beat = (G: Geo) => (G.pose.idle >= 0 ? G.pose.idle : 0);
 export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: { dx: number; tint: string } }> = {
   // Fits limbs to whoever pays, and has fitted most of them to itself: a third arm from its back, a welder's visor, an apron
   'The Fitter': {
     back: (P, _g, G) => paintArm(P, G.F, { maker: 'volkov', tier: 2 }, G.tl - 6, G.top - 4, false),
-    front: (P, g, G) => { P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, G.bot - G.top + 2, '#6a4a2e'); P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, 1, '#8a6a4a'); P.rect(G.hx - 3, G.hy - 1, 8, 2, '#1c1a18'); P.rect(G.hx, G.hy - 1, 4, 1, '#ff8a2a'); g.glow.push({ x: G.hx + 2, y: G.hy - 1, col: '#ff8a2a', r: 4 }); },
+    front: (P, g, G) => { P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, G.bot - G.top + 2, '#6a4a2e'); P.rect(G.tl + 2, G.top + 4, G.tr - G.tl - 3, 1, '#8a6a4a'); P.rect(G.hx - 3, G.hy - 1, 8, 2, '#1c1a18'); const arc = ['#ff8a2a', '#ffd27a', '#ff8a2a', '#ffffff'][beat(G)]; P.rect(G.hx, G.hy - 1, 4, 1, arc); g.glow.push({ x: G.hx + 2, y: G.hy - 1, col: '#ff8a2a', r: beat(G) === 3 ? 6 : 4 }); },
   },
   // Wired into every chip on the water: a dish on its back, cables into the floor, a ring of listening chips round its head
   'The Listener': {
     back: (P, _g, G) => { P.oval(G.hx - 7, G.hy - 5, 5, 5, '#8a99a2'); P.oval(G.hx - 7, G.hy - 5, 3, 3, '#5a6a74'); P.px(G.hx - 7, G.hy - 5, '#4ad8ff'); for (let i = 0; i < 14; i++) { P.px(G.tl - 2 - Math.floor(i / 3), G.top + 4 + i * 2, WIRE); P.px(G.tl - 4 - Math.floor(i / 2), G.top + 6 + i * 2, '#2a5a6a'); } },
-    front: (P, g, G) => { const r = G.F.headR + 3; for (let a = 0; a < 12; a++) { const t = (a / 12) * Math.PI * 2; P.px(G.hx + Math.round(Math.cos(t) * r), G.hy + Math.round(Math.sin(t) * (r - 1)), a % 3 ? '#2a5a6a' : '#4ad8ff'); } g.glow.push({ x: G.hx, y: G.hy, col: '#4ad8ff', r: 6 }); for (const [x, y] of [[G.tl + 2, G.top + 5], [G.tr - 2, G.top + 9], [G.cx, G.bot - 2]]) P.px(x, y, '#7ad0e8'); },
+    front: (P, g, G) => { const r = G.F.headR + 3; for (let a = 0; a < 12; a++) { const t = (a / 12) * Math.PI * 2; P.px(G.hx + Math.round(Math.cos(t) * r), G.hy + Math.round(Math.sin(t) * (r - 1)), (a + beat(G)) % 3 ? '#2a5a6a' : '#4ad8ff'); } g.glow.push({ x: G.hx, y: G.hy, col: '#4ad8ff', r: 6 }); for (const [x, y] of [[G.tl + 2, G.top + 5], [G.tr - 2, G.top + 9], [G.cx, G.bot - 2]]) P.px(x, y, '#7ad0e8'); },
   },
   // A captain grown into her ship: a mast and a torn sail on her back, ribs for a keel, cables for hair
   'The Living Vessel': {
@@ -421,7 +423,7 @@ export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: {
   },
   // Fused to the scanning array: an arch round it with a red scan line, cables into its back
   'The Registrar': {
-    back: (P, g, G) => { const l = G.tl - 7, r = G.tr + 7, t = G.top - 16; shell(P, l, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, r - 2, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, l, t, r - l + 1, 3, MAKERS.ioa); P.rect(l + 3, t + 3, r - l - 5, 1, '#ff3a3a'); g.glow.push({ x: G.cx, y: t + 3, col: '#ff3a3a', r: 6 }); for (let i = 0; i < 8; i++) P.px(l + 3 + i, G.top + 2 + i, WIRE); },
+    back: (P, g, G) => { const l = G.tl - 7, r = G.tr + 7, t = G.top - 16; shell(P, l, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, r - 2, t, 3, G.S - 3 - t, MAKERS.ioa); shell(P, l, t, r - l + 1, 3, MAKERS.ioa); const sy = t + 3 + beat(G) * Math.round((G.S - 6 - t) / 4); P.rect(l + 3, sy, r - l - 5, 1, '#ff3a3a'); g.glow.push({ x: G.cx, y: sy, col: '#ff3a3a', r: 6 }); for (let i = 0; i < 8; i++) P.px(l + 3 + i, G.top + 2 + i, WIRE); },
   },
   // Keeps the count, one over: tally marks on its chest and a clipboard held like a wall
   'The Count': {
@@ -429,7 +431,7 @@ export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: {
   },
   // The oldest sleeper: its pod open behind it, long hair, more lines in its arms
   'The First Sleeper': {
-    back: (P, _g, G) => { const l = G.tl - 9, w = G.tr - G.tl + 18, t = G.top - 18; P.oval(l + Math.floor(w / 2), t + 20, Math.floor(w / 2), 22, '#b8d0d8'); P.oval(l + Math.floor(w / 2), t + 21, Math.floor(w / 2) - 2, 20, '#8aa8b4'); for (let i = 0; i < 3; i++) P.rect(l + 3 + i * 3, t + 2, 1, 14, '#7ad0d8'); },
+    back: (P, _g, G) => { const l = G.tl - 9, w = G.tr - G.tl + 18, t = G.top - 18; P.oval(l + Math.floor(w / 2), t + 20, Math.floor(w / 2), 22, '#b8d0d8'); P.oval(l + Math.floor(w / 2), t + 21, Math.floor(w / 2) - 2, 20, '#8aa8b4'); for (let i = 0; i < 3; i++) { P.rect(l + 3 + i * 3, t + 2, 1, 14, '#7ad0d8'); P.px(l + 3 + i * 3, t + 17 + ((beat(G) + i) % 4) * 2, '#d8f4ff'); } },
     front: (P, _g, G) => { for (let i = 0; i < 5; i++) P.rect(G.hx - G.F.headR + i * 2, G.hy - 3, 1, 10 + (i % 2) * 3, '#d8d4ca'); },
   },
   // The dream made of your memories: it trails a faint second self
@@ -437,7 +439,7 @@ export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: {
   // Keeps every worker in step: a speaker horn on its shoulder, a whistle, a baton beating time
   'The Overseer': {
     back: (P, _g, G) => { P.rect(G.tl - 2, G.top - 6, 2, 6, WIRE); for (let i = 0; i < 4; i++) P.rect(G.tl - 4 - i, G.top - 9 - i, 4 + i * 2, 1, i === 3 ? '#e07a1e' : '#c8ccd0'); },
-    front: (P, _g, G) => { P.px(G.hx + 4, G.hy + 3, '#e4ecef'); P.px(G.hx + 5, G.hy + 3, '#e4ecef'); P.rect(G.tr + 2, G.top - 8, 1, 10, '#2a2e32'); P.rect(G.tr + 1, G.top - 5, 3, 2, '#e07a1e'); },
+    front: (P, _g, G) => { P.px(G.hx + 4, G.hy + 3, '#e4ecef'); P.px(G.hx + 5, G.hy + 3, '#e4ecef'); const tick = [0, 1, 0, -1][beat(G)]; for (let i = 0; i < 10; i++) P.px(G.tr + 2 + Math.round((tick * (10 - i)) / 6), G.top - 8 + i, '#2a2e32'); P.rect(G.tr + 1 + tick, G.top - 5, 3, 2, '#e07a1e'); },
   },
   // Signs off every order: a pen as long as an arm, a red seal on its chest
   'The Signatory': {
@@ -445,7 +447,7 @@ export const SIGNATURES: Record<string, { back?: Touch; front?: Touch; ghost?: {
   },
   // The light coming down the corridor: a lens for a face, a halo behind, too bright to look at
   'The Pass': {
-    back: (P, g, G) => { P.oval(G.hx, G.hy, G.F.headR + 6, G.F.headR + 6, '#fff4c0'); P.oval(G.hx, G.hy, G.F.headR + 4, G.F.headR + 4, '#ffe08a'); for (let k = 0; k < 8; k++) { const t = (k / 8) * Math.PI * 2; for (let d = 9; d < 14; d++) P.px(G.hx + Math.round(Math.cos(t) * d), G.hy + Math.round(Math.sin(t) * d), '#fff4c0'); } g.glow.push({ x: G.hx, y: G.hy, col: '#fff4c0', r: 12 }); },
+    back: (P, g, G) => { P.oval(G.hx, G.hy, G.F.headR + 6, G.F.headR + 6, '#fff4c0'); P.oval(G.hx, G.hy, G.F.headR + 4, G.F.headR + 4, '#ffe08a'); for (let k = 0; k < 8; k++) { const t = (k / 8) * Math.PI * 2 + beat(G) * 0.1; for (let d = 9; d < 13 + ((k + beat(G)) % 2) * 2; d++) P.px(G.hx + Math.round(Math.cos(t) * d), G.hy + Math.round(Math.sin(t) * d), '#fff4c0'); } g.glow.push({ x: G.hx, y: G.hy, col: '#fff4c0', r: 12 }); },
     front: (P, _g, G) => { P.oval(G.hx + 1, G.hy, G.F.headR - 1, G.F.headR - 1, '#ffffff'); P.oval(G.hx + 1, G.hy, 1, 1, '#ffe08a'); },
   },
   // The fastest thing you'll fight: it leaves itself behind

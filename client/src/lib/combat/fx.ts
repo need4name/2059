@@ -25,6 +25,8 @@ export interface FxPacket {
   surge: boolean;
   /** Enemies that started winding up a heavy this step. */
   windups: number[];
+  /** Bodies that raised a guard this step (brace, a shield move, an ally's cover). */
+  guards: string[];
 }
 
 let seq = 0;
@@ -41,9 +43,13 @@ export function buildFx(before: FightState, after: FightState, events: FightEven
   after.allies.forEach((a, k) => { const b = before.allies[k]; if (b) add(`ally:${k}`, b.unit, a.unit, b.pos, a.pos, !!b.swimming, !!a.swimming); });
   const strikes = events.filter((e): e is FxStrike => e.kind === 'strike');
   const windups = after.foes.map((f, i) => (f.pendingAction && !before.foes[i]?.pendingAction ? i : -1)).filter(i => i >= 0);
-  if (!strikes.length && !changes.length && !windups.length) return null;
+  const guards: string[] = [];
+  if (after.playerDefenseBoost + after.allyGuard > before.playerDefenseBoost + before.allyGuard || (!!after.ward && !before.ward)) guards.push('player');
+  after.foes.forEach((f, i) => { if (f.defenseBoost > (before.foes[i]?.defenseBoost ?? 0)) guards.push(`foe:${i}`); });
+  after.allies.forEach((a, k) => { if (a.defenseBoost > (before.allies[k]?.defenseBoost ?? 0) || (!!a.ward && !before.allies[k]?.ward)) guards.push(`ally:${k}`); });
+  if (!strikes.length && !changes.length && !windups.length && !guards.length) return null;
   return {
-    id: ++seq, strikes, changes, windups,
+    id: ++seq, strikes, changes, windups, guards,
     crit: events.some(e => e.kind === 'log' && /CRITICAL/.test(e.message)),
     collide: events.some(e => e.kind === 'collide'),
     surge: events.some(e => e.kind === 'surge'),

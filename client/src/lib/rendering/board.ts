@@ -681,11 +681,27 @@ export function drawStatus(ctx: Ctx, cx: number, top: number, size: number, burn
   const p = Math.max(2, Math.round(size / 24));
   ctx.save();
   if (burning) {
-    const fx = Math.round(cx + size * 0.28), fy = Math.round(top + p * 2);
-    const flick = Math.floor(now / 120) % 2;
-    ctx.fillStyle = '#ff5a1f'; ctx.fillRect(fx - p, fy, p * 3, p * 2);
-    ctx.fillStyle = '#ffa22e'; ctx.fillRect(fx, fy - p * (1 + flick), p, p * (2 + flick));
-    ctx.fillStyle = '#ffe08a'; ctx.fillRect(fx, fy + p, p, p);
+    // Flames licking up the body from its feet: tongues that rise and fall, embers lifting off, a thread of smoke
+    const base = top + size * 0.86, w = size * 0.36;
+    for (let k = 0; k < 6; k++) {
+      const x = Math.round(cx - w / 2 + (k + 0.5) * (w / 6)), ph = now / 110 + k * 1.7;
+      const h = Math.round((size * (0.18 + 0.14 * ((k % 3) / 2))) * (0.75 + 0.25 * Math.sin(ph)));
+      const steps = Math.max(2, Math.round(h / p));
+      for (let j = 0; j < steps; j++) {
+        const t = j / steps, wob = Math.round(Math.sin(ph * 1.3 + j) * p * 0.6);
+        ctx.fillStyle = t < 0.35 ? '#ff5a1f' : t < 0.7 ? '#ffa22e' : '#ffe08a';
+        ctx.globalAlpha = 0.9 - t * 0.35;
+        ctx.fillRect(x + wob, Math.round(base - j * p), p * (t < 0.5 ? 2 : 1), p);
+      }
+    }
+    for (let e = 0; e < 4; e++) {
+      const k = ((now / 700) + e / 4) % 1;
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = e % 2 ? '#ffd27a' : '#ff7a3a';
+      ctx.fillRect(Math.round(cx + Math.sin(e * 2.1 + now / 300) * w * 0.4), Math.round(base - size * 0.3 - k * size * 0.5), p, p);
+    }
+    ctx.globalAlpha = 0.25; ctx.fillStyle = '#2a2420';
+    for (let j = 0; j < 4; j++) { const k = ((now / 1200) + j / 4) % 1; ctx.fillRect(Math.round(cx + Math.sin(now / 500 + j) * p * 2), Math.round(top + size * 0.15 - k * size * 0.3), p * 2, p * 2); }
+    ctx.globalAlpha = 1;
   }
   if (stunned) {
     ctx.fillStyle = '#ffe14a';

@@ -502,6 +502,10 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - **Implants in motion:** a Volkov arm punches out on its piston (the rod shows as it extends), a Tianxia claw reaches a little further, a Kizuna blade leaves a bright arc.
 - **Host lost:** the body drops and the signal leaves it: a pale copy of the host rises out of it and thins away in a drift of cyan.
 - **The world:** when the tide turns a front of water with a line of foam rolls across the mud (in or out), spray where it breaks; when the King's raft breaks its plastic comes apart into pieces that drift off on the water; a part knocked off the King skids and spins from him to where it lands.
+- **Burning:** flames lick up the body from its feet, embers lift off, a thread of smoke rises.
+- **Guards:** when a guard goes up (Brace, a shield move, an enemy's guard, an ally's cover) a curved wall of small moulded plates snaps into place in front of the body with a flash, then stays as a faint shimmer while the guard lasts (cyan yours, the ally's colour for an ally, red for an enemy).
+- **Overload surge:** a white flash over the board, a double shockwave from the host, streaks flying out, a heavier shake.
+- **Bosses idle in their own way:** the Listener's chip ring cycles, the Pass's halo flares, the Fitter's visor flickers like a welding arc, the Registrar's scan line sweeps down its arch, the First Sleeper's drips fall, the Overseer's baton beats time.
 - The board never blanks: the canvas is only resized when its size really changes, and redrawn at once when it is.
 - **The last blow plays out** (about 1.4s) before the win or loss screen, and nothing else in the fight runs after it (this also fixed a fight that could hang when a vent burst killed the last enemy at the end of your turn).
 - Weighty pacing: a wind-up of about a quarter second, travel at about 75ms a tile, about half a second of aftermath. A backlog of blows plays faster so the board never falls behind.

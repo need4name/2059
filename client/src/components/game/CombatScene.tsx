@@ -9,7 +9,7 @@ import { moveKind, damageTypeRgb } from './hud';
 import { getFlankBonus } from '@/lib/combat/types';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
 import { drawDoll } from '@/lib/rendering/dolls';
-import { FxDirector } from './fightFx';
+import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useAugmentTrees } from '@/lib/stores/useAugmentTrees';
@@ -1004,6 +1004,9 @@ const leave = director.leaving(now);
 if (leave !== null) { ctx.save(); ctx.globalAlpha = 0.55 * (1 - leave); drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop - leave * tileH * 1.1, spriteSize, 'idle', 0, playerFacingLeft, { white: true }); ctx.restore(); }
 
 drawStatus(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, playerBurning > 0, playerStunned, now);
+// A guard up: a wall of plates in front of you (snapping in as it goes up, faint while it holds)
+{ const st = useCombat.getState(), rise = director.guarding('player', now);
+  if (rise !== null || st.playerDefenseBoost > 0 || st.allyGuard > 0 || st.ward) drawGuard(ctx, playerPos.x, playerPos.y, tileW, playerFacingLeft, now, rise); }
 if (useCombat.getState().playerSwimming) drawSwimming(ctx, playerPos.x, pTop + spriteSize * 0.12, spriteSize * 0.8, tileset.sea, now);
 } });
 
@@ -1057,6 +1060,7 @@ ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
 drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col, { white: aj.white, fall: aFall ?? 0 });
 drawStatus(ctx, ap.x, aTop + size * 0.12, size * 0.8, a.burning > 0, a.stunned, now);
+{ const rise = director.guarding(key, now); if (rise !== null || a.defenseBoost > 0 || a.ward) drawGuard(ctx, ap.x, ap.y, tileW, a.pos.col > grid.bossPosition.col, now, rise, a.unit.spriteColor || '#7fe9ff'); }
 if (a.swimming) drawSwimming(ctx, ap.x, aTop + size * 0.12, size * 0.8, tileset.sea, now);
 ctx.restore();
 } });
@@ -1130,6 +1134,7 @@ drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stum
 v.animator.getState(), v.animator.getFrame(), f.pos.col > grid.playerPosition.col, { white: fj.white, fall: fFall ?? 0 });
 ctx.restore();
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
+{ const rise = director.guarding(fKey, now); if (fFall === null && (rise !== null || f.defenseBoost > 0)) drawGuard(ctx, fp.x, fp.y, tileW, f.pos.col > grid.playerPosition.col, now, rise, '#ff9a7a'); }
 if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.sea, now);
 } });
 overlay.push(() => {
