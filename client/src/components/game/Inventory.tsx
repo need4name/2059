@@ -13,26 +13,29 @@ import { withClass } from '@/lib/engine/firmware';
 import { NO_PERKS } from '@/lib/engine/playi';
 import { DRIVE } from '@/lib/engine/fight';
 import { getRarityColor } from '@/lib/combat/loot';
+import { hologram, slotAnchors, FRAMES, type DollSpec } from '@/lib/rendering/dolls';
+import { hostDoll } from '@/lib/rendering/dollSpecs';
 
 // ── Body map ─────────────────────────────────────────────────────────────────
-// A ripperdoc view: the host's body in the middle, each implant slot marked where
-// it sits, and a card per slot down each side joined to it by a thin line.
+// A ripperdoc view: the host's own body in the middle (its firmware's shape, as a
+// scanner hologram, with what it has fitted in its own plastic), each implant slot
+// marked where it sits on that body, and a card per slot down each side joined to it.
 // Coordinates are in a 360 x 430 box; the cards are placed by percentage.
 
 const VB = { w: 360, h: 430 };
 const CARD_W = 106;
-type Spot = { slot: AugmentationSlot; at: [number, number]; side: 'left' | 'right'; cardY: number };
+type Spot = { slot: AugmentationSlot; side: 'left' | 'right'; cardY: number };
 const SPOTS: Spot[] = [
-  { slot: 'brain', at: [180, 38], side: 'left', cardY: 34 },
-  { slot: 'eyes', at: [170, 56], side: 'left', cardY: 112 },
-  { slot: 'lungs', at: [166, 134], side: 'left', cardY: 190 },
-  { slot: 'left_arm', at: [124, 182], side: 'left', cardY: 268 },
-  { slot: 'left_leg', at: [160, 326], side: 'left', cardY: 380 },
-  { slot: 'ears', at: [204, 56], side: 'right', cardY: 34 },
-  { slot: 'nose', at: [184, 66], side: 'right', cardY: 112 },
-  { slot: 'misc', at: [194, 166], side: 'right', cardY: 190 },
-  { slot: 'right_arm', at: [236, 182], side: 'right', cardY: 268 },
-  { slot: 'right_leg', at: [200, 326], side: 'right', cardY: 380 },
+  { slot: 'brain', side: 'left', cardY: 34 },
+  { slot: 'eyes', side: 'left', cardY: 112 },
+  { slot: 'lungs', side: 'left', cardY: 190 },
+  { slot: 'left_arm', side: 'left', cardY: 268 },
+  { slot: 'left_leg', side: 'left', cardY: 380 },
+  { slot: 'ears', side: 'right', cardY: 34 },
+  { slot: 'nose', side: 'right', cardY: 112 },
+  { slot: 'misc', side: 'right', cardY: 190 },
+  { slot: 'right_arm', side: 'right', cardY: 268 },
+  { slot: 'right_leg', side: 'right', cardY: 380 },
 ];
 
 const SHORT_NAME: Record<AugmentationSlot, string> = {
@@ -40,54 +43,39 @@ const SHORT_NAME: Record<AugmentationSlot, string> = {
   left_arm: 'L arm', right_arm: 'R arm', left_leg: 'L leg', right_leg: 'R leg',
 };
 
-// The body outline, in the 360 x 430 box. It's never drawn as vectors: PixelBody
-// rasterises it onto a coarse grid so the figure is pixel art like the board.
-const BODY_PATHS = [
-  'M180 25 a24 29 0 1 0 0.1 0 Z', // head
-  'M170 80 Q180 88 190 80 L192 96 L168 96 Z',
-  'M140 102 Q180 90 220 102 Q230 106 232 120 L226 170 Q222 196 214 218 L146 218 Q138 196 134 170 L128 120 Q130 106 140 102 Z',
-  'M134 108 Q120 112 118 130 L110 196 Q108 214 112 232 Q118 238 124 232 L130 200 L138 140 Z',
-  'M226 108 Q240 112 242 130 L250 196 Q252 214 248 232 Q242 238 236 232 L230 200 L222 140 Z',
-  'M146 216 L178 216 L176 300 L172 380 Q170 400 164 410 L150 410 Q148 396 150 380 L148 300 Z',
-  'M182 216 L214 216 L212 300 L210 380 Q212 396 210 410 L196 410 Q190 400 188 380 L184 300 Z',
-];
-
-/** The host's body as pixel art: a dark frame, a lit rim, faint seams across it. */
-function PixelBody() {
-  const draw = (canvas: HTMLCanvasElement | null) => {
-    if (!canvas || canvas.dataset.drawn) return;
-    canvas.dataset.drawn = '1';
-    const P = 5, w = Math.ceil(VB.w / P), h = Math.ceil(VB.h / P);
-    canvas.width = w; canvas.height = h;
+/** This host's body as a scanner hologram: its firmware's shape, with what it has fitted in its own plastic (dolls.ts). */
+function PixelBody({ spec }: { spec: DollSpec }) {
+  const key = JSON.stringify(spec);
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const { S, c } = hologram(spec);
+    canvas.width = S; canvas.height = S;
     const g = canvas.getContext('2d')!;
-    g.scale(1 / P, 1 / P);
-    g.fillStyle = '#fff';
-    BODY_PATHS.forEach(d => g.fill(new Path2D(d)));
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    const src = g.getImageData(0, 0, w, h);
-    const on = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src.data[(y * w + x) * 4 + 3] > 110;
-    const outImg = g.createImageData(w, h);
-    const put = (x: number, y: number, [r, gg, b, a]: number[]) => { const i = (y * w + x) * 4; outImg.data.set([r, gg, b, a], i); };
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (!on(x, y)) continue;
-      const edge = !on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1);
-      const litSide = !on(x - 1, y) || !on(x, y - 1);
-      if (edge) put(x, y, litSide ? [110, 232, 250, 255] : [40, 150, 175, 255]);
-      else if (y % 9 === 0 || x === Math.round(180 / P)) put(x, y, [24, 70, 84, 255]);   // seams
-      else put(x, y, (x + y) % 2 ? [16, 48, 60, 255] : [18, 53, 66, 255]);
-    }
-    g.putImageData(outImg, 0, 0);
-  };
-  return <canvas ref={draw} className="absolute inset-0 h-full w-full" style={{ imageRendering: 'pixelated' }} aria-hidden />;
+    g.clearRect(0, 0, S, S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const col = c[y][x]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  // A square the width of the box, centred top to bottom (the same placement BodyMap uses for its markers)
+  return <canvas ref={ref} className="absolute" style={{ left: `${(BODY.x / VB.w) * 100}%`, top: `${(BODY.y / VB.h) * 100}%`, width: `${(BODY.size / VB.w) * 100}%`, aspectRatio: '1 / 1', imageRendering: 'pixelated' }} aria-hidden />;
 }
+/** Where the hologram sits in the 360 x 430 box: between the two columns of cards, feet clear of the bottom. */
+const BODY = { x: 45, y: 42, size: 270 };
+const toBox = (S: number, p: { x: number; y: number }): [number, number] => [BODY.x + (p.x + 0.5) * (BODY.size / S), BODY.y + (p.y + 0.5) * (BODY.size / S)];
 
 function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot | null; onSelect: (s: AugmentationSlot | null) => void; spareFor: (s: AugmentationSlot) => boolean }) {
   const { equippedAugmentations } = useInventory();
+  const playerClass = useCombat(st => st.playerClass);
+  const owned = useAugmentTrees(st => st.owned);
+  // The body this host wakes in (its firmware's), wearing what it has fitted; markers land on its parts
+  const spec = hostDoll(playerClass, equippedAugmentations as Record<string, Item | null>, it => owned[it.id]?.length ?? 0);
+  const anchors = slotAnchors(spec), S = FRAMES[spec.frame].S;
+  const spots = SPOTS.map(sp => ({ ...sp, at: toBox(S, anchors[sp.slot]) }));
   return (
     <div className="relative w-full" style={{ aspectRatio: `${VB.w} / ${VB.h}` }}>
-      <PixelBody />
+      <PixelBody spec={spec} />
       <svg viewBox={`0 0 ${VB.w} ${VB.h}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
-        {SPOTS.map(sp => {
+        {spots.map(sp => {
           const eq = equippedAugmentations[sp.slot];
           const color = eq ? getRarityColor(eq.rarity) : 'rgba(255,255,255,0.28)';
           const on = selected === sp.slot;

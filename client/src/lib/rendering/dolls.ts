@@ -672,3 +672,43 @@ export function drawDollHead(ctx: CanvasRenderingContext2D, spec: DollSpec, cx: 
   ctx.drawImage(img, cx - (hx + PAD + 0.5) * unit, cy - (hy + PAD + 0.5) * unit, img.width * unit, img.height * unit);
   ctx.restore();
 }
+
+/**
+ * Where each implant slot sits on a body (grid pixels, standing still): for the
+ * implants screen's body map, so its markers land on the parts of this host's body.
+ */
+export function slotAnchors(spec: DollSpec): Record<BodySlot, { x: number; y: number }> {
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const cx = Math.round(F.S / 2), top = F.top, bot = F.bot;
+  const tl = cx - F.shoulder + F.lean, tr = cx + F.shoulder + F.lean - 1;
+  const hx = cx + F.lean + 1, hy = F.headY, mid = Math.round((tl + tr) / 2);
+  const elbow = top + 1 + Math.round(F.armLen * 0.42) + 3, knee = Math.round((bot + 1 + F.S - 3) / 2);
+  return {
+    brain: { x: hx, y: hy - F.headRy + 1 }, eyes: { x: hx + 2, y: hy }, ears: { x: hx - F.headR, y: hy }, nose: { x: hx + 3, y: hy + 3 },
+    lungs: { x: mid, y: top + 4 }, misc: { x: tl + 1, y: top + Math.round((bot - top) / 2) },
+    left_arm: { x: tl - 2, y: elbow }, right_arm: { x: tr + 2, y: elbow },
+    left_leg: { x: cx - 3, y: knee }, right_leg: { x: cx + 2, y: knee },
+  };
+}
+
+/**
+ * A body as a scanner hologram (the implants screen): the frame's shape in cyan, lit on
+ * its top-left edges with faint scan lines, and every fitted implant in its own plastic.
+ * Returns an S x S grid of colours (null where empty).
+ */
+export function hologram(spec: DollSpec): { S: number; c: (string | null)[][] } {
+  const full = paintDoll({ ...spec, team: 'you' }, 'idle', 0).c;
+  const bare = paintDoll({ ...spec, team: 'you', parts: {} }, 'idle', 0).c;
+  const S = full.length;
+  const solid = (x: number, y: number) => { const v = full[y]?.[x]; return !!v && v !== OUTLINE && !v.startsWith(TEAM.you); };
+  const out: (string | null)[][] = Array.from({ length: S }, () => Array<string | null>(S).fill(null));
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    if (!solid(x, y)) continue;
+    // An implant pixel: something the bare body doesn't have there
+    if (full[y][x] !== bare[y]?.[x]) { out[y][x] = full[y][x]; continue; }
+    const edge = !solid(x - 1, y) || !solid(x + 1, y) || !solid(x, y - 1) || !solid(x, y + 1);
+    const lit = !solid(x - 1, y) || !solid(x, y - 1);
+    out[y][x] = edge ? (lit ? '#6ee8fa' : '#2896af') : y % 4 === 0 ? '#18465a' : (x + y) % 2 ? '#10303c' : '#123542';
+  }
+  return { S, c: out };
+}
