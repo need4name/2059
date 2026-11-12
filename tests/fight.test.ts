@@ -1414,3 +1414,19 @@ test('the red says what a tile costs: a heavy locked on it adds its hit, a shove
   assert.ok(h.get('6,3')?.heavy && (h.get('6,3')?.damage ?? 0) > 0, 'the locked tiles carry the heavy');
   assert.equal(h.get('5,3'), undefined, 'winding up, it threatens nothing else');
 });
+
+test('the red counts a wide blow aimed at an ally that would catch you, parting blows have a price, and a second go has a number', () => {
+  const s = fight({ grid: arena([6, 3], [4, 3]) });
+  const sweep: CombatAction = { ...hitFor(30, 1), attackPattern: 'sweep_arc' };
+  const ally = { id: 'bale', unit: createPlayer(), pos: { row: 5, col: 3 }, moves: [], move: 2, cooldowns: [], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false } as unknown as FightState['allies'][number];
+  const st = { ...s, allies: [ally], foes: [{ ...s.foes[0], unit: { ...s.foes[0].unit, moves: [sweep] } }] };
+  // The sweep aimed at Bale (5,3) covers the tiles either side of him: standing at 5,2 you'd be caught
+  const caught = getHitTiles({ row: 4, col: 3 }, { row: 5, col: 3 }, 'sweep_arc', { ...st.grid, bossPosition: { row: 4, col: 3 }, playerPosition: { row: 5, col: 3 } }).find(t => !(t.row === 5 && t.col === 3) && !(t.row === 4 && t.col === 3))!;
+  assert.ok((Fight.dangerInfo(st, 1).get(`${caught.row},${caught.col}`)?.damage ?? 0) > 0, 'a blow aimed at an ally still shows where it would catch you');
+  // Beside an enemy, stepping away costs; staying beside it doesn't
+  const beside = fight({ grid: arena([5, 3], [4, 3]) });
+  assert.ok(Fight.partingDamage(beside, { row: 5, col: 3 }, { row: 7, col: 3 }, 1) > 0);
+  assert.equal(Fight.partingDamage(beside, { row: 5, col: 3 }, { row: 5, col: 4 }, 1), 0);
+  assert.ok(Fight.secondGoDamage(beside, 1, [0]) > 0);
+  assert.equal(Fight.secondGoDamage(beside, 1, []), 0);
+});

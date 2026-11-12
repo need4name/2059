@@ -570,8 +570,14 @@ const moveColor = allyMoveMode !== null ? (allies[allyMoveMode]?.unit.spriteColo
 // Move tiles where going there hurts: a parting blow (walking away from an enemy beside you),
 // ending your turn inside an enemy's reach, or a hazard underfoot. Drawn red; the rest blue.
 const hurtTiles = new Set<string>();
+// What stepping away from an enemy beside you costs, on the tiles where it would (parting blows)
+const partingCost = new Map<string, number>();
+// What an enemy that acts twice could do on its second go: shown on the faint dashed tiles
+const secondGo = phase === 'player_turn' && twiceNow.length ? Fight.secondGoDamage(useCombat.getState(), useCombat.getState().farmLevel ?? useCombat.getState().bossLevel, twiceNow) : 0;
 if (moveTiles && allyMoveMode === null && originalPosition) {
   const st = useCombat.getState();
+  const lvl = st.farmLevel ?? st.bossLevel;
+  moveTiles.forEach(k => { const [row, col] = k.split(',').map(Number); const c = Fight.partingDamage(st, originalPosition, { row, col }, lvl); if (c > 0) partingCost.set(k, c); });
   moveTiles.forEach(k => {
     const [row, col] = k.split(',').map(Number);
     const t = grid.tiles?.[row]?.[col];
@@ -784,6 +790,14 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
       ctx.strokeStyle = 'rgba(235,70,90,0.85)';
       roundRectPath(ctx, pos.x - tileW / 2 + gap * 1.6, pos.y - tileH / 2 + gap * 1.6, tileW - gap * 3.2, tileH - gap * 3.2, radius * 0.8);
       ctx.stroke();
+      // Its number too, fainter: what it could do if it walks into reach first
+      if (secondGo > 0) {
+        ctx.font = `700 ${Math.max(9, Math.floor(tileW * 0.15))}px Manrope, sans-serif`;
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.globalAlpha = 0.75;
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.fillStyle = '#ffd6dc';
+        const tx = pos.x + tileW / 2 - gap - tileW * 0.06, ty = pos.y + tileH / 2 - gap - tileH * 0.04;
+        ctx.setLineDash([]); ctx.strokeText(`-${secondGo}`, tx, ty); ctx.fillText(`-${secondGo}`, tx, ty);
+      }
       ctx.restore();
     }
   }
@@ -870,6 +884,17 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, Math.max(3, tileW * 0.06), 0, Math.PI * 2);
     ctx.fill();
+    // A parting blow: what stepping here away from an enemy beside you costs, top-left, in orange
+    const pc = partingCost.get(`${row},${col}`);
+    if (pc) {
+      ctx.save();
+      ctx.font = `800 ${Math.max(9, Math.floor(tileW * 0.15))}px Manrope, sans-serif`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.fillStyle = '#ffb06a';
+      const tx = pos.x - tileW / 2 + gap + tileW * 0.08, ty = pos.y - tileH / 2 + gap + tileH * 0.06;
+      ctx.strokeText(`-${pc}`, tx, ty); ctx.fillText(`-${pc}`, tx, ty);
+      ctx.restore();
+    }
   }
 
   // A part torn off the King, waiting for whoever gets there first

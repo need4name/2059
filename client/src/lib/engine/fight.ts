@@ -1704,21 +1704,61 @@ export function dangerInfo(s: FightState, level: number): Map<string, DangerTile
     }
     if (f.stunned) continue;
     const moves = [...foeRoster(f).filter(a => a.type === 'attack' && !a.isHeavy), CLOSE_QUARTERS].map(a => scaleBossAction(a, level));
+    // This enemy's worst on each tile (it acts once: the worst of what it could do counts)
+    const mine = new Map<string, { v: number; push?: DangerTile['shove']; t: TilePosition }>();
+    const keep = (t: TilePosition, v: number, push?: DangerTile['shove']) => { const k = `${t.row},${t.col}`, m = mine.get(k); if (!m || v > m.v) mine.set(k, { v, push: push ?? m?.push, t }); };
     for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
       const t = { row, col };
       if (same(t, f.pos)) continue;
       const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: t, occupied: occupied.filter(p => !same(p, t)) };
-      let worst = 0, push: DangerTile['shove'];
       for (const a of moves) {
         if (!getHitTiles(f.pos, t, a.attackPattern ?? 'melee_long', view).some(x => same(x, t))) continue;
-        const v = hitOn(f, a, t, t);
-        if (v > worst) worst = v;
-        push = push ?? shoveOf(f, a, t);
+        keep(t, hitOn(f, a, t, t), shoveOf(f, a, t));
       }
-      if (worst > 0) { const d = tile(t); d.damage += Math.round(worst); d.shove = d.shove ?? push; }
     }
+    // Aimed at an ally, a wide blow (a sweep, a beam, a blast) still catches you if you stand in it
+    for (const al of s.allies) {
+      if (!allyAlive(al) || al.swimming) continue;
+      const view: CombatGrid = { ...s.grid, bossPosition: f.pos, playerPosition: al.pos, occupied: occupied.filter(p => !same(p, al.pos)) };
+      for (const a of moves) {
+        const pat = a.attackPattern ?? 'melee_long';
+        if (!MULTI_HIT.has(pat)) continue;
+        const tiles = getHitTiles(f.pos, al.pos, pat, view);
+        if (!tiles.some(x => same(x, al.pos))) continue;
+        for (const x of tiles) if (!same(x, al.pos) && !same(x, f.pos)) keep(x, hitOn(f, a, x, al.pos), shoveOf(f, a, x));
+      }
+    }
+    mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v); d.shove = d.shove ?? m.push; } });
   }
   return out;
+}
+
+/** What an enemy that acts twice could do on its second go (after a walk, so it's a typical hit, no sweet spot): the faint dashed tiles. */
+export function secondGoDamage(s: FightState, level: number, twice: number[]): number {
+  const heatTaken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
+  let worst = 0;
+  for (const i of twice) {
+    const f = s.foes[i];
+    if (!f || !isAlive(f) || f.swimming) continue;
+    for (const a of [...foeRoster(f).filter(m => m.type === 'attack' && !m.isHeavy), CLOSE_QUARTERS].map(m => scaleBossAction(m, level))) {
+      const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: 1, isMalfunctioning: f.malfunctioning });
+      worst = Math.max(worst, ((e.min + e.max) / 2) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1));
+    }
+  }
+  return Math.round(worst);
+}
+
+/** What walking from `from` to `to` costs in parting blows (enemies beside you that you'd step away from). */
+export function partingDamage(s: FightState, from: TilePosition, to: TilePosition, level: number): number {
+  if (s.noParting) return 0;
+  let total = 0;
+  for (const i of partingFoes(s, from, to)) {
+    const f = s.foes[i];
+    const move = scaleBossAction({ ...CLOSE_QUARTERS, name: 'Parting blow', damage: Math.round((CLOSE_QUARTERS.damage ?? 12) * 0.6 * s.perks.partingTakenMult) }, level);
+    const e = estimateDamage(f.unit, s.player, move, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: 1, isMalfunctioning: f.malfunctioning });
+    total += (e.min + e.max) / 2;
+  }
+  return Math.round(total);
 }
 
 /** Just the damage on each red tile (see dangerInfo). */
