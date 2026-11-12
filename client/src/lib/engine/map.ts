@@ -45,7 +45,7 @@ export interface MapState {
   taken: string[];
   /** The chapter's last fight is won (kept across hosts; the end room stays quiet). */
   done?: boolean;
-  /** Rooms where hosts were lost, oldest first (kept across hosts). */
+  /** Every host lost, by room, oldest first (a room appears once per death; kept across hosts, washed clean by a rest). */
   fell?: string[];
   /** The last lost host's body and the best part still fitted to it, where it fell.
    *  The next host can take it back; losing another host first loses it for good. */
@@ -111,7 +111,8 @@ export const wakePlaces = (s: MapState): string[] => {
 /** A server this host can rest at (in this room, and nothing here is fighting you). */
 export const canRest = (s: MapState, room = roomById(s.room)) => isServer(s, room) && !hasFight(s, room);
 /** Rest at the server: you heal, and every fight this host has won comes back (beaten bosses stay down). Caches and events stay used. */
-export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [], rests: (s.rests ?? 0) + 1 } : s);
+// Resting also washes the map clean of blood: it shows how hard rooms have been since the last rest, not forever
+export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [], rests: (s.rests ?? 0) + 1, fell: [] } : s);
 /** Call the beaten boss here back for this host to fight again (for its drop). */
 export const recall = (s: MapState): MapState =>
   (canRest(s) ? { ...s, recalled: [...(s.recalled ?? []), s.room], cleared: s.cleared.filter(id => id !== s.room) } : s);
@@ -149,7 +150,7 @@ export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, tak
 /** A new host wakes at the entry (or a server reached before, `at`): fights refill, caches restock, memory and goals stay. */
 export const newHost = (s: MapState, left: Item | null = null, at?: string): MapState => ({
   ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, overload: 0, recalled: [],
-  fell: [...(s.fell ?? []).filter(id => id !== s.room), s.room],
+  fell: [...(s.fell ?? []), s.room],
   corpse: left ? { room: s.room, item: left } : null,
 });
 
@@ -168,7 +169,7 @@ export function takeCorpse(s: MapState): { state: MapState; item: Item | null } 
  */
 export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'event' | 'server' | 'market' | 'cleared';
 /** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
-export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; fell: boolean; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
+export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; /** Hosts lost here since the last rest (the blood on its slab). */ deaths: number; sealed: boolean; /** The last host's body (and its part) waits here. */ corpse: boolean }
 
 export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark | null {
   if (hasFight(s, room)) return room.threat! % 10 === 0 ? 'boss' : room.threat! % 5 === 0 ? 'elite' : 'fight';
@@ -189,7 +190,7 @@ export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; li
   const heights = roomHeights(m);
   const byId = new Map(m.rooms.map(r => [r.id, r]));
   const seen = new Set(s.visited);
-  const fell = new Set(s.fell ?? []);
+  const deaths = new Map<string, number>(); for (const id of s.fell ?? []) deaths.set(id, (deaths.get(id) ?? 0) + 1);
   const shown = new Set(seen);
   const sealed = new Set<string>();
   const links: [string, string][] = [];
@@ -201,7 +202,7 @@ export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; li
   const rooms = Array.from(shown).map(id => {
     const r = byId.get(id)!;
     const mark = seen.has(id) ? roomMark(s, r, met) : null;
-    return { id, at: r.at, z: heights[id] ?? 0, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), fell: fell.has(id), sealed: sealed.has(id), corpse: s.corpse?.room === id };
+    return { id, at: r.at, z: heights[id] ?? 0, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), deaths: deaths.get(id) ?? 0, sealed: sealed.has(id), corpse: s.corpse?.room === id };
   });
   return { rooms, links };
 }

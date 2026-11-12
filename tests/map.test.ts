@@ -67,13 +67,15 @@ test('the map remembers rooms across hosts, glimpses the doors beyond, and marks
   const seen = view.rooms.filter(r => r.seen).map(r => r.id).sort();
   assert.deepEqual(seen, ['deck', 'dock', 'walkway']);
   for (const r of view.rooms.filter(r => !r.seen)) assert.ok([s.room, 'deck', 'dock'].some(id => M.roomById(id).exits.some(e => e.to === r.id)), `${r.id} is behind a door the signal has seen`);
-  assert.ok(view.rooms.find(r => r.id === 'walkway')!.fell);
+  assert.equal(view.rooms.find(r => r.id === 'walkway')!.deaths, 1);
   assert.equal(view.rooms.find(r => r.id === 'dock')!.mark, 'market');
   // Each way is drawn once
   const keys = view.links.map(l => [...l].sort().join('>'));
   assert.equal(new Set(keys).size, keys.length);
-  // Dying in the same room twice marks it once, as the latest
-  assert.deepEqual(M.newHost({ ...M.newHost({ ...host, room: 'deck' }), room: 'walkway' }).fell, ['deck', 'walkway']);
+  // Every death counts: the blood on a room grows with how many hosts were lost there
+  const again = M.newHost({ ...M.newHost({ ...host, room: 'deck' }), room: 'walkway' });
+  assert.deepEqual(again.fell, ['walkway', 'deck', 'walkway']);
+  assert.equal(M.mapView(again).rooms.find(r => r.id === 'walkway')!.deaths, 2);
 });
 
 test('found rooms show what is there, most pressing first; glimpsed rooms show nothing', () => {
@@ -282,6 +284,8 @@ test('health carries between fights: a win gives some back, resting and a new ho
   assert.equal(M.healthNow(s, max), 30);
   assert.equal(M.healthNow({ ...s, hurt: 500 }, max), 1, 'a host never starts a fight dead');
   assert.equal(M.rest(s).hurt, 0);
+  // Resting washes the blood off the map
+  assert.deepEqual(M.rest({ ...s, fell: ['deck', 'deck'] }).fell, []);
   assert.equal(M.newHost(s).hurt, 0);
 });
 

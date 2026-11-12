@@ -154,6 +154,14 @@ export function SignalMap() {
       cam.current.x += (goal.x - cam.current.x) * 0.18;
       cam.current.y += (goal.y - cam.current.y) * 0.18;
       const ox = Math.round(w / 2 - cam.current.x), oy = Math.round(h / 2 - cam.current.y);
+      // A fixed 0..1 value for a room and a pixel (so a pattern holds still frame to frame)
+      const noise = (id: string, x: number, y: number) => {
+        let h = 2166136261;
+        for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+        h = Math.imul(h ^ (x * 374761393), 668265263) ^ Math.imul(y, 2246822519);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+      };
       const px = (x: number, y: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
       const rect = (x: number, y: number, rw: number, rh: number, col: string) => { ctx.fillStyle = col; ctx.fillRect(x, y, rw, rh); };
       // Fill a shape pixel by pixel, row by row, so its edges stay crisp (no smoothing)
@@ -270,17 +278,42 @@ export function SignalMap() {
           for (let i = 0; i < 4; i++) line(grow[i], grow[(i + 1) % 4], C.hereLit);
           ctx.globalAlpha = fade(r);
         }
-        if (r.fell) {
-          // Where a host was lost: a stain near the top's south-west corner
-          const sx = Math.round(sw.x + (c.x - sw.x) * 0.35), sy = Math.round(sw.y + (c.y - sw.y) * 0.35) - 1;
-          rect(sx, sy, 3, 1, C.blood); rect(sx - 1, sy + 1, 4, 1, C.blood); rect(sx, sy + 2, 2, 1, C.bloodDark);
+        if (r.deaths > 0) {
+          // Blood: a pool that spreads over the slab the more hosts were lost here (since the last rest).
+          // Pixel by pixel from a spot near its south-west corner, ragged at the edge; the same every frame.
+          const cover = 1 - Math.pow(0.72, r.deaths);
+          const seed = { x: sw.x + (c.x - sw.x) * 0.4, y: sw.y + (c.y - sw.y) * 0.4 };
+          const span = Math.hypot(ne.x - sw.x, ne.y - sw.y);
+          const inside = (x: number, y: number) => {
+            let sign = 0;
+            for (let i = 0; i < 4; i++) {
+              const a = top[i], b = top[(i + 1) % 4], cr = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+              if (cr !== 0) { if (sign && Math.sign(cr) !== sign) return false; sign = Math.sign(cr); }
+            }
+            return true;
+          };
+          const cx0 = Math.round(c.x), cy0 = Math.round(c.y);
+          const x0 = Math.floor(Math.min(...top.map(p => p.x))), x1 = Math.ceil(Math.max(...top.map(p => p.x)));
+          const y0 = Math.floor(Math.min(...top.map(p => p.y))), y1 = Math.ceil(Math.max(...top.map(p => p.y)));
+          for (let y = y0 + 1; y < y1; y++) for (let x = x0 + 1; x < x1; x++) {
+            if (!inside(x + 0.5, y + 0.5)) continue;
+            const n = noise(r.id, x - cx0, y - cy0), clump = noise(r.id, (x - cx0) >> 1, (y - cy0) >> 1);
+            const d = Math.hypot(x - seed.x, (y - seed.y) * 1.7) / span;
+            const v = d * 0.8 + clump * 0.3 + n * 0.15;
+            if (v < cover * 1.05) px(x, y, v < cover * 0.6 ? C.bloodDark : C.blood);
+            else if (v < cover * 1.05 + 0.06 && n > 0.75) px(x, y, C.blood);
+          }
         }
         if (r.corpse) {
-          // The last host's body, with something still on it: a glint over the stain that comes and goes
-          const gx = Math.round(sw.x + (c.x - sw.x) * 0.35) + 2, gy = Math.round(sw.y + (c.y - sw.y) * 0.35) - 1, on = Math.floor(now / 380) % 3 !== 2;
-          ctx.globalAlpha = on ? 1 : 0.45;
-          px(gx, gy - 1, C.credLit); px(gx - 1, gy, C.credLit); px(gx, gy, '#fff6d0'); px(gx + 1, gy, C.credLit); px(gx, gy + 1, C.credLit);
-          ctx.globalAlpha = fade(r);
+          // Where the last host fell, its part still on the body: a small pale skull that glints, gone once the part is taken
+          const gx = Math.round(sw.x + (c.x - sw.x) * 0.4) - 2, gy = Math.round(sw.y + (c.y - sw.y) * 0.4) - 5 - (Math.floor(now / 700) % 2);
+          const SKULL = ['.xxx.', 'xxxxx', 'xoxox', 'xxxxx', '.x.x.'];
+          SKULL.forEach((row, j) => row.split('').forEach((ch, i) => {
+            if (ch === '.') return;
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if ((SKULL[j + dy]?.[i + dx] ?? '.') === '.') px(gx + i + dx, gy + j + dy, C.out);
+          }));
+          SKULL.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') px(gx + i, gy + j, ch === 'o' ? C.out : '#efe6d2'); }));
+          if (Math.floor(now / 380) % 3 !== 2) px(gx + 4, gy - 1, C.credLit);
         }
         if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' || r.mark === 'server' ? now : 0);
         if (mine) {
