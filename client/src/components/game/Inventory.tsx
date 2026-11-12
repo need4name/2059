@@ -57,10 +57,15 @@ function PixelBody({ spec }: { spec: DollSpec }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   // A square the width of the box, centred top to bottom (the same placement BodyMap uses for its markers)
-  return <canvas ref={ref} className="absolute" style={{ left: `${(BODY.x / VB.w) * 100}%`, top: `${(BODY.y / VB.h) * 100}%`, width: `${(BODY.size / VB.w) * 100}%`, aspectRatio: '1 / 1', imageRendering: 'pixelated' }} aria-hidden />;
+  // Canvases fill their parent (index.css), so a sized box holds it
+  return (
+    <div className="absolute" style={{ left: `${(BODY.x / VB.w) * 100}%`, top: `${(BODY.y / VB.h) * 100}%`, width: `${(BODY.size / VB.w) * 100}%`, height: `${(BODY.size / VB.h) * 100}%` }} aria-hidden>
+      <canvas ref={ref} style={{ imageRendering: 'pixelated' }} />
+    </div>
+  );
 }
 /** Where the hologram sits in the 360 x 430 box: between the two columns of cards, feet clear of the bottom. */
-const BODY = { x: 45, y: 42, size: 270 };
+const BODY = { x: 24, y: 78, size: 312 };
 const toBox = (S: number, p: { x: number; y: number }): [number, number] => [BODY.x + (p.x + 0.5) * (BODY.size / S), BODY.y + (p.y + 0.5) * (BODY.size / S)];
 
 function BodyMap({ selected, onSelect, spareFor }: { selected: AugmentationSlot | null; onSelect: (s: AugmentationSlot | null) => void; spareFor: (s: AugmentationSlot) => boolean }) {
