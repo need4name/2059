@@ -79,7 +79,7 @@ export const ALLY_MAX_LEVEL = 10;
 /** Each ally level adds this much to health, attack, defence and move damage. */
 export const ALLY_LEVEL_GROWTH = 1.08;
 /** Overall ally strength: the main knob for how much an ally carries a host. */
-export const ALLY_TUNING = { hp: 0.55, atk: 0.4 };
+export const ALLY_TUNING = { hp: 0.42, atk: 0.32 };
 /** Fights won to go from level n to n + 1. */
 export const allyXpToNext = (level: number) => level + 1;
 
