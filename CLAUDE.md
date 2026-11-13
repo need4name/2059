@@ -6,6 +6,9 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 
 - **Commit and push straight to `main`.** No feature branches or pull requests unless asked.
 - The owner prefers plain, everyday language in explanations.
+- **Work in stages** for everything except bug fixes and balance: plan it in plain words first, then show every piece of artwork and UI as a mockup (screenshots), and only build once the owner is happy; build big things in stages, showing each. Never build new art or screens unseen.
+- **The long game:** this is a months-long project to polish every inch. The current goal is to perfect chapter one; everything from chapter two on is framework to come back to.
+- **Balance a chapter at a time**, from the owner's playtests (then other playtesters'), not from the simulator alone.
 
 ## Story
 
