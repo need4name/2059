@@ -134,7 +134,9 @@ export interface Foe {
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
   /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
-  twist?: 'fade' | 'mirror';
+  twist?: 'fade' | 'mirror' | 'roll' | 'copy';
+  /** The copying boss (twist 'copy'): your last attack, filed. Its attacks take that shape and side effects; `repeat` counts the times in a row you used it. */
+  copied?: { name: string; pattern: AttackPatternType; effects?: CombatAction['effects']; repeat: number };
   /** A 'fade' boss with nowhere to fall back to: it takes FADE.cornered damage until it gets loose. */
   cornered?: boolean;
 }
@@ -215,6 +217,8 @@ export interface FightState {
   playerDrive?: number;
   /** Tides, on boards with mud flats: whether the water is up, and rounds until it turns. */
   tide?: { high: boolean; turnsLeft: number } | null;
+  /** The rolling ship (the Living Vessel): which side it rolls to next, and rounds until it does. */
+  roll?: { side: 'east' | 'west'; left: number } | null;
   /** The weigh station's crane (chapter one's threat-5 boss): where its hook hangs, ready to drop at the start of the next round, and rounds until it swings again. */
   crane?: { at: TilePosition | null; left: number } | null;
   /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
@@ -281,7 +285,12 @@ const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includ
 export function foeRoster(f: Foe): CombatAction[] {
   // The Patchwork King fights from a script: what he can use next is his coming turn's phase
   const king = f.parts ? PATCHWORK_KING_PHASES[kingPhaseOf(f)] : null;
-  const roster = king ?? f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
+  let roster = king ?? f.unit.moves ?? BOSS_ATTACKS[f.unit.name] ?? [];
+  // The Registrar: its everyday attacks take the shape and side effects of your last attack (harder the more you repeat it)
+  const c = f.twist === 'copy' ? f.copied : undefined;
+  if (c) roster = roster.map(a => (a.type === 'attack' && !a.isHeavy
+    ? { ...a, name: `${a.name}: ${c.name}`, attackPattern: c.pattern, effects: c.effects, damage: Math.round((a.damage ?? 0) * (1 + COPY.repeat * c.repeat)) }
+    : a));
   if (!hasTrait(f, 'sighted') || roster.some(a => a.attackPattern === 'ranged')) return roster;
   const base = roster.find(a => a.type === 'attack' && !a.isHeavy);
   return [...roster, { type: 'attack', name: 'Optic shot', description: '', damage: Math.round((base?.damage ?? 10) * 0.8), accuracy: 'variable', physicalRatio: 0.7, heatTransfer: 2, heatGenerated: 6, attackPattern: 'ranged' }];
@@ -292,7 +301,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -378,6 +387,50 @@ export function mirrorStep(s: FightState, from: TilePosition): Step {
     if (tileAt(at, state.grid)?.type === 'void') { state = setFoe(state, i, { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null }); events.push(say(`${f.unit.name} follows you into the water`, 'critical')); }
   });
   return { state, events };
+}
+
+/** The copying boss (twist 'copy'): each repeat of the same move in a row adds `repeat` to its copy's damage. */
+export const COPY = { repeat: 0.3 };
+
+/** You've attacked: a copying boss files the move (Registrar). */
+export function fileCopy(s: FightState, action: CombatAction): FightState {
+  if (!s.foes.some(f => f.twist === 'copy') || action.type !== 'attack' || !action.attackPattern) return s;
+  return { ...s, foes: s.foes.map(f => {
+    if (f.twist !== 'copy' || !isAlive(f)) return f;
+    const repeat = f.copied?.name === action.name ? f.copied.repeat + 1 : 0;
+    return { ...f, copied: { name: action.name, pattern: action.attackPattern!, effects: action.effects, repeat } };
+  }) };
+}
+
+// ── The roll (the Living Vessel) ─────────────────────────────────────────────
+// You fight on its back. Every ROLL.every rounds it rolls: everyone but the Vessel
+// slides up to ROLL.slide tiles toward the low side (cover, a body or the edge
+// stops them; an open edge drops them in the sea). Then the low side changes.
+export const ROLL = { every: 3, slide: 2 };
+export const startRoll = (on: boolean): FightState['roll'] => (on ? { side: random() < 0.5 ? 'east' : 'west', left: ROLL.every } : null);
+
+export function rollTick(s: FightState): Step {
+  if (!s.roll) return { state: s, events: [] };
+  const left = s.roll.left - 1;
+  if (left > 0) return { state: { ...s, roll: { ...s.roll, left } }, events: [] };
+  const dc = s.roll.side === 'east' ? 1 : -1;
+  const events: FightEvent[] = [say(`The Vessel rolls ${s.roll.side === 'east' ? 'right' : 'left'}: everything slides`, 'critical')];
+  let state = s;
+  const bodies: Body[] = [{ kind: 'player' }, ...s.foes.map((f, i) => ({ kind: 'foe' as const, i })).filter(b => isAlive(s.foes[b.i]) && s.foes[b.i].twist !== 'roll'), ...s.allies.map((a, k) => ({ kind: 'ally' as const, k })).filter(b => allyAlive(s.allies[b.k]))];
+  const wet = (b: Body) => (b.kind === 'player' ? !!state.playerSwimming : b.kind === 'foe' ? !!state.foes[b.i].swimming : !!state.allies[b.k].swimming);
+  // Those already furthest down the slope go first, so a line slides together
+  for (const b of bodies.sort((x, y) => (posOf(s, y).col - posOf(s, x).col) * dc)) {
+    for (let n = 0; n < ROLL.slide && !wet(b); n++) {
+      const at = posOf(state, b), to = { row: at.row, col: at.col + dc };
+      if (!inBounds(to, state.grid) || bodyAt(state, to) || tileAt(to, state.grid)?.type === 'obstacle') break;
+      const sea = tileAt(to, state.grid)?.type === 'void';
+      if (b.kind === 'player') state = { ...state, grid: { ...state.grid, playerPosition: to }, ...(sea ? { playerSwimming: true } : {}) };
+      else if (b.kind === 'foe') state = setFoe(state, b.i, { pos: to, ...(sea ? { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null } : {}) });
+      else state = { ...state, allies: state.allies.map((x, m) => (m === b.k ? { ...x, pos: to, ...(sea ? { swimming: true, taunting: false } : {}) } : x)) };
+      if (sea) { events.push(say(`${b.kind === 'player' ? 'You slide' : `${nameOf(state, b)} slides`} off into the water`, 'critical')); break; }
+    }
+  }
+  return { state: { ...state, roll: { side: s.roll.side === 'east' ? 'west' : 'east', left: ROLL.every } }, events };
 }
 
 /** The fall-back boss (twist 'fade'): it backs off when you're within `near` tiles; cornered, it takes `cornered`× damage. */
@@ -1751,7 +1804,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     events.push({ kind: 'extraAction' });
     if (s.perks.chainVent) state = { ...state, playerHeat: clampHeat(state.playerHeat - s.perks.chainVent) };
   }
-  return { state, events };
+  return { state: fileCopy(state, action), events };
 }
 
 /** A stim. Returns whether it uses up the turn (Overclock doesn't). */

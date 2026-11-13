@@ -351,7 +351,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, stunGuard: s.stunGuard ?? 0, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
 ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 };
 };
@@ -533,6 +533,8 @@ later(nextActor, ENEMY_TURN_DELAY);
 const beginRound = () => {
 // The tide turns at the start of a round (boards with mud flats only)
 if (apply(Fight.tideTick(fightState()))) return;
+// The Living Vessel rolls
+if (apply(Fight.rollTick(fightState()))) return;
 // The crane drops its hook, or swings it over you (chapter one's threat-5 boss)
 if (apply(Fight.craneTick(fightState()))) return;
 // Knocked-out allies count down and get back up
@@ -699,7 +701,7 @@ const spots = spawnFoePositions(grid, units.length);
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;
 const twist: Fight.Foe['twist'] = held === 'swift' ? 'fade' : undefined;
 const isEcho = (n: string) => n === ECHO_NAME;
-const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)), ...(twist && u.name === holderName ? { twist } : isEcho(u.name) ? { twist: 'mirror' as const } : {}) }));
+const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)), ...(twist && u.name === holderName ? { twist } : isEcho(u.name) ? { twist: 'mirror' as const } : u.name === 'The Living Vessel' ? { twist: 'roll' as const } : u.name === 'The Registrar' ? { twist: 'copy' as const } : {}) }));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
 const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }));
 set({
@@ -716,7 +718,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

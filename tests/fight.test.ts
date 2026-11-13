@@ -1576,3 +1576,33 @@ test('the Echo takes your step mirrored left to right, stopped by cover, and fol
   // A plain enemy stays put
   assert.deepEqual(Fight.mirrorStep({ ...s, foes: [{ ...s.foes[0], twist: undefined }] }, { row: 6, col: 3 }).state.foes[0].pos, grid.bossPosition);
 });
+
+// ── The roll (the Living Vessel) and the copy (the Registrar) ───────────────
+test('the Vessel rolls every few rounds: everyone but it slides toward the low side, into the sea off an open edge', () => {
+  const grid = arena([5, 3], [2, 3]);
+  const vessel = { ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'roll' as const };
+  let s = fight({ grid, foes: [vessel], roll: { side: 'east', left: Fight.ROLL.every } });
+  for (let n = 1; n < Fight.ROLL.every; n++) { s = Fight.rollTick(s).state; assert.deepEqual(s.grid.playerPosition, { row: 5, col: 3 }); }
+  const rolled = Fight.rollTick(s).state;
+  assert.deepEqual(rolled.grid.playerPosition, { row: 5, col: 3 + Fight.ROLL.slide }, 'you slide two tiles right');
+  assert.deepEqual(rolled.foes[0].pos, grid.bossPosition, 'the Vessel itself stays put');
+  assert.equal(rolled.roll!.side, 'west', 'next time it rolls the other way');
+  // Off an open edge: into the water
+  const tiles = grid.tiles.map(r => r.slice()); tiles[5][4] = { type: 'void' } as any;
+  const wet = Fight.rollTick({ ...s, grid: { ...s.grid, tiles } }).state;
+  assert.ok(wet.playerSwimming);
+});
+
+test('the Registrar files your last attack: its attacks take that shape, harder each time you repeat it', () => {
+  const s = fight({ foes: [{ ...Fight.newFoe(createBoss(3), arena([5, 3], [4, 3]).bossPosition, 40), twist: 'copy' }] });
+  const beam: CombatAction = { ...hitFor(10), name: 'Test Beam', attackPattern: 'beam' };
+  const once = Fight.fileCopy(s, beam);
+  const plain = Fight.foeRoster(s.foes[0]).find(a => a.type === 'attack' && !a.isHeavy)!;
+  const copy = Fight.foeRoster(once.foes[0]).find(a => a.type === 'attack' && !a.isHeavy)!;
+  assert.equal(copy.attackPattern, 'beam');
+  assert.equal(copy.damage, plain.damage);
+  const twice = Fight.fileCopy(once, beam);
+  assert.equal(Fight.foeRoster(twice.foes[0]).find(a => a.type === 'attack' && !a.isHeavy)!.damage, Math.round((plain.damage ?? 0) * (1 + Fight.COPY.repeat)));
+  // Switch moves and the count starts again
+  assert.equal(Fight.fileCopy(twice, hitFor(10)).foes[0].copied!.repeat, 0);
+});
