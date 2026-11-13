@@ -1699,3 +1699,45 @@ test('the Weather\'s front sweeps a column a round while its lead drone flies, a
   assert.equal(broken.front, null);
   assert.equal(broken.player.currentHp, s.player.currentHp);
 });
+
+// ── The Corridor: repairs, twice, the Signatory's orders, the light ─────────
+test('the Unlogged Technician mends itself each round until its structure is broken', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const u = createBoss(3);
+  const tech = { ...Fight.newFoe({ ...u, currentHp: Math.round(u.maxHp / 2) }, grid.bossPosition, 40), twist: 'repair' as const };
+  const s = fight({ grid, foes: [tech] });
+  assert.ok(Fight.repairTick(s).state.foes[0].unit.currentHp > tech.unit.currentHp);
+  assert.equal(Fight.repairTick({ ...s, foes: [{ ...tech, malfunctioning: true }] }).state.foes[0].unit.currentHp, tech.unit.currentHp);
+});
+
+test('the Lead Operator is twice as fast: it acts twice before you', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const op = { ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'twice' as const };
+  const s = fight({ grid, foes: [op] });
+  assert.equal(Fight.speedOf(s, 0), Fight.speedOf({ ...s, foes: [{ ...op, twist: undefined }] }, 0) * Fight.TWICE.speed);
+});
+
+test('under the Signatory a new order comes every round, and every rewrite costs health', () => {
+  const s = fight({ orders: Fight.signatoryOrders({ now: 'hold', turnsLeft: 2, rewritten: false }) });
+  assert.notEqual(Fight.ordersTick(s).state.orders!.now, 'hold', 'a new order the next round');
+  const once = Fight.rewriteOrder(s, 'precise').state;
+  const twice = Fight.rewriteOrder(once, 'vent').state;
+  assert.equal(twice.orders!.now, 'vent', 'it can be rewritten again');
+  assert.equal(twice.player.currentHp, s.player.currentHp - 2 * Math.round(s.player.maxHp * Fight.SIGNATORY.cost));
+  // Elsewhere: once a fight, free
+  const plain = fight({ orders: { now: 'hold', turnsLeft: 2, rewritten: false } });
+  const r = Fight.rewriteOrder(plain, 'precise').state;
+  assert.equal(r.player.currentHp, plain.player.currentHp);
+  assert.equal(Fight.rewriteOrder(r, 'vent').state.orders!.now, 'precise');
+});
+
+test('the Pass\'s light burns its row, the Pass too, and sweeps on', () => {
+  const grid = arena([0, 3], [0, 5]);
+  const pass = { ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'light' as const };
+  const s = fight({ grid, foes: [pass], light: Fight.startLight(true) });
+  assert.ok(Fight.dangerInfo(s, 1).get('0,0')!.heavy, 'the coming row shows');
+  const after = Fight.lightTick(s).state;
+  assert.equal(after.player.currentHp, s.player.currentHp - Math.round(s.player.maxHp * Fight.LIGHT.hit));
+  assert.ok(after.foes[0].unit.currentHp < pass.unit.currentHp, 'it burns the Pass too');
+  assert.equal(after.light!.row, 1);
+});

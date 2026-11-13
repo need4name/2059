@@ -134,7 +134,7 @@ export interface Foe {
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
   /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
-  twist?: 'fade' | 'mirror' | 'roll' | 'copy' | 'forms' | 'decoy' | 'dream' | 'shed' | 'leader';
+  twist?: 'fade' | 'mirror' | 'roll' | 'copy' | 'forms' | 'decoy' | 'dream' | 'shed' | 'leader' | 'repair' | 'twice' | 'light';
   /** The Valley Raider (twist 'shed'): implants torn off so far. */
   shed?: number;
   /** The Long Sleeper (twist 'forms'): the earlier enemies it gets back up as, in order. */
@@ -231,6 +231,8 @@ export interface FightState {
   beat?: { left: number } | null;
   /** The Weather's storm front: the column it strikes at the start of the next round, and which way it sweeps. */
   front?: { col: number; dir: 1 | -1 } | null;
+  /** The Pass's light: the row it burns at the start of the next round, and which way it sweeps. */
+  light?: { row: number; dir: 1 | -1 } | null;
   /** The rolling ship (the Living Vessel): which side it rolls to next, and rounds until it does. */
   roll?: { side: 'east' | 'west'; left: number } | null;
   /** The weigh station's crane (chapter one's threat-5 boss): where its hook hangs, ready to drop at the start of the next round, and rounds until it swings again. */
@@ -238,7 +240,7 @@ export interface FightState {
   /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
   alarm?: { on: boolean; turnsLeft: number } | null;
   /** Orders, in chapters that have them: the rule in force, rounds until the next, and whether you've rewritten one this fight. */
-  orders?: { now: OrderId; turnsLeft: number; rewritten: boolean } | null;
+  orders?: { now: OrderId; turnsLeft: number; rewritten: boolean; every?: number; costly?: boolean } | null;
   /** Wind, in chapters that have it: which way it blows and rounds until it turns. */
   wind?: { dir: WindDir; turnsLeft: number } | null;
   /** The dreamer inside the host has flinched this fight (once at most). */
@@ -318,7 +320,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], beat: null as FightState['beat'], front: null as FightState['front'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], beat: null as FightState['beat'], light: null as FightState['light'], front: null as FightState['front'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -509,6 +511,51 @@ export function frontTick(s: FightState): Step {
   let dir = s.front.dir, next = col + dir;
   if (next < 0 || next >= s.grid.cols) { dir = -dir as 1 | -1; next = col + dir; }
   return { state: { ...state, front: { col: next, dir } }, events };
+}
+
+/** The Unlogged Technician (twist 'repair'): while its structure holds it repairs `heal` of its health a round. */
+export const REPAIR = { heal: 0.06 };
+/** The Lead Operator (twist 'twice'): `speed`x as fast (it acts twice before you), on `hp` of a set piece's health. */
+export const TWICE = { speed: 2, hp: 0.5 };
+/** The Pass's light (twist 'light'): burns you or an ally for `hit`, an enemy (the Pass too) for `foeHit`. */
+export const LIGHT = { hit: 0.14, foeHit: 0.06 };
+
+/** A new round: the Unlogged Technician patches itself, unless its structure is broken. */
+export function repairTick(s: FightState): Step {
+  const events: FightEvent[] = [];
+  const foes = s.foes.map(f => {
+    if (f.twist !== 'repair' || !isAlive(f) || f.malfunctioning || f.unit.currentHp >= f.unit.maxHp) return f;
+    const heal = Math.min(f.unit.maxHp - f.unit.currentHp, Math.max(1, Math.round(f.unit.maxHp * REPAIR.heal)));
+    events.push(say(`${f.unit.name} patches itself: +${heal}`));
+    return { ...f, unit: { ...f.unit, currentHp: f.unit.currentHp + heal } };
+  });
+  return { state: events.length ? { ...s, foes } : s, events };
+}
+
+export const startLight = (on: boolean): FightState['light'] => (on ? { row: 0, dir: 1 } : null);
+/** A new round: the light burns its row (everyone in it, the Pass included), then sweeps on a row, turning at the edges. */
+export function lightTick(s: FightState): Step {
+  if (!s.light) return { state: s, events: [] };
+  if (!s.foes.some(f => f.twist === 'light' && isAlive(f))) return { state: { ...s, light: null }, events: [] };
+  const row = s.light.row;
+  const events: FightEvent[] = [say('The light comes down the yard', 'critical')];
+  let state = s;
+  if (state.grid.playerPosition.row === row && !state.playerSwimming) {
+    const dmg = Math.max(1, Math.round(state.player.maxHp * LIGHT.hit * state.perks.damageTakenMult));
+    events.push(say(`The light burns you: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'player' }, dmg, events);
+  }
+  state.allies.forEach((a, k) => { if (allyAlive(a) && !a.swimming && a.pos.row === row) state = hurt(state, { kind: 'ally', k }, Math.max(1, Math.round(a.unit.maxHp * LIGHT.hit)), events); });
+  state.foes.forEach((f, i) => {
+    if (!isAlive(f) || f.swimming || f.pos.row !== row) return;
+    const dmg = Math.max(1, Math.round(f.unit.maxHp * LIGHT.foeHit));
+    events.push(say(`The light burns ${f.unit.name}: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'foe', i }, dmg, events);
+  });
+  state = afterFoeChanges(state, events);
+  let dir = s.light.dir, next = row + dir;
+  if (next < 0 || next >= s.grid.rows) { dir = -dir as 1 | -1; next = row + dir; }
+  return { state: { ...state, light: { row: next, dir } }, events };
 }
 
 /** The copying boss (twist 'copy'): each repeat of the same move in a row adds `repeat` to its copy's damage. */
@@ -745,7 +792,7 @@ const order = (s: FightState) => s.orders?.now;
 
 /** Apply an order's one-off effect as it comes into force (vent clears everyone's heat). */
 function issue(s: FightState, id: OrderId, rewritten: boolean): FightState {
-  let state: FightState = { ...s, orders: { now: id, turnsLeft: ORDERS.every, rewritten } };
+  let state: FightState = { ...s, orders: { ...s.orders, now: id, turnsLeft: s.orders?.every ?? ORDERS.every, rewritten } };
   if (id === 'vent') state = { ...state, playerHeat: 0, foes: state.foes.map(f => (isAlive(f) ? { ...f, heat: 0 } : f)) };
   return state;
 }
@@ -765,9 +812,20 @@ export function ordersTick(s: FightState): Step {
 
 /** Rewrite the order in force (once a fight). Returns the state unchanged if you already have. */
 export function rewriteOrder(s: FightState, id: OrderId): Step {
-  if (!s.orders || s.orders.rewritten) return { state: s, events: [] };
-  return { state: issue(s, id, true), events: [say(`You rewrite the order: ${ORDER_TEXT[id].say.toLowerCase()}`, 'critical')] };
+  if (!s.orders || (s.orders.rewritten && !s.orders.costly)) return { state: s, events: [] };
+  const events: FightEvent[] = [say(`You rewrite the order: ${ORDER_TEXT[id].say.toLowerCase()}`, 'critical')];
+  let state = issue(s, id, true);
+  // Under the Signatory every rewrite is countersigned in your own health
+  if (s.orders.costly) {
+    const dmg = Math.max(1, Math.round(s.player.maxHp * SIGNATORY.cost));
+    events.push(say(`It countersigns: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'player' }, dmg, events);
+  }
+  return { state, events };
 }
+/** The Signatory: a new order every round, and you may rewrite as often as you like at `cost` of your health each time. */
+export const SIGNATORY = { every: 1, cost: 0.06 };
+export const signatoryOrders = (o: FightState['orders']): FightState['orders'] => (o ? { ...o, every: SIGNATORY.every, turnsLeft: SIGNATORY.every, costly: true } : o);
 
 // ── Dreamers ─────────────────────────────────────────────────────────────────
 // In chapters whose hosts still have someone asleep inside, the sleeper may
@@ -826,6 +884,7 @@ export function speedOf(s: FightState, a: Actor): number {
     const f = s.foes[a];
     v = SPEED.base + implantDrive(f.unit.carried ?? []) + (hasTrait(f, 'fast') ? SPEED.fast : 0) - (f.heat >= SPEED.hot ? SPEED.hotPenalty : 0)
       + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0) + (f.parts?.includes('crown') ? KING.crown : 0) + (f.shed ?? 0) * SHED.speed;
+    if (f.twist === 'twice') v *= TWICE.speed;
   }
   return Math.round(v * 10) / 10;
 }
@@ -2144,6 +2203,14 @@ export function dangerInfo(s: FightState, level: number, twice: number[] = []): 
     // Acting twice before your next turn, from the same spot: both hits land on the tile
     const hits = twice.includes(i) ? 2 : 1;
     mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v * hits); d.shove = d.shove ?? m.push; } });
+  }
+  // The light burns its row at the start of the next round
+  if (s.light && s.foes.some(f => f.twist === 'light' && isAlive(f))) {
+    for (let col = 0; col < s.grid.cols; col++) {
+      const t = { row: s.light.row, col };
+      if (tileAt(t, s.grid)?.type === 'void' || tileAt(t, s.grid)?.type === 'obstacle') continue;
+      const d = tile(t); d.damage += Math.round(s.player.maxHp * LIGHT.hit * s.perks.damageTakenMult); d.heavy = true;
+    }
   }
   // The storm front strikes its column at the start of the next round
   if (s.front && s.foes.some(f => f.twist === 'leader' && isAlive(f))) {

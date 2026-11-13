@@ -97,6 +97,7 @@ function CombatHud() {
               {target?.parts?.length ? <span className="text-cred">{target.parts.map(p => kingPart(p).name).join(' · ')}{boss.traits?.length ? ' · ' : ''}</span> : null}
               {boss.traits?.length ? <span className="text-hud-dim">{boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(' · ')}</span> : null}
               {target?.cornered ? <span className="text-ok">{boss.traits?.length ? ' · ' : ''}Cornered</span> : null}
+              {target?.twist === 'repair' ? <span className={target.malfunctioning ? 'text-ok' : 'text-cred'}>{boss.traits?.length ? ' · ' : ''}{target.malfunctioning ? "Can't mend" : 'Mends itself'}</span> : null}
               {target?.twist === 'leader' ? <span className="text-cred">{boss.traits?.length ? ' · ' : ''}Leads the storm</span> : null}
             </div>
           )}
@@ -313,17 +314,17 @@ function OrdersBar() {
   const [open, setOpen] = useState(false);
   if (!orders) return null;
   const t = Fight.ORDER_TEXT[orders.now];
-  const canRewrite = !orders.rewritten && phase === 'player_turn' && !inputLocked;
+  const canRewrite = (!orders.rewritten || !!orders.costly) && phase === 'player_turn' && !inputLocked;
   return (
     <div className="mt-2 flex items-center gap-2 rounded-2xl bg-aug/10 px-3 py-2 ring-1 ring-aug/25">
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] font-semibold text-white">“{t.say}.”</div>
         <div className="truncate text-[11px] text-hud-dim">{t.does} · {orders.turnsLeft === 1 ? 'a new order next round' : `${orders.turnsLeft} rounds left`}</div>
       </div>
-      <Btn size="sm" variant="secondary" disabled={!canRewrite} onClick={() => setOpen(true)}>{orders.rewritten ? 'Rewritten' : 'Rewrite'}</Btn>
+      <Btn size="sm" variant="secondary" disabled={!canRewrite} onClick={() => setOpen(true)}>{orders.costly ? `Rewrite · ${Math.round(Fight.SIGNATORY.cost * 100)}%` : orders.rewritten ? 'Rewritten' : 'Rewrite'}</Btn>
       <Sheet open={open} title="Rewrite the order" onClose={() => setOpen(false)}>
         <div className="space-y-2 px-5 pb-2">
-          <p className="text-[13px] text-hud-dim">Once.</p>
+          <p className="text-[13px] text-hud-dim">{orders.costly ? `As often as you like: each costs ${Math.round(Fight.SIGNATORY.cost * 100)}% of your health.` : 'Once.'}</p>
           {Fight.ORDER_IDS.map(id => (
             <button key={id} onClick={() => { rewriteOrder(id); setOpen(false); }} className={cx('w-full rounded-2xl p-3 text-left', id === orders.now ? 'bg-aug/15 ring-1 ring-aug/40' : 'bg-white/[0.04] hover:bg-white/[0.08]')}>
               <div className="text-[13px] font-semibold text-white">“{Fight.ORDER_TEXT[id].say}.”</div>

@@ -351,7 +351,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, stunGuard: s.stunGuard ?? 0, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, beat: s.beat, front: s.front, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, beat: s.beat, front: s.front, light: s.light, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
 ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 };
 };
@@ -541,6 +541,9 @@ if (apply(Fight.decoyShuffle(fightState()))) return;
 // The Overseer's downbeat; the Weather's storm front
 if (apply(Fight.beatTick(fightState()))) return;
 if (apply(Fight.frontTick(fightState()))) return;
+// The Unlogged Technician patches itself; the Pass's light comes down
+if (apply(Fight.repairTick(fightState()))) return;
+if (apply(Fight.lightTick(fightState()))) return;
 // The crane drops its hook, or swings it over you (chapter one's threat-5 boss)
 if (apply(Fight.craneTick(fightState()))) return;
 // Knocked-out allies count down and get back up
@@ -709,7 +712,7 @@ const grid = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;
-const twist: Fight.Foe['twist'] = held === 'swift' ? 'fade' : held === 'wretch' ? 'shed' : undefined;
+const twist: Fight.Foe['twist'] = held === 'swift' ? 'fade' : held === 'wretch' ? 'shed' : held === 'splice' ? 'repair' : undefined;
 const isEcho = (n: string) => n === ECHO_NAME;
 // The Long Sleeper remembers earlier enemies of this chapter (seeded)
 const memory = activeChapter().cast.rotation.slice().sort(() => random() - 0.5).slice(0, Fight.FORMS.count);
@@ -722,10 +725,12 @@ const twistOf = (name: string): Partial<Fight.Foe> => {
   if (name === 'The Long Sleeper') return { twist: 'forms', forms: memory };
   if (name === 'The First Sleeper') return { twist: 'dream', dreaming: false };
   if (name === 'Seeding Drone' && planned.some(u => u.name === 'The Weather')) return { twist: 'leader' };
+  if (name === 'The Lead Operator') return { twist: 'twice' };
+  if (name === 'The Pass') return { twist: 'light' };
   if (name === 'The Count') { const copy = countSeen; countSeen = true; return copy ? { twist: 'decoy' } : {}; }
   return {};
 };
-const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)), ...twistOf(u.name) }));
+const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)), ...twistOf(u.name) })).map(f => (f.twist === 'twice' ? { ...f, unit: { ...f.unit, maxHp: Math.round(f.unit.maxHp * Fight.TWICE.hp), currentHp: Math.round(f.unit.currentHp * Fight.TWICE.hp) } } : f));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
 const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }));
 set({
@@ -742,7 +747,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), light: Fight.startLight(foes.some(f => f.twist === 'light')), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: foes.some(f => f.unit.name === 'The Signatory') ? Fight.signatoryOrders(Fight.startOrders(true)) : Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
