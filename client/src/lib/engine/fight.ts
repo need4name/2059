@@ -134,7 +134,11 @@ export interface Foe {
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
   /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
-  twist?: 'fade' | 'mirror' | 'roll' | 'copy';
+  twist?: 'fade' | 'mirror' | 'roll' | 'copy' | 'forms' | 'decoy' | 'dream';
+  /** The Long Sleeper (twist 'forms'): the earlier enemies it gets back up as, in order. */
+  forms?: string[];
+  /** The First Sleeper (twist 'dream'): dreaming, it can't be hurt. */
+  dreaming?: boolean;
   /** The copying boss (twist 'copy'): your last attack, filed. Its attacks take that shape and side effects; `repeat` counts the times in a row you used it. */
   copied?: { name: string; pattern: AttackPatternType; effects?: CombatAction['effects']; repeat: number };
   /** A 'fade' boss with nowhere to fall back to: it takes FADE.cornered damage until it gets loose. */
@@ -217,6 +221,10 @@ export interface FightState {
   playerDrive?: number;
   /** Tides, on boards with mud flats: whether the water is up, and rounds until it turns. */
   tide?: { high: boolean; turnsLeft: number } | null;
+  /** The fans (the Fan Technician): the row its exhaust blasts at the start of the next round. */
+  exhaust?: { row: number | null } | null;
+  /** The dream (the First Sleeper): whether it's dreaming, and rounds until that changes. */
+  dream?: { on: boolean; left: number } | null;
   /** The rolling ship (the Living Vessel): which side it rolls to next, and rounds until it does. */
   roll?: { side: 'east' | 'west'; left: number } | null;
   /** The weigh station's crane (chapter one's threat-5 boss): where its hook hangs, ready to drop at the start of the next round, and rounds until it swings again. */
@@ -280,7 +288,10 @@ const hittable = (f: Foe) => isAlive(f) && !f.swimming;
 /** Does this enemy carry an implant that gives it this trait? */
 export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
 /** Damage an enemy takes: a spine brace cuts it. */
-const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1);
+const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1)
+  * (f.twist === 'dream' ? (f.dreaming ? 0 : DREAM.awake) : 1);
+/** What a foe's blows are worth: an arm graft lands them harder; the Count's copy at half. */
+const dealtBy = (f: Foe) => (hasTrait(f, 'armed') ? 1.1 : 1) * (f.twist === 'decoy' ? DECOY.hits : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
   // The Patchwork King fights from a script: what he can use next is his coming turn's phase
@@ -301,7 +312,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -387,6 +398,53 @@ export function mirrorStep(s: FightState, from: TilePosition): Step {
     if (tileAt(at, state.grid)?.type === 'void') { state = setFoe(state, i, { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null }); events.push(say(`${f.unit.name} follows you into the water`, 'critical')); }
   });
   return { state, events };
+}
+
+/** The Long Sleeper (twist 'forms'): it gets up on `hp` of its health as each of `count` forms. */
+export const FORMS = { hp: 0.35, count: 2 };
+/** The Count's copy (twist 'decoy'): its blows at `hits`; each hit you land on it costs you `cost` of your health. */
+export const DECOY = { hits: 0.5, cost: 0.08 };
+/** The First Sleeper (twist 'dream'): `every` rounds it falls asleep or wakes; dreaming it heals `heal` a round; awake it takes `awake`x damage. */
+export const DREAM = { every: 2, heal: 0.04, awake: 1.25 };
+/** The Fan Technician's exhaust: the heat it puts into whoever is in its row. */
+export const EXHAUST = { heat: 20 };
+
+export const startExhaust = (on: boolean): FightState['exhaust'] => (on ? { row: null } : null);
+/** A new round: the marked row is blasted with hot exhaust (Fan Technicians stand in their own fans' draught unharmed), then the fans swing to the row you're in. */
+export function exhaustTick(s: FightState): Step {
+  if (!s.exhaust) return { state: s, events: [] };
+  const events: FightEvent[] = [];
+  let state = s;
+  const row = s.exhaust.row;
+  if (row !== null) {
+    events.push(say('The fans blast hot exhaust down the row', 'critical'));
+    if (s.grid.playerPosition.row === row && !s.playerSwimming) { state = { ...state, playerHeat: clampHeat(state.playerHeat + EXHAUST.heat) }; events.push(say(`You're in the exhaust: +${EXHAUST.heat} heat`, 'damage')); }
+    state = { ...state, foes: state.foes.map(f => (isAlive(f) && !f.swimming && f.pos.row === row && f.unit.name !== 'Fan Technician' ? { ...f, heat: clampHeat(f.heat + EXHAUST.heat) } : f)) };
+  }
+  return { state: { ...state, exhaust: { row: s.playerSwimming ? null : s.grid.playerPosition.row } }, events };
+}
+
+export const startDream = (on: boolean): FightState['dream'] => (on ? { on: false, left: DREAM.every } : null);
+/** A new round: the First Sleeper heals while it dreams, and drifts off or wakes every DREAM.every rounds. */
+export function dreamTick(s: FightState): Step {
+  if (!s.dream) return { state: s, events: [] };
+  const events: FightEvent[] = [];
+  let state = s;
+  if (s.dream.on) state = { ...state, foes: state.foes.map(f => (f.twist === 'dream' && isAlive(f) ? { ...f, unit: { ...f.unit, currentHp: Math.min(f.unit.maxHp, f.unit.currentHp + Math.round(f.unit.maxHp * DREAM.heal)) } } : f)) };
+  const left = s.dream.left - 1;
+  if (left > 0) return { state: { ...state, dream: { ...s.dream, left } }, events };
+  const on = !s.dream.on;
+  events.push(say(on ? 'It drifts into a dream: nothing reaches it there' : 'It wakes, and it is open', on ? 'info' : 'critical'));
+  return { state: { ...state, dream: { on, left: DREAM.every }, foes: state.foes.map(f => (f.twist === 'dream' ? { ...f, dreaming: on } : f)) }, events };
+}
+
+/** A new round: the Count and its copy may trade places (seeded), so you lose track of which is which. */
+export function decoyShuffle(s: FightState): Step {
+  const real = s.foes.findIndex(f => f.twist !== 'decoy' && f.unit.name === 'The Count' && isAlive(f));
+  const copy = s.foes.findIndex(f => f.twist === 'decoy' && isAlive(f));
+  if (real < 0 || copy < 0 || random() < 0.5) return { state: s, events: [] };
+  const a = s.foes[real].pos, b = s.foes[copy].pos;
+  return { state: setFoe(setFoe(s, real, { pos: b }), copy, { pos: a }), events: [say('The two of them blur and settle')] };
 }
 
 /** The copying boss (twist 'copy'): each repeat of the same move in a row adds `repeat` to its copy's damage. */
@@ -904,6 +962,20 @@ const setFoe = (s: FightState, i: number, patch: Partial<Foe>): FightState =>
 
 /** After a foe falls: pick a new living target and say if the fight is won. */
 function afterFoeChanges(s: FightState, events: FightEvent[]): FightState {
+  // The Long Sleeper gets back up as one of the enemies it remembers
+  s.foes.forEach((f, i) => {
+    if (isAlive(f) || f.twist !== 'forms' || !f.forms?.length) return;
+    const [form, ...rest] = f.forms;
+    const hp = Math.max(1, Math.round(f.unit.maxHp * FORMS.hp));
+    events.push(say(`It gets up again, remembering ${form}`, 'critical'));
+    s = setFoe(s, i, { forms: rest, stunned: false, burning: 0, pendingAction: null, pendingTiles: null, pendingVictim: null, chargingHeavy: false,
+      unit: { ...f.unit, name: form, moves: BOSS_ATTACKS[form] ?? f.unit.moves, currentHp: hp, currentStructuralHp: Math.round(f.unit.maxStructuralHp * FORMS.hp) } });
+  });
+  // The Count's copy goes when the Count does
+  if (s.foes.some(f => f.twist === 'decoy' && isAlive(f)) && !s.foes.some(f => f.twist !== 'decoy' && isAlive(f))) {
+    events.push(say('The copy stops, mid-count'));
+    s = { ...s, foes: s.foes.map(f => (f.twist === 'decoy' ? { ...f, unit: { ...f.unit, currentHp: 0 } } : f)) };
+  }
   if (!s.foes.some(isAlive)) { events.push({ kind: 'allFoesDown' }); return s; }
   if (!isAlive(s.foes[s.target])) {
     const next = s.foes.findIndex(isAlive);
@@ -1738,6 +1810,8 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const foe = state.foes[i];
     const dist = chebyshev(grid.playerPosition, foe.pos);
     nearest = Math.min(nearest, dist);
+    // Dreaming, the First Sleeper is out of reach: the blow passes through
+    if (foe.dreaming) { events.push(say(`${foe.unit.name} is dreaming: the blow passes through it`)); continue; }
     const finishing = s.perks.finisherBonus > 0 && foe.unit.currentHp < foe.unit.maxHp * 0.3 ? 1 + s.perks.finisherBonus : 1;
     const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
@@ -1803,6 +1877,13 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     events.push(say('CHAIN -- takedown, act again', 'critical'));
     events.push({ kind: 'extraAction' });
     if (s.perks.chainVent) state = { ...state, playerHeat: clampHeat(state.playerHeat - s.perks.chainVent) };
+  }
+  // The Count's copy: every hit you land on it costs you
+  const fooled = state.foes.filter((f, k) => f.twist === 'decoy' && s.foes[k] && f.unit.currentHp + f.unit.currentStructuralHp < s.foes[k].unit.currentHp + s.foes[k].unit.currentStructuralHp).length;
+  if (fooled) {
+    const dmg = Math.max(1, Math.round(state.player.maxHp * DECOY.cost * fooled));
+    events.push(say(`That was the copy: it counts against you, -${dmg}`, 'critical'));
+    state = hurt(state, { kind: 'player' }, dmg, events);
   }
   return { state: fileCopy(state, action), events };
 }
@@ -1941,7 +2022,7 @@ export function dangerInfo(s: FightState, level: number, twice: number[] = []): 
     const aimAt = s.foes[s.target] && isAlive(s.foes[s.target]) ? s.foes[s.target].pos : f.pos;
     const flank = flankFrom(f.pos, t, toward(t, aimAt));
     const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: chebyshev(t, f.pos), isMalfunctioning: f.malfunctioning, flankBonus: flank });
-    return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1) * (walled(s, t) ? ALLY_RULES.wall : 1);
+    return ((e.min + e.max) / 2) * tileWeight(pattern, f.pos, aim, t) * heatTaken * dealtBy(f) * (walled(s, t) ? ALLY_RULES.wall : 1);
   };
   const shoveOf = (f: Foe, a: CombatAction, t: TilePosition) => {
     if (order(s) === 'noShoves') return undefined;
@@ -2009,7 +2090,7 @@ export function secondGoDamage(s: FightState, level: number, twice: number[]): n
     if (!f || !isAlive(f) || f.swimming) continue;
     for (const a of [...foeRoster(f).filter(m => m.type === 'attack' && !m.isHeavy), CLOSE_QUARTERS].map(m => scaleBossAction(m, level))) {
       const e = estimateDamage(f.unit, s.player, a, { defenseBoost: s.playerDefenseBoost + s.allyGuard, tileDistance: 1, isMalfunctioning: f.malfunctioning });
-      worst = Math.max(worst, ((e.min + e.max) / 2) * heatTaken * (hasTrait(f, 'armed') ? 1.1 : 1));
+      worst = Math.max(worst, ((e.min + e.max) / 2) * heatTaken * dealtBy(f));
     }
   }
   return Math.round(worst);
@@ -2123,7 +2204,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const strike: FightEvent = { kind: 'strike', by: { kind: 'foe', i }, from: foe.pos, aim: aim ?? at, tiles: getHitTiles(foe.pos, aim ?? at, pattern0, { ...grid, bossPosition: foe.pos, playerPosition: aim ?? at }), pattern: pattern0, physical: action.physicalRatio ?? 0.7, name: action.name, ...(action.isHeavy ? { heavy: true } : {}) };
   if (victim >= 0 && s.allies[victim]) { const r = hitAlly(s, i, victim, action, level, sweet); return { ...r, events: [strike, ...r.events] }; }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
-  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet * (walled(s, grid.playerPosition) ? ALLY_RULES.wall : 1);
+  const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * dealtBy(foe) * sweet * (walled(s, grid.playerPosition) ? ALLY_RULES.wall : 1);
   const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, flankOn(s, foe.pos, { kind: 'player' }), chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
@@ -2171,7 +2252,7 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
     return { state: setFoe(s, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events: [say(`${foe.unit.name} -- ${action.name}: strikes the wrong ${ally.unit.name}`)] };
   }
   if (walled(s, ally.pos)) sweet *= ALLY_RULES.wall;
-  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, (hasTrait(foe, 'armed') ? 1.1 : 1) * sweet, flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
+  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, dealtBy(foe) * sweet, flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
   // Its structure bar soaks the physical part first, like yours
   const lost = dmg.bioDamage;
   const hp = Math.max(0, ally.unit.currentHp - lost);

@@ -685,6 +685,24 @@ drawSlab(ctx, cells, tileset, cornerR);
 // Things that stand up (cover, units) are drawn after the floor, back to front
 const depth: { y: number; draw: () => void }[] = [];
 const overlay: (() => void)[] = [];
+// The Fan Technician's exhaust: the row it blasts at the start of the next round, a hot shimmer on the floor
+{
+  const exRow = useCombat.getState().exhaust?.row;
+  if (exRow !== null && exRow !== undefined) {
+    for (let col = 0; col < grid.cols; col++) {
+      if (!isFloor(exRow, col)) continue;
+      const p = gridToScreen(exRow, col, width, height), x0 = p.x - tileW / 2, y0 = p.y - tileH / 2;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0 + 2, y0 + 2, tileW - 4, tileH - 4); ctx.clip();
+      ctx.fillStyle = 'rgba(255,140,40,0.16)'; ctx.fillRect(x0, y0, tileW, tileH);
+      // Heat lines drifting along the row
+      const u = Math.max(2, Math.round(tileW / 16)), drift = (now / 40) % (u * 6);
+      ctx.fillStyle = 'rgba(255,170,70,0.45)';
+      for (let k = -1; k < 4; k++) for (let x = x0 - u * 6 + drift; x < x0 + tileW; x += u * 6) ctx.fillRect(Math.round(x + (k % 2) * u * 3), Math.round(y0 + tileH * (0.2 + k * 0.22)), u * 2, u);
+      ctx.restore();
+    }
+  }
+}
 // The crane's hook hanging over a tile, swaying, ready to drop at the start of the next round
 {
   const hookAt = useCombat.getState().crane?.at;
@@ -1194,7 +1212,8 @@ const size = Math.max(tileW * DOLL, 34);
 const fTop = dollTop(fp.y, size);
 
 depth.push({ y: fp.y, draw: () => {
-drawFootShadow(ctx, fp.x, fp.y + tileH * 0.36, tileW);
+// The Count's copy casts no shadow: the one tell
+if (f.twist !== 'decoy') drawFootShadow(ctx, fp.x, fp.y + tileH * 0.36, tileW);
 // Winding up a heavy: a hot glow at its feet and embers rising, brighter as it builds
 if (f.pendingAction && fFall === null) {
   const beat = 0.5 + 0.5 * Math.sin(now / 140);
@@ -1220,6 +1239,8 @@ ctx.restore();
 
 const stumble = v.animator.getStumbleOffset();
 ctx.save();
+// Dreaming, the First Sleeper is barely there: nothing reaches it
+if (f.dreaming) ctx.globalAlpha = 0.45 + 0.1 * Math.sin(now / 500);
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
 drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0 });

@@ -1606,3 +1606,50 @@ test('the Registrar files your last attack: its attacks take that shape, harder 
   // Switch moves and the count starts again
   assert.equal(Fight.fileCopy(twice, hitFor(10)).foes[0].copied!.repeat, 0);
 });
+
+// ── Helix Hills: exhaust, forms, the copy, the dream ────────────────────────
+test('the fans mark your row, then blast it with heat next round', () => {
+  let s = fight({ exhaust: Fight.startExhaust(true), playerHeat: 30 });
+  s = Fight.exhaustTick(s).state;
+  assert.equal(s.exhaust!.row, s.grid.playerPosition.row);
+  assert.equal(Fight.exhaustTick(s).state.playerHeat, 30 + Fight.EXHAUST.heat, 'still in the row: hot');
+  const moved = { ...s, grid: { ...s.grid, playerPosition: { row: s.grid.playerPosition.row + 1, col: 3 } } };
+  assert.equal(Fight.exhaustTick(moved).state.playerHeat, 30, 'stepped out of it');
+});
+
+test('the Long Sleeper gets back up as an earlier enemy, then stays down when it has no forms left', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const sleeper = { ...Fight.newFoe({ ...createBoss(3), currentHp: 1, currentStructuralHp: 0 }, grid.bossPosition, 40), twist: 'forms' as const, forms: ['Sleepwalker'] };
+  const s = fight({ grid, foes: [sleeper] });
+  const after = Fight.resolvePlayerAttack(s, hitFor(60), 'none');
+  assert.equal(after.state.foes[0].unit.name, 'Sleepwalker');
+  assert.ok(after.state.foes[0].unit.currentHp > 0);
+  assert.ok(!after.events.some(e => e.kind === 'allFoesDown'));
+  const again = Fight.resolvePlayerAttack({ ...after.state, foes: [{ ...after.state.foes[0], unit: { ...after.state.foes[0].unit, currentHp: 1, currentStructuralHp: 0 } }] }, hitFor(60), 'none');
+  assert.ok(again.events.some(e => e.kind === 'allFoesDown'));
+});
+
+test('hitting the Count\'s copy costs you, and the copy goes when the Count does', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const copy = { ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'decoy' as const };
+  const real = Fight.newFoe(createBoss(3), { row: 0, col: 0 }, 40);
+  const s = fight({ grid, foes: [copy, real], target: 0 });
+  const hit = Fight.resolvePlayerAttack(s, hitFor(10), 'none', grid.bossPosition).state;
+  assert.equal(hit.player.currentHp, s.player.currentHp - Math.round(s.player.maxHp * Fight.DECOY.cost));
+  const won = Fight.resolvePlayerAttack({ ...s, foes: [copy, { ...real, pos: grid.bossPosition, unit: { ...real.unit, currentHp: 1, currentStructuralHp: 0 } }].reverse(), target: 0 }, hitFor(60), 'none', grid.bossPosition);
+  assert.ok(won.events.some(e => e.kind === 'allFoesDown'), 'the copy falls with it');
+});
+
+test('the First Sleeper dreams and wakes in turn: dreaming nothing hurts it, awake it takes more', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const base = { ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'dream' as const };
+  let s = fight({ grid, foes: [base], dream: Fight.startDream(true) });
+  for (let n = 0; n < Fight.DREAM.every; n++) s = Fight.dreamTick(s).state;
+  assert.ok(s.dream!.on && s.foes[0].dreaming);
+  seedRandom(5); const asleep = Fight.resolvePlayerAttack(s, hitFor(30), 'none').state.foes[0].unit;
+  assert.equal(asleep.currentHp + asleep.currentStructuralHp, s.foes[0].unit.currentHp + s.foes[0].unit.currentStructuralHp);
+  seedRandom(5); const awake = Fight.resolvePlayerAttack({ ...s, foes: [{ ...s.foes[0], dreaming: false }] }, hitFor(30), 'none').state.foes[0].unit;
+  seedRandom(5); const plain = Fight.resolvePlayerAttack({ ...s, foes: [{ ...base, twist: undefined }] }, hitFor(30), 'none').state.foes[0].unit;
+  const lost = (u: typeof awake) => s.foes[0].unit.currentHp + s.foes[0].unit.currentStructuralHp - u.currentHp - u.currentStructuralHp;
+  assert.ok(lost(awake) > lost(plain), 'awake it takes more than a plain enemy would');
+});

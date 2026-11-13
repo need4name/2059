@@ -44,6 +44,7 @@ function CombatHud() {
   if (s.alarm) chips.push(s.alarm.on
     ? { key: 'alarm', tone: 'hostile', text: Fight.besideColdPod(s, s.grid.playerPosition) ? 'Alarm · cold here' : 'Alarm' }
     : { key: 'alarm', tone: s.alarm.turnsLeft === 1 ? 'cred' : 'sys', pulse: s.alarm.turnsLeft === 1, text: s.alarm.turnsLeft === 1 ? 'Something is about to trip' : 'Quiet' });
+  if (s.dream) chips.push({ key: 'dream', tone: s.dream.on ? 'sys' : 'cred', text: s.dream.on ? `Dreaming · wakes in ${s.dream.left}` : `Awake · dreams in ${s.dream.left}` });
   if (s.roll) chips.push({ key: 'roll', tone: s.roll.left === 1 ? 'cred' : 'sys', text: `Rolls ${s.roll.side === 'east' ? '→' : '←'}${s.roll.left === 1 ? ' next round' : ` in ${s.roll.left}`}` });
   if (s.wind) chips.push({ key: 'wind', tone: s.wind.turnsLeft === 1 ? 'cred' : 'sys', text: `Wind ${({ north: '↑', south: '↓', east: '→', west: '←' } as const)[s.wind.dir]}${s.wind.turnsLeft === 1 ? ' · turning' : ''}` });
   if (s.playerSlowed) chips.push({ key: 'slow', tone: 'hostile', text: 'Slowed' });
