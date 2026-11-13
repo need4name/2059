@@ -301,3 +301,14 @@ test('Overload carries between fights for a host, and a new host starts empty', 
   assert.equal(M.newHost(s).overload, 0);
   assert.equal({ ...s }.overload, 60);
 });
+
+test('the skull marks where the last host fell until a host walks back into that room', () => {
+  const s = walk(M.newMapState(), 'deck', 'walkway');
+  const host = M.newHost(s);
+  assert.equal(host.lastFell, 'walkway');
+  assert.ok(M.mapView(host).rooms.find(r => r.id === 'walkway')!.corpse, 'a skull even with nothing on the body');
+  assert.equal(M.mapView(host).rooms.find(r => r.id === 'walkway')!.part, false);
+  const back = walk(host, 'deck', 'walkway');
+  assert.equal(back.lastFell, null);
+  assert.equal(M.mapView(back).rooms.find(r => r.id === 'walkway')!.corpse, false);
+});

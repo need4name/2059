@@ -802,11 +802,25 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     // A shove or drag: a small white arrow the way you'd go
     if (showDanger && danger!.shove && (danger!.shove.dr || danger!.shove.dc)) {
       const { dr, dc } = danger!.shove;
+      // Where it would leave you: into the sea (blue) or onto a hazard (orange) shows on the arrow and on the tile you'd land on
+      const land = { row: row + dr, col: col + dc }, lt = grid.tiles?.[land.row]?.[land.col];
+      const into = lt?.type === 'void' ? 'sea' : lt?.type === 'hazard' ? 'hazard' : null;
+      const tone = into === 'sea' ? '#5fd0ff' : into === 'hazard' ? '#ffa040' : '#ffffff';
+      if (into && lt) {
+        const lp = gridToScreen(land.row, land.col, width, height);
+        overlay.push(() => {
+          ctx.save();
+          ctx.strokeStyle = tone; ctx.lineWidth = Math.max(2, tileW * 0.05); ctx.globalAlpha = 0.65 + 0.3 * Math.sin(now / 260);
+          ctx.setLineDash([tileW * 0.08, tileW * 0.06]);
+          ctx.beginPath(); ctx.ellipse(lp.x, lp.y + tileH * 0.05, tileW * 0.26, tileH * 0.2, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
+        });
+      }
       ctx.save();
       ctx.translate(pos.x + dc * tileW * 0.22, pos.y + dr * tileH * 0.22);
       ctx.rotate(Math.atan2(dr, dc));
       const a = tileW * 0.13;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = tone;
       ctx.fillRect(-a, -a * 0.25, a * 1.2, a * 0.5);
       ctx.beginPath(); ctx.moveTo(a * 0.2, -a * 0.75); ctx.lineTo(a, 0); ctx.lineTo(a * 0.2, a * 0.75); ctx.closePath(); ctx.fill();
       ctx.restore();

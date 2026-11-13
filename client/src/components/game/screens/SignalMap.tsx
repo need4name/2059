@@ -305,7 +305,7 @@ export function SignalMap() {
           }
         }
         if (r.corpse) {
-          // Where the last host fell, its part still on the body: a small pale skull that glints, gone once the part is taken
+          // Where the last host fell: a small pale skull until a host walks back in (or takes the part off it); it glints while the body holds a part
           const gx = Math.round(sw.x + (c.x - sw.x) * 0.4) - 2, gy = Math.round(sw.y + (c.y - sw.y) * 0.4) - 5 - (Math.floor(now / 700) % 2);
           const SKULL = ['.xxx.', 'xxxxx', 'xoxox', 'xxxxx', '.x.x.'];
           SKULL.forEach((row, j) => row.split('').forEach((ch, i) => {
@@ -313,7 +313,7 @@ export function SignalMap() {
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if ((SKULL[j + dy]?.[i + dx] ?? '.') === '.') px(gx + i + dx, gy + j + dy, C.out);
           }));
           SKULL.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') px(gx + i, gy + j, ch === 'o' ? C.out : '#efe6d2'); }));
-          if (Math.floor(now / 380) % 3 !== 2) px(gx + 4, gy - 1, C.credLit);
+          if (r.part && Math.floor(now / 380) % 3 !== 2) px(gx + 4, gy - 1, C.credLit);
         }
         if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' || r.mark === 'server' ? now : 0);
         if (mine) {

@@ -10,7 +10,7 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
@@ -176,6 +176,15 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       const add = earned.filter(c => !(f.opened ?? []).includes(c));
       if (!add.length) return save;
       return { ...save, parts: { ...save.parts, '2059-firmware': JSON.stringify({ ...fw, state: { ...f, opened: [...(f.opened ?? []), ...add], fresh: [...(f.fresh ?? []), ...add] } }) } };
+    } catch { return save; }
+  },
+  // 19 -> 20: the map remembers where the last host fell (the skull), until a host walks back in; an old save's body marks it
+  19: (save) => {
+    const raw = save.parts['2059-map'];
+    if (!raw) return save;
+    try {
+      const part = JSON.parse(raw); const st = part.state ?? {};
+      return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { ...st, lastFell: st.lastFell ?? st.corpse?.room ?? null } }) } };
     } catch { return save; }
   },
 };
