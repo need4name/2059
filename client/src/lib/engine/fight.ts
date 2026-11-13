@@ -383,7 +383,7 @@ export function mirrorStep(s: FightState, from: TilePosition): Step {
 /** The fall-back boss (twist 'fade'): it backs off when you're within `near` tiles; cornered, it takes `cornered`× damage. */
 export const FADE = { near: 2, cornered: 1.35 };
 
-export const CRANE = { every: 1, hit: 0.22, foeHit: 0.12 };
+export const CRANE = { every: 2, hit: 0.18, foeHit: 0.12 };
 
 export const startCrane = (on: boolean): FightState['crane'] => (on ? { at: null, left: CRANE.every } : null);
 

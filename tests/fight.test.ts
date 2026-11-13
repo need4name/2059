@@ -1521,7 +1521,8 @@ test('ally health keeps pace with the fight it is in', async () => {
 // ── The crane (chapter one's threat-5 boss) ─────────────────────────────────
 test('the crane swings its hook over you, then drops it next round on whoever stands there, the boss too', () => {
   let s = fight({ crane: Fight.startCrane(true) });
-  s = Fight.craneTick(s).state;
+  // It swings every CRANE.every rounds
+  for (let n = 0; n < Fight.CRANE.every; n++) { assert.equal(s.crane!.at, null); s = Fight.craneTick(s).state; }
   assert.deepEqual(s.crane!.at, s.grid.playerPosition, 'the hook hangs over where you stood');
   // The red shows it: striped, with its number
   const k = `${s.grid.playerPosition.row},${s.grid.playerPosition.col}`;
