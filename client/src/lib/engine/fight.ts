@@ -133,6 +133,10 @@ export interface Foe {
   enraged: boolean;
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
+  /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
+  twist?: 'fade' | 'mirror';
+  /** A 'fade' boss with nowhere to fall back to: it takes FADE.cornered damage until it gets loose. */
+  cornered?: boolean;
 }
 
 /** An ally on the field. Knocked out allies sit out the rest of the fight. */
@@ -211,6 +215,8 @@ export interface FightState {
   playerDrive?: number;
   /** Tides, on boards with mud flats: whether the water is up, and rounds until it turns. */
   tide?: { high: boolean; turnsLeft: number } | null;
+  /** The weigh station's crane (chapter one's threat-5 boss): where its hook hangs, ready to drop at the start of the next round, and rounds until it swings again. */
+  crane?: { at: TilePosition | null; left: number } | null;
   /** The alarm, in chapters that have one: whether it has tripped, and rounds until it does. */
   alarm?: { on: boolean; turnsLeft: number } | null;
   /** Orders, in chapters that have them: the rule in force, rounds until the next, and whether you've rewritten one this fight. */
@@ -270,7 +276,7 @@ const hittable = (f: Foe) => isAlive(f) && !f.swimming;
 /** Does this enemy carry an implant that gives it this trait? */
 export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
 /** Damage an enemy takes: a spine brace cuts it. */
-const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1);
+const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
   // The Patchwork King fights from a script: what he can use next is his coming turn's phase
@@ -286,7 +292,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -336,6 +342,85 @@ export function tideTick(s: FightState): Step {
     state = { ...state, allies: state.allies.map(a => (allyAlive(a) && !a.swimming && flooded(a.pos) ? { ...a, swimming: true, taunting: false } : a)) };
   }
   return { state, events };
+}
+
+// ── The crane ────────────────────────────────────────────────────────────────
+// Chapter one's threat-5 boss fights under the weigh station's crane: the intro
+// boss teaches one thing, reading a warning and moving. At the start of a round
+// the hook swings over where you stand; at the start of the next it drops, and
+// whoever is on that tile takes a heavy hit (CRANE.hit of their health). The boss
+// too, and it loses its next go to the blow: lure it under the hook.
+
+/**
+ * The mirror (twist 'mirror', the Echo): when you've moved, it takes the same step mirrored left to
+ * right (rows the same way, columns the other), tile by tile until something stops it. Mud about to
+ * flood, hazards and the sea are fair game: steering it into them is the point.
+ */
+export function mirrorStep(s: FightState, from: TilePosition): Step {
+  const to = s.grid.playerPosition, dr = to.row - from.row, dc = to.col - from.col;
+  if (!dr && !dc) return { state: s, events: [] };
+  let state = s;
+  const events: FightEvent[] = [];
+  state.foes.forEach((f, i) => {
+    if (f.twist !== 'mirror' || !isAlive(f) || f.swimming || f.stunned) return;
+    let at = f.pos;
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    for (let n = 1; n <= steps; n++) {
+      const next = { row: f.pos.row + Math.round((dr * n) / steps), col: f.pos.col - Math.round((dc * n) / steps) };
+      const t = tileAt(next, state.grid);
+      if (!t || t.type === 'obstacle' || same(next, state.grid.playerPosition) || state.foes.some((o, k) => k !== i && isAlive(o) && same(o.pos, next)) || state.allies.some(a => allyAlive(a) && same(a.pos, next))) break;
+      at = next;
+      if (t.type === 'void') break;
+    }
+    if (same(at, f.pos)) return;
+    state = setFoe(state, i, { pos: at });
+    events.push(say(`${f.unit.name} moves as you move`));
+    if (tileAt(at, state.grid)?.type === 'void') { state = setFoe(state, i, { swimming: true, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null }); events.push(say(`${f.unit.name} follows you into the water`, 'critical')); }
+  });
+  return { state, events };
+}
+
+/** The fall-back boss (twist 'fade'): it backs off when you're within `near` tiles; cornered, it takes `cornered`× damage. */
+export const FADE = { near: 2, cornered: 1.35 };
+
+export const CRANE = { every: 1, hit: 0.22, foeHit: 0.12 };
+
+export const startCrane = (on: boolean): FightState['crane'] => (on ? { at: null, left: CRANE.every } : null);
+
+/** A new round: a hanging hook drops, then (after CRANE.every rounds) the crane swings over you again. */
+export function craneTick(s: FightState): Step {
+  if (!s.crane) return { state: s, events: [] };
+  const events: FightEvent[] = [];
+  let state = s;
+  const at = s.crane.at;
+  if (at) {
+    events.push(say('The crane drops its hook', 'critical'), { kind: 'collide' });
+    const bodies: Body[] = [];
+    if (same(state.grid.playerPosition, at) && !state.playerSwimming) bodies.push({ kind: 'player' });
+    state.foes.forEach((f, i) => { if (isAlive(f) && !f.swimming && same(f.pos, at)) bodies.push({ kind: 'foe', i }); });
+    state.allies.forEach((a, k) => { if (allyAlive(a) && !a.swimming && same(a.pos, at)) bodies.push({ kind: 'ally', k }); });
+    for (const b of bodies) {
+      if (b.kind === 'player') {
+        const dmg = Math.max(1, Math.round(state.player.maxHp * CRANE.hit * state.perks.damageTakenMult));
+        events.push(say(`The hook lands on you: -${dmg}`, 'damage'));
+        state = hurt(state, b, dmg, events);
+      } else if (b.kind === 'foe') {
+        const f = state.foes[b.i], dmg = Math.max(1, Math.round(f.unit.maxHp * CRANE.foeHit));
+        events.push(say(`The hook lands on ${f.unit.name}: -${dmg}, and it reels`, 'damage'));
+        state = hurt(state, b, dmg, events);
+        if (isAlive(state.foes[b.i])) state = setFoe(state, b.i, { stunned: true });
+      } else {
+        const a = state.allies[b.k], dmg = Math.max(1, Math.round(a.unit.maxHp * CRANE.hit));
+        events.push(say(`The hook lands on ${a.unit.name}: -${dmg}`, 'damage'));
+        state = hurt(state, b, dmg, events);
+      }
+    }
+    return { state: { ...state, crane: { at: null, left: CRANE.every } }, events };
+  }
+  const left = s.crane.left - 1;
+  if (left > 0 || s.playerSwimming) return { state: { ...state, crane: { at: null, left: Math.max(0, left) } }, events };
+  events.push(say('The crane swings its hook over you'));
+  return { state: { ...state, crane: { at: { ...state.grid.playerPosition }, left: 0 } }, events };
 }
 
 // ── The alarm ────────────────────────────────────────────────────────────────
@@ -1854,6 +1939,11 @@ export function dangerInfo(s: FightState, level: number, twice: number[] = []): 
     const hits = twice.includes(i) ? 2 : 1;
     mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v * hits); d.shove = d.shove ?? m.push; } });
   }
+  // The crane's hook drops on its tile at the start of the next round
+  if (s.crane?.at) {
+    const d = tile(s.crane.at);
+    d.damage += Math.round(s.player.maxHp * CRANE.hit * s.perks.damageTakenMult); d.heavy = true;
+  }
   return out;
 }
 
@@ -2169,6 +2259,16 @@ export function foeWalk(s: FightState, i: number): Step {
   const spots = [foe.pos, ...Array.from(getReachableTiles(foe.pos, { ...view, bossPosition: offBoard }, range)).map(keyOf)].filter(p => !same(p, prey));
   const covers = (from: TilePosition, t: TilePosition) =>
     patterns.some(p => canHitTarget(from, t, p, { ...view, bossPosition: from, playerPosition: t, occupied: (view.occupied ?? []).filter(o => !same(o, t)) }));
+  // Falls back (chapter two's threat-5 boss): with you close, it steps a tile further away; with nowhere to go, it's cornered
+  if (foe.twist === 'fade' && chebyshev(foe.pos, prey) <= FADE.near) {
+    const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
+    const back = spots
+      .filter(p => chebyshev(p, foe.pos) === 1 && chebyshev(p, prey) > chebyshev(foe.pos, prey))
+      .filter(p => tileAt(p, s.grid)?.type !== 'hazard' && !(flooding && tileAt(p, s.grid)?.tidal))
+      .sort((a, b) => chebyshev(b, prey) - chebyshev(a, prey) || (covers(b, prey) ? 1 : 0) - (covers(a, prey) ? 1 : 0))[0];
+    if (back) return { state: setFoe(s, i, { pos: back, cornered: false }), events: [say(`${foe.unit.name} falls back`)] };
+    return { state: setFoe(s, i, { cornered: true }), events: foe.cornered ? [] : [say(`${foe.unit.name} is cornered: it takes ${Math.round((FADE.cornered - 1) * 100)}% more`, 'critical')] };
+  }
   // The King goes back for a fallen part: he ends as close to it as he can (beside it is enough)
   const goal = kingGoal(s, foe);
   if (goal && chebyshev(foe.pos, goal) > KING.refit) {

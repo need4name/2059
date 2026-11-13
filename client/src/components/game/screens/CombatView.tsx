@@ -93,6 +93,7 @@ function CombatHud() {
             <div className="truncate text-right text-[10px]" title={[...(boss.implants ?? []), ...(target?.parts ?? []).map(p => kingPart(p).text), ...(boss.traits ?? []).map(t => ENEMY_TRAITS[t]?.text ?? t)].join('\n')}>
               {target?.parts?.length ? <span className="text-cred">{target.parts.map(p => kingPart(p).name).join(' · ')}{boss.traits?.length ? ' · ' : ''}</span> : null}
               {boss.traits?.length ? <span className="text-hud-dim">{boss.traits.map(t => ENEMY_TRAITS[t]?.name ?? t).join(' · ')}</span> : null}
+              {target?.cornered ? <span className="text-ok">{boss.traits?.length ? ' · ' : ''}Cornered</span> : null}
             </div>
           )}
           <Meter value={boss.currentStructuralHp} max={boss.maxStructuralHp} tone="structure" className="h-1" align="right" />

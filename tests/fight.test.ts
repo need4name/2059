@@ -1517,3 +1517,61 @@ test('ally health keeps pace with the fight it is in', async () => {
   const def = ALLY_DEFS[0];
   assert.ok(allyUnit(def, 1, 1, {}, 8).maxHp > allyUnit(def, 1, 1, {}, 1).maxHp);
 });
+
+// ── The crane (chapter one's threat-5 boss) ─────────────────────────────────
+test('the crane swings its hook over you, then drops it next round on whoever stands there, the boss too', () => {
+  let s = fight({ crane: Fight.startCrane(true) });
+  s = Fight.craneTick(s).state;
+  assert.deepEqual(s.crane!.at, s.grid.playerPosition, 'the hook hangs over where you stood');
+  // The red shows it: striped, with its number
+  const k = `${s.grid.playerPosition.row},${s.grid.playerPosition.col}`;
+  assert.ok(Fight.dangerInfo(s, 1).get(k)!.heavy);
+  // Stay put and it lands on you
+  const hit = Fight.craneTick(s).state;
+  assert.equal(hit.player.currentHp, s.player.currentHp - Math.round(s.player.maxHp * Fight.CRANE.hit));
+  assert.equal(hit.crane!.at, null);
+  // Step off and lure the boss under it: it takes the blow and loses its next go
+  const lured = { ...s, grid: { ...s.grid, playerPosition: { row: 7, col: 3 } }, foes: s.foes.map(f => ({ ...f, pos: { ...s.crane!.at! } })) };
+  const after = Fight.craneTick(lured).state;
+  assert.equal(after.player.currentHp, s.player.currentHp);
+  assert.ok(after.foes[0].unit.currentHp < s.foes[0].unit.currentHp && after.foes[0].stunned);
+  // No crane outside that fight
+  assert.equal(Fight.craneTick(fight()).state.crane ?? null, null);
+});
+
+// ── Falling back (chapter two's threat-5 boss) ──────────────────────────────
+test('the fall-back boss steps away when you are close, and cornered it takes more', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const s = fight({ grid, foes: [{ ...Fight.newFoe(createBoss(3), grid.bossPosition, 40), twist: 'fade' }] });
+  const back = Fight.foeWalk(s, 0).state;
+  assert.ok(chebyshev(back.foes[0].pos, s.grid.playerPosition) > 1, 'it fell back a tile');
+  assert.equal(chebyshev(back.foes[0].pos, s.foes[0].pos), 1);
+  // Pinned in the corner by the board's edge and you: nowhere further to go
+  const corner = arena([1, 1], [0, 0]);
+  const pinned = fight({ grid: corner, foes: [{ ...Fight.newFoe(createBoss(3), corner.bossPosition, 40), twist: 'fade' }] });
+  const stuck = Fight.foeWalk(pinned, 0).state;
+  assert.deepEqual(stuck.foes[0].pos, { row: 0, col: 0 });
+  assert.equal(stuck.foes[0].cornered, true);
+  // A plain enemy doesn't do this
+  assert.ok(chebyshev(Fight.foeWalk({ ...s, foes: [{ ...s.foes[0], twist: undefined }] }, 0).state.foes[0].pos, s.grid.playerPosition) <= 1);
+});
+
+// ── The mirror (the Echo) ────────────────────────────────────────────────────
+test('the Echo takes your step mirrored left to right, stopped by cover, and follows you into the water', () => {
+  const grid = arena([6, 3], [2, 3]);
+  const mk = (g: CombatGrid) => fight({ grid: g, foes: [{ ...Fight.newFoe(createBoss(3), g.bossPosition, 40), twist: 'mirror' }] });
+  // You step two to the right and one down: it steps two to the left and one down
+  const s = mk({ ...grid, playerPosition: { row: 7, col: 5 } });
+  const after = Fight.mirrorStep(s, { row: 6, col: 3 }).state;
+  assert.deepEqual(after.foes[0].pos, { row: 3, col: 1 });
+  // Cover in the way stops it short
+  const tiles = grid.tiles.map(r => r.slice()); tiles[2][2] = { type: 'obstacle' } as any;
+  const blocked = Fight.mirrorStep(mk({ ...grid, tiles, playerPosition: { row: 6, col: 5 } }), { row: 6, col: 3 }).state;
+  assert.deepEqual(blocked.foes[0].pos, { row: 2, col: 3 });
+  // Open water: it goes in
+  const wet = grid.tiles.map(r => r.slice()); wet[2][2] = { type: 'void' } as any;
+  const sea = Fight.mirrorStep(mk({ ...grid, tiles: wet, playerPosition: { row: 6, col: 4 } }), { row: 6, col: 3 }).state;
+  assert.ok(sea.foes[0].swimming);
+  // A plain enemy stays put
+  assert.deepEqual(Fight.mirrorStep({ ...s, foes: [{ ...s.foes[0], twist: undefined }] }, { row: 6, col: 3 }).state.foes[0].pos, grid.bossPosition);
+});

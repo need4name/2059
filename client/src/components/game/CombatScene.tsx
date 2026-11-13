@@ -685,6 +685,29 @@ drawSlab(ctx, cells, tileset, cornerR);
 // Things that stand up (cover, units) are drawn after the floor, back to front
 const depth: { y: number; draw: () => void }[] = [];
 const overlay: (() => void)[] = [];
+// The crane's hook hanging over a tile, swaying, ready to drop at the start of the next round
+{
+  const hookAt = useCombat.getState().crane?.at;
+  if (hookAt) {
+    const hp0 = gridToScreen(hookAt.row, hookAt.col, width, height);
+    const u = Math.max(2, Math.round(tileW / 13)), sway = Math.round(Math.sin(now / 420) * u * 0.6);
+    const hx = Math.round(hp0.x) + sway, hy = Math.round(hp0.y - tileH * 1.75);
+    overlay.push(() => {
+      ctx.save();
+      // Its shadow on the deck, a little bigger as it swings low
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(hp0.x, hp0.y + tileH * 0.1, tileW * 0.3, tileH * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      // The cable, from off the top of the board
+      ctx.fillStyle = '#2a2f36'; ctx.fillRect(hx - u / 2, 0, u, hy);
+      ctx.fillStyle = '#5b6470'; ctx.fillRect(hx - u / 2, 0, Math.max(1, u / 2), hy);
+      // The hook block and its hook, pixel by pixel ('#' dark, 'o' steel, 'y' warning paint)
+      const HOOK = ['.####.', '#yoyo#', '#oyoy#', '.####.', '..##..', '..#...', '.#....', '.#..#.', '..##..'];
+      const col: Record<string, string> = { '#': '#1b1f25', o: '#9aa4b0', y: '#e8b23a' };
+      HOOK.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') { ctx.fillStyle = col[ch]; ctx.fillRect(hx + (i - 3) * u, hy + j * u, u, u); } }));
+      ctx.restore();
+    });
+  }
+}
 
 // Draw tiles (rectangular grid) with industrial worn tones
 for (let row = 0; row < grid.rows; row++) {

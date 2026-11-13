@@ -439,6 +439,14 @@ Level n needs 100 × 1.5^(n−1) XP. Threats 1–5 give 120 / 150 / 210 / 230 / 
 - Enemies keep off mud the tide takes next round: they won't stop on it, and an approach walk stops short of it.
 - The HUD shows the tide and when it turns ("Tide comes in next round · get off the mud"), and mud about to go under glows blue. The board keeps its size while the mud is under water.
 
+### Boss twists
+
+Every boss has one thing that makes its fight unlike any other (the Patchwork King's are under the King, above). The game grows: chapter one is a short introduction, so its bosses teach one simple idea each; later chapters' bosses lean on more mechanics at once.
+
+- **The crane** (chapter one's threat-5 boss, the Volkov Operator at the weigh station; `crane`, `startCrane`, `craneTick`, `CRANE` in `fight.ts`, on in any fight at the threat where the Enforcer firmware is held, the call-back included). It teaches reading a warning and moving. At the start of one round the crane swings its hook over the tile you stand on (the hook hangs there on the board, swaying on its cable, and the tile shows striped red with its number); at the start of the next round it drops. Whoever is on that tile takes a heavy hit: you or an ally 22% of max health (`CRANE.hit`), the boss 12% (`CRANE.foeHit`), and the boss loses its next go to the blow, so luring it under the hook pays. Then the crane swings again the round after (`CRANE.every` 1: it swings and drops in turn). Not while you're in the sea.
+- **Falling back** (the Deltas' threat-5 boss, the IOA Interdiction Officer at the scan post, holding the Courier firmware; Foe `twist: 'fade'`, `FADE` in `fight.ts`, set in `startFight`). It builds on chapter one's lesson with the tide. Whenever you're within 2 tiles after its turn (`FADE.near`), instead of closing in it steps one tile further away from you (never onto a hazard or mud about to flood). With nowhere further to go (the board's edge, cover, open water, another body) it's **Cornered**: it takes 35% more damage (`FADE.cornered`) until it gets loose, shown in green on its trait line. So you herd it into a corner, or wait for the tide to cut off its way back.
+- **The mirror** (the Deltas' threat-10 set piece, the Echo at the still pool, wearing your last host's implants; Foe `twist: 'mirror'`, `mirrorStep` in `fight.ts`, run after your action in `finishPlayerAction`). It's your reflection: whenever you've moved, it takes the same step mirrored left to right (rows the same way, columns the other), tile by tile until cover, a body or the board's edge stops it. Open water takes it (it's in the sea, losing its next turn to the climb), and so do hazards and mud about to flood, so you steer it into them. On its own turn it still closes in if nothing of its reaches you.
+
 ### The alarm and dreamers (chapter rules)
 
 **Where:** `rules` on a chapter in `chapters.json`; the Alarm and Dreamers parts of `client/src/lib/engine/fight.ts`.
