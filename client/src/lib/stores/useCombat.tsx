@@ -592,8 +592,8 @@ const done = () => {
 if (apply(Fight.applyFoeHazard(fightState(), i))) return;
 later(nextActor, typeof Fight.forecast(fightState(), get().clock, 1, i)[0] !== 'number' ? TURN_HANDOFF_DELAY : FOE_GAP_DELAY);
 };
-// Enemies attack first, then walk
-if (step.walkAfter) later(() => { doer = { kind: 'foe' }; if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
+// Enemies attack first, then walk; one that acts again before you holds its ground until its last action
+if (step.walkAfter && !Fight.actsAgainFirst(fightState(), get().clock, i)) later(() => { doer = { kind: 'foe' }; if (apply(Fight.foeWalk(fightState(), i))) return; done(); }, ENEMY_STEP_DELAY);
 else done();
 };
 

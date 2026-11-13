@@ -1290,13 +1290,15 @@ test('enemies that fight with special moves carry more special-leaning implants'
 });
 
 // ── The red is honest for the whole enemy round ──────────────────────────────
-test('the red counts an enemy that acts twice from where it would walk, a stunned one for its second go, and the King by his phase', async () => {
+test('an enemy that acts twice hits twice from where it stands (same tiles, both hits counted), a stunned one for its second go, and the King by his phase', async () => {
   const { createPatchworkKing, PATCHWORK_KING_PHASES } = await import('../client/src/lib/combat/actions');
   const s = fight();
   const once = Fight.dangerTiles(s);
   const twice = Fight.dangerTiles(s, false, [0]);
-  for (const k of Array.from(once)) assert.ok(twice.has(k), 'acting twice only adds to the red');
-  assert.ok(twice.size > once.size, 'its second go, after a walk, reaches further');
+  assert.deepEqual(Array.from(twice).sort(), Array.from(once).sort(), 'it holds its ground between the two: the same reach');
+  const at = Array.from(once)[0];
+  const one = Fight.dangerInfo(s, 1).get(at)!.damage, two = Fight.dangerInfo(s, 1, [0]).get(at)!.damage;
+  assert.ok(Math.abs(two - 2 * one) <= 1, `both hits counted on the tile (${two} vs ${one})`);
   // Stunned: its first go is lost, but a second still lands
   const stunned = { ...s, foes: s.foes.map(f => ({ ...f, stunned: true })) };
   assert.equal(Fight.dangerTiles(stunned).size, 0);

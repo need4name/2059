@@ -617,6 +617,13 @@ export function forecast(s: FightState, c: Clock, n: number, acting: Actor | nul
   return out;
 }
 
+/** Foe i, mid-turn, acts again before the player's next turn: it holds its ground between the two (it walks only after its last action). */
+export function actsAgainFirst(s: FightState, c: Clock, i: number): boolean {
+  const ahead = forecast(s, c, 12, i);
+  const you = ahead.indexOf('player');
+  return ahead.slice(0, you < 0 ? ahead.length : you).includes(i);
+}
+
 /** Foes that will act twice or more before the player's next turn (`acting` is whoever is mid-turn). */
 export function doubleTurns(s: FightState, c: Clock, acting: Actor | null): number[] {
   const ahead = forecast(s, c, 12, acting);
@@ -1768,14 +1775,9 @@ export function foeThreatTiles(s: FightState, i: number, onlyShoves = false, aga
   for (let row = 0; row < s.grid.rows; row++) for (let col = 0; col < s.grid.cols; col++) {
     const t = { row, col };
     if (same(t, f.pos) || tileAt(t, s.grid)?.type === 'void') continue;
-    if (firstFree) reachFrom(f.pos, t);
-    // An enemy that acts again before your next turn walks after its first action, then strikes from there:
-    // where it walks depends on where you stand, so each tile is checked from the spot it would walk to
-    if (again && order(s) !== 'hold') {
-      const ready = setFoe({ ...s, grid: { ...s.grid, playerPosition: t } }, i, { stunned: false, pendingAction: null, pendingTiles: null });
-      const to = foeWalk(ready, i).state.foes[i]?.pos ?? f.pos;
-      if (!same(to, t)) reachFrom(to, t);
-    } else if (again) reachFrom(f.pos, t);
+    // An enemy that acts again before your next turn holds its ground between the two (actsAgainFirst):
+    // its second action strikes from the same spot, so it reaches the same tiles (or the only ones, if the first is lost)
+    if (firstFree || again) reachFrom(f.pos, t);
   }
   return out;
 }
@@ -1790,7 +1792,7 @@ export interface DangerTile { damage: number; shove?: { dr: number; dc: number }
  * hit to every tile it's locked on. A hit that shoves or drags you there gives the way
  * you'd go. The red is shaded by the damage, against your health now (`dangerShade`).
  */
-export function dangerInfo(s: FightState, level: number): Map<string, DangerTile> {
+export function dangerInfo(s: FightState, level: number, twice: number[] = []): Map<string, DangerTile> {
   const out = new Map<string, DangerTile>();
   const occupied = s.allies.filter(allyAlive).map(a => a.pos);
   const heatTaken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult;
@@ -1810,7 +1812,7 @@ export function dangerInfo(s: FightState, level: number): Map<string, DangerTile
     if (a.effects?.pull || f.parts?.includes('hook')) return { dr: -away.dr, dc: -away.dc };
     return undefined;
   };
-  for (const { f } of livingFoes(s)) {
+  for (const { f, i } of livingFoes(s)) {
     if (f.swimming) continue;
     // A heavy being wound up lands on its locked tiles
     if (f.pendingAction && f.pendingTiles) {
@@ -1848,7 +1850,9 @@ export function dangerInfo(s: FightState, level: number): Map<string, DangerTile
         for (const x of tiles) if (!same(x, al.pos) && !same(x, f.pos)) keep(x, hitOn(f, a, x, al.pos), shoveOf(f, a, x));
       }
     }
-    mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v); d.shove = d.shove ?? m.push; } });
+    // Acting twice before your next turn, from the same spot: both hits land on the tile
+    const hits = twice.includes(i) ? 2 : 1;
+    mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v * hits); d.shove = d.shove ?? m.push; } });
   }
   return out;
 }
