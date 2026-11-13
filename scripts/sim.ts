@@ -154,6 +154,8 @@ function playerTurn(skill: number) {
   const danger = new Set<string>();
   // Heavies lock their tiles when they wind up: step off them (most of the time)
   for (const { f } of living) if (f.pendingTiles && botRandom() < skill) for (const t of f.pendingTiles) danger.add(`${t.row},${t.col}`);
+  // The crane's hook drops on its tile next round: step off it the same way
+  { const hook = (s as any).crane?.at; if (hook && botRandom() < skill) danger.add(`${hook.row},${hook.col}`); }
   const nearest = (pos: any) => Math.min(...living.map(x => G.chebyshev(pos, x.f.pos)));
   // The red tiles are honest (enemies hit before they move): a sensible player prefers a safe tile it can still attack from
   const red = F.dangerTiles(s as any, false, F.doubleTurns(s as any, s.clock, 'player'));
