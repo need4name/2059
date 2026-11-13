@@ -709,7 +709,7 @@ const grid = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;
-const twist: Fight.Foe['twist'] = held === 'swift' ? 'fade' : undefined;
+const twist: Fight.Foe['twist'] = held === 'swift' ? 'fade' : held === 'wretch' ? 'shed' : undefined;
 const isEcho = (n: string) => n === ECHO_NAME;
 // The Long Sleeper remembers earlier enemies of this chapter (seeded)
 const memory = activeChapter().cast.rotation.slice().sort(() => random() - 0.5).slice(0, Fight.FORMS.count);
