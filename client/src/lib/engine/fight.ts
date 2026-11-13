@@ -134,7 +134,9 @@ export interface Foe {
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
   /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
-  twist?: 'fade' | 'mirror' | 'roll' | 'copy' | 'forms' | 'decoy' | 'dream';
+  twist?: 'fade' | 'mirror' | 'roll' | 'copy' | 'forms' | 'decoy' | 'dream' | 'shed' | 'leader';
+  /** The Valley Raider (twist 'shed'): implants torn off so far. */
+  shed?: number;
   /** The Long Sleeper (twist 'forms'): the earlier enemies it gets back up as, in order. */
   forms?: string[];
   /** The First Sleeper (twist 'dream'): dreaming, it can't be hurt. */
@@ -225,6 +227,10 @@ export interface FightState {
   exhaust?: { row: number | null } | null;
   /** The dream (the First Sleeper): whether it's dreaming, and rounds until that changes. */
   dream?: { on: boolean; left: number } | null;
+  /** The Overseer's beat: rounds until the downbeat hits the whole room. */
+  beat?: { left: number } | null;
+  /** The Weather's storm front: the column it strikes at the start of the next round, and which way it sweeps. */
+  front?: { col: number; dir: 1 | -1 } | null;
   /** The rolling ship (the Living Vessel): which side it rolls to next, and rounds until it does. */
   roll?: { side: 'east' | 'west'; left: number } | null;
   /** The weigh station's crane (chapter one's threat-5 boss): where its hook hangs, ready to drop at the start of the next round, and rounds until it swings again. */
@@ -312,7 +318,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], beat: null as FightState['beat'], front: null as FightState['front'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -445,6 +451,64 @@ export function decoyShuffle(s: FightState): Step {
   if (real < 0 || copy < 0 || random() < 0.5) return { state: s, events: [] };
   const a = s.foes[real].pos, b = s.foes[copy].pos;
   return { state: setFoe(setFoe(s, real, { pos: b }), copy, { pos: a }), events: [say('The two of them blur and settle')] };
+}
+
+/** The Valley Raider (twist 'shed'): each torn-off implant leaves it `speed` faster. */
+export const SHED = { speed: 1.5 };
+function shedImplant(s: FightState, i: number, events: FightEvent[]): FightState {
+  const f = s.foes[i];
+  const moves = foeRoster(f);
+  const attacks = moves.filter(a => a.type === 'attack' && !a.isHeavy);
+  const best = attacks.slice().sort((a, b) => (b.damage ?? 0) - (a.damage ?? 0))[0];
+  const keep = attacks.length > 1 && best ? moves.filter(a => a !== best) : moves;
+  events.push(say(`${f.unit.name} tears an implant loose${best && attacks.length > 1 ? `: no more ${best.name}` : ''}. Lighter, it moves faster`, 'critical'));
+  return setFoe(s, i, { shed: (f.shed ?? 0) + 1, unit: { ...f.unit, moves: keep } });
+}
+
+/** The Overseer's beat: every `every` rounds the downbeat hits everyone but it for `hit` of their health (half if guarding). */
+export const BEAT = { every: 3, hit: 0.14 };
+export const startBeat = (on: boolean): FightState['beat'] => (on ? { left: BEAT.every } : null);
+export function beatTick(s: FightState): Step {
+  if (!s.beat) return { state: s, events: [] };
+  if (!s.foes.some(f => f.unit.name === 'The Overseer' && isAlive(f))) return { state: { ...s, beat: null }, events: [] };
+  const left = s.beat.left - 1;
+  if (left > 0) return { state: { ...s, beat: { left } }, events: [] };
+  const events: FightEvent[] = [say('The downbeat: the whole shift moves as one', 'critical'), { kind: 'collide' }];
+  let state = s;
+  if (!state.playerSwimming) {
+    const guarded = state.playerDefenseBoost + state.allyGuard > 0 || !!state.ward;
+    const dmg = Math.max(1, Math.round(state.player.maxHp * BEAT.hit * (guarded ? 0.5 : 1) * state.perks.damageTakenMult));
+    events.push(say(`The downbeat lands on you${guarded ? ' (guarded)' : ''}: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'player' }, dmg, events);
+  }
+  state.allies.forEach((a, k) => {
+    if (!allyAlive(a) || a.swimming) return;
+    const dmg = Math.max(1, Math.round(a.unit.maxHp * BEAT.hit * (a.defenseBoost > 0 || a.ward ? 0.5 : 1)));
+    state = hurt(state, { kind: 'ally', k }, dmg, events);
+  });
+  return { state: { ...state, beat: { left: BEAT.every } }, events };
+}
+
+/** The Weather's front: while its lead drone flies, a storm column sweeps the board a column a round, hitting for `hit`. */
+export const FRONT = { hit: 0.14 };
+export const startFront = (on: boolean): FightState['front'] => (on ? { col: 0, dir: 1 } : null);
+export function frontTick(s: FightState): Step {
+  if (!s.front) return { state: s, events: [] };
+  if (!s.foes.some(f => f.twist === 'leader' && isAlive(f))) return { state: { ...s, front: null }, events: [say('With its lead drone down, the storm comes apart')] };
+  const col = s.front.col;
+  const events: FightEvent[] = [say('The storm front sweeps through', 'critical')];
+  let state = s;
+  const struck = (p: TilePosition) => p.col === col;
+  if (struck(state.grid.playerPosition) && !state.playerSwimming) {
+    const dmg = Math.max(1, Math.round(state.player.maxHp * FRONT.hit * state.perks.damageTakenMult));
+    events.push(say(`The front catches you: -${dmg}`, 'damage'));
+    state = hurt(state, { kind: 'player' }, dmg, events);
+  }
+  state.allies.forEach((a, k) => { if (allyAlive(a) && !a.swimming && struck(a.pos)) state = hurt(state, { kind: 'ally', k }, Math.max(1, Math.round(a.unit.maxHp * FRONT.hit)), events); });
+  // Sweep on, turning at the board's edges
+  let dir = s.front.dir, next = col + dir;
+  if (next < 0 || next >= s.grid.cols) { dir = -dir as 1 | -1; next = col + dir; }
+  return { state: { ...state, front: { col: next, dir } }, events };
 }
 
 /** The copying boss (twist 'copy'): each repeat of the same move in a row adds `repeat` to its copy's damage. */
@@ -585,6 +649,14 @@ export const startWind = (has: boolean): FightState['wind'] =>
 
 /** Your turn ends: the wind pushes everyone a tile, then counts down and maybe turns. */
 export function windTick(s: FightState): Step {
+  if (!s.wind) return { state: s, events: [] };
+  // The Storm Tower draws the wind to itself: it always blows from you toward the tower
+  const tower = s.foes.find(f => f.unit.name === 'The Storm Tower' && isAlive(f));
+  if (tower) {
+    const dr = tower.pos.row - s.grid.playerPosition.row, dc = tower.pos.col - s.grid.playerPosition.col;
+    const dir: WindDir = Math.abs(dr) >= Math.abs(dc) ? (dr < 0 ? 'north' : 'south') : (dc < 0 ? 'west' : 'east');
+    if (dr || dc) s = { ...s, wind: { dir, turnsLeft: WIND.every } };
+  }
   if (!s.wind) return { state: s, events: [] };
   const step = WIND_STEP[s.wind.dir];
   let state = s;
@@ -753,7 +825,7 @@ export function speedOf(s: FightState, a: Actor): number {
   } else {
     const f = s.foes[a];
     v = SPEED.base + implantDrive(f.unit.carried ?? []) + (hasTrait(f, 'fast') ? SPEED.fast : 0) - (f.heat >= SPEED.hot ? SPEED.hotPenalty : 0)
-      + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0) + (f.parts?.includes('crown') ? KING.crown : 0);
+      + ((f.hasted ?? 0) > 0 ? SPEED.status : 0) - ((f.slowed ?? 0) > 0 ? SPEED.status : 0) + (f.parts?.includes('crown') ? KING.crown : 0) + (f.shed ?? 0) * SHED.speed;
   }
   return Math.round(v * 10) / 10;
 }
@@ -2073,6 +2145,14 @@ export function dangerInfo(s: FightState, level: number, twice: number[] = []): 
     const hits = twice.includes(i) ? 2 : 1;
     mine.forEach(m => { if (m.v > 0) { const d = tile(m.t); d.damage += Math.round(m.v * hits); d.shove = d.shove ?? m.push; } });
   }
+  // The storm front strikes its column at the start of the next round
+  if (s.front && s.foes.some(f => f.twist === 'leader' && isAlive(f))) {
+    for (let row = 0; row < s.grid.rows; row++) {
+      const t = { row, col: s.front.col };
+      if (tileAt(t, s.grid)?.type === 'void' || tileAt(t, s.grid)?.type === 'obstacle') continue;
+      const d = tile(t); d.damage += Math.round(s.player.maxHp * FRONT.hit * s.perks.damageTakenMult); d.heavy = true;
+    }
+  }
   // The crane's hook drops on its tile at the start of the next round
   if (s.crane?.at) {
     const d = tile(s.crane.at);
@@ -2287,6 +2367,9 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
     state = setFoe(state, i, { enraged: true, unit: { ...u, traits: [...(u.traits ?? []), ...e.gain.filter(t => !u.traits?.includes(t))] } });
     events.push(say(e.line, 'critical'));
   }
+  // The Valley Raider tears off an implant for every third of its health gone: one attack fewer, and faster
+  { const v = state.foes[i]; const due = v.twist === 'shed' ? Math.floor((1 - v.unit.currentHp / v.unit.maxHp) * 3) : 0;
+    if (due > (v.shed ?? 0)) state = shedImplant(state, i, events); }
   const f = state.foes[i];
   if (hasTrait(f, 'enduring') && f.unit.currentHp < f.unit.maxHp) {
     // Bosses (anything that enrages) heal half as fast, so a long fight can't stall

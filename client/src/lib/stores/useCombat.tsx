@@ -351,7 +351,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, stunGuard: s.stunGuard ?? 0, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, beat: s.beat, front: s.front, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
 ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 };
 };
@@ -538,6 +538,9 @@ if (apply(Fight.rollTick(fightState()))) return;
 if (apply(Fight.exhaustTick(fightState()))) return;
 if (apply(Fight.dreamTick(fightState()))) return;
 if (apply(Fight.decoyShuffle(fightState()))) return;
+// The Overseer's downbeat; the Weather's storm front
+if (apply(Fight.beatTick(fightState()))) return;
+if (apply(Fight.frontTick(fightState()))) return;
 // The crane drops its hook, or swings it over you (chapter one's threat-5 boss)
 if (apply(Fight.craneTick(fightState()))) return;
 // Knocked-out allies count down and get back up
@@ -694,6 +697,8 @@ const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patch
 const strain = useStrain.getState().active;
 const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
 // The Count brings a copy of itself (Boss twists in DESIGN.md)
+// The Weather flies with a lead drone (Boss twists in DESIGN.md)
+if (planned.some(u => u.name === 'The Weather')) planned.push(createBoss(level, false, 'Seeding Drone', 'normal'));
 const units = planned.some(u => u.name === 'The Count') ? [...planned, { ...planned.find(u => u.name === 'The Count')!, id: `${planned.find(u => u.name === 'The Count')!.id}-copy` }] : planned;
 const party = partyForFight(perks, level);
 // The arena makes room for how far you move and how many bodies are on it
@@ -716,6 +721,7 @@ const twistOf = (name: string): Partial<Fight.Foe> => {
   if (name === 'The Registrar') return { twist: 'copy' };
   if (name === 'The Long Sleeper') return { twist: 'forms', forms: memory };
   if (name === 'The First Sleeper') return { twist: 'dream', dreaming: false };
+  if (name === 'Seeding Drone' && planned.some(u => u.name === 'The Weather')) return { twist: 'leader' };
   if (name === 'The Count') { const copy = countSeen; countSeen = true; return copy ? { twist: 'decoy' } : {}; }
   return {};
 };
@@ -736,7 +742,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;

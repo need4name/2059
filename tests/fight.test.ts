@@ -1653,3 +1653,49 @@ test('the First Sleeper dreams and wakes in turn: dreaming nothing hurts it, awa
   const lost = (u: typeof awake) => s.foes[0].unit.currentHp + s.foes[0].unit.currentStructuralHp - u.currentHp - u.currentStructuralHp;
   assert.ok(lost(awake) > lost(plain), 'awake it takes more than a plain enemy would');
 });
+
+// ── The Rain Machine: shedding, the beat, the tower's wind, the front ───────
+test('the Valley Raider tears off an implant for each third of its health lost: one attack fewer, faster', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const u = createBoss(3);
+  const raider = { ...Fight.newFoe({ ...u, currentHp: Math.round(u.maxHp * 0.6) }, grid.bossPosition, 40), twist: 'shed' as const };
+  const s = fight({ grid, foes: [raider] });
+  const before = Fight.foeRoster(raider).filter(a => a.type === 'attack' && !a.isHeavy).length;
+  const after = Fight.foeTurn(s, 0, 3).state.foes[0];
+  assert.equal(after.shed, 1);
+  if (before > 1) assert.equal(Fight.foeRoster(after).filter(a => a.type === 'attack' && !a.isHeavy).length, before - 1);
+  assert.ok(Fight.speedOf({ ...s, foes: [after] }, 0) > Fight.speedOf(s, 0));
+});
+
+test('the Overseer\'s downbeat hits everyone every third round, half if you guard', () => {
+  const grid = arena([5, 3], [4, 3]);
+  const overseer = Fight.newFoe({ ...createBoss(3), name: 'The Overseer' }, grid.bossPosition, 40);
+  let s = fight({ grid, foes: [overseer], beat: Fight.startBeat(true) });
+  for (let n = 1; n < Fight.BEAT.every; n++) s = Fight.beatTick(s).state;
+  assert.equal(s.player.currentHp, createPlayer().currentHp);
+  const hit = Fight.beatTick(s).state, guarded = Fight.beatTick({ ...s, playerDefenseBoost: 5 }).state;
+  const lost = (x: FightState) => s.player.currentHp - x.player.currentHp;
+  assert.equal(lost(hit), Math.round(s.player.maxHp * Fight.BEAT.hit));
+  assert.ok(lost(guarded) < lost(hit));
+});
+
+test('the Storm Tower draws the wind toward itself', () => {
+  const grid = arena([6, 3], [1, 3]);
+  const tower = Fight.newFoe({ ...createBoss(3), name: 'The Storm Tower' }, grid.bossPosition, 40);
+  const s = fight({ grid, foes: [tower], wind: { dir: 'south', turnsLeft: 3 } });
+  assert.deepEqual(Fight.windTick(s).state.grid.playerPosition, { row: 5, col: 3 }, 'pushed north, toward the tower');
+});
+
+test('the Weather\'s front sweeps a column a round while its lead drone flies, and breaks when the drone falls', () => {
+  const grid = arena([5, 0], [1, 5]);
+  const weather = Fight.newFoe({ ...createBoss(3), name: 'The Weather' }, grid.bossPosition, 40);
+  const lead = { ...Fight.newFoe(createBoss(3), { row: 0, col: 6 }, 40), twist: 'leader' as const };
+  const s = fight({ grid, foes: [weather, lead], front: Fight.startFront(true) });
+  assert.ok(Fight.dangerInfo(s, 1).get('5,0')!.heavy, 'the coming column shows');
+  const hit = Fight.frontTick(s).state;
+  assert.equal(hit.player.currentHp, s.player.currentHp - Math.round(s.player.maxHp * Fight.FRONT.hit));
+  assert.equal(hit.front!.col, 1, 'it sweeps on');
+  const broken = Fight.frontTick({ ...s, foes: [weather, { ...lead, unit: { ...lead.unit, currentHp: 0 } }] }).state;
+  assert.equal(broken.front, null);
+  assert.equal(broken.player.currentHp, s.player.currentHp);
+});
