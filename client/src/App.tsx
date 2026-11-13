@@ -3,6 +3,7 @@ import { useCombat } from "./lib/stores/useCombat";
 import { useAudio } from "./lib/stores/useAudio";
 import { GameUI } from "./components/game/GameUI";
 import { TitleScreen } from "./components/game/screens/TitleScreen";
+import { MockDeath, MockTree } from "./components/game/screens/MemoryMockup";
 import { dailyDay, dailySeed } from "./lib/daily";
 import { Crashed } from "./components/game/Crashed";
 
@@ -22,6 +23,8 @@ function App() {
     s.startCombat();
   };
 
+  if (import.meta.env.DEV && location.hash === '#mock-death') return <MockDeath />;
+  if (import.meta.env.DEV && location.hash === '#mock-tree') return <MockTree />;
   return (
     <div className="relative h-full w-full overflow-hidden bg-hud-bg">
       <Crashed>{onTitle ? <TitleScreen onContinue={() => setOnTitle(false)} onNewGame={newGame} /> : <GameUI />}</Crashed>
