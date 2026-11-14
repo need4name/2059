@@ -4,7 +4,6 @@ import { usePlayi } from '@/lib/stores/usePlayi';
 import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
-import { levelStep } from '@/lib/engine/firmware';
 import { scrapValue } from '@/lib/combat/economy';
 import { implantStats, stimInfo, passiveText, nameOf, compareStats } from '../itemText';
 import { useInventory } from '@/lib/stores/useInventory';
@@ -181,8 +180,7 @@ export function VictoryScreen() {
 
         {lastVictory?.firmwareUp && (
           <Card className="space-y-1 p-4">
-            <div className="font-display text-[15px] font-semibold text-aug">Firmware level {lastVictory.firmwareUp}</div>
-            <p className="text-sm text-hud-text/85">{levelStep(playerClass, lastVictory.firmwareUp)?.text}</p>
+            <div className="font-display text-[15px] font-semibold text-aug">+{lastVictory.firmwareUp} firmware point{lastVictory.firmwareUp > 1 ? 's' : ''}</div>
           </Card>
         )}
 

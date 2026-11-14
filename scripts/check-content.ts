@@ -198,29 +198,37 @@ const upgradeFile = z.object({
   kinds: perTree, capstones: perTree, legendary: perTree,
 }).strict();
 const classPerks = z.object({ chain: z.literal(true), heatGenBonus: z.number().int().min(1).max(10), ventMult: z.number().gt(1).max(3), coolAct: z.number().int().min(16).max(60), extraCooling: z.number().int().min(1).max(10), reflexMove: z.literal(true), transferBonus: z.number().int().min(1).max(20), splicePairs: z.number().int().min(1).max(5), spliceHeatCut: z.number().int().min(1).max(2), implantDamage: z.number().gt(0).max(1), implantTreeDiscount: z.number().int().min(1).max(2), extraSlots: z.number().int().min(1).max(2), healthCostScale: z.number().gt(0).max(3), implantHeatCut: z.number().int().min(1).max(10), kinship: z.literal(true), activeStatMult: z.number().gt(1).max(3) }).partial().strict();
-const oneStep = z.object({
-  text: z.string().trim().min(1).max(60), scale: z.number().gt(0).max(1).optional(), heat: z.number().int().min(-10).max(10).optional(),
+// What one rank of a lane node adds to its firmware
+const laneStep = z.object({
+  scale: z.number().gt(0).max(1).optional(), heat: z.number().int().min(-10).max(10).optional(),
   accuracy: z.enum(['precise', 'variable', 'unreliable']).optional(), pattern: pattern.optional(), fx: fxFields.extend({ ignoreCover: z.boolean(), retreat: z.boolean(), vault: z.boolean(), pounce: z.boolean() }).partial().optional(),
   speed: z.number().int().min(1).max(4).optional(), twin: z.enum(['cool', 'always']).optional(),
-  perk: classPerks.optional(), hp: z.number().int().min(1).max(80).optional(),
-}).strict().refine(st => Object.keys(st).length > 1, 'a level must add something');
-// A level is one step, or a fork of two the player picks between
-const firmwareStep = z.union([oneStep, z.object({ choose: z.tuple([oneStep, oneStep]) }).strict()]);
+  perk: classPerks.partial().extend({ healthCostScale: z.number().gt(0).max(2), activeStatMult: z.number().gt(1).max(3), implantDamage: z.number().gt(0).max(1), implantHeatCut: z.number().int().min(1).max(10), extraSlots: z.number().int().min(1).max(2), spliceHeatCut: z.number().int().min(1).max(5), splicePairs: z.number().int().min(1).max(4), kinship: z.literal(true) }).partial().optional(),
+  hp: z.number().int().min(1).max(80).optional(),
+}).strict().refine(st => Object.keys(st).length > 0, 'a rank must add something');
+const laneNode = z.object({
+  id: z.string().regex(/^[A-Z][0-9a-z]*$/), name: z.string().trim().min(1).max(30), text: z.string().trim().min(1).max(90),
+  cost: z.number().int().min(1).max(8), ranks: z.number().int().min(1).max(8), stage: z.number().int().min(1).max(3),
+  step: laneStep, after: z.string().optional(), fork: z.literal(true).optional(),
+}).strict().refine(n => !/instead of|, a rank/.test(n.text), 'say only what is gained ("per rank", never "x instead of y")');
 const identity = z.object({
   rule: text, heat: text, ultimate: text, surge: z.enum(['blast', 'piledriver', 'overwatch', 'blink', 'overrun', 'resonance']),
   perks: classPerks,
 }).strict();
 // Each firmware opens from the boss that holds it: chapter one's threat 5 and its King, then each later chapter's threat 5
-const firmwareOpens = z.object({ chapter: z.string().min(1), threat: z.union([z.literal(5), z.literal(10)]), start: z.number().int().min(1).max(10) }).strict();
+const firmwareOpens = z.object({ chapter: z.string().min(1), threat: z.union([z.literal(5), z.literal(10)]), points: z.number().int().min(0).max(40) }).strict();
 const firmwareHolder = z.object({ enemy: z.string().min(1), traits: z.array(z.enum(['armed', 'sighted', 'focused', 'alert', 'braced', 'enduring', 'fast'])).optional(), moves: z.array(action).min(2).optional(), implants: z.literal(true).optional() }).strict()
   .refine(h => !(h.moves && h.implants), 'a holder fights with its moves or its implants, not both');
-const firmwareDef = z.object({ opens: firmwareOpens, holder: firmwareHolder, identity, base: action, scale: z.number().gt(0).max(3), levels: z.array(firmwareStep), speed: z.number().int().min(1).max(4).optional() }).strict();
+const firmwareDef = z.object({ opens: firmwareOpens, holder: firmwareHolder, identity, base: action, scale: z.number().gt(0).max(3), color: z.string().regex(/^#[0-9a-f]{6}$/), lane: z.array(laneNode).min(4).max(14), speed: z.number().int().min(1).max(4).optional() }).strict()
+  // The lane's links: each node's `after` is on the lane, ahead of it; forks hang off a main node
+  .refine(d => d.lane.every((n, k) => !n.after || d.lane.slice(0, k).some(m => m.id === n.after && !m.fork)), 'a lane node comes after a main node ahead of it')
+  .refine(d => new Set(d.lane.map(n => n.id)).size === d.lane.length, 'lane ids are unique');
 const firmwareFile = z.object({
   about: text, xp: z.object({ win: z.number().int().min(1), elite: z.number().int().min(1), boss: z.number().int().min(1) }).strict(),
-  xpToNext: z.array(z.number().int().min(1).max(200)).min(1).max(20),
+  pointXp: z.number().int().min(1).max(20),
   firmware: z.object({ melee: firmwareDef, ranged: firmwareDef, swift: firmwareDef, crowd: firmwareDef, splice: firmwareDef, wretch: firmwareDef }).strict()
     .refine(f => new Set(Object.values(f).map(d => `${d.opens.chapter}:${d.opens.threat}`)).size === Object.keys(f).length, 'one firmware per boss'),
-}).strict().refine(f => Object.values(f.firmware).every(fw => fw.levels.length === f.xpToNext.length), 'every firmware needs one step per level (as many as xpToNext)');
+}).strict();
 const allyFile = z.object({ about: text, allies: z.array(ally).min(1) }).strict();
 
 const item = z.object({

@@ -43,7 +43,7 @@ import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
-import { withClass, withSplice, withResonance, firmwareXpFor, levelStep, firmwarePassives, TWIN_HEAT, firmwareHeldAt, holderOf } from '../engine/firmware';
+import { withClass, withSplice, withResonance, firmwareXpFor, firmwarePassives, TWIN_HEAT, firmwareHeldAt, holderOf } from '../engine/firmware';
 import { firstLifeAt } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 
@@ -234,11 +234,11 @@ function buildPlayer(playerClass: PlayerClass) {
 // The play-i tree's perks plus what the allies riding with this host bring
 const linked = withLinks(usePlayi.getState().perks(), useAllies.getState().party);
 // The loaded firmware may act twice in a turn (Courier: while cool, then always)
-const fw = firmwarePassives(playerClass, useFirmware.getState().level(playerClass));
+const fw = firmwarePassives(playerClass);
 const twinned = fw.twin ? { ...linked, doubleActionHeat: Math.max(linked.doubleActionHeat, TWIN_HEAT[fw.twin]) } : linked;
 // What the fitted implants' slot upgrades add (cooler head, filtered nose, steadier spine...)
 // The firmware's class rules (Enforcer chains takedowns, Operative acts twice cool, ...), then the slot upgrades
-const classed = withTreePerks(withResonance(withClass(twinned, playerClass, useFirmware.getState().level(playerClass)), playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
+const classed = withTreePerks(withResonance(withClass(twinned, playerClass), playerClass), useAugmentTrees.getState().getTreePerks(equippedSlotList()));
 // Splice: each spliced pair runs the host hotter and thins its structure
 const pairs = playerClass === 'splice' ? Object.values(useInventory.getState().spliced ?? {}).filter(Boolean).length : 0;
 // Passive implant parts: regulators and traits
@@ -511,8 +511,9 @@ const held = farmLevel === null ? firmwareHeldAt(activeChapter().id, level) : nu
 const firmwareFound = held && !useFirmware.getState().opened.includes(held) ? [held] : [];
 for (const cls of firmwareFound) useFirmware.getState().open(cls);
 // The loaded firmware learns from every room fight won (elites and bosses teach it more)
-const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, Math.round(firmwareXpFor(level) * (get().perks.fwPointRate ?? 1))) : null;
-if (firmwareUp) log(`FIRMWARE -- level ${firmwareUp}: ${levelStep(get().playerClass, firmwareUp)?.text ?? ''}`);
+// ...and every few of those is a point that firmware alone can spend on its lane (Quick study: faster)
+const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, Math.round(firmwareXpFor(level) * (get().perks.fwPointRate ?? 1))) || null : null;
+if (firmwareUp) log(`FIRMWARE -- +${firmwareUp} point${firmwareUp > 1 ? 's' : ''}`);
 const pointsBefore = useAugmentTrees.getState().availablePoints;
 if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
 const pointsGained = useAugmentTrees.getState().availablePoints - pointsBefore;
@@ -770,7 +771,7 @@ combatLog: isKing
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
   memo: {}, spotted: null,
-  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), light: Fight.startLight(foes.some(f => f.twist === 'light')), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: foes.some(f => f.unit.name === 'The Signatory') ? Fight.signatoryOrders(Fight.startOrders(true)) : Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
+  playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), light: Fight.startLight(foes.some(f => f.twist === 'light')), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: foes.some(f => f.unit.name === 'The Signatory') ? Fight.signatoryOrders(Fight.startOrders(true)) : Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
@@ -1307,7 +1308,7 @@ return { hp: healthNow(useMap.getState(), max), max };
 
 // Upgrade-tree discounts follow the loaded firmware: Unclassified's trees cost a point less everywhere,
 // the Wretch's active implants' a point less (never below 1)
-const syncTreeDiscount = (cls: PlayerClass) => setTreeDiscount({ all: cls === 'none' ? 1 : 0, active: withClass(NO_PERKS, cls, useFirmware.getState().level(cls)).implantTreeDiscount });
+const syncTreeDiscount = (cls: PlayerClass) => setTreeDiscount({ all: cls === 'none' ? 1 : 0, active: withClass(NO_PERKS, cls).implantTreeDiscount });
 useCombat.subscribe((s, prev) => { if (s.playerClass !== prev.playerClass) syncTreeDiscount(s.playerClass); });
 syncTreeDiscount(useCombat.getState().playerClass);
 

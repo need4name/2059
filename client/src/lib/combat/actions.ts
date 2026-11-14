@@ -150,10 +150,10 @@ specialAbility: { name: 'Strike', description: 'A plain blow.', damage: 1, attac
 
 // ── Firmware: the basic attack ───────────────────────────────────────────────
 // Loaded firmware replaces Strike with its own attack, which grows with the
-// firmware's level (engine/firmware.ts). No firmware: Strike.
-/** The basic attack for a firmware at a level (Strike without one). Pass the wearer's physical attack to size it. */
-export function basicAttack(playerClass: PlayerClass, physicalAttack?: number, level = 1): CombatAction {
-return firmwareAttack(playerClass, level, physicalAttack) ?? PLAYER_ACTIONS[0];
+// firmware's lane (engine/firmware.ts). No firmware: Strike.
+/** The basic attack for a firmware, with what its lane has bought (Strike without one). */
+export function basicAttack(playerClass: PlayerClass): CombatAction {
+return firmwareAttack(playerClass) ?? PLAYER_ACTIONS[0];
 }
 
 // ── Player actions ────────────────────────────────────────────────────────────

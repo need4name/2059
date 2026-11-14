@@ -197,9 +197,9 @@ export function Inventory() {
   const { items, equippedAugmentations, equipAugmentation, unequipAugmentation, getTotalAugmentationBonuses, spliced, spliceIn, unsplice, seen, markSeen } = useInventory();
   // Splice firmware: passive slots can hold a second, compatible implant
   const splicing = useCombat(st => st.playerClass === 'splice');
-  const spliceLevel = useFirmware(st => st.level('splice'));
-  useFirmware(st => st.forks); // the limit follows the forks taken
-  const pairLimit = withClass(NO_PERKS, 'splice', spliceLevel).splicePairs;
+  // The limit follows what Splice's lane has bought
+  const spliceRanks = useFirmware(st => st.ranks.splice);
+  const pairLimit = withClass(NO_PERKS, 'splice', spliceRanks ?? {}).splicePairs;
   const pairsNow = Object.values(spliced ?? {}).filter(Boolean).length;
   const canSpliceIn = (item: Item) => splicing && !!item.slot && !!equippedAugmentations[item.slot] && canSplice(equippedAugmentations[item.slot]!, item)
     && (pairsNow < pairLimit || !!spliced?.[item.slot]);

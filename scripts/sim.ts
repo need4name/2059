@@ -50,7 +50,7 @@ function betweenFights() {
   }
   // Splice: splice the best compatible spare into each passive slot, up to the pair limit
   if (C.getState().playerClass === 'splice') {
-    const limit = FWE.withClass(NO_PERKS, 'splice', FW.getState().level('splice')).splicePairs;
+    const limit = FWE.withClass(NO_PERKS, 'splice').splicePairs;
     for (const slot of ['brain', 'ears', 'nose', 'lungs', 'misc'] as const) {
       const inv = I.getState(), main = inv.equippedAugmentations[slot];
       if (!main || inv.spliced[slot] || Object.values(inv.spliced).filter(Boolean).length >= limit) continue;
@@ -91,7 +91,7 @@ function betweenFights() {
   }
   const cls = C.getState().playerClass;
   // Firmware's attack stands in for Strike, as on the player's bar
-  const pool: any[] = [{ ...A.basicAttack(cls, A.createPlayer(I.getState().getTotalAugmentationBonuses(), cls).physicalAttack, FW.getState().level(cls)), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
+  const pool: any[] = [{ ...A.basicAttack(cls), key: 'base_strike' }, { ...A.PLAYER_ACTIONS[1], key: 'base_brace' }];
   const implantMoves = T.getState().getAugmentCombatActions(slots);
   pool.push(...implantMoves.filter((a: any) => a.damage));
   const w = I.getState().equippedWeapon; if (w) pool.push({ ...T2.gunMove(w), key: 'w' });
@@ -421,7 +421,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     const hostWins = (() => { let n = 0; for (let k = out.length - 1; k >= 0 && out[k].deathsBefore === deathsBefore && out[k].won; k--) n++; return n; })();
     const worn = [0, 0, 0, 0, 0]; for (const it of Object.values(I.getState().equippedAugmentations)) if (it) worn[(RANK[it.rarity] ?? 1) - 1]++;
     const gun = I.getState().equippedWeapon?.rarity ?? null;
-    const cards = Object.values(Y.getState().ranks).reduce((n, r) => n + r, 0), fwLevel = FW.getState().level(C.getState().playerClass);
+    const cards = Object.values(Y.getState().ranks).reduce((n, r) => n + r, 0), fwLevel = Object.values(FW.getState().ranks[C.getState().playerClass] ?? {}).reduce((n, r) => n + r, 0);
     fightSaid.length = 0; C.getState().startRoomFight(); C.getState().dismissIntro(); const foeCount = C.getState().foes.length; const trace: number[] = []; let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { const k = C.getState().allyTurn; if (k !== null) allyTurnBot(k); else { trace.push(C.getState().player.currentHp / C.getState().player.maxHp); playerTurn(skill); turns++; } }
@@ -452,6 +452,14 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
         const ids = MEM.NEURONS.flatMap(x => [x.id, ...(x.specs ?? []).map(sp => sp.id)]).filter(id => MEM.canLearn(st, id, hasAlly));
         if (!ids.length) break;
         Y.getState().learn(ids[Math.floor(botRandom() * ids.length)], hasAlly);
+      }
+      // ...and each opened firmware's points on its own lane, at random, as far as this chapter's stage allows
+      const stage = FWE.laneStageFor(CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter));
+      for (const cls of FW.getState().opened) for (let n = 0; n < 40; n++) {
+        const st = FW.getState(), mine = st.ranks[cls] ?? {};
+        const ids = FWE.laneOf(cls).filter(x => FWE.laneOpen(cls, x.id, mine, stage) && x.cost <= (st.points[cls] ?? 0)).map(x => x.id);
+        if (!ids.length) break;
+        FW.getState().learn(cls, ids[Math.floor(botRandom() * ids.length)], stage);
       }
       // Link with the highest-level allies the tree allows
       const open = AL.getState().unlocked().sort((x, y) => AL.getState().progress(y).level - AL.getState().progress(x).level || ALLY_ORDER(y) - ALLY_ORDER(x));

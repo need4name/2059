@@ -1,8 +1,9 @@
 // Firmware (content/firmware.json): with firmware loaded, its attack takes Strike's
-// place, and the firmware grows over many hosts. Room fights won with it loaded give
-// it xp (elites more, bosses and set pieces most); its level never resets on death.
-// Each level from 2 adds one thing to its attack, so the strong version is earned.
-// Pure functions; the firmware store keeps the xp.
+// place, and the firmware grows over many hosts. Room fights won with it loaded give it
+// xp (elites more, bosses and set pieces most), and every pointXp of it is a point that
+// firmware alone can spend, on its own lane: a main chain of steps and forks hanging off
+// it (both sides can be bought), opening a stage a chapter. Nothing resets on death.
+// Pure functions; the firmware store keeps the points and ranks and hands the ranks here.
 
 import data from '../../content/firmware.json';
 import type { ActionEffects, AccuracyTier, AttackPatternType, CombatAction, PlayerClass } from '../combat/types';
@@ -11,72 +12,69 @@ import type { Perks, SurgeKind } from './playi';
 export interface FirmwareStep { perk?: FirmwareIdentity['perks']; hp?: number; text: string; scale?: number; heat?: number; accuracy?: AccuracyTier; pattern?: AttackPatternType; fx?: ActionEffects; speed?: number; twin?: 'cool' | 'always' }
 /** A firmware's class: its own rule, heat style and Overload ultimate. */
 export interface FirmwareIdentity { rule: string; heat: string; ultimate: string; surge: SurgeKind; perks: { chain?: boolean; heatGenBonus?: number; ventMult?: number; coolAct?: number; extraCooling?: number; reflexMove?: boolean; transferBonus?: number; splicePairs?: number; spliceHeatCut?: number; implantDamage?: number; implantTreeDiscount?: number; extraSlots?: number; healthCostScale?: number; implantHeatCut?: number; kinship?: boolean; activeStatMult?: number } }
-/** A level: one step, or a fork of two the player picks between. */
-export type FirmwareLevel = FirmwareStep | { choose: [FirmwareStep, FirmwareStep] };
+/** A neuron on a firmware's lane: what one rank adds (`step`), what a rank costs in that firmware's points, its stage. */
+export interface LaneNode { id: string; name: string; text: string; cost: number; ranks: number; stage: number; step: Omit<FirmwareStep, 'text'>; after?: string; fork?: boolean }
 /** The boss that holds a firmware: who it is, the traits the firmware gives it, and what it fights with
  *  (`implants`: its own implants' moves; neither: its own roster, as the King keeps his phases). */
 export interface FirmwareHolder { enemy: string; traits?: string[]; moves?: CombatAction[]; implants?: boolean }
-interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; levels: FirmwareLevel[]; /** The boss that opens it: its chapter and threat, and the level it opens at. */ opens: { chapter: string; threat: number; start: number }; holder: FirmwareHolder; /** Speed it gives from level 1. */ speed?: number }
-const D = data as unknown as { xp: { win: number; elite: number; boss: number }; xpToNext: number[]; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
+interface FirmwareDef { identity: FirmwareIdentity; base: CombatAction; scale: number; /** Its lane's colour on the Memory page. */ color: string; lane: LaneNode[]; /** The boss that opens it: its chapter and threat, and the points it opens with. */ opens: { chapter: string; threat: number; points: number }; holder: FirmwareHolder; /** Speed it gives from the start. */ speed?: number }
+const D = data as unknown as { xp: { win: number; elite: number; boss: number }; pointXp: number; firmware: Partial<Record<PlayerClass, FirmwareDef>> };
 
 export const FIRMWARE = D.firmware;
 
-/** Which side of each fork the player took, per firmware and level (0 or 1; 0 if never chosen). The store keeps it and sets it here. */
-let forkChoices: Partial<Record<PlayerClass, Record<number, 0 | 1>>> = {};
-export const setForkChoices = (c: typeof forkChoices) => { forkChoices = c; };
-export const forkChoice = (cls: PlayerClass, level: number): 0 | 1 => forkChoices[cls]?.[level] ?? 0;
-/** The two options at a forked level, or null if the level is a single step. */
-export function levelOptions(cls: PlayerClass, level: number): [FirmwareStep, FirmwareStep] | null {
-  const l = FIRMWARE[cls]?.levels[level - 2];
-  return l && 'choose' in l ? l.choose : null;
+/** Ranks bought on each firmware's lane. The store keeps them and sets them here. */
+export type LaneRanks = Record<string, number>;
+let laneRanks: Partial<Record<PlayerClass, LaneRanks>> = {};
+export const setLaneRanks = (r: typeof laneRanks) => { laneRanks = r; };
+export const laneRanksOf = (cls: PlayerClass): LaneRanks => laneRanks[cls] ?? {};
+
+/** A firmware's lane. */
+export const laneOf = (cls: PlayerClass): LaneNode[] => FIRMWARE[cls]?.lane ?? [];
+/** The lane's stages open a chapter at a time: stage 1 in chapter one, 2 in chapter two, 3 from chapter three. */
+export const laneStageFor = (chapterIndex: number) => Math.min(3, Math.max(1, chapterIndex + 1));
+/** Could a rank of this lane node be bought (points aside)? The node before it must be kept, its stage open, a rank left. */
+export function laneOpen(cls: PlayerClass, id: string, ranks: LaneRanks, stage: number): boolean {
+  const n = laneOf(cls).find(x => x.id === id);
+  if (!n || n.stage > stage || (ranks[id] ?? 0) >= n.ranks) return false;
+  return !n.after || (ranks[n.after] ?? 0) > 0;
 }
-/** The steps a firmware has taken by this level, forks resolved by the player's choices. */
-export function stepsTo(cls: PlayerClass, level: number): FirmwareStep[] {
-  return (FIRMWARE[cls]?.levels ?? []).slice(0, Math.max(0, level - 1)).map((l, k) => ('choose' in l ? l.choose[forkChoice(cls, k + 2)] : l));
+/** The steps a firmware's lane has bought, a step for each rank. */
+export function stepsOf(cls: PlayerClass, ranks: LaneRanks = laneRanksOf(cls)): FirmwareStep[] {
+  return laneOf(cls).flatMap(n => Array.from({ length: Math.min(n.ranks, ranks[n.id] ?? 0) }, () => ({ ...n.step, text: n.name })));
 }
 /** Whose firmware each is (sets what its attack does extra when you're hot). */
 export const FIRMWARE_MAKER: Partial<Record<PlayerClass, string>> = { melee: 'VOLKOV', ranged: 'KIZUNA', swift: 'IOA', crowd: 'TIANXIA', splice: 'PATCHWORK' };
 // (the Wretch has no maker of its own: its Strike stays plain; its implants carry theirs)
 export const FIRMWARE_XP = D.xp;
-export const XP_TO_NEXT = D.xpToNext;
-/** The highest level a firmware reaches. */
-export const MAX_FIRMWARE_LEVEL = D.xpToNext.length + 1;
-
-/** The level a firmware is at with this much xp, and how far it is to the next. */
-export function firmwareLevel(xp: number): { level: number; into: number; need: number } {
-  let level = 1, left = xp;
-  while (level < MAX_FIRMWARE_LEVEL && left >= XP_TO_NEXT[level - 1]) { left -= XP_TO_NEXT[level - 1]; level++; }
-  return { level, into: level >= MAX_FIRMWARE_LEVEL ? 0 : left, need: level >= MAX_FIRMWARE_LEVEL ? 0 : XP_TO_NEXT[level - 1] };
-}
+/** Xp a firmware earns for each of its own points. */
+export const POINT_XP = D.pointXp;
 
 /** XP a won room fight gives the loaded firmware: a boss or set piece most, an elite more, anyone else one. */
 export const firmwareXpFor = (threat: number) => (threat % 10 === 0 ? FIRMWARE_XP.boss : threat % 5 === 0 ? FIRMWARE_XP.elite : FIRMWARE_XP.win);
 
-/** What a level adds, for the screen: "Level 5: Optical lock: always full damage". */
-export const levelStep = (cls: PlayerClass, level: number): FirmwareStep | null => (level >= 2 ? stepsTo(cls, level)[level - 2] ?? null : null);
-
-/**
- * A firmware's attack at a level. Its damage is the level's scale times the wearer's
- * physical attack (pass it; without, the base damage stands). Null with no firmware.
- */
-export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?: number): CombatAction | null {
+/** A firmware's attack, with what its lane has bought. Null with no firmware. */
+export function firmwareAttack(cls: PlayerClass, ranks: LaneRanks = laneRanksOf(cls)): CombatAction | null {
   const def = FIRMWARE[cls];
   if (!def) return null;
   let scale = def.scale, heat = def.base.heatGenerated ?? 0;
   let accuracy = def.base.accuracy, pattern = def.base.attackPattern;
   let effects: ActionEffects = { ...(def.base.effects ?? {}) };
-  for (const step of stepsTo(cls, level)) {
+  for (const step of stepsOf(cls, ranks)) {
     scale += step.scale ?? 0;
     heat += step.heat ?? 0;
     if (step.accuracy) accuracy = step.accuracy;
     if (step.pattern) pattern = step.pattern;
-    if (step.fx) effects = { ...effects, ...step.fx };
+    // Chances add up rank by rank (a stun, a drain); the rest switch on
+    for (const [k, v] of Object.entries(step.fx ?? {})) {
+      const was = (effects as Record<string, unknown>)[k];
+      (effects as Record<string, unknown>)[k] = typeof v === 'number' && typeof was === 'number' ? Math.round((was + v) * 1000) / 1000 : v;
+    }
   }
   return {
     ...def.base,
     firmware: true,
     maker: FIRMWARE_MAKER[cls],
-    // The attack's own damage grows with the firmware's level; your Attack already counts in every hit, so it isn't counted twice
+    // The attack's own damage grows with what its lane has bought; your Attack already counts in every hit, so it isn't counted twice
     damage: Math.round((def.base.damage ?? 10) * scale),
     heatGenerated: heat, accuracy, attackPattern: pattern,
     effects: Object.keys(effects).length ? effects : undefined,
@@ -84,11 +82,11 @@ export function firmwareAttack(cls: PlayerClass, level: number, physicalAttack?:
 }
 
 /** What a firmware does for its wearer besides the attack: extra speed, and acting twice ('cool': at 40 heat or less; 'always'). */
-export function firmwarePassives(cls: PlayerClass, level: number): { speed: number; twin: 'cool' | 'always' | null } {
+export function firmwarePassives(cls: PlayerClass, ranks: LaneRanks = laneRanksOf(cls)): { speed: number; twin: 'cool' | 'always' | null } {
   const def = FIRMWARE[cls];
   if (!def) return { speed: 0, twin: null };
   let speed = def.speed ?? 0, twin: 'cool' | 'always' | null = null;
-  for (const step of stepsTo(cls, level)) {
+  for (const step of stepsOf(cls, ranks)) {
     speed += step.speed ?? 0;
     if (step.twin === 'always' || (step.twin === 'cool' && twin !== 'always')) twin = step.twin;
   }
@@ -104,24 +102,19 @@ export function firmwareHeldAt(chapter: string, threat: number): PlayerClass | n
 }
 /** Who holds a firmware, and how it fights. */
 export const holderOf = (cls: PlayerClass): FirmwareHolder | null => FIRMWARE[cls]?.holder ?? null;
-/** The xp a firmware needs to reach a level. */
-export const xpForLevel = (level: number) => XP_TO_NEXT.slice(0, Math.max(0, Math.min(level, MAX_FIRMWARE_LEVEL) - 1)).reduce((a, b) => a + b, 0);
-/** The xp a firmware opens with: its own starting level, or the best level any open firmware has, whichever is higher. */
-export function openingXp(cls: PlayerClass, xp: Partial<Record<PlayerClass, number>>): number {
-  const best = Math.max(1, ...Object.values(xp).map(n => firmwareLevel(n ?? 0).level));
-  return xpForLevel(Math.max(FIRMWARE[cls]?.opens.start ?? 1, best));
-}
+/** The points a firmware opens with (a later chapter's firmware arrives ready to grow). */
+export const openingPoints = (cls: PlayerClass) => FIRMWARE[cls]?.opens.points ?? 0;
 
 /** A firmware's class (rule, heat style, ultimate), or null with none loaded. */
 export const identityOf = (cls: PlayerClass): FirmwareIdentity | null => FIRMWARE[cls]?.identity ?? null;
 /** The host's perks with its firmware's class rules on top. */
-export function withClass(p: Perks, cls: PlayerClass, level = 1): Perks {
+export function withClass(p: Perks, cls: PlayerClass, ranks: LaneRanks = laneRanksOf(cls)): Perks {
   const id = identityOf(cls);
   if (!id) return p;
-  // The class's own perks, plus what its levels (and the forks taken) add
+  // The class's own perks, plus what its lane has bought
   const k = { ...id.perks };
   let hp = 0;
-  for (const st of stepsTo(cls, level)) {
+  for (const st of stepsOf(cls, ranks)) {
     hp += st.hp ?? 0;
     for (const [key, v] of Object.entries(st.perk ?? {}) as [keyof FirmwareIdentity['perks'], number | boolean][]) {
       if (typeof v === 'boolean') (k as Record<string, unknown>)[key] = v;

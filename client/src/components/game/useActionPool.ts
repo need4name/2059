@@ -16,21 +16,22 @@ export function useActionPool(): LoadoutAction[] {
   const playerClass = useCombat(s => s.playerClass);
   const { equippedAugmentations, equippedWeapon, getTotalAugmentationBonuses } = useInventory();
   const { owned, getAugmentCombatActions } = useAugmentTrees();
-  const fwLevel = useFirmware(st => st.level(playerClass));
-  const opened = useFirmware(st => st.opened), levelOf = useFirmware(st => st.level);
+  // What every firmware's lane has bought (the moves change with it)
+  const fwRanks = useFirmware(st => st.ranks);
+  const opened = useFirmware(st => st.opened);
   const crossLoad = usePlayi(st => memoryPerks(st.ranks).crossLoad);
 
   return useMemo(() => {
     const equippedSlots = (Object.keys(equippedAugmentations) as AugmentationSlot[]).filter(s => equippedAugmentations[s] !== null);
     // Firmware's own attack takes Strike's place (same key, so it drops into Strike's slot on the bar)
     const pool: LoadoutAction[] = [
-      { ...basicAttack(playerClass, createPlayer(getTotalAugmentationBonuses(), playerClass).physicalAttack, fwLevel), key: 'base_strike', unlocked: true, source: playerClass !== 'none' ? 'class' : 'base' },
+      { ...basicAttack(playerClass), key: 'base_strike', unlocked: true, source: playerClass !== 'none' ? 'class' : 'base' },
       { ...PLAYER_ACTIONS[1], key: 'base_brace', unlocked: true, source: 'base' },
     ];
     // Cross-load (memory): every other firmware you've opened lends its own move, to slot like any other
     if (crossLoad) for (const cls of opened) {
       if (cls === playerClass || cls === 'none') continue;
-      const move = firmwareAttack(cls, levelOf(cls));
+      const move = firmwareAttack(cls, fwRanks[cls] ?? {});
       if (move) pool.push({ ...move, key: `fw_${cls}`, unlocked: true, source: 'class' });
     }
     pool.push(...getAugmentCombatActions(equippedSlots));
@@ -40,7 +41,7 @@ export function useActionPool(): LoadoutAction[] {
     return pool;
     // owned upgrades are read inside getAugmentCombatActions
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerClass, fwLevel, crossLoad, opened, equippedAugmentations, equippedWeapon, owned, getAugmentCombatActions, getTotalAugmentationBonuses]);
+  }, [playerClass, fwRanks, crossLoad, opened, equippedAugmentations, equippedWeapon, owned, getAugmentCombatActions, getTotalAugmentationBonuses]);
 }
 
 /**
@@ -53,12 +54,11 @@ export function useLoadoutSync() {
   const phase = useCombat(s => s.phase);
   const { slots, setSlots } = useLoadout();
   const cls = useCombat(s => s.playerClass);
-  const fwLv = useFirmware(st => st.level(cls));
-  useFirmware(st => st.forks);
+  const fwRanks = useFirmware(st => st.ranks[cls]);
   // The play-i tree's Fifth slot, and the Wretch's own slots
   // Reflex brace (memory): Brace takes no slot. The bar is one longer and Brace is always on it
   const mem = usePlayi(st => st.ranks), memPerks = memoryPerks(mem);
-  const slotCount = BASE_SLOT_COUNT + memPerks.extraSlots + withClass(NO_PERKS, cls, fwLv).extraSlots + (memPerks.braceFree ? 1 : 0);
+  const slotCount = BASE_SLOT_COUNT + memPerks.extraSlots + withClass(NO_PERKS, cls, fwRanks ?? {}).extraSlots + (memPerks.braceFree ? 1 : 0);
   // Moves that were already available last time; only genuinely new ones auto-fill,
   // so a slot you cleared on purpose stays empty
   const knownKeys = useRef<string[] | null>(null);

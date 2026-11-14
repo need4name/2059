@@ -9,7 +9,7 @@ import { CLASS_DEFINITIONS, createPlayer, getBossPreview, isNotable } from '@/li
 import { useFirmware } from '@/lib/stores/useFirmware';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { favouriteMove } from '@/lib/engine/runStats';
-import { FIRMWARE, MAX_FIRMWARE_LEVEL, firmwareAttack, firmwareLevel, firmwarePassives, identityOf, type FirmwareStep } from '@/lib/engine/firmware';
+import { POINT_XP, firmwareAttack, firmwarePassives, identityOf, laneOf, laneOpen, laneStageFor } from '@/lib/engine/firmware';
 import { AUGMENTATION_SLOTS, AUGMENTATION_SLOT_NAMES, augmentKind, type AugmentationSlot, type Item } from '@/lib/combat/types';
 import { gunName } from '@/lib/combat/guns';
 import { actionForItem, healthCostOf } from '@/lib/combat/augments';
@@ -24,9 +24,9 @@ import { useMap } from '@/lib/stores/useMap';
 import { canRest } from '@/lib/engine/map';
 import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
-import { nextChapter } from '@/lib/combat/chapters';
+import { nextChapter, CHAPTERS } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
-import { MemoryNet } from './MemoryNet';
+import { MemoryPage } from './FirmwareLanes';
 import * as Mem from '@/lib/engine/memory';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
@@ -86,7 +86,6 @@ function LoadoutTab() {
   const { slots, setSlot } = useLoadout();
   const { ownedWeapons, equippedWeapon, equipWeapon } = useInventory();
   const playerClass = useCombat(s => s.playerClass);
-  const fwLevel = useFirmware(st => st.level(playerClass));
   const pool = useActionPool();
   const [replacing, setReplacing] = useState<LoadoutAction | null>(null);
   const slotOf = (a: LoadoutAction) => slots.findIndex(s => s?.key === a.key);
@@ -121,7 +120,7 @@ function LoadoutTab() {
         if (!moves.length && !g.empty) return null;
         return (
           <section key={g.source} className="space-y-2">
-            <Label>{g.source === 'class' ? `Firmware · level ${fwLevel}` : g.label}</Label>
+            <Label>{g.source === 'class' ? 'Firmware' : g.label}</Label>
             {moves.length === 0
               ? <p className="rounded-2xl bg-white/[0.03] px-4 py-3 text-sm text-hud-faint">{g.empty}</p>
               : (
@@ -411,25 +410,25 @@ function StrainTab() {
   );
 }
 
-/** The loaded firmware: its level, how close the next is, its attack now, and every level's step. */
+/** The loaded firmware: its points and how close the next is, its attack now, its rule, and what its lane has bought. */
 function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
   const id = identityOf(playerClass);
-  const { forks, setFork } = useFirmware();
-  const xp = useFirmware(st => st.xp[playerClass] ?? 0);
-  const { level, into, need } = firmwareLevel(xp);
-  const att = firmwareAttack(playerClass, level);
-  const steps = FIRMWARE[playerClass]?.levels ?? [];
+  const points = useFirmware(st => st.points[playerClass] ?? 0);
+  const into = useFirmware(st => st.xp[playerClass] ?? 0);
+  const ranks = useFirmware(st => st.ranks[playerClass] ?? {});
+  const att = firmwareAttack(playerClass, ranks);
+  const kept = laneOf(playerClass).filter(n => (ranks[n.id] ?? 0) > 0);
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="font-display text-lg font-semibold text-hud-text">{CLASS_DEFINITIONS[playerClass].name}</div>
-          <div className="text-xs text-hud-dim">Level {level}{level < MAX_FIRMWARE_LEVEL ? ` · ${need - into} xp to the next` : ' · fully grown'}</div>
+          <div className="text-xs text-hud-dim">{points} to spend · {POINT_XP - into} xp to the next</div>
         </div>
         {att && <Footprint action={att} cell={4} />}
       </div>
-      {level < MAX_FIRMWARE_LEVEL && <Meter value={into} max={need} tone="aug" className="h-1.5" />}
+      <Meter value={into} max={POINT_XP} tone="aug" className="h-1.5" />
       {att && att.name !== 'Strike' && <p className="text-sm text-aug">Strike is {att.name}: {att.description}</p>}
       {id && (
         <div className="space-y-1 rounded-2xl bg-white/[0.04] px-3.5 py-3 text-[13px] leading-snug">
@@ -438,32 +437,16 @@ function FirmwarePanel() {
           <div><span className="font-semibold text-violet-300">Overload: </span><span className="text-hud-text">{id.ultimate}</span></div>
         </div>
       )}
-      <ol className="space-y-1">
-        {steps.map((st, k) => {
-          const lv = k + 2, got = level >= lv;
-          const options = 'choose' in st ? st.choose : null;
-          // A fork: chosen on the death screen for this host's whole life (shown here, not changed)
-          const canChange = false;
-          return (
-            <li key={k} className={cx('flex gap-2 text-[13px]', got ? 'text-hud-text' : lv === level + 1 ? 'text-hud-dim' : 'text-hud-faint')}>
-              <span className={cx('w-12 shrink-0 font-semibold', got ? 'text-aug' : '')}>Lv {lv}</span>
-              {options ? (
-                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  {options.map((o, side) => {
-                    const on = forks[playerClass]?.[lv] === side || (forks[playerClass]?.[lv] === undefined && side === 0);
-                    return (
-                      <button key={side} disabled={!canChange} onClick={() => setFork(playerClass, lv, side as 0 | 1)} aria-pressed={on}
-                        className={cx('key rounded-xl px-3 py-1.5 text-left text-[12.5px] leading-snug', on ? 'key-selected text-white' : 'text-hud-dim', !canChange && !on && 'opacity-40')}>
-                        {o.text}
-                      </button>
-                    );
-                  })}
-                </span>
-              ) : <span>{(st as FirmwareStep).text}</span>}
+      {kept.length > 0 && (
+        <ul className="space-y-1">
+          {kept.map(n => (
+            <li key={n.id} className="flex gap-2 text-[13px] text-hud-text">
+              <span className="shrink-0 font-semibold text-aug">{n.name}{n.ranks > 1 ? ` ${ranks[n.id]}/${n.ranks}` : ''}</span>
+              <span className="min-w-0 text-hud-dim">{n.text}</span>
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -573,7 +556,7 @@ function StatusTab() {
   const tree = getTreeStatBonuses(equipped);
   const stats = createPlayer({ ...getTotalAugmentationBonuses(), treeAttack: tree.attack, treeDefense: tree.defense, treeSpAttack: tree.spAttack, treeSpDefense: tree.spDefense, treeHp: tree.hp }, playerClass);
   const cls = CLASS_DEFINITIONS[playerClass];
-  const fwLevelNow = useFirmware(st => st.level(playerClass));
+  useFirmware(st => st.ranks); // speed follows what the lane has bought
   const perks = usePlayi(s => s.perks)();
   const notes = useJournal(s => s.notes);
 
@@ -599,14 +582,14 @@ function StatusTab() {
           {(() => {
             const base = cls?.baseSpeed ?? SPEED.base;
             const imp = Math.round(implantDrive(equipped.map(sl => equippedAugmentations[sl]!)) * 10) / 10;
-            const fw = firmwarePassives(playerClass, fwLevelNow).speed;
+            const fw = firmwarePassives(playerClass).speed;
             return <Stat label="Speed" value={Math.round((base + imp + fw) * 10) / 10} tone="text-sky-300" />;
           })()}
         </div>
         {(() => {
           const base = cls?.baseSpeed ?? SPEED.base;
           const imp = Math.round(implantDrive(equipped.map(sl => equippedAugmentations[sl]!)) * 10) / 10;
-          const fw = firmwarePassives(playerClass, fwLevelNow).speed;
+          const fw = firmwarePassives(playerClass).speed;
           const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
           return <p className="mt-4 text-xs text-hud-dim">Speed {Math.round((base + imp + fw) * 10) / 10}: {base} base {sign(imp)} implants{fw ? ` ${sign(fw)} firmware` : ''}</p>;
         })()}
@@ -673,7 +656,11 @@ export function BaseScreen() {
   const strainOpen = useStrain(s => s.unlocked);
   const strainOn = useStrain(s => s.active.length > 0);
   // Something in the memory can be afforded
-  const memoryWaits = usePlayi(s => Mem.NEURONS.some(n => [n.id, ...(n.specs ?? []).map(sp => sp.id)].some(id => Mem.canLearn(s, id, met.length > 0))));
+  const memoryNetWaits = usePlayi(s => Mem.NEURONS.some(n => [n.id, ...(n.specs ?? []).map(sp => sp.id)].some(id => Mem.canLearn(s, id, met.length > 0))));
+  // ...or a firmware's lane can grow
+  const fw = useFirmware(), mapChapter = useMap(s => s.chapter);
+  const laneStage = laneStageFor(CHAPTERS.findIndex(c => c.id === mapChapter));
+  const memoryWaits = memoryNetWaits || fw.opened.some(c => laneOf(c).some(n => laneOpen(c, n.id, fw.ranks[c] ?? {}, laneStage) && n.cost <= (fw.points[c] ?? 0)));
 
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   // The Implants button calls when a spare fits an empty slot, or a new implant hasn't been seen yet
@@ -731,7 +718,7 @@ export function BaseScreen() {
         {page === 'status' && <StatusTab />}
         {page === 'allies' && <AlliesTab />}
         {page === 'strain' && <StrainTab />}
-        {page === 'memory' && <div className="px-4 pb-8 pt-2"><MemoryNet /></div>}
+        {page === 'memory' && <div className="px-4 pb-8 pt-2"><MemoryPage /></div>}
       </Page>
     </Screen>
   );

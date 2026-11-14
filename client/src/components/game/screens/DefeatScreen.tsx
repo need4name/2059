@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { CLASS_DEFINITIONS, createPlayer } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
-import { firmwareAttack, identityOf, levelOptions } from '@/lib/engine/firmware';
+import { firmwareAttack, identityOf } from '@/lib/engine/firmware';
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { MemoryNet } from './MemoryNet';
+import { MemoryPage } from './FirmwareLanes';
 import { useAllies } from '@/lib/stores/useAllies';
 import { availableFirmware } from '@/lib/stores/useCombat';
 import { allyDef } from '@/lib/combat/allies';
@@ -25,7 +25,7 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 export function DefeatScreen() {
   const { boss, playerClass, rebirth } = useCombat();
   // What opened since the last host woke is new (kept in the save, so a restart keeps the tag)
-  const { forks, setFork, fresh: justOpened } = useFirmware();
+  const { fresh: justOpened, points: fwPoints } = useFirmware();
   // Every firmware taken from a boss so far
   const choices = availableFirmware();
   const anyFirmware = choices.length > 0;
@@ -64,7 +64,7 @@ export function DefeatScreen() {
         </header>
 
         {/* What stays: the memory, one point richer */}
-        <MemoryNet />
+        <MemoryPage />
 
         {unlocked.length > 0 && (
           <div className="space-y-2.5">
@@ -124,8 +124,8 @@ export function DefeatScreen() {
                         <span key={l} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-hud-text">{v} {l}</span>
                       ))}
                     </span>
-                    {(() => { const lv = useFirmware.getState().level(c); const att = firmwareAttack(c, lv); return att && att.name !== 'Strike' && (
-                      <span className="flex items-center gap-2 text-xs text-aug"><Footprint action={att} className="shrink-0" /><span>Level {lv}. Strike becomes {att.name}: {att.description}</span></span>
+                    {(() => { const att = firmwareAttack(c); return att && att.name !== 'Strike' && (
+                      <span className="flex items-center gap-2 text-xs text-aug"><Footprint action={att} className="shrink-0" /><span>Strike becomes {att.name}: {att.description}{fwPoints[c] ? ` · ${fwPoints[c]} to spend` : ''}</span></span>
                     ); })()}
                   </span>
                 </button>
@@ -133,31 +133,6 @@ export function DefeatScreen() {
             })}
           </div>
         ) : null}
-
-        {choice && choice !== 'none' && [4, 7, 10].some(lv => levelOptions(choice, lv)) && (
-          // The chosen firmware's forks: set now, and they hold for the whole of the next host's life
-          <div className="space-y-2.5">
-            <Label>{CLASS_DEFINITIONS[choice].name}: forks</Label>
-            {[4, 7, 10].map(lv => {
-              const opts = levelOptions(choice, lv);
-              if (!opts) return null;
-              const taken = forks[choice]?.[lv] ?? 0;
-              return (
-                <div key={lv} className="flex items-start gap-2">
-                  <span className="w-12 shrink-0 pt-2 text-xs font-semibold text-aug">Lv {lv}</span>
-                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
-                    {opts.map((o, side) => (
-                      <button key={side} onClick={() => setFork(choice, lv, side as 0 | 1)} aria-pressed={taken === side}
-                        className={cx('key rounded-2xl px-3 py-2 text-left text-[12.5px] leading-snug', taken === side ? 'key-selected text-white' : 'text-hud-dim')}>
-                        {o.text}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {places.length > 1 && (
           <div className="space-y-2.5">
