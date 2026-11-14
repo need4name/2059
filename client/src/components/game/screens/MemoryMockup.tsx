@@ -10,32 +10,32 @@ interface Spec { name: string; effect: string; cost: number; have?: boolean }
 interface Node { id: string; s: Strand; s2?: Strand; x: number; y: number; name: string; effect: string; cost: number; ranks?: number; have?: number; specs?: Spec[]; fog?: boolean; locked?: boolean }
 const N: Node[] = [
   // Signal: a tight cluster by the core
-  { id: 's1', s: 'signal', x: 62, y: 72, name: 'Signal strength', effect: '+15 max health a rank', cost: 1, ranks: 5, have: 3, specs: [{ name: 'Holdfast', effect: 'Once a host, a killing blow leaves you on 1', cost: 2, have: true }, { name: 'Second wind', effect: 'First time under a third, mend 15%', cost: 2 }] },
+  { id: 's1', s: 'signal', x: 62, y: 72, name: 'Signal strength', effect: '+15 max health per rank', cost: 1, ranks: 5, have: 3, specs: [{ name: 'Holdfast', effect: 'Once a host, a killing blow leaves you on 1', cost: 2, have: true }, { name: 'Second wind', effect: 'First time under a third, mend 15%', cost: 2 }] },
   { id: 's2', s: 'signal', x: 60, y: 56, name: 'Supplies', effect: 'Wake with 2 Bio-Stims; 20% off at the Grey Lane', cost: 1, have: 1 },
-  { id: 's3', s: 'signal', x: 46, y: 64, name: 'Steady pulse', effect: 'Mend a little more each turn, a rank', cost: 1, ranks: 3, specs: [{ name: 'Knitting frame', effect: 'Mending also repairs structure', cost: 2 }] },
+  { id: 's3', s: 'signal', x: 46, y: 64, name: 'Steady pulse', effect: 'Mend a little more each turn per rank', cost: 1, ranks: 3, specs: [{ name: 'Knitting frame', effect: 'Mending also repairs structure', cost: 2 }] },
   { id: 's4', s: 'signal', x: 38, y: 48, name: 'Hardened signal', effect: '10% less damage from everything', cost: 3 },
   // Processing: few, far apart
-  { id: 'p1', s: 'heat', x: 91, y: 71, name: 'Heat sink', effect: 'Shed 2 more heat each round, a rank', cost: 1, ranks: 3, have: 3, specs: [{ name: 'Set point', effect: 'Start each fight cold or warm', cost: 1, have: true }, { name: 'Thermal tolerance', effect: 'Running hot hurts far less', cost: 2 }, { name: 'Vent', effect: 'Brace cools 10 more', cost: 1 }] },
+  { id: 'p1', s: 'heat', x: 91, y: 71, name: 'Heat sink', effect: 'Shed 2 more heat each round per rank', cost: 1, ranks: 3, have: 3, specs: [{ name: 'Cold start', effect: 'Every fight starts at 0 heat instead of 20', cost: 1, have: true }, { name: 'Thermal tolerance', effect: 'Running hot hurts far less', cost: 2 }, { name: 'Vent', effect: 'Brace cools 10 more', cost: 1 }] },
   { id: 'p2', s: 'heat', x: 113, y: 55, name: 'Redline', effect: 'Once a fight, act twice when very hot', cost: 2 },
   { id: 'p3', s: 'heat', x: 133, y: 36, name: 'Runaway', effect: 'Burning out no longer costs a turn', cost: 3, specs: [{ name: 'Wildfire', effect: 'Critical heat crits far more often', cost: 3 }] },
   // Subroutines: a long reach, the slots along it
-  { id: 'c1', s: 'combat', x: 97, y: 97, name: 'Targeting', effect: '+5% damage a rank', cost: 1, ranks: 4, have: 1, specs: [{ name: 'Finisher', effect: '+25% on badly hurt enemies', cost: 2 }, { name: 'Clean first strike', effect: 'Your first attack each fight lands in full', cost: 1 }] },
+  { id: 'c1', s: 'combat', x: 97, y: 97, name: 'Targeting', effect: '+5% damage per rank', cost: 1, ranks: 4, have: 1, specs: [{ name: 'Finisher', effect: '+25% on badly hurt enemies', cost: 2 }, { name: 'Clean first strike', effect: 'Your first attack each fight lands in full', cost: 1 }] },
   { id: 'c2', s: 'combat', x: 116, y: 92, name: 'Flank logic', effect: 'Side and back hits land harder still', cost: 1 },
   { id: 'c3', s: 'combat', x: 121, y: 112, name: 'Fourth slot', effect: 'A fourth action slot on your fight bar', cost: 3 },
   { id: 'c4', s: 'combat', x: 140, y: 103, name: 'Momentum', effect: 'Each takedown adds to Overload', cost: 2 },
   // Grafting: a low cluster
   { id: 'g1', s: 'graft', x: 73, y: 109, name: 'Clean interface', effect: 'Implant health costs are halved', cost: 1, have: 1 },
-  { id: 'g2', s: 'graft', x: 61, y: 123, name: 'Reinforced housings', effect: '+10% structure a rank', cost: 1, ranks: 3, specs: [{ name: 'Self-repair', effect: 'Brace repairs far more', cost: 2 }, { name: 'Sealed', effect: 'A broken frame still mends a little', cost: 2 }] },
+  { id: 'g2', s: 'graft', x: 61, y: 123, name: 'Reinforced housings', effect: '+10% structure per rank', cost: 1, ranks: 3, specs: [{ name: 'Self-repair', effect: 'Brace repairs far more', cost: 2 }, { name: 'Sealed', effect: 'A broken frame still mends a little', cost: 2 }] },
   { id: 'g3', s: 'graft', x: 81, y: 128, name: 'Salvage instinct', effect: 'Wake with an implant', cost: 2 },
   { id: 'g4', s: 'graft', x: 55, y: 139, name: 'Graft memory', effect: 'Wake with 2 upgrade points', cost: 2 },
   { id: 'g5', s: 'graft', x: 89, y: 145, name: 'Pick of the wreck', effect: 'Choose 1 of 2 dropped implants', cost: 2 },
   // Locomotion: sparse, out to the left
-  { id: 'm1', s: 'move', x: 52, y: 92, name: 'Gait calibration', effect: '+1 movement a rank', cost: 2, ranks: 2, specs: [{ name: 'Hit and fade', effect: 'Step after attacking while warm', cost: 2 }, { name: 'Sidestep', effect: 'The first heavy each fight misses', cost: 2 }] },
+  { id: 'm1', s: 'move', x: 52, y: 92, name: 'Gait calibration', effect: '+1 movement per rank', cost: 2, ranks: 2, specs: [{ name: 'Hit and fade', effect: 'Step after attacking while warm', cost: 2 }, { name: 'Sidestep', effect: 'The first heavy each fight misses', cost: 2 }] },
   { id: 'm2', s: 'move', x: 33, y: 83, name: 'Sure footing', effect: 'Hazards hurt half as much', cost: 1 },
   { id: 'm3', s: 'move', x: 14, y: 95, name: 'Phase step', effect: 'Move through enemies and cover', cost: 3 },
   // Network: small, dark until someone links
   { id: 'n1', s: 'net', x: 44, y: 111, name: 'Handshake', effect: 'Allies start with 25% more health', cost: 1, locked: true },
-  { id: 'n2', s: 'net', x: 27, y: 121, name: 'Shared memory', effect: 'Allies level faster, a rank', cost: 1, ranks: 2, locked: true, specs: [{ name: 'Coordinated', effect: '+20% on enemies your ally hit', cost: 2 }] },
+  { id: 'n2', s: 'net', x: 27, y: 121, name: 'Shared memory', effect: 'Allies level faster per rank', cost: 1, ranks: 2, locked: true, specs: [{ name: 'Coordinated', effect: '+20% on enemies your ally hit', cost: 2 }] },
   { id: 'n3', s: 'net', x: 19, y: 139, name: 'Second link', effect: 'Bring two allies', cost: 3, locked: true },
   // Where strands meet
   { id: 'j1', s: 'signal', s2: 'heat', x: 78, y: 58, name: 'Cold blood', effect: 'End a turn cool and mend a little', cost: 2 },
@@ -52,7 +52,6 @@ const E: [string, string][] = [['core', 's1'], ['s1', 's2'], ['s1', 's3'], ['s3'
   ['core', 'c1'], ['c1', 'c2'], ['c1', 'c3'], ['c3', 'c4'], ['c2', 'c4'], ['c1', 'j3'], ['j3', 'g3'], ['core', 'g1'], ['g1', 'g2'], ['g1', 'g3'], ['g2', 'g4'], ['g3', 'g5'],
   ['core', 'm1'], ['m1', 'm2'], ['m2', 'm3'], ['m1', 'j4'], ['j4', 'n1'], ['core', 'n1'], ['n1', 'n2'], ['n2', 'n3'], ['s3', 'm2'],
   ['s4', 'f1'], ['p3', 'f2'], ['c4', 'f3'], ['g5', 'f4'], ['m3', 'f5'], ['s2', 'f6'], ['c4', 'f7']];
-const LABEL: [string, Strand, number, number, CanvasTextAlign][] = [['Signal', 'signal', 44, 30, 'center'], ['Processing', 'heat', 104, 26, 'center'], ['Subroutines', 'combat', 159, 140, 'right'], ['Grafting', 'graft', 70, 155, 'center'], ['Network', 'net', 2, 152, 'left'], ['Locomotion', 'move', 2, 72, 'left']];
 // What the signal has to spend (the mockup's two screens show 3 and 128; it never shows more than 999)
 let POINTS = 3;
 const CORE = { x: 75, y: 89 }, TAUGHT: Strand = 'heat', G = 160;
@@ -89,9 +88,11 @@ function Net({ size, sel, onSelect, pulseIn, points }: { size: number; sel: stri
         if (n.fog) { px(n.x, n.y, '#4a5564', 0.9); continue; }
         const col = COL[n.s], c2 = n.s2 ? COL[n.s2] : undefined, has = lit(n), open = reach(n) && !full(n), afford = canBuy(n);
         const disc = n.s === TAUGHT || n.s2 === TAUGHT;
-        const edge = afford ? (disc ? '#5fe0a8' : '#f2b33d') : open ? '#8a7440' : '#5b6676';
+        const edge = afford ? '#f2b33d' : open ? '#8a7440' : '#5b6676';
         const beat = 0.55 + 0.45 * Math.sin(t / 280 + n.x);
         const r = n.ranks ? 3 + (n.cost > 1 ? 1 : 0) : n.cost + 1;
+        // What the last host taught costs less: a soft yellow glow round every neuron it touches
+        if (disc && !n.locked) { const g = 0.75 + 0.25 * Math.sin(t / 600); dot(n.x, n.y, r + 5, '#ffe27a', 0.07 * g); dot(n.x, n.y, r + 3, '#ffe27a', 0.13 * g); }
         if (has) { dot(n.x, n.y, r + 1, col, 0.18); dot(n.x, n.y, r, col, full(n) ? 1 : 0.75, c2); px(n.x - 1, n.y - 1, '#ffffff', 0.8); if (afford) ring(n.x, n.y, r + 1, edge, 0.4 + 0.5 * beat); }
         else { if (afford) dot(n.x, n.y, r + 2, edge, 0.16 * beat); dot(n.x, n.y, r, '#0b1119', 1); ring(n.x, n.y, r, edge, afford ? 0.6 + 0.4 * beat : n.locked ? 0.4 : 0.9); px(n.x, n.y, col, n.locked ? 0.4 : 0.9); if (c2) px(n.x + 1, n.y, c2, n.locked ? 0.4 : 0.9); }
         if (n.id === 'c3') { ctx.globalAlpha = 1; ctx.fillStyle = '#e8f4ff'; ctx.fillRect(n.x - 1, n.y - 1, 3, 2); }
@@ -109,17 +110,6 @@ function Net({ size, sel, onSelect, pulseIn, points }: { size: number; sel: stri
       const beat = 0.6 + 0.4 * Math.sin(t / 500);
       dot(CORE.x, CORE.y, 10, '#f2b33d', 0.1 * beat); dot(CORE.x, CORE.y, 8, '#0d1a22', 1); ring(CORE.x, CORE.y, 8, '#f2b33d', 0.95);
       if (pulseIn) { const k = (t / 1400) % 1; dot(CORE.x, Math.round(CORE.y - 9 - 70 * (1 - k)), 1, '#fff6d0', 1); }
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = `600 ${Math.round(scale * 4.4)}px Manrope, sans-serif`; ctx.textBaseline = 'middle';
-      for (const [name, s, x, y, al] of LABEL) {
-        ctx.globalAlpha = s === 'net' ? 0.4 : 0.85; ctx.fillStyle = COL[s]; ctx.textAlign = al; ctx.fillText(name, x * scale, y * scale);
-        // The strand the last host taught: a green tag beside its name, what it saves
-        if (s === TAUGHT) {
-          const w = ctx.measureText(name).width, tx = x * scale + (al === 'center' ? w / 2 : al === 'left' ? w : 0) + scale * 2, tw = scale * 9, th = scale * 6.5;
-          const beat = 0.75 + 0.25 * Math.sin(t / 400);
-          ctx.globalAlpha = beat; ctx.fillStyle = '#5fe0a8'; ctx.beginPath(); ctx.roundRect(tx, y * scale - th / 2, tw, th, th / 2); ctx.fill();
-          ctx.globalAlpha = 1; ctx.fillStyle = '#06241a'; ctx.textAlign = 'center'; ctx.fillText('−1', tx + tw / 2, y * scale + scale * 0.2);
-        }
-      }
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(draw);
     };
@@ -140,12 +130,12 @@ function Net({ size, sel, onSelect, pulseIn, points }: { size: number; sel: stri
   );
 }
 
-function Cost({ n, was }: { n: number; was: number }) {
-  return <span className="flex items-center gap-1">{Array.from({ length: was }, (_, k) => <span key={k} className={cx('h-2 w-2 rounded-full', k >= n ? 'bg-ok/25 ring-1 ring-ok/70' : 'bg-[#2a1a02]')} />)}</span>;
+/** The price, a dot a point. */
+function Dots({ n, dark }: { n: number; dark?: boolean }) {
+  return <span className="flex items-center gap-1">{Array.from({ length: n }, (_, k) => <span key={k} className={cx('h-2 w-2 rounded-full', dark ? 'bg-[#2a1a02]' : 'bg-white/25')} />)}</span>;
 }
-function Buy({ cost, was, ok }: { cost: number; was: number; ok: boolean }) {
-  return ok ? <Btn variant="gold" size="sm" className="shrink-0 gap-2">Learn <Cost n={cost} was={was} /></Btn>
-    : <span className="flex shrink-0 items-center gap-1.5 text-[12px] text-hud-faint">{Array.from({ length: cost }, (_, k) => <span key={k} className={cx('h-2 w-2 rounded-full', k < POINTS ? 'bg-cred' : 'bg-white/15')} />)}</span>;
+function Buy({ cost, ok }: { cost: number; ok: boolean }) {
+  return ok ? <Btn variant="gold" size="sm" className="shrink-0 gap-2">Learn <Dots n={cost} dark /></Btn> : <span className="shrink-0"><Dots n={cost} /></span>;
 }
 
 function Detail({ id }: { id: string }) {
@@ -165,7 +155,7 @@ function Detail({ id }: { id: string }) {
           <div className="text-[13px] leading-snug text-hud-text">{n.effect}</div>
         </div>
         {full(n) ? <span className="shrink-0 text-[12px] font-semibold" style={{ color: COL[n.s] }}>Kept</span>
-          : reach(n) ? <Buy cost={p} was={n.cost} ok={p <= POINTS} />
+          : reach(n) ? <Buy cost={p} ok={p <= POINTS} />
           : <span className="shrink-0 text-[12px] text-hud-faint">{n.locked ? 'No one to link' : 'Not yet'}</span>}
       </div>
       {n.specs?.map(sp => {
@@ -177,7 +167,7 @@ function Detail({ id }: { id: string }) {
               <div className="text-[13px] font-semibold text-white">{sp.name}</div>
               <div className="text-[12px] leading-snug text-hud-dim">{sp.effect}</div>
             </div>
-            {sp.have ? <span className="shrink-0 text-[12px] font-semibold text-white/80">Kept</span> : full(n) ? <Buy cost={sp2} was={sp.cost} ok={sp2 <= POINTS} /> : <span className="shrink-0 text-[11px] text-hud-faint">Fill it first</span>}
+            {sp.have ? <span className="shrink-0 text-[12px] font-semibold text-white/80">Kept</span> : full(n) ? <Buy cost={sp2} ok={sp2 <= POINTS} /> : <span className="shrink-0 text-[11px] text-hud-faint">Fill it first</span>}
           </div>
         );
       })}
