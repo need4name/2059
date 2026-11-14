@@ -1,0 +1,34 @@
+# The memory network (draft, agreed in planning; not built)
+
+Replaces the play-i tree. Mockup: `client/src/components/game/screens/MemoryMockup.tsx` (`#mock-tree`, `#mock-death` in dev).
+
+## Rules
+- One memory point per lost host. Points are saved and spent on the network (death screen, or the Memory page). Shown only as the gold number in the core (max 999).
+- The network is a hand-placed, uneven neural net in pixel art: clusters and long reaches, no filler, no branch names (colour tells branches apart). Paths fork and meet at shared neurons.
+- A neuron has ranks (a pip each, under it); each rank costs points. Stat boosts come in small ranks at 1 point; game-changing unlocks are single big purchases (3-4 points).
+- A neuron at full rank opens its specialisations (a small square light each on its upper edge: dark = not yet, strand colour = on offer, white = kept). All can be taken.
+- How the last host died makes one branch 1 point cheaper (never free): a soft yellow glow round every neuron it applies to. Heat 70+ = Processing; a heavy, hazard or the sea = Locomotion; structure broken = Grafting/Fault; a long fight = Subroutines; an ally down = Network; else Signal.
+- Rings: chapter one's part is the inner ring; each chapter finished opens the next (fifth and sixth slots, Phase step, a second ally live further out).
+- Hosts start with 3 move slots (to confirm); the fourth is a neuron.
+- Wording: say only what is gained ("start fights with 4 less heat per rank"), never "x instead of y"; "per rank".
+- Numbers are placeholders to be tuned by playtest, a chapter at a time.
+
+## Chapter one's ring (1 point a rank unless shown; > = specialisation)
+**Signal**: Signal strength 8r +8 max health (> Second wind 3r: first time under a third each fight heal 5%; > Holdfast (3): once a host a killing blow leaves 1). Steady pulse 5r +0.5% mending (> Knitting frame (2): it also repairs structure). Thick skin 5r 2% less damage. Stim pouch 2r +1 starting Bio-Stim. Haggling 4r 5% lower prices.
+**Processing**: Heat sink 5r 1 more heat shed a round (> Thermal tolerance 3r: hot damage taken 20% smaller). Cold start 5r 4 less starting heat. Hot streak 5r +3% crit at 86+ heat. Burnout drill 3r overheating hurts 25% less (> Runaway (3): it costs no turn). Redline (3): once a fight two actions on a turn started at 86+.
+**Subroutines**: Targeting 8r +2% damage (> Finisher 5r +5% under 30% health; > First strike 3r +10% first attack). Flank logic 5r +3% side, +5% behind. Crit training 5r +5% crit damage. Momentum 4r +5 Overload a takedown. Fourth slot (4).
+**Guard**: Practised guard 5r all defensive moves +4% (> Cool head 4r they remove 2 heat; > Counterweight 3r next attack +5%). Braced 4r Brace +1 guard (> Deep breath 5r Brace removes 2 more heat; > Patch job 5r Brace repairs 4% more). Reflex brace (4): Brace takes no slot.
+**Fault** (placeholder until malfunction is redesigned): Breaker 5r +4% structure damage (> Exploit 5r +3% to malfunctioning enemies; > Seize up (3): breaking structure costs the enemy its next turn). Feedback 4r breaking structure adds 5 heat. Fail-safe 5r broken implants keep 5% more. Steady hands 5r weakest hits +4% while malfunctioning. Reboot 4r once a fight 5% structure back.
+**Grafting**: Reinforced housings 6r +4% structure (> Sealed 3r mend at 10% rate while broken). Clean interface 5r implant health costs 10% lower. Graft memory 3r (2 each) +1 starting upgrade point. Salvage instinct (3). Pick of the wreck (3).
+**Locomotion**: Gait calibration 2r (3 each) +1 movement (> Hit and fade (2); > Sidestep (3)). Sure footing 5r hazards 10% less. Clean break 5r parting blows 10% less. Sea legs 3r climbing out 20% cheaper.
+**Network** (dark until an ally is linked): Handshake 5r allies +5% health (> Stand together (2)). Shared memory 4r allies +25% xp (> Coordinated 4r +5% on enemies your ally hit).
+**Shared**: Cold blood (Signal/Processing) 3r; Hot hands (Processing/Subroutines) 5r; Kinship (Subroutines/Grafting) 5r; Brace for impact (Guard/Fault) 3r; Cover step (Locomotion/Network) 4r.
+
+## Endless neurons (proposed)
+Five plain stat neurons keep taking points after their listed ranks are full (drawn with a second ring): Signal strength +4 max health, Targeting +1% damage, Reinforced housings +2% structure, Practised guard +1% defensive moves, Handshake +2% ally health, per extra rank.
+- Soft cap (price): extra ranks 1-10 cost 2 points each, 11-20 cost 3, 21 and on cost 4.
+- Hard caps: 10 extra ranks per chapter reached, 50 in all, on each.
+
+## Open
+- Malfunction gets its own redesign conversation; the Fault branch follows it.
+- A firmware tree (small, expensive, upgrades each firmware's starting move from mid-game): to design; must be squared with today's firmware levels and forks.
