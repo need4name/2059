@@ -6,7 +6,6 @@ import { firmwareAttack, identityOf, levelOptions } from '@/lib/engine/firmware'
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { playiNode, FALLBACK_ID, FALLBACK_NODE, perksFor } from '@/lib/engine/playi';
 import { useAllies } from '@/lib/stores/useAllies';
 import { availableFirmware } from '@/lib/stores/useCombat';
 import { allyDef } from '@/lib/combat/allies';
@@ -31,17 +30,15 @@ export function DefeatScreen() {
   const anyFirmware = choices.length > 0;
   // The firmware this host ran, else the first one opened: once one is open, a host always wakes with firmware
   const [choice, setChoice] = useState<PlayerClass | null>(choices.includes(playerClass) ? playerClass : choices[0] ?? null);
-  const { offer, owned, pick } = usePlayi();
-  const [learned, setLearned] = useState<string | null>(null);
-  const [setPoint, setSetPoint] = useState<0 | 50>(0);
+  const perks = usePlayi(st => st.perks)();
   // Where the next host wakes: the chapter's entry, or a server some host reached
   const places = wakePlaces(useMap());
   const [wakeAt, setWakeAt] = useState(places[0]);
-  const canReboot = (!anyFirmware || choice !== null) && (!offer || learned !== null);
+  const canReboot = !anyFirmware || choice !== null;
   // Allies: who links with the next host (Second link allows two)
   const allies = useAllies();
   const unlocked = allies.unlocked();
-  const slots = perksFor(learned ? [...owned, learned] : owned).allySlots;
+  const slots = perks.allySlots;
   const [team, setTeam] = useState<string[]>(() => {
     const kept = allies.party.filter(id => unlocked.includes(id));
     if (kept.length || !unlocked.length) return kept;
@@ -49,8 +46,6 @@ export function DefeatScreen() {
   });
   const toggleAlly = (id: string) => setTeam(t => t.includes(id) ? t.filter(x => x !== id) : [...(t.length >= slots ? t.slice(1) : t), id]);
   const jump = () => {
-    if (offer && learned) pick(learned);
-    if (learned === 'heat_2a') usePlayi.getState().chooseSetPoint(setPoint);
     allies.setParty(team.slice(0, slots), slots);
     rebirth(choice ?? undefined, wakeAt);
   };
@@ -58,40 +53,15 @@ export function DefeatScreen() {
   return (
     <Screen footer={
       <Btn variant="primary" size="lg" className="w-full" disabled={!canReboot} onClick={jump}>
-        {offer && !learned ? 'Choose what stays' : anyFirmware && !choice ? 'Choose firmware' : 'Wake'}
+        {anyFirmware && !choice ? 'Choose firmware' : 'Wake'}
       </Btn>
     }>
       <div className="relative space-y-6 px-4 pb-6 pt-12">
-        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', offer || unlocked.length || anyFirmware || places.length > 1 ? 'pt-8' : 'pt-[28vh]')}>
+        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', unlocked.length || anyFirmware || places.length > 1 ? 'pt-8' : 'pt-[28vh]')}>
           <Glyph name="signal" size={30} className="signal-pulse text-sys" />
           <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
         </header>
-
-        {offer && (
-          <div className="space-y-2.5">
-            <Label>Something stays</Label>
-            <div className="grid grid-cols-1 gap-2">
-              {offer.map((id, k) => {
-                const node = id === FALLBACK_ID ? FALLBACK_NODE : playiNode(id)!;
-                const selected = learned === id && (offer.indexOf(id) === k);
-                return (
-                  <button key={`${id}-${k}`} onClick={() => setLearned(id)} aria-pressed={selected}
-                    className={cx('flex w-full items-start gap-3.5 rounded-3xl p-4 text-left transition', selected ? 'bg-sys/10 ring-2 ring-sys/70' : 'bg-hud-panel/80 ring-1 ring-white/[0.05] hover:bg-white/[0.06]')}>
-                    <span className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', selected ? 'bg-sys/20 text-sys' : 'bg-white/[0.06] text-hud-dim')}><Glyph name="signal" size={20} /></span>
-                    <span className="min-w-0 flex-1 space-y-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-display text-[16px] font-semibold text-white">{node.name}</span>
-                        {node.capstone && <Chip tone="cred">Capstone</Chip>}
-                      </span>
-                      <span className="block text-sm text-hud-text">{node.effect}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {unlocked.length > 0 && (
           <div className="space-y-2.5">
@@ -160,16 +130,6 @@ export function DefeatScreen() {
             })}
           </div>
         ) : null}
-
-        {learned === 'heat_2a' && (
-          // Set point: the heat every fight starts at, chosen now
-          <div className="flex gap-2">
-            {([[0, 'Cold: start at 0'], [50, 'Warm: start at 50']] as const).map(([v, label]) => (
-              <button key={v} onClick={() => setSetPoint(v)} aria-pressed={setPoint === v}
-                className={cx('key flex-1 rounded-2xl px-3 py-2.5 text-[13px] font-semibold', setPoint === v ? 'key-selected text-white' : 'text-hud-text')}>{label}</button>
-            ))}
-          </div>
-        )}
 
         {choice && choice !== 'none' && [4, 7, 10].some(lv => levelOptions(choice, lv)) && (
           // The chosen firmware's forks: set now, and they hold for the whole of the next host's life

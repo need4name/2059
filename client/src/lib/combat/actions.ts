@@ -237,10 +237,11 @@ export const IMPLANT_FADE = 0.5;
  * A character's stats as they stand: what its implants add fades as its structure bar empties,
  * from full at full structure to IMPLANT_FADE at none (the implants are what the bar is).
  */
-export function liveStats(c: Character): Character {
+export function liveStats(c: Character, floorLift = 0): Character {
   const im = c.implantStats;
   if (!im || c.maxStructuralHp <= 0) return c;
-  const left = IMPLANT_FADE + (1 - IMPLANT_FADE) * Math.max(0, Math.min(1, c.currentStructuralHp / c.maxStructuralHp));
+  const floor = Math.min(1, IMPLANT_FADE + floorLift);
+  const left = floor + (1 - floor) * Math.max(0, Math.min(1, c.currentStructuralHp / c.maxStructuralHp));
   if (left >= 1) return c;
   const cut = (v: number, part: number) => Math.round(v - part * (1 - left));
   return { ...c, physicalAttack: cut(c.physicalAttack, im.pa), structuralAttack: cut(c.structuralAttack, im.sa), physicalDefense: cut(c.physicalDefense, im.pd), structuralDefense: cut(c.structuralDefense, im.sd) };
@@ -258,8 +259,10 @@ isMalfunctioning: boolean = false,
 playerHeat: number = 0,
 bypassStructuralDefense: boolean = false,
 criticalCrit: number = 0.30,
+// The memory network's lifts for the host's own blows: harder crits, a higher floor while broken, implants that fade less
+extra: { critDamage?: number; brokenLift?: number; fadeFloor?: number } = {},
 ): DamageResult {
-attacker = liveStats(attacker); defender = liveStats(defender);
+attacker = liveStats(attacker, extra.fadeFloor ?? 0); defender = liveStats(defender);
 // Two kinds of damage. Physical (Attack vs Defence) is soaked by structure first, like
 // armour; special (Sp. Atk vs Sp. Def, kept in the structural* fields) goes past
 // structure to health and heats the target. physicalRatio is the physical share.
@@ -292,8 +295,8 @@ const CRIT_CHANCES: Record<string, number> = { cool: 0, warm: 0.08, hot: 0.18, c
 const critChance = CRIT_CHANCES[getHeatPhase(playerHeat)] ?? 0;
 const isCrit = action.type === 'attack' && random() < critChance;
 if (isCrit) {
-physDamage = Math.floor(physDamage * 1.75);
-strDamage  = Math.floor(strDamage  * 1.75);
+physDamage = Math.floor(physDamage * (1.75 + (extra.critDamage ?? 0)));
+strDamage  = Math.floor(strDamage  * (1.75 + (extra.critDamage ?? 0)));
 }
 
 if (action.rangeOptimal) {
@@ -308,6 +311,7 @@ const evasionPenalty = Math.min(0.30, (defender.evasion || 0) * 0.015);
 const tier = isMalfunctioning ? (attacker.id === 'player' ? 'hostBroken' : 'malfunction') : (action.accuracy ?? 'variable');
 let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
+if (tier === 'hostBroken') lo = Math.min(hi, lo + (extra.brokenLift ?? 0));
 const variance = lo + random() * (hi - lo);
 physDamage = Math.floor(physDamage * variance);
 strDamage  = Math.floor(strDamage  * variance);

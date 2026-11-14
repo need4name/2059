@@ -56,12 +56,12 @@ function rollRarity(level: number): ItemRarity {
 }
 
 /** A fresh market stall: implants across slots plus a few stims. */
-export function generateMarketStock(level: number): Item[] {
+export function generateMarketStock(level: number, extra = 0): Item[] {
   const augments = ITEMS_2059.filter(i => i.type === 'augmentation');
   const stims = ITEMS_2059.filter(i => i.type === 'consumable' && i.consumableEffect && (level >= 5 || i.consumableEffect !== 'overclock'));
   const stock: Item[] = [];
   const usedTemplates = new Set<string>();
-  for (let tries = 0; stock.length < 7 && tries < 60; tries++) {
+  for (let tries = 0; stock.length < 7 + extra && tries < 60 + extra * 8; tries++) {
     const rarity = rollRarity(level);
     const pool = augments.filter(i => i.rarity === rarity && !usedTemplates.has(i.id));
     if (!pool.length) continue;

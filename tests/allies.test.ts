@@ -8,7 +8,7 @@ import type { CombatGrid, CombatAction, Item } from '../client/src/lib/combat/ty
 import { ALLIES, allyDef, allyUnit, allyMoves, alliesUnlockedBy, ALLY_MAX_LEVEL, ALLY_LINKS, allySlotFor, withLinks } from '../client/src/lib/combat/allies';
 import { useInventory } from '../client/src/lib/stores/useInventory';
 import { useAllies } from '../client/src/lib/stores/useAllies';
-import { perksFor, NO_PERKS } from '../client/src/lib/engine/playi';
+import { NO_PERKS } from '../client/src/lib/engine/playi';
 
 function arena(player: [number, number], boss: [number, number]): CombatGrid {
   const tiles = Array.from({ length: 9 }, () => Array.from({ length: 7 }, () => ({ type: 'empty' as const })) as any[]);
@@ -115,7 +115,7 @@ test('a hit on an ally hurts the ally, not the player; a knockout does not end t
 test('ally attacks need range and count for Coordinated', () => {
   const far = fight([ally('bale', [8, 0])]);
   assert.equal(Fight.canAllyUse(far, 0, 0), false);
-  const close = fight([ally('bale', [3, 3])], { perks: perksFor(['network_1', 'network_2', 'network_3']) });
+  const close = fight([ally('bale', [3, 3])], { perks: { ...NO_PERKS, allyHpMult: 1.25, allyXpMult: 2, coordinated: true, coordinatedBonus: 0.2 } });
   assert.equal(Fight.canAllyUse(close, 0, 0), true);
   seedRandom(2);
   const hit = Fight.resolveAllyMove(close, 0, 0);

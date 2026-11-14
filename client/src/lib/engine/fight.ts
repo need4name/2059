@@ -247,6 +247,8 @@ export interface FightState {
   flinchUsed?: boolean;
   /** The enemy Ghostline has spotted this round: your hits (and allies') land on it as if from behind. */
   spotted?: number | null;
+  /** Once-a-fight things the memory network gives: Second wind spent, Reboot owed or spent, the next attack lifted by a defensive move. */
+  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean };
   /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
   king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -320,7 +322,7 @@ export const BASE_FIGHT_FLAGS = {
   perks: NO_PERKS, firstStrikeUsed: false, sidestepReady: false, holdfastReady: false, redlineUsed: false,
   allies: [] as Ally[], mark: null as FightState['mark'], allyHitFoes: [] as number[], allyGuard: 0,
   playerBurning: 0, playerStunned: false, stunGuard: 0, playerSwimming: false, playerBleeding: 0, overload: 0,
-  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], crane: null as FightState['crane'], roll: null as FightState['roll'], beat: null as FightState['beat'], light: null as FightState['light'], front: null as FightState['front'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
+  playerSlowed: 0, playerHasted: 0, playerDrive: 0, tide: null as FightState['tide'], king: null as FightState['king'], spotted: null as FightState['spotted'], memo: {} as NonNullable<FightState['memo']>, crane: null as FightState['crane'], roll: null as FightState['roll'], beat: null as FightState['beat'], light: null as FightState['light'], front: null as FightState['front'], exhaust: null as FightState['exhaust'], dream: null as FightState['dream'], alarm: null as FightState['alarm'], flinchUsed: false, wind: null as FightState['wind'], orders: null as FightState['orders'],
 };
 
 /** Damage that would drop the player to 0 leaves them on 1 instead, once per host. */
@@ -1003,7 +1005,8 @@ export function allyRecovery(s: FightState): Step {
   const quick = allyWith(s, 'medic') >= 0;
   const allies = s.allies.map(a => {
     if (allyAlive(a)) return a.downed !== undefined ? { ...a, downed: undefined } : a;
-    const left = (a.downed ?? (quick || a.rule === 'restless' ? ALLY_RULES.medicGetUp : ALLY_RULES.getUp) + 1) - 1;
+    // Stand together (memory) takes rounds off, never below one
+    const left = (a.downed ?? Math.max(1, (quick || a.rule === 'restless' ? ALLY_RULES.medicGetUp : ALLY_RULES.getUp) - (s.perks.allyGetUp ?? 0)) + 1) - 1;
     if (left > 0) return { ...a, downed: left };
     const hp = Math.max(1, Math.round(a.unit.maxHp * ALLY_RULES.getUpHp));
     events.push(say(`${a.unit.name} gets back up`, 'heal'));
@@ -1306,7 +1309,7 @@ function climbOut(s: FightState, b: Body, events: FightEvent[]): FightState {
     const d = chebyshev(p, from) + (tileAt(p, s.grid)?.type === 'hazard' ? 0.5 : 0);
     if (d < bestD) { bestD = d; best = p; }
   }
-  const dmg = Math.max(WATER.min, Math.round(maxHpOf(s, b) * WATER.share));
+  const dmg = Math.max(b.kind === 'player' && (s.perks.climbMult ?? 1) < 1 ? 1 : WATER.min, Math.round(maxHpOf(s, b) * WATER.share * (b.kind === 'player' ? s.perks.climbMult ?? 1 : 1)));
   events.push(say(`${b.kind === 'player' ? 'You climb' : `${nameOf(s, b)} climbs`} out of the sea: -${dmg}, turn lost`, 'damage'));
   const to = best ?? from;
   const out = hurt(s, b, dmg, events);
@@ -1336,6 +1339,23 @@ export function playerConditions(s: FightState): Step & { skipTurn: boolean } {
   if (!events.some(e => e.kind === 'playerDown')) {
     const mended = mendAmount(state);
     if (mended > 0) { state = { ...state, player: { ...state.player, currentHp: state.player.currentHp + mended } }; events.push(say(`Mending -- healed ${mended}`, 'heal')); }
+    // Knitting frame (memory): what the memory adds to mending also goes into the structure bar
+    if (mended > 0 && state.perks.mendRepairs && state.player.currentStructuralHp < state.player.maxStructuralHp) {
+      const fix = Math.min(state.player.maxStructuralHp - state.player.currentStructuralHp, Math.round(state.player.maxHp * (state.perks.mend ?? 0)));
+      if (fix > 0) state = { ...state, player: { ...state.player, currentStructuralHp: state.player.currentStructuralHp + fix }, playerMalfunctioning: false };
+    }
+    // Second wind (memory): the first time each fight you start a turn under a third of your health
+    if (state.perks.secondWind > 0 && !state.memo?.secondWind && state.player.currentHp < state.player.maxHp / 3) {
+      const heal = Math.round(state.player.maxHp * state.perks.secondWind);
+      state = { ...state, memo: { ...state.memo, secondWind: true }, player: { ...state.player, currentHp: Math.min(state.player.maxHp, state.player.currentHp + heal) } };
+      events.push(say(`Second wind: +${heal}`, 'heal'));
+    }
+    // Reboot (memory): once a fight, the turn after your structure breaks, some of it comes back
+    if (state.memo?.reboot === 'due') {
+      const back = Math.round(state.player.maxStructuralHp * state.perks.reboot);
+      state = { ...state, memo: { ...state.memo, reboot: 'used' }, player: { ...state.player, currentStructuralHp: Math.min(state.player.maxStructuralHp, state.player.currentStructuralHp + back) }, playerMalfunctioning: back <= 0 && state.playerMalfunctioning };
+      if (back > 0) events.push(say(`Reboot: +${back} structure`, 'heal'));
+    }
   }
   const skipTurn = (s.playerStunned || swam) && !down;
   if (s.playerStunned && skipTurn) { events.push(say('STUNNED -- you lose this turn', 'critical')); state = { ...state, playerStunned: false, stunGuard: 2 }; }
@@ -1349,7 +1369,9 @@ export function mendAmount(s: FightState): number {
   const p = s.player;
   if (p.currentHp <= 0 || p.currentHp >= p.maxHp || p.maxStructuralHp <= 0) return 0;
   const share = Math.max(0, Math.min(1, p.currentStructuralHp / p.maxStructuralHp));
-  return Math.min(p.maxHp - p.currentHp, Math.round(p.maxHp * (MEND.base + (s.perks.mend ?? 0)) * share));
+  // Sealed (memory): with the frame broken, a share of normal mending still gets through
+  const rate = share > 0 ? share : (s.perks.sealed ?? 0);
+  return Math.min(p.maxHp - p.currentHp, Math.round(p.maxHp * (MEND.base + (s.perks.mend ?? 0)) * rate));
 }
 
 /**
@@ -1396,8 +1418,18 @@ export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: bool
 /** The end of the player's turn: what allies set up for it (a mark, Coordinated) is spent. */
 /** The end of your turn: marks lapse, running hot feeds Overload (more when critical), and a full turn played
  *  lifts the stun guard (a stun that cost this turn keeps it on through the next one). */
-export const endPlayerTurn = (s: FightState): FightState =>
-  gainOverload({ ...s, mark: null, allyHitFoes: [], stunGuard: (s.stunGuard ?? 0) === 1 ? 0 : s.stunGuard ?? 0 }, s.playerHeat >= 86 ? OVERLOAD.critical : s.playerHeat >= HEAT.hotAt ? OVERLOAD.hot : 0);
+export function endPlayerTurn(s0: FightState): FightState {
+  let s = s0;
+  // Cold blood (memory): end a turn cool and mend a little
+  if ((s.perks.coldBlood ?? 0) > 0 && s.playerHeat <= 35 && s.player.currentHp > 0 && s.player.currentHp < s.player.maxHp)
+    s = { ...s, player: { ...s.player, currentHp: Math.min(s.player.maxHp, s.player.currentHp + Math.max(1, Math.round(s.player.maxHp * s.perks.coldBlood))) } };
+  // Cover step (memory): ending beside an ally guards you both
+  if ((s.perks.coverStep ?? 0) > 0 && !s.playerSwimming) {
+    const k = s.allies.findIndex(a => allyAlive(a) && !a.swimming && chebyshev(a.pos, s.grid.playerPosition) === 1);
+    if (k >= 0) s = { ...s, playerDefenseBoost: s.playerDefenseBoost + s.perks.coverStep, allies: s.allies.map((a, n) => (n === k ? { ...a, defenseBoost: a.defenseBoost + s.perks.coverStep } : a)) };
+  }
+  return gainOverload({ ...s, mark: null, allyHitFoes: [], stunGuard: (s.stunGuard ?? 0) === 1 ? 0 : s.stunGuard ?? 0 }, s.playerHeat >= 86 ? OVERLOAD.critical : s.playerHeat >= HEAT.hotAt ? OVERLOAD.hot : 0);
+}
 
 /** Aim at a different foe (only living ones). */
 export function setTarget(s: FightState, i: number): FightState {
@@ -1424,7 +1456,7 @@ function heatBurst(s: FightState, degrees: number, events: FightEvent[], label: 
 /** At 100 heat the host burns out: it's hurt, the heat bursts out on everyone beside it, and it loses its next turn. */
 export function burnout(s: FightState, events: FightEvent[]): FightState {
   if (s.playerHeat < 100) return s;
-  const hurt = Math.max(1, Math.round(s.player.maxHp * HEAT.burnoutHp * s.perks.damageTakenMult));
+  const hurt = Math.max(1, Math.round(s.player.maxHp * HEAT.burnoutHp * s.perks.damageTakenMult * (s.perks.burnoutMult ?? 1)));
   events.push(say(`BURNOUT -- -${hurt} health, heat bursts out`, 'critical'));
   let state = heatBurst(s, HEAT.burnoutVent, events, 'Burnout');
   const hp = Math.max(0, state.player.currentHp - hurt);
@@ -1478,9 +1510,10 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
   let state: FightState = {
     ...s,
     player: { ...player, currentStructuralHp: structure, currentHp: player.currentHp + Math.max(0, heal) },
-    playerDefenseBoost: action.defenseBoost || 8,
+    playerDefenseBoost: Math.round((action.defenseBoost || 8) * (s.perks.defendMult ?? 1)) + (s.perks.braceGuard ?? 0),
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
-    playerHeat: heat,
+    playerHeat: clampHeat(heat - (s.perks.defendCool ?? 0)),
+    memo: s.perks.afterDefend > 0 ? { ...s.memo, afterDefend: true } : s.memo,
   };
   // Venting from high heat: the heat let out hits every enemy beside you
   if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, (s.playerHeat - heat) * s.perks.ventMult, events, 'Vent burst'), events);
@@ -1596,7 +1629,7 @@ export function resolveDefend(s: FightState, action: CombatAction, aim: TilePosi
   const events: FightEvent[] = [];
   const { who, mult } = defendTargets(s, action, aim);
   const roll = d.roll ? d.roll[0] + random() * (d.roll[1] - d.roll[0]) : 1;
-  const a = defendAmounts(s, action, mult * roll);
+  const a = defendAmounts(s, action, mult * roll * (s.perks.defendMult ?? 1));
   const ward = (): Ward => ({ physCut: a.physCut, specialCut: a.specialCut, specialHeatCut: d.specialHeatCut ?? 0, ...(d.counter ? { counter: { chance: d.counter.chance, share: d.counter.share * roll, stun: d.counterStun } } : {}), ...(d.anchor ? { anchored: true } : {}) });
   const covers = a.physCut > 0 || a.specialCut > 0 || !!d.counter || !!d.anchor || !!d.specialHeatCut;
   let state: FightState = { ...s };
@@ -1634,7 +1667,8 @@ export function resolveDefend(s: FightState, action: CombatAction, aim: TilePosi
   }
   if (d.cleanse) said.push('bleeding and burning stopped');
   events.push(say(`${action.name}${said.length ? ` -- ${said.join(', ')}` : ''}`, said.length ? 'heal' : 'info'));
-  state = { ...state, playerHeat: clampHeat(state.playerHeat + (action.heatGenerated ?? 0)) };
+  // Cool head and Counterweight (memory): any defensive move sheds a little heat and lifts the next attack
+  state = { ...state, playerHeat: clampHeat(state.playerHeat + (action.heatGenerated ?? 0) - (s.perks.defendCool ?? 0)), memo: (s.perks.afterDefend ?? 0) > 0 ? { ...state.memo, afterDefend: true } : state.memo };
   if (d.haste) state = { ...state, playerHasted: 2 };
   if (d.overload) state = gainOverload(state, d.overload);
   const to = defendStep(s, action);
@@ -1945,26 +1979,34 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     if (foe.dreaming) { events.push(say(`${foe.unit.name} is dreaming: the blow passes through it`)); continue; }
     const finishing = s.perks.finisherBonus > 0 && foe.unit.currentHp < foe.unit.maxHp * 0.3 ? 1 + s.perks.finisherBonus : 1;
     const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
-    const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1.2 : 1;
+    const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1 + (s.perks.coordinatedBonus || 0.2) : 1;
+    // The memory network: the first attack of a fight, running hot, a malfunctioning target, the blow after a defensive move, a firmware's own move
+    const memory = (!s.firstStrikeUsed ? 1 + (s.perks.firstStrikeBonus ?? 0) : 1) * (playerHeat >= HEAT.hotAt ? 1 + (s.perks.hotHands ?? 0) : 1)
+      * (foe.malfunctioning ? 1 + (s.perks.exploit ?? 0) : 1) * (s.memo?.afterDefend ? 1 + (s.perks.afterDefend ?? 0) : 1) * (action.firmware ? 1 + (s.perks.firmwareDamage ?? 0) : 1);
+    const flank = hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i });
     const quirk = quirkDamage(s, action);
     // The shape's sweet spot: some tiles of it land harder than others
     const sweet = sweetSpot(action, playerClass, grid.playerPosition, aim, foe.pos);
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
-      hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i }) * s.perks.flankMult, dist, s.playerMalfunctioning,
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * memory * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
+      flank > 0 ? flank * s.perks.flankMult + (flank >= FLANK.back ? s.perks.flankBack ?? 0 : s.perks.flankSide ?? 0) : 0, dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
-      s.perks.runaway ? 0.45 : 0.30,
+      0.30 + (s.perks.hotCrit ?? 0),
+      { critDamage: s.perks.critDamage ?? 0, brokenLift: s.perks.steadyHands ?? 0, fadeFloor: s.perks.failSafe ?? 0 },
     );
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     dealtTotal += foe.unit.currentHp - hp;
-    const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
-    const heat = clampHeat(foe.heat + heatPush + heatFromSpecial(dmg.specialDamage));
+    // Breaker (memory): more off the structure bar; breaking it can add heat (Feedback) and cost the enemy its next turn (Seize up)
+    const structure = Math.max(0, foe.unit.currentStructuralHp - Math.round(dmg.structuralDamage * (1 + (s.perks.structureDamage ?? 0))));
+    const broke = foe.unit.currentStructuralHp > 0 && structure <= 0;
+    const heat = clampHeat(foe.heat + heatPush + heatFromSpecial(dmg.specialDamage) + (broke ? s.perks.feedback ?? 0 : 0));
     state = setFoe(state, i, {
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
-      malfunctioning: structure <= 0, defenseBoost: 0, heat,
+      malfunctioning: structure <= 0, defenseBoost: 0, heat, ...(broke && s.perks.seizeUp && hp > 0 ? { stunned: true } : {}),
     });
+    if (broke && s.perks.seizeUp && hp > 0) events.push(say(`${foe.unit.name} seizes up`, 'critical'));
     state = gainOverload(state, (dmg.bioDamage / Math.max(1, foe.unit.maxHp)) * OVERLOAD.dealt);
     if (attackPatternOf(action, playerClass) === 'knockback' && order(s) !== 'noShoves' && hp > 0 && i === pushed) state = knockBack(state, grid.playerPosition, { kind: 'foe', i }, dmg.bioDamage, events);
     const who = struck.length > 1 ? `${foe.unit.name}: ` : '';
@@ -1985,9 +2027,10 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     overclockActive: false,
     kizunaJustFired: kizunaFiredNow || s.kizunaJustFired,
     firstStrikeUsed: true,
+    memo: state.memo?.afterDefend ? { ...state.memo, afterDefend: false } : state.memo,
     // A gun isn't an implant: it never heats you (a Tianxia gun's vent still cools), but it spends a round
     playerHeat: action.gun ? clampHeat(playerHeat - (hot.effects?.cool ?? 0))
-      : clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (hot.effects?.cool ?? 0) - (action.fromImplant ? s.perks.implantHeatCut : 0)),
+      : clampHeat(playerHeat + (action.heatGenerated ?? 15) + adjacentHeat + s.perks.heatGenBonus - (hot.effects?.cool ?? 0) - (action.fromImplant ? s.perks.implantHeatCut : 0) - (action.firmware ? s.perks.firmwareHeatCut ?? 0 : 0)),
     ...(action.gun ? { gunAmmo: Math.max(0, (s.gunAmmo ?? action.gun.mag) - 1) } : {}),
   };
   // The screens follow whoever was hit
@@ -2360,6 +2403,8 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
   const hp = held.hp;
   const structure = Math.max(0, player.currentStructuralHp - dmg.structuralDamage);
   const breaks = player.currentStructuralHp > 0 && structure <= 0;
+  // Reboot (memory): once a fight, a broken frame gets some structure back at the start of your next turn
+  const rebootDue = breaks && (s.perks.reboot ?? 0) > 0 && !s.memo?.reboot;
   const playerHeat = clampHeat(s.playerHeat + (action.heatTransfer ?? 0) + Math.round(heatFromSpecial(dmg.specialDamage) * (s.perks.specialHeatTakenMult ?? 1) * (1 - (s.ward?.specialHeatCut ?? 0))));
 
 
@@ -2378,6 +2423,7 @@ export function resolveFoeAction(s: FightState, i: number, action: CombatAction,
     allyGuard: 0,
     playerHeat,
     holdfastReady: held.holdfastReady,
+    memo: rebootDue ? { ...s.memo, reboot: 'due' as const } : s.memo,
   }, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) });
   state = gainOverload(state, ((player.currentHp - hp) / Math.max(1, player.maxHp)) * OVERLOAD.taken);
   // A counter sends part of the hit back at whoever threw it

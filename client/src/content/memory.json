@@ -1,0 +1,1293 @@
+{
+ "about": "The memory network: what the signal keeps across hosts. One point a lost host, spent on neurons (ranks), their specialisations (open at full rank) and endless neurons (curve: what a rank gives and costs from each rank on). links are synapses; a neuron can be learned once something it links to is kept (core is always kept). fx: what a rank adds to a perk (engine/playi.ts Perks), or switches on. Numbers are placeholders until playtests.",
+ "core": [80, 100],
+ "size": [160, 200],
+ "branches": [
+  {
+   "id": "signal",
+   "color": "#38d6f0"
+  },
+  {
+   "id": "heat",
+   "color": "#ff8a4c"
+  },
+  {
+   "id": "combat",
+   "color": "#f0524f"
+  },
+  {
+   "id": "guard",
+   "color": "#f2f2f2"
+  },
+  {
+   "id": "fault",
+   "color": "#ff5fa8"
+  },
+  {
+   "id": "graft",
+   "color": "#a58bff"
+  },
+  {
+   "id": "move",
+   "color": "#7fa8ff"
+  },
+  {
+   "id": "net",
+   "color": "#5fe0a8"
+  },
+  {
+   "id": "luck",
+   "color": "#d4e04a"
+  },
+  {
+   "id": "fw",
+   "color": "#8fd0c8"
+  }
+ ],
+ "taught": {
+  "hot": "heat",
+  "heavy": "move",
+  "hazard": "move",
+  "broken": "fault",
+  "long": "combat",
+  "ally": "net",
+  "other": "signal"
+ },
+ "neurons": [
+  {
+   "id": "s1",
+   "branch": "signal",
+   "at": [66, 84],
+   "name": "Signal strength",
+   "text": "+12 max health, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "maxHpBonus",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 12],
+     [2, 10],
+     [3, 8],
+     [4, 6],
+     [5, 4],
+     [6, 3],
+     [11, 2],
+     [21, 1],
+     [41, 0.5]
+    ],
+    "price": [
+     [1, 1],
+     [3, 2],
+     [8, 3],
+     [15, 5],
+     [30, 8],
+     [50, 12]
+    ]
+   },
+   "specs": [
+    {
+     "id": "s1_second_wind",
+     "name": "Second wind",
+     "text": "The first time each fight you drop below a third of your health, heal 5% of it per rank",
+     "cost": 1,
+     "ranks": 3,
+     "fx": [
+      {
+       "perk": "secondWind",
+       "per": 0.05
+      }
+     ]
+    },
+    {
+     "id": "s1_holdfast",
+     "name": "Holdfast",
+     "text": "Once per host, a hit that would kill you leaves you on 1 health",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "holdfast",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s2",
+   "branch": "signal",
+   "at": [52, 76],
+   "name": "Steady pulse",
+   "text": "Heal 0.5% more of your max health each turn per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "mend",
+     "per": 0.005
+    }
+   ],
+   "specs": [
+    {
+     "id": "s2_knitting_frame",
+     "name": "Knitting frame",
+     "text": "That extra healing also repairs structure",
+     "cost": 2,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "mendRepairs",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s3",
+   "branch": "signal",
+   "at": [60, 62],
+   "name": "Thick skin",
+   "text": "Take 2% less damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "damageTakenMult",
+     "per": -0.02
+    }
+   ]
+  },
+  {
+   "id": "s4",
+   "branch": "signal",
+   "at": [40, 64],
+   "name": "Stim pouch",
+   "text": "Each new host starts with 1 more Bio-Stim per rank",
+   "cost": 1,
+   "ranks": 2,
+   "fx": [
+    {
+     "perk": "startBioStims",
+     "per": 1
+    }
+   ]
+  },
+  {
+   "id": "s5",
+   "branch": "signal",
+   "at": [30, 52],
+   "name": "Haggling",
+   "text": "Market prices are 5% lower per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "priceMult",
+     "per": -0.05
+    }
+   ]
+  },
+  {
+   "id": "p1",
+   "branch": "heat",
+   "at": [96, 82],
+   "name": "Heat sink",
+   "text": "Lose 1 more heat each round per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "extraCooling",
+     "per": 1
+    }
+   ],
+   "specs": [
+    {
+     "id": "p1_thermal_tolerance",
+     "name": "Thermal tolerance",
+     "text": "The extra damage you take from being hot is 20% smaller per rank",
+     "cost": 1,
+     "ranks": 3,
+     "fx": [
+      {
+       "perk": "hotTakenMult",
+       "per": -0.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "p2",
+   "branch": "heat",
+   "at": [112, 70],
+   "name": "Cold start",
+   "text": "Start fights with 4 less heat per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "startHeat",
+     "per": -4
+    }
+   ]
+  },
+  {
+   "id": "p3",
+   "branch": "heat",
+   "at": [130, 58],
+   "name": "Hot streak",
+   "text": "+3% crit chance per rank while at 86 heat or more",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "hotCrit",
+     "per": 0.03
+    }
+   ]
+  },
+  {
+   "id": "p4",
+   "branch": "heat",
+   "at": [120, 46],
+   "name": "Burnout drill",
+   "text": "Overheating hurts 25% less per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "burnoutMult",
+     "per": -0.25
+    }
+   ],
+   "specs": [
+    {
+     "id": "p4_runaway",
+     "name": "Runaway",
+     "text": "Overheating no longer costs you a turn",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "runaway",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "p5",
+   "branch": "heat",
+   "at": [147, 44],
+   "name": "Redline",
+   "text": "Once per fight, a turn you start at 86 heat or more gives you two actions",
+   "cost": 3,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "redline",
+     "on": true
+    }
+   ]
+  },
+  {
+   "id": "c1",
+   "branch": "combat",
+   "at": [102, 102],
+   "name": "Targeting",
+   "text": "+5% damage, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "damageMult",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 0.05],
+     [2, 0.04],
+     [3, 0.03],
+     [4, 0.02],
+     [7, 0.015],
+     [12, 0.01],
+     [25, 0.005]
+    ],
+    "price": [
+     [1, 1],
+     [5, 2],
+     [9, 3],
+     [18, 5],
+     [35, 8],
+     [55, 12]
+    ]
+   },
+   "specs": [
+    {
+     "id": "c1_finisher",
+     "name": "Finisher",
+     "text": "+5% damage per rank to enemies below 30% health",
+     "cost": 1,
+     "ranks": 5,
+     "fx": [
+      {
+       "perk": "finisherBonus",
+       "per": 0.05
+      }
+     ]
+    },
+    {
+     "id": "c1_first_strike",
+     "name": "First strike",
+     "text": "Your first attack each fight does +10% damage per rank",
+     "cost": 1,
+     "ranks": 3,
+     "fx": [
+      {
+       "perk": "firstStrikeBonus",
+       "per": 0.1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "c2",
+   "branch": "combat",
+   "at": [120, 96],
+   "name": "Flank logic",
+   "text": "+3% damage from the side and +5% from behind per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "flankSide",
+     "per": 0.03
+    },
+    {
+     "perk": "flankBack",
+     "per": 0.05
+    }
+   ]
+  },
+  {
+   "id": "c3",
+   "branch": "combat",
+   "at": [137, 104],
+   "name": "Crit training",
+   "text": "Crits do +5% damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "critDamage",
+     "per": 0.05
+    }
+   ]
+  },
+  {
+   "id": "c4",
+   "branch": "combat",
+   "at": [126, 118],
+   "name": "Momentum",
+   "text": "Each enemy you finish adds 5 Overload per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "momentum",
+     "per": 5
+    }
+   ]
+  },
+  {
+   "id": "c5",
+   "branch": "combat",
+   "at": [149, 122],
+   "name": "Fourth slot",
+   "text": "One more move slot",
+   "cost": 4,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "extraSlots",
+     "per": 1
+    }
+   ]
+  },
+  {
+   "id": "d1",
+   "branch": "guard",
+   "at": [80, 74],
+   "name": "Practised guard",
+   "text": "Every defensive move is 6% stronger, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "defendMult",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 0.06],
+     [2, 0.05],
+     [3, 0.04],
+     [5, 0.02],
+     [9, 0.01],
+     [20, 0.005]
+    ],
+    "price": [
+     [1, 1],
+     [4, 2],
+     [7, 3],
+     [13, 5],
+     [28, 8],
+     [48, 12]
+    ]
+   },
+   "specs": [
+    {
+     "id": "d1_cool_head",
+     "name": "Cool head",
+     "text": "Any defensive move also removes 2 heat per rank",
+     "cost": 1,
+     "ranks": 4,
+     "fx": [
+      {
+       "perk": "defendCool",
+       "per": 2
+      }
+     ]
+    },
+    {
+     "id": "d1_counterweight",
+     "name": "Counterweight",
+     "text": "After a defensive move, your next attack does +5% damage per rank",
+     "cost": 1,
+     "ranks": 3,
+     "fx": [
+      {
+       "perk": "afterDefend",
+       "per": 0.05
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "d2",
+   "branch": "guard",
+   "at": [85, 54],
+   "name": "Braced",
+   "text": "Brace gives +1 guard per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "braceGuard",
+     "per": 1
+    }
+   ],
+   "specs": [
+    {
+     "id": "d2_deep_breath",
+     "name": "Deep breath",
+     "text": "Brace removes 2 more heat per rank",
+     "cost": 1,
+     "ranks": 5,
+     "fx": [
+      {
+       "perk": "ventBonus",
+       "per": 2
+      }
+     ]
+    },
+    {
+     "id": "d2_patch_job",
+     "name": "Patch job",
+     "text": "Brace repairs 4% more structure per rank",
+     "cost": 1,
+     "ranks": 5,
+     "fx": [
+      {
+       "perk": "braceRepair",
+       "per": 0.04
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "d3",
+   "branch": "guard",
+   "at": [76, 34],
+   "name": "Reflex brace",
+   "text": "Brace no longer takes a move slot",
+   "cost": 4,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "braceFree",
+     "on": true
+    }
+   ]
+  },
+  {
+   "id": "f1",
+   "branch": "fault",
+   "at": [98, 124],
+   "name": "Breaker",
+   "text": "+4% damage to structure per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "structureDamage",
+     "per": 0.04
+    }
+   ],
+   "specs": [
+    {
+     "id": "f1_exploit",
+     "name": "Exploit",
+     "text": "+3% damage per rank to enemies that are malfunctioning",
+     "cost": 1,
+     "ranks": 5,
+     "fx": [
+      {
+       "perk": "exploit",
+       "per": 0.03
+      }
+     ]
+    },
+    {
+     "id": "f1_seize_up",
+     "name": "Seize up",
+     "text": "An enemy whose structure you break loses its next turn",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "seizeUp",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "f2",
+   "branch": "fault",
+   "at": [114, 138],
+   "name": "Feedback",
+   "text": "Breaking an enemy's structure adds 5 heat to it per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "feedback",
+     "per": 5
+    }
+   ]
+  },
+  {
+   "id": "f3",
+   "branch": "fault",
+   "at": [97, 145],
+   "name": "Fail-safe",
+   "text": "While your structure is broken, your implants keep 5% more of their strength per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "failSafe",
+     "per": 0.05
+    }
+   ]
+  },
+  {
+   "id": "f4",
+   "branch": "fault",
+   "at": [107, 161],
+   "name": "Steady hands",
+   "text": "While malfunctioning, your weakest hits are 4% stronger per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "steadyHands",
+     "per": 0.04
+    }
+   ]
+  },
+  {
+   "id": "f5",
+   "branch": "fault",
+   "at": [125, 155],
+   "name": "Reboot",
+   "text": "Once per fight, when your structure breaks, 5% of it comes back next turn per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "reboot",
+     "per": 0.05
+    }
+   ]
+  },
+  {
+   "id": "g1",
+   "branch": "graft",
+   "at": [78, 126],
+   "name": "Reinforced housings",
+   "text": "+6% structure, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "structureMult",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 0.06],
+     [2, 0.05],
+     [3, 0.04],
+     [5, 0.03],
+     [8, 0.02],
+     [16, 0.01],
+     [30, 0.005]
+    ],
+    "price": [
+     [1, 1],
+     [3, 2],
+     [10, 3],
+     [17, 5],
+     [33, 8],
+     [52, 12]
+    ]
+   },
+   "specs": [
+    {
+     "id": "g1_sealed",
+     "name": "Sealed",
+     "text": "With structure broken, you still heal at 10% of the normal rate per rank",
+     "cost": 1,
+     "ranks": 3,
+     "fx": [
+      {
+       "perk": "sealed",
+       "per": 0.1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "g2",
+   "branch": "graft",
+   "at": [68, 143],
+   "name": "Clean interface",
+   "text": "Implants' health costs are 10% lower per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "healthCostMult",
+     "per": -0.1
+    }
+   ]
+  },
+  {
+   "id": "g3",
+   "branch": "graft",
+   "at": [81, 153],
+   "name": "Graft memory",
+   "text": "Each new host starts with 1 more upgrade point per rank",
+   "cost": 2,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "startPoints",
+     "per": 1
+    }
+   ]
+  },
+  {
+   "id": "g4",
+   "branch": "graft",
+   "at": [62, 162],
+   "name": "Salvage instinct",
+   "text": "Each new host starts with a random common attack implant",
+   "cost": 3,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "startImplant",
+     "on": true
+    }
+   ]
+  },
+  {
+   "id": "m1",
+   "branch": "move",
+   "at": [56, 98],
+   "name": "Gait calibration",
+   "text": "+1 movement per rank",
+   "cost": 3,
+   "ranks": 2,
+   "fx": [
+    {
+     "perk": "moveBonus",
+     "per": 1
+    }
+   ],
+   "specs": [
+    {
+     "id": "m1_hit_and_fade",
+     "name": "Hit and fade",
+     "text": "After attacking at 36 to 60 heat, you may step one tile",
+     "cost": 2,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "hitAndFade",
+       "on": true
+      }
+     ]
+    },
+    {
+     "id": "m1_sidestep",
+     "name": "Sidestep",
+     "text": "The first heavy attack aimed at you each fight misses",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "sidestep",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "m2",
+   "branch": "move",
+   "at": [38, 92],
+   "name": "Sure footing",
+   "text": "Hazards do 10% less damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "hazardMult",
+     "per": -0.1
+    }
+   ]
+  },
+  {
+   "id": "m3",
+   "branch": "move",
+   "at": [21, 102],
+   "name": "Clean break",
+   "text": "Parting blows do 10% less damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "partingTakenMult",
+     "per": -0.1
+    }
+   ]
+  },
+  {
+   "id": "m4",
+   "branch": "move",
+   "at": [26, 80],
+   "name": "Sea legs",
+   "text": "Climbing out of the water costs 20% less health per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "climbMult",
+     "per": -0.2
+    }
+   ]
+  },
+  {
+   "id": "n1",
+   "branch": "net",
+   "at": [55, 113],
+   "name": "Handshake",
+   "text": "Allies have +6% health, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "allyHpMult",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 0.06],
+     [3, 0.05],
+     [4, 0.04],
+     [6, 0.02],
+     [13, 0.01],
+     [22, 0.005]
+    ],
+    "price": [
+     [1, 1],
+     [4, 2],
+     [8, 3],
+     [14, 5],
+     [26, 8],
+     [46, 12]
+    ]
+   },
+   "needsAlly": true,
+   "specs": [
+    {
+     "id": "n1_stand_together",
+     "name": "Stand together",
+     "text": "Knocked-out allies get up a round sooner",
+     "cost": 2,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "allyGetUp",
+       "per": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "n2",
+   "branch": "net",
+   "at": [37, 123],
+   "name": "Shared memory",
+   "text": "Allies gain experience 25% faster per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "allyXpMult",
+     "per": 0.25
+    }
+   ],
+   "needsAlly": true,
+   "specs": [
+    {
+     "id": "n2_coordinated",
+     "name": "Coordinated",
+     "text": "+5% damage per rank to an enemy your ally hit this round",
+     "cost": 1,
+     "ranks": 4,
+     "fx": [
+      {
+       "perk": "coordinatedBonus",
+       "per": 0.05
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "l1",
+   "branch": "luck",
+   "at": [141, 140],
+   "name": "Scavenger",
+   "text": "+3% chance per rank that a won fight also drops a spare implant",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "dropChance",
+     "per": 0.03
+    }
+   ],
+   "specs": [
+    {
+     "id": "l1_fine_pickings",
+     "name": "Fine pickings",
+     "text": "+10% chance per rank that the spare is a grade better",
+     "cost": 1,
+     "ranks": 5,
+     "fx": [
+      {
+       "perk": "rarityUp",
+       "per": 0.1
+      }
+     ]
+    },
+    {
+     "id": "l1_pick_of_the_wreck",
+     "name": "Pick of the wreck",
+     "text": "When a fight drops an implant, you're shown two and keep one",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "pickOfTwo",
+       "on": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "l2",
+   "branch": "luck",
+   "at": [152, 156],
+   "name": "Lucky find",
+   "text": "+5% chance of a Bio-Stim after a won fight per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "stimChance",
+     "per": 0.05
+    }
+   ]
+  },
+  {
+   "id": "l3",
+   "branch": "luck",
+   "at": [136, 171],
+   "name": "Loose change",
+   "text": "+6% credits from fights, a little less each rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "creditMult",
+     "per": 0
+    }
+   ],
+   "curve": {
+    "give": [
+     [1, 0.06],
+     [2, 0.05],
+     [4, 0.03],
+     [7, 0.02],
+     [14, 0.01],
+     [24, 0.005]
+    ],
+    "price": [
+     [1, 1],
+     [5, 2],
+     [8, 3],
+     [19, 5],
+     [32, 8],
+     [54, 12]
+    ]
+   }
+  },
+  {
+   "id": "l4",
+   "branch": "luck",
+   "at": [154, 174],
+   "name": "Market eye",
+   "text": "The Grey Lane has 1 more item on sale per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "marketExtra",
+     "per": 1
+    }
+   ]
+  },
+  {
+   "id": "l5",
+   "branch": "luck",
+   "at": [146, 190],
+   "name": "Second chance",
+   "text": "Once per host, swap a dropped implant for another roll",
+   "cost": 3,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "secondChance",
+     "on": true
+    }
+   ]
+  },
+  {
+   "id": "w1",
+   "branch": "fw",
+   "at": [44, 146],
+   "name": "Tuned",
+   "text": "Every firmware's own move does +2% damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "firmwareDamage",
+     "per": 0.02
+    }
+   ]
+  },
+  {
+   "id": "w2",
+   "branch": "fw",
+   "at": [26, 150],
+   "name": "Quick study",
+   "text": "Firmware points come 10% faster per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "fwPointRate",
+     "per": 0.1
+    }
+   ]
+  },
+  {
+   "id": "w3",
+   "branch": "fw",
+   "at": [31, 167],
+   "name": "Cold boot",
+   "text": "Every firmware's own move makes 1 less heat per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "firmwareHeatCut",
+     "per": 1
+    }
+   ]
+  },
+  {
+   "id": "w4",
+   "branch": "fw",
+   "at": [16, 180],
+   "name": "Cross-load",
+   "text": "A host can carry a second firmware's own move as an ordinary move",
+   "cost": 4,
+   "ranks": 1,
+   "fx": [
+    {
+     "perk": "crossLoad",
+     "on": true
+    }
+   ]
+  },
+  {
+   "id": "j1",
+   "branch": "guard",
+   "branch2": "heat",
+   "at": [101, 60],
+   "name": "Cold blood",
+   "text": "End your turn at 35 heat or less and heal 1% of max health per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "coldBlood",
+     "per": 0.01
+    }
+   ]
+  },
+  {
+   "id": "j2",
+   "branch": "heat",
+   "branch2": "combat",
+   "at": [125, 82],
+   "name": "Hot hands",
+   "text": "+1% damage per rank while at 61 heat or more",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "hotHands",
+     "per": 0.01
+    }
+   ]
+  },
+  {
+   "id": "j3",
+   "branch": "fault",
+   "branch2": "graft",
+   "at": [88, 137],
+   "name": "Kinship",
+   "text": "Moves from implants do +2% damage per rank",
+   "cost": 1,
+   "ranks": 5,
+   "fx": [
+    {
+     "perk": "implantDamage",
+     "per": 0.02
+    }
+   ]
+  },
+  {
+   "id": "j4",
+   "branch": "move",
+   "branch2": "net",
+   "at": [40, 108],
+   "name": "Cover step",
+   "text": "Ending your move beside an ally gives you both +1 guard per rank",
+   "cost": 1,
+   "ranks": 4,
+   "fx": [
+    {
+     "perk": "coverStep",
+     "per": 1
+    }
+   ],
+   "needsAlly": true
+  },
+  {
+   "id": "j5",
+   "branch": "signal",
+   "branch2": "guard",
+   "at": [71, 50],
+   "name": "Brace for impact",
+   "text": "Brace heals 1% of your max health per rank",
+   "cost": 1,
+   "ranks": 3,
+   "fx": [
+    {
+     "perk": "braceHeal",
+     "per": 0.01
+    }
+   ]
+  },
+  {
+   "id": "z0",
+   "branch": "signal",
+   "at": [18, 40],
+   "fog": true
+  },
+  {
+   "id": "z1",
+   "branch": "signal",
+   "at": [64, 20],
+   "fog": true
+  },
+  {
+   "id": "z2",
+   "branch": "signal",
+   "at": [156, 30],
+   "fog": true
+  },
+  {
+   "id": "z3",
+   "branch": "signal",
+   "at": [158, 100],
+   "fog": true
+  },
+  {
+   "id": "z4",
+   "branch": "signal",
+   "at": [158, 196],
+   "fog": true
+  },
+  {
+   "id": "z5",
+   "branch": "signal",
+   "at": [112, 176],
+   "fog": true
+  },
+  {
+   "id": "z6",
+   "branch": "signal",
+   "at": [70, 178],
+   "fog": true
+  },
+  {
+   "id": "z7",
+   "branch": "signal",
+   "at": [6, 112],
+   "fog": true
+  },
+  {
+   "id": "z8",
+   "branch": "signal",
+   "at": [4, 192],
+   "fog": true
+  }
+ ],
+ "links": [
+  ["core", "s1"],
+  ["s1", "s2"],
+  ["s1", "s3"],
+  ["s2", "s4"],
+  ["s4", "s5"],
+  ["core", "p1"],
+  ["p1", "p2"],
+  ["p2", "p3"],
+  ["p2", "p4"],
+  ["p3", "p5"],
+  ["core", "c1"],
+  ["c1", "c2"],
+  ["c2", "c3"],
+  ["c1", "c4"],
+  ["c4", "c5"],
+  ["c3", "c5"],
+  ["core", "d1"],
+  ["d1", "d2"],
+  ["d2", "d3"],
+  ["core", "f1"],
+  ["f1", "f2"],
+  ["f1", "f3"],
+  ["f3", "f4"],
+  ["f2", "f5"],
+  ["core", "g1"],
+  ["g1", "g2"],
+  ["g1", "g3"],
+  ["g2", "g4"],
+  ["core", "m1"],
+  ["m1", "m2"],
+  ["m2", "m3"],
+  ["m2", "m4"],
+  ["core", "n1"],
+  ["n1", "n2"],
+  ["c4", "l1"],
+  ["l1", "l2"],
+  ["l1", "l3"],
+  ["l2", "l4"],
+  ["l3", "l5"],
+  ["core", "w1"],
+  ["w1", "w2"],
+  ["w1", "w3"],
+  ["w3", "w4"],
+  ["d2", "j1"],
+  ["j1", "p2"],
+  ["p2", "j2"],
+  ["j2", "c2"],
+  ["f1", "j3"],
+  ["j3", "g1"],
+  ["m1", "j4"],
+  ["j4", "n2"],
+  ["s3", "j5"],
+  ["j5", "d2"],
+  ["s4", "m4"],
+  ["s5", "z0"],
+  ["d3", "z1"],
+  ["p5", "z2"],
+  ["c3", "z3"],
+  ["l5", "z4"],
+  ["f4", "z5"],
+  ["g4", "z6"],
+  ["m3", "z7"],
+  ["w4", "z8"]
+ ]
+}

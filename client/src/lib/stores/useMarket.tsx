@@ -57,7 +57,7 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
     if (get().stockKey === key && get().stock.length) return;
     // Stock is part of the run: the same seed and visit give the same stall
     seedRandom(mixSeed(useCombat.getState().runSeed, hashSeed(key)));
-    set({ stockKey: key, stock: generateMarketStock(level) });
+    set({ stockKey: key, stock: generateMarketStock(level, usePlayi.getState().perks().marketExtra) });
   },
 
   buy: (itemId) => {

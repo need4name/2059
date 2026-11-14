@@ -1,45 +1,6 @@
-// The play-i tree: what the signal learns across hosts. The data lives in
-// content/playi-tree.json; this file answers which nodes are open, deals the
-// two-card offer after a death, and turns owned nodes into the modifiers the
-// rules engine and the new host read.
-
-import tree from '../../content/playi-tree.json';
-import { random } from './rng';
-
-export interface PlayiNode {
-  id: string; branch: string; tier: number; name: string; effect: string;
-  requires: string[]; capstone?: boolean; needsAlly?: boolean;
-}
-export interface PlayiBranch { id: string; name: string; theme: string }
-
-export const PLAYI_BRANCHES = (tree as { branches: PlayiBranch[] }).branches;
-export const PLAYI_NODES = (tree as { nodes: PlayiNode[] }).nodes;
-const byId = new Map(PLAYI_NODES.map(n => [n.id, n]));
-export const playiNode = (id: string) => byId.get(id);
-
-/** Repeatable small reward offered when fewer than two nodes are open. */
-export const FALLBACK_ID = 'fragment';
-export const FALLBACK_NODE: PlayiNode = {
-  id: FALLBACK_ID, branch: 'signal', tier: 0, name: 'Signal fragment', effect: '+5 max health (can be taken again)', requires: [],
-};
-
-/** Nodes not yet owned whose requirements are met (any one of `requires`). */
-export function openNodes(owned: readonly string[], hasAlly: boolean): PlayiNode[] {
-  const have = new Set(owned);
-  return PLAYI_NODES.filter(n =>
-    !have.has(n.id)
-    && (!n.needsAlly || hasAlly)
-    && (n.requires.length === 0 || n.requires.some(r => have.has(r))));
-}
-
-/** The two cards shown after a death: random open nodes, topped up with the fallback. */
-export function dealOffer(owned: readonly string[], hasAlly: boolean): string[] {
-  const pool = openNodes(owned, hasAlly).map(n => n.id);
-  const picks: string[] = [];
-  while (picks.length < 2 && pool.length) picks.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
-  while (picks.length < 2) picks.push(FALLBACK_ID);
-  return picks;
-}
+// What the signal's memory and a host's firmware and implants add up to: the modifiers
+// (`Perks`) the rules engine and a new host read. The memory network itself (what can be
+// learned, what it costs) is engine/memory.ts; its data is content/memory.json.
 
 // ── What owned nodes do ──────────────────────────────────────────────────────
 
@@ -108,6 +69,44 @@ export interface Perks {
   specialHeatTakenMult: number; // heat you take from special hits (Baffle regulator)
   startOverload: number;      // Overload added at the start of each fight (Charged trait)
   partSpeed: number;          // speed from traits (Quick)
+  // The memory network (content/memory.json)
+  secondWind: number;         // the first time each fight you drop under a third, heal this share of max health
+  mendRepairs: boolean;       // the memory's extra mending also repairs structure
+  hotCrit: number;            // extra crit chance at 86+ heat
+  burnoutMult: number;        // what overheating costs you
+  firstStrikeBonus: number;   // extra damage on your first attack each fight
+  flankSide: number;          // extra flank bonus from the side
+  flankBack: number;          // ... and from behind
+  critDamage: number;         // extra crit damage
+  defendMult: number;         // every defensive move (guard, heals, repairs)
+  defendCool: number;         // heat any defensive move also removes
+  afterDefend: number;        // extra damage on the attack after a defensive move
+  braceGuard: number;         // extra guard from Brace
+  braceFree: boolean;         // Brace takes no move slot
+  structureDamage: number;    // extra damage to structure
+  exploit: number;            // extra damage to malfunctioning enemies
+  seizeUp: boolean;           // an enemy whose structure you break loses its next turn
+  feedback: number;           // heat added to an enemy whose structure you break
+  failSafe: number;           // share of their strength your implants keep while your structure is broken
+  steadyHands: number;        // lifts your weakest hits while malfunctioning
+  reboot: number;             // once a fight, this share of structure comes back the turn after it breaks
+  sealed: number;             // share of normal mending you keep with structure broken
+  climbMult: number;          // what climbing out of the water costs
+  allyGetUp: number;          // rounds sooner a knocked-out ally gets up
+  coordinatedBonus: number;   // extra damage to an enemy your ally hit this round
+  dropChance: number;         // extra chance a won fight drops an implant
+  rarityUp: number;           // chance a dropped implant is one rarity higher
+  stimChance: number;         // chance of a Bio-Stim after a won fight
+  creditMult: number;         // credits from fights
+  marketExtra: number;        // more items on sale at the Grey Lane
+  secondChance: boolean;      // once a host, swap a dropped implant for another roll
+  firmwareDamage: number;     // extra damage on every firmware's own move
+  firmwareHeatCut: number;    // heat off every firmware's own move
+  fwPointRate: number;        // firmware points come this much faster
+  crossLoad: boolean;         // carry a second firmware's own move
+  coldBlood: number;          // end a turn at 35 heat or less: heal this share of max health
+  hotHands: number;           // extra damage at 61+ heat
+  coverStep: number;          // guard for you and an ally you end your move beside
 }
 /** Each firmware's Overload ultimate; unclassified hosts get the plain Signal Surge. */
 export type SurgeKind = 'blast' | 'piledriver' | 'overwatch' | 'blink' | 'overrun' | 'resonance';
@@ -125,51 +124,9 @@ export const NO_PERKS: Perks = {
   chainVent: 0, reflexReach: 0, overheatSpread: 0, strikeHot: false, implantDamage: 0,
   implantTreeDiscount: 0, implantHeatCut: 0, kinship: false, activeStatMult: 1,
   specialHeatTakenMult: 1, startOverload: 0, partSpeed: 0,
+  secondWind: 0, mendRepairs: false, hotCrit: 0, burnoutMult: 1, firstStrikeBonus: 0, flankSide: 0, flankBack: 0, critDamage: 0,
+  defendMult: 1, defendCool: 0, afterDefend: 0, braceGuard: 0, braceFree: false,
+  structureDamage: 0, exploit: 0, seizeUp: false, feedback: 0, failSafe: 0, steadyHands: 0, reboot: 0, sealed: 0, climbMult: 1,
+  allyGetUp: 0, coordinatedBonus: 0, dropChance: 0, rarityUp: 0, stimChance: 0, creditMult: 1, marketExtra: 0, secondChance: false,
+  firmwareDamage: 0, firmwareHeatCut: 0, fwPointRate: 1, crossLoad: false, coldBlood: 0, hotHands: 0, coverStep: 0,
 };
-
-/** Turns owned node ids (fallback fragments may repeat) into modifiers. */
-export function perksFor(owned: readonly string[], setPoint: 0 | 50 = 0): Perks {
-  const p: Perks = { ...NO_PERKS };
-  for (const id of owned) {
-    switch (id) {
-      case 'move_1': case 'move_3': p.moveBonus += 1; break;
-      case 'move_2a': p.hitAndFade = true; break;
-      case 'move_2b': p.hazardMult = 0.5; break;
-      case 'move_4': p.sidestep = true; break;
-      case 'move_5': p.phaseStep = true; break;
-      case 'heat_1': p.extraCooling += 3; break;
-      case 'heat_2a': p.startHeat = setPoint; break;
-      case 'heat_2b': p.hotTakenMult = 0.4; break;
-      case 'heat_3': p.redline = true; break;
-      case 'heat_4': p.ventBonus += 10; break;
-      case 'heat_5': p.runaway = true; break;
-      case 'combat_1': p.damageMult *= 1.1; break;
-      case 'combat_2a': p.extraSlots += 1; break;
-      case 'combat_2b': p.flankMult = 1.5; break;
-      case 'combat_3': p.firstStrikePrecise = true; break;
-      case 'combat_4': p.finisherBonus = 0.25; break;
-      case 'combat_5': p.momentum = 20; break;
-      case 'combat_3b': p.resonance = true; break;
-      case 'graft_1': p.healthCostMult = 0.5; break;
-      case 'graft_2a': p.structureMult = 1.25; break;
-      case 'graft_2b': p.startImplant = true; break;
-      case 'graft_2c': p.mend += 0.02; break;
-      case 'graft_3': p.startPoints += 2; break;
-      case 'graft_4': p.pickOfTwo = true; break;
-      case 'graft_5': p.braceRepair = 0.8; break;
-      case 'signal_1': p.maxHpBonus += 20; break;
-      case 'signal_2a': p.startBioStims += 2; break;
-      case 'signal_2b': p.priceMult = 0.8; break;
-      case 'signal_2c': p.mend += 0.01; break;
-      case 'signal_3': p.holdfast = true; break;
-      case 'signal_4': p.maxHpBonus += 40; break;
-      case 'signal_5': p.damageTakenMult = 0.9; break;
-      case 'network_1': p.allyHpMult = 1.25; break;
-      case 'network_2': p.allyXpMult = 2; break;
-      case 'network_3': p.coordinated = true; break;
-      case 'network_4': p.allySlots = 2; break;
-      case FALLBACK_ID: p.maxHpBonus += 5; break;
-    }
-  }
-  return p;
-}

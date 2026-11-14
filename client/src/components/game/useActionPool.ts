@@ -4,7 +4,8 @@ import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout, LoadoutAction, BASE_SLOT_COUNT } from '@/lib/stores/useLoadout';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { NO_PERKS, perksFor } from '@/lib/engine/playi';
+import { NO_PERKS } from '@/lib/engine/playi';
+import { memoryPerks } from '@/lib/engine/memory';
 import { useAugmentTrees, gunMove } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
@@ -47,7 +48,9 @@ export function useLoadoutSync() {
   const fwLv = useFirmware(st => st.level(cls));
   useFirmware(st => st.forks);
   // The play-i tree's Fifth slot, and the Wretch's own slots
-  const slotCount = BASE_SLOT_COUNT + usePlayi(st => perksFor(st.owned).extraSlots) + withClass(NO_PERKS, cls, fwLv).extraSlots;
+  // Reflex brace (memory): while Brace is on the bar it takes no slot, so the bar is one longer
+  const mem = usePlayi(st => st.ranks), memPerks = memoryPerks(mem);
+  const slotCount = BASE_SLOT_COUNT + memPerks.extraSlots + withClass(NO_PERKS, cls, fwLv).extraSlots + (memPerks.braceFree && slots.some(a => a?.key === 'base_brace') ? 1 : 0);
   // Moves that were already available last time; only genuinely new ones auto-fill,
   // so a slot you cleared on purpose stays empty
   const knownKeys = useRef<string[] | null>(null);

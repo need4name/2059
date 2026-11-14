@@ -1,22 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveStorage } from '../save';
-import { dealOffer, perksFor, FALLBACK_ID, playiNode, type Perks } from '../engine/playi';
+import type { Perks } from '../engine/playi';
+import * as M from '../engine/memory';
 import type { Item } from '../combat/types';
 
-// What the signal has learned across every host. Survives death; only a full
-// save wipe clears it.
-interface PlayiState {
-  owned: string[];
-  /** The two cards waiting to be picked after a death, or null. */
-  offer: string[] | null;
-  /** Deal the post-death offer (does nothing if one is already waiting). */
-  makeOffer: (hasAlly: boolean) => void;
-  pick: (id: string) => boolean;
+// What the signal keeps across every host: its memory (points, and the neurons they've
+// bought) and the last body's implants. Survives death; only a full save wipe clears it.
+interface PlayiState extends M.MemoryState {
+  /** A host is lost: a point, and a branch taught by how it went. */
+  hostLost: (cause: M.DeathCause) => void;
+  /** Spend points on one rank of a neuron or specialisation. */
+  learn: (id: string, hasAlly: boolean) => boolean;
   perks: () => Perks;
-  /** Set point (heat_2a): the heat each fight starts at, cold (0) or warm (50), chosen when the node is taken. */
-  setPoint: 0 | 50;
-  chooseSetPoint: (v: 0 | 50) => void;
   /** The implants the last host was wearing when the signal left it (the Echo wears them). */
   lastBody: Item[];
   rememberBody: (items: Item[]) => void;
@@ -24,32 +20,23 @@ interface PlayiState {
 }
 
 export const usePlayi = create<PlayiState>()(persist((set, get) => ({
-  owned: [],
-  offer: null,
+  ...M.newMemory(),
   lastBody: [],
 
-  makeOffer: (hasAlly) => {
-    if (get().offer) return;
-    set({ offer: dealOffer(get().owned, hasAlly) });
-  },
-
-  pick: (id) => {
-    const { offer, owned } = get();
-    if (!offer?.includes(id)) return false;
-    if (id !== FALLBACK_ID && (!playiNode(id) || owned.includes(id))) return false;
-    set({ owned: [...owned, id], offer: null });
+  hostLost: (cause) => set(M.hostLost({ points: get().points, ranks: get().ranks, taught: get().taught }, cause)),
+  learn: (id, hasAlly) => {
+    const now = { points: get().points, ranks: get().ranks, taught: get().taught };
+    const next = M.learn(now, id, hasAlly);
+    if (next === now) return false;
+    set(next);
     return true;
   },
-
-  perks: () => perksFor(get().owned, get().setPoint ?? 0),
-  setPoint: 0,
-  chooseSetPoint: (v) => set({ setPoint: v }),
+  perks: () => M.memoryPerks(get().ranks),
 
   rememberBody: (items) => set({ lastBody: items }),
-
-  reset: () => set({ owned: [], offer: null, lastBody: [], setPoint: 0 }),
+  reset: () => set({ ...M.newMemory(), lastBody: [] }),
 }), {
-  name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 2,
-  // Version 2 remembers the last body's implants
-  migrate: (old: any, version) => (version < 2 ? { ...old, lastBody: [] } : old),
+  name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 3,
+  // Version 3 is the memory network: the old tree's cards don't carry over
+  migrate: (old: any, version) => (version < 3 ? { ...M.newMemory(), lastBody: old?.lastBody ?? [] } : old),
 }));

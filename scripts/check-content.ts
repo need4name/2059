@@ -15,6 +15,8 @@ import { FRAMES } from '../client/src/lib/rendering/dolls';
 import events from '../client/src/content/events.json';
 import upgrades from '../client/src/content/upgrades.json';
 import firmware from '../client/src/content/firmware.json';
+import memory from '../client/src/content/memory.json';
+import { NO_PERKS } from '../client/src/lib/engine/playi';
 import { HEAD_KINDS, ARM_KINDS, CHEST_KINDS, WEAPON_KINDS } from '../client/src/lib/rendering/figures';
 import { BASE_ITEMS } from '../client/src/lib/combat/items2059';
 import { MAKER_INFO, HEADS, MODS, QUIRKS, DEF_HEADS, specialLean } from '../client/src/lib/combat/augments';
@@ -447,6 +449,24 @@ export function checkContent(): string[] {
       if (!a.moves.some(m => m.effect === 'attack')) problems.push(`allies.json ${a.id}: needs at least one attack`);
       if (!(a.id in ALLY_LINKS)) problems.push(`allies.json ${a.id}: no link bonus in ALLY_LINKS (lib/combat/allies.ts)`);
     }
+  }
+  // The memory network: real perks, unique ids, links between real neurons, a place on the map for each
+  {
+    const mem = memory as any, ids = new Set<string>(), spots = new Set<string>();
+    const fxOk = (where: string, fx: any[]) => { if (!Array.isArray(fx) || !fx.length) problems.push(`memory.json ${where}: does nothing (no fx)`); for (const f of fx ?? []) if (!(f.perk in NO_PERKS)) problems.push(`memory.json ${where}: unknown perk "${f.perk}"`); else if (!f.on && typeof f.per !== 'number') problems.push(`memory.json ${where}: fx needs "per" or "on"`); };
+    for (const n of mem.neurons) {
+      if (ids.has(n.id)) problems.push(`memory.json: neuron id "${n.id}" used twice`); ids.add(n.id);
+      const spot = `${n.at?.[0]},${n.at?.[1]}`; if (spots.has(spot)) problems.push(`memory.json ${n.id}: shares a spot with another neuron`); spots.add(spot);
+      if (!mem.branches.some((b: any) => b.id === n.branch)) problems.push(`memory.json ${n.id}: unknown branch "${n.branch}"`);
+      if (n.fog) continue;
+      if (!n.name || !n.text || !(n.cost >= 1) || !(n.ranks >= 1)) problems.push(`memory.json ${n.id}: needs a name, text, cost and ranks`);
+      if (/instead of|, a rank/.test(`${n.text} ${(n.specs ?? []).map((sp: any) => sp.text).join(' ')}`)) problems.push(`memory.json ${n.id}: say only what is gained ("per rank", never "x instead of y")`);
+      fxOk(n.id, n.fx);
+      if (n.curve) for (const k of ['give', 'price']) { const st = n.curve[k]; if (!Array.isArray(st) || st[0]?.[0] !== 1 || st.some((x: number[], i: number) => i > 0 && x[0] <= st[i - 1][0])) problems.push(`memory.json ${n.id}: curve.${k} must start at rank 1 and climb`); }
+      for (const sp of n.specs ?? []) { if (ids.has(sp.id)) problems.push(`memory.json: id "${sp.id}" used twice`); ids.add(sp.id); if (!sp.name || !sp.text || !(sp.cost >= 1) || !(sp.ranks >= 1)) problems.push(`memory.json ${sp.id}: needs a name, text, cost and ranks`); fxOk(sp.id, sp.fx); }
+    }
+    for (const [a, b] of mem.links) if (!(a === 'core' || ids.has(a)) || !ids.has(b)) problems.push(`memory.json: link ${a}-${b} joins something that isn't there`);
+    for (const b of Object.values(mem.taught)) if (!mem.branches.some((x: any) => x.id === b)) problems.push(`memory.json taught: unknown branch "${b}"`);
   }
   return problems;
 }

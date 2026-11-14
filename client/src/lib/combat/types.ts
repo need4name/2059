@@ -65,6 +65,8 @@ maxTargets?: number;
 focused?: boolean;
 /** A move that comes from an implant (the Wretch makes these hit harder). */
 fromImplant?: boolean;
+/** A firmware's own move (the memory's general firmware neurons lift it). */
+firmware?: boolean;
 /** A part torn off the Patchwork King: one use, then it's gone. */
 spoil?: 'plate' | 'hook' | 'crown';
 /** Side effects from implant mods and heads (see docs/DESIGN.md, Implant parts). */

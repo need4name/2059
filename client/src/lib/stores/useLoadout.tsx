@@ -14,7 +14,7 @@ source: 'base' | 'class' | 'augment' | 'weapon'; // where it came from
 
 // Combat slots - any can be null. Four by default; the play-i tree can add more.
 export type LoadoutSlots = (LoadoutAction | null)[];
-export const BASE_SLOT_COUNT = 4;
+export const BASE_SLOT_COUNT = 3;
 
 interface LoadoutState {
 slots: LoadoutSlots;

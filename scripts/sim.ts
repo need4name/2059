@@ -15,6 +15,7 @@ import { useRunStats } from '../client/src/lib/stores/useRunStats';
 import { availableFirmware, hostHealth } from '../client/src/lib/stores/useCombat';
 import { useLoadout as L } from '../client/src/lib/stores/useLoadout';
 import { usePlayi as Y } from '../client/src/lib/stores/usePlayi';
+import * as MEM from '../client/src/lib/engine/memory';
 import { useAllies as AL } from '../client/src/lib/stores/useAllies';
 import * as F from '../client/src/lib/engine/fight';
 import * as MAP from '../client/src/lib/engine/map';
@@ -420,7 +421,7 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     const hostWins = (() => { let n = 0; for (let k = out.length - 1; k >= 0 && out[k].deathsBefore === deathsBefore && out[k].won; k--) n++; return n; })();
     const worn = [0, 0, 0, 0, 0]; for (const it of Object.values(I.getState().equippedAugmentations)) if (it) worn[(RANK[it.rarity] ?? 1) - 1]++;
     const gun = I.getState().equippedWeapon?.rarity ?? null;
-    const cards = Y.getState().owned.length, fwLevel = FW.getState().level(C.getState().playerClass);
+    const cards = Object.values(Y.getState().ranks).reduce((n, r) => n + r, 0), fwLevel = FW.getState().level(C.getState().playerClass);
     fightSaid.length = 0; C.getState().startRoomFight(); C.getState().dismissIntro(); const foeCount = C.getState().foes.length; const trace: number[] = []; let turns = 0, lowest = 1, timedOut = false; const allyCount = C.getState().allies.length;
     while (C.getState().phase === 'player_turn' || C.getState().phase === 'enemy_turn') {
       if (C.getState().phase === 'player_turn' && !C.getState().inputLocked) { const k = C.getState().allyTurn; if (k !== null) allyTurnBot(k); else { trace.push(C.getState().player.currentHp / C.getState().player.maxHp); playerTurn(skill); turns++; } }
@@ -445,9 +446,13 @@ function playRun(seed: number, maxFights: number, skill: number): Fight[] {
     out.push({ lvl, won, turns, lowest, deathsBefore, allies: allyCount, timedOut, cls: C.getState().playerClass, ch, depth: depthOf(ch, lvl), hpStart, gear, hostWins, cards, foes: foeCount, fwLevel, worn, gun });
     if (won) { C.getState().takeBestParts(); C.getState().continueFromVictory(); if (C.getState().phase === 'shop') C.getState().leaveShop(); }
     else if (C.getState().phase === 'defeat') {
-      // The bot picks one of the two cards the tree offers
-      const offer = Y.getState().offer;
-      if (offer) Y.getState().pick(offer[botRandom() < 0.5 ? 0 : 1]);
+      // The bot spends its memory: any neuron or specialisation it can afford, picked at random, until it can't
+      for (let n = 0; n < 50; n++) {
+        const hasAlly = AL.getState().unlocked().length > 0, st = Y.getState();
+        const ids = MEM.NEURONS.flatMap(x => [x.id, ...(x.specs ?? []).map(sp => sp.id)]).filter(id => MEM.canLearn(st, id, hasAlly));
+        if (!ids.length) break;
+        Y.getState().learn(ids[Math.floor(botRandom() * ids.length)], hasAlly);
+      }
       // Link with the highest-level allies the tree allows
       const open = AL.getState().unlocked().sort((x, y) => AL.getState().progress(y).level - AL.getState().progress(x).level || ALLY_ORDER(y) - ALLY_ORDER(x));
       AL.getState().setParty(open, Y.getState().perks().allySlots);

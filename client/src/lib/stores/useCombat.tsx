@@ -11,7 +11,7 @@ CLASS_DEFINITIONS, FIRST_SET_PIECE, EARLY_PLAIN, createPlayer, createBoss, creat
 getBossStartingHeat, createCombatLog, PATCHWORK_KING_MONOLOGUE, enemyNamesNear, enemyLines, isNotable, ORDINARY_LINE_CHANCE,
 } from '../combat/actions';
 import { generateLoot, generatePatchworkKingLoot } from '../combat/loot';
-import { scrapValue } from '../combat/economy';
+import { scrapValue, generateMarketStock } from '../combat/economy';
 import { useInventory } from './useInventory';
 import { useLoadout } from './useLoadout';
 import { useAudio } from './useAudio';
@@ -32,6 +32,7 @@ import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
+import { causeOf } from '../engine/memory';
 import { NO_PERKS } from '../engine/playi';
 import { instancedItem, ITEM_POOLS } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
@@ -351,7 +352,7 @@ perks: s.perks, firstStrikeUsed: s.firstStrikeUsed, sidestepReady: s.sidestepRea
 allies: s.allies, mark: s.mark, allyHitFoes: s.allyHitFoes, allyGuard: s.allyGuard,
 playerBurning: s.playerBurning, playerStunned: s.playerStunned, stunGuard: s.stunGuard ?? 0, overload: s.overload,
 playerSwimming: s.playerSwimming, playerBleeding: s.playerBleeding, noParting: s.noParting,
-playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, beat: s.beat, front: s.front, light: s.light, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
+playerSlowed: s.playerSlowed, playerHasted: s.playerHasted, playerDrive: s.playerDrive, memo: s.memo, spotted: s.spotted, tide: s.tide, crane: s.crane, roll: s.roll, exhaust: s.exhaust, dream: s.dream, beat: s.beat, front: s.front, light: s.light, alarm: s.alarm, flinchUsed: s.flinchUsed, wind: s.wind, orders: s.orders, king: s.king,
 ward: s.ward, regen: s.regen, gunAmmo: s.gunAmmo, gunMag: s.gunMag,
 };
 };
@@ -431,9 +432,15 @@ if (cond.skipTurn) later(() => finishPlayerAction(false), TURN_HANDOFF_DELAY);
 
 const handlePlayerDefeated = () => {
 const { runSeed, progression } = get();
-// The signal learns something from every lost host: deal two cards to choose from
-seedRandom(mixSeed(runSeed, 0x5eed, progression.deathCount));
-usePlayi.getState().makeOffer(useAllies.getState().unlocked().length > 0);
+// The signal keeps something from every lost host: a memory point, and how it went teaches a branch
+{
+  const s = get(), last = s.fx[s.fx.length - 1]?.strikes[0];
+  const tile = s.grid.tiles?.[s.grid.playerPosition.row]?.[s.grid.playerPosition.col];
+  usePlayi.getState().hostLost(causeOf({
+    heat: s.playerHeat, by: s.playerSwimming ? 'sea' : tile?.type === 'hazard' ? 'hazard' : last?.heavy ? 'heavy' : 'other',
+    structureBroken: s.player.maxStructuralHp > 0 && s.player.currentStructuralHp <= 0, rounds: s.round, allyDown: s.allies.some(a => !Fight.allyAlive(a)),
+  }));
+}
 // Firmware taken from a boss by this host: the next host is the first that can load it
 set({
 phase: 'defeat', inputLocked: true, fightId: get().fightId + 1,
@@ -452,6 +459,13 @@ const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun
 // A boss's own implant is marked with its threat: it sells for a little less than calling the boss back
 const bossRoom = farmLevel === null && !!roomById(useMap.getState().room).server;
 const mark = (it: Item) => (bossRoom && it.signature ? { ...it, bossThreat: level } : it);
+// Luck (the memory network): a chance of a Bio-Stim, and of a spare implant (sometimes a grade better)
+const luck = usePlayi.getState().perks();
+if (luck.stimChance > 0 && random() < luck.stimChance) { const bio = ITEMS_2059.find(i => i.id === 'stim_bio'); if (bio) loot.items.push(instancedItem(bio)); }
+if (luck.dropChance > 0 && random() < luck.dropChance) {
+  const spare = generateMarketStock(level + (random() < luck.rarityUp ? 10 : 0)).find(i => i.type === 'augmentation');
+  if (spare) loot.items.push(spare);
+}
 const direct = loot.items.map(mark);
 // Strip the bodies: every beaten enemy's implants, to choose from (two picks with Pick of the wreck)
 const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: (f.unit.carried ?? []).map(mark) })).filter(b => b.items.length);
@@ -465,7 +479,7 @@ useInventory.getState().addItems(direct);
 set({ strip });
 // Only one part to choose from: it's taken for you (tap it again to put it back)
 if (strip && strip.bodies.flatMap(b => b.items).length === 1) get().takePart(strip.bodies[0].items[0].id);
-const earned = strainCredits(loot.gold, useStrain.getState().active);
+const earned = Math.round(strainCredits(loot.gold, useStrain.getState().active) * luck.creditMult);
 useInventory.getState().addGold(earned);
 useRunStats.getState().add({ fightsWon: 1, credits: earned, ...(farmLevel === null && (level % 10 === 0) ? { bossesKilled: 1 } : farmLevel === null && level % 5 === 0 ? { elitesKilled: 1 } : {}) });
 const xp = getXpFromBoss(level);
@@ -747,6 +761,7 @@ combatLog: isKing
 : foes.length > 1 ? [{ ...createCombatLog(`${foes.length} enemies on the field. Tap one to aim at it.`, 'info'), id: 'group_intro' }] : [],
 });
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
+  memo: {}, spotted: null,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), light: Fight.startLight(foes.some(f => f.twist === 'light')), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: foes.some(f => f.unit.name === 'The Signatory') ? Fight.signatoryOrders(Fight.startOrders(true)) : Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass, useFirmware.getState().level(get().playerClass)).speed });
 set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
