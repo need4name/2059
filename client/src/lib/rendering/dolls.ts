@@ -732,7 +732,6 @@ export function hologram(spec: DollSpec): { S: number; c: (string | null)[][] } 
 // blinking. Only implant pixels wear (whatever the bare body doesn't have); a machine
 // is all implant. Positions are measured from the body, so cracks don't jump between frames.
 
-const CRACK = '#14181c';
 const isSolid = (v: string | null) => !!v && v !== OUTLINE && v.length === 7;
 /** A steady number for a body's look, so the same body always cracks the same way. */
 function seedOf(spec: DollSpec): number { const s = JSON.stringify(spec); let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
@@ -755,6 +754,10 @@ function implantMask(g: Grid, bare: Grid | null): boolean[][] {
   return m;
 }
 
+// What's under the plating: a dark frame threaded with bright wires
+const INNARD = '#16191d', INNARD_LIT = '#2c3238';
+const WIRES = ['#e8503a', '#f0c048', '#48c8dc'];
+
 function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox: number, oy: number, frame: number) {
   const m = implantMask(g, bare);
   const at = (x: number, y: number) => !!m[y]?.[x];
@@ -762,46 +765,67 @@ function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox
   for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (m[y][x]) spots.push({ x, y, n: noise(x - ox, y - oy, seed) });
   if (!spots.length) return;
   spots.sort((a, b) => a.n - b.n);
-  // Failing: scorched patches (blotches two pixels wide, so they read at fight size)
-  if (wear >= 2) for (const p of spots) if (noise(Math.floor((p.x - ox) / 2), Math.floor((p.y - oy) / 2), seed + 9) < (wear === 2 ? 0.3 : 0.34)) g.c[p.y][p.x] = shade(g.c[p.y][p.x]!, -0.38);
-  // Broken: the plastic goes dull and dark
-  if (wear === 3) for (const p of spots) g.c[p.y][p.x] = dull(shade(g.c[p.y][p.x]!, -0.2), 0.55);
+  const bx = (x: number) => x - ox, by = (y: number) => y - oy;
+
+  // Torn plating: blobs of shell gone (two offset grids of 3-pixel cells, so the holes aren't square),
+  // more of it the lower the bar. At least one tear shows from the first stage.
+  const share = [0, 0.16, 0.36, 0.62][wear];
+  const cellA = (x: number, y: number) => noise(Math.floor(bx(x) / 3), Math.floor(by(y) / 3), seed + 21);
+  const cellB = (x: number, y: number) => noise(Math.floor((bx(x) + 1) / 3), Math.floor((by(y) + 2) / 3), seed + 22);
+  const hole = m.map((row, y) => row.map((on, x) => on && (cellA(x, y) < share * 0.6 || cellB(x, y) < share * 0.6)));
+  if (!hole.some(r => r.some(Boolean))) {
+    // Too little was torn: tear the 3x3 round the first good spot
+    const f = spots.find(p => at(p.x - 1, p.y) && at(p.x + 1, p.y) && at(p.x, p.y + 1)) ?? spots[0];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(f.x + dx, f.y + dy)) hole[f.y + dy][f.x + dx] = true;
+  }
+  const isHole = (x: number, y: number) => !!hole[y]?.[x];
+
+  // What's left of the plating: darker each stage, dull and near black once broken
+  for (const p of spots) {
+    if (isHole(p.x, p.y)) continue;
+    const c = g.c[p.y][p.x]!;
+    g.c[p.y][p.x] = wear === 3 ? dull(shade(c, -0.45), 0.65) : wear === 2 ? shade(c, -0.18) : c;
+    // A torn edge throws a shadow onto the plating below it
+    if (isHole(p.x, p.y - 1)) g.c[p.y][p.x] = shade(g.c[p.y][p.x]!, -0.4);
+  }
+  // The insides: dark, with short runs of bright wire
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) {
+    if (!hole[y][x]) continue;
+    const wire = noise(Math.floor(bx(x) / 3), by(y), seed + 33);
+    g.c[y][x] = wire < 0.13 ? WIRES[Math.floor(noise(Math.floor(bx(x) / 3), by(y), seed + 34) * 3)] : (bx(x) + by(y)) % 4 === 0 ? INNARD_LIT : INNARD;
+  }
+
   // Lights on the implants: failing, they stutter (dark every other frame); broken, they're dead
   g.glow = g.glow.filter(gl => {
     if (!at(gl.x, gl.y) || wear === 1) return true;
     if (wear === 2 && frame % 2 === 0) { gl.r *= 0.6; return true; }
-    g.c[gl.y][gl.x] = '#2a1a16';
+    if (!isHole(gl.x, gl.y)) g.c[gl.y][gl.x] = '#2a1a16';
     return false;
   });
-  // Cracks: jagged dark lines with a lit lip, started inside the plastic and spread apart
-  const inner = spots.filter(p => at(p.x - 1, p.y) && at(p.x + 1, p.y) && at(p.x, p.y - 1) && at(p.x, p.y + 1));
-  const pool = inner.length >= 4 ? inner : spots;
-  const want = Math.min([0, 3, 5, 8][wear], Math.max(1, Math.floor(spots.length / 9)));
-  const seeds: { x: number; y: number }[] = [];
-  for (const p of pool) { if (seeds.length >= want) break; if (seeds.every(q => Math.abs(q.x - p.x) + Math.abs(q.y - p.y) >= 4)) seeds.push(p); }
-  const len = [0, 4, 5, 6][wear];
-  seeds.forEach((sd, i) => {
-    let { x, y } = sd;
-    const dir = noise(i, 3, seed) < 0.5 ? -1 : 1;
-    for (let k = 0; k < len && at(x, y); k++) {
-      const under = g.c[y][x]!;
-      g.c[y][x] = CRACK;
-      if (at(x - dir, y) && g.c[y][x - dir] !== CRACK) g.c[y][x - dir] = shade(under, 0.4);
-      y += 1; if (noise(i, k, seed + 1) < 0.6) x += dir;
-    }
-  });
-  // Chips: notches knocked out of the edges
+
+  // Loose wires hanging off the edge of the implants, a spark at the tip now and then
   if (wear >= 2) {
-    let left = wear === 3 ? 6 : 3;
-    for (const p of spots) {
-      if (left <= 0) break;
-      const edge = !at(p.x - 1, p.y) || !at(p.x + 1, p.y) || !at(p.x, p.y - 1);
-      if (edge && p.n > 0.4) { g.c[p.y][p.x] = OUTLINE; left--; }
+    const empty = (x: number, y: number) => x >= 0 && y >= 0 && x < g.S && y < g.S && (!g.c[y][x] || g.c[y][x] === OUTLINE || g.c[y][x]!.length === 9);
+    const ends = spots.filter(p => empty(p.x, p.y + 1) && empty(p.x, p.y + 2) && p.y < g.S - 6);
+    const used: number[] = [];
+    let n = wear === 3 ? 2 : 1;
+    for (const e of ends) {
+      if (n <= 0) break;
+      if (used.some(x => Math.abs(x - e.x) < 5)) continue;
+      used.push(e.x); n--;
+      const len = 4 + Math.floor(noise(e.x, e.y, seed + 41) * 3), sway = frame % 2 ? 1 : 0, side = noise(e.x, 0, seed) < 0.5 ? -1 : 1;
+      let x = e.x;
+      for (let k = 1; k <= len; k++) {
+        if (k === Math.ceil(len / 2) + sway) x += side;
+        if (!empty(x, e.y + k)) break;
+        g.c[e.y + k][x] = k === len ? (frame % 2 === 0 ? '#ffe48a' : WIRES[0]) : k % 2 ? '#1a1d20' : '#3a4048';
+      }
     }
   }
-  // Broken: one fault light blinking red
+
+  // Broken: a fault light blinking red on what's left
   if (wear === 3) {
-    const f = (inner.length ? inner : spots).slice(0, 12).sort((a, b) => a.y - b.y)[0];
+    const f = spots.filter(p => !isHole(p.x, p.y)).slice(0, 12).sort((a, b) => a.y - b.y)[0] ?? spots[0];
     const on = frame % 2 === 0;
     g.c[f.y][f.x] = on ? '#ff3a2a' : '#5a1410';
     if (on) g.glow.push({ x: f.x, y: f.y, col: '#ff3a2a', r: 2.5 });
