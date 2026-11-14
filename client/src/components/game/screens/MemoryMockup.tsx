@@ -52,8 +52,10 @@ const E: [string, string][] = [['core', 's1'], ['s1', 's2'], ['s1', 's3'], ['s3'
   ['core', 'c1'], ['c1', 'c2'], ['c1', 'c3'], ['c3', 'c4'], ['c2', 'c4'], ['c1', 'j3'], ['j3', 'g3'], ['core', 'g1'], ['g1', 'g2'], ['g1', 'g3'], ['g2', 'g4'], ['g3', 'g5'],
   ['core', 'm1'], ['m1', 'm2'], ['m2', 'm3'], ['m1', 'j4'], ['j4', 'n1'], ['core', 'n1'], ['n1', 'n2'], ['n2', 'n3'], ['s3', 'm2'],
   ['s4', 'f1'], ['p3', 'f2'], ['c4', 'f3'], ['g5', 'f4'], ['m3', 'f5'], ['s2', 'f6'], ['c4', 'f7']];
-const LABEL: [string, Strand, number, number, CanvasTextAlign][] = [['Signal', 'signal', 44, 30, 'center'], ['Processing', 'heat', 112, 30, 'center'], ['Subroutines', 'combat', 159, 140, 'right'], ['Grafting', 'graft', 70, 155, 'center'], ['Network', 'net', 2, 152, 'left'], ['Locomotion', 'move', 2, 72, 'left']];
-const CORE = { x: 75, y: 89 }, POINTS = 3, TAUGHT: Strand = 'heat', G = 160;
+const LABEL: [string, Strand, number, number, CanvasTextAlign][] = [['Signal', 'signal', 44, 30, 'center'], ['Processing', 'heat', 104, 26, 'center'], ['Subroutines', 'combat', 159, 140, 'right'], ['Grafting', 'graft', 70, 155, 'center'], ['Network', 'net', 2, 152, 'left'], ['Locomotion', 'move', 2, 72, 'left']];
+// What the signal has to spend (the mockup's two screens show 3 and 128; it never shows more than 999)
+let POINTS = 3;
+const CORE = { x: 75, y: 89 }, TAUGHT: Strand = 'heat', G = 160;
 const by = new Map(N.map(n => [n.id, n]));
 const lit = (n: Node) => (n.have ?? 0) > 0;
 const full = (n: Node) => (n.have ?? 0) >= (n.ranks ?? 1);
@@ -61,7 +63,9 @@ const reach = (n: Node) => !n.fog && !n.locked && E.some(([p, q]) => (q === n.id
 const price = (n: { cost: number }, s: Strand, s2?: Strand) => Math.max(1, n.cost - (s === TAUGHT || s2 === TAUGHT ? 1 : 0));
 const canBuy = (n: Node) => reach(n) && !full(n) && price(n, n.s, n.s2) <= POINTS;
 
-function Net({ size, sel, onSelect, pulseIn }: { size: number; sel: string | null; onSelect: (id: string) => void; pulseIn?: boolean }) {
+function Net({ size, sel, onSelect, pulseIn, points }: { size: number; sel: string | null; onSelect: (id: string) => void; pulseIn?: boolean; points: number }) {
+  POINTS = points;
+  const shown = Math.min(999, points), digits = String(shown).length;
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current!; const ctx = cv.getContext('2d')!;
@@ -106,7 +110,16 @@ function Net({ size, sel, onSelect, pulseIn }: { size: number; sel: string | nul
       dot(CORE.x, CORE.y, 10, '#f2b33d', 0.1 * beat); dot(CORE.x, CORE.y, 8, '#0d1a22', 1); ring(CORE.x, CORE.y, 8, '#f2b33d', 0.95);
       if (pulseIn) { const k = (t / 1400) % 1; dot(CORE.x, Math.round(CORE.y - 9 - 70 * (1 - k)), 1, '#fff6d0', 1); }
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = `600 ${Math.round(scale * 4.4)}px Manrope, sans-serif`; ctx.textBaseline = 'middle';
-      for (const [name, s, x, y, al] of LABEL) { ctx.globalAlpha = s === 'net' ? 0.4 : 0.85; ctx.fillStyle = COL[s]; ctx.textAlign = al; ctx.fillText(name, x * scale, y * scale); }
+      for (const [name, s, x, y, al] of LABEL) {
+        ctx.globalAlpha = s === 'net' ? 0.4 : 0.85; ctx.fillStyle = COL[s]; ctx.textAlign = al; ctx.fillText(name, x * scale, y * scale);
+        // The strand the last host taught: a green tag beside its name, what it saves
+        if (s === TAUGHT) {
+          const w = ctx.measureText(name).width, tx = x * scale + (al === 'center' ? w / 2 : al === 'left' ? w : 0) + scale * 2, tw = scale * 9, th = scale * 6.5;
+          const beat = 0.75 + 0.25 * Math.sin(t / 400);
+          ctx.globalAlpha = beat; ctx.fillStyle = '#5fe0a8'; ctx.beginPath(); ctx.roundRect(tx, y * scale - th / 2, tw, th, th / 2); ctx.fill();
+          ctx.globalAlpha = 1; ctx.fillStyle = '#06241a'; ctx.textAlign = 'center'; ctx.fillText('−1', tx + tw / 2, y * scale + scale * 0.2);
+        }
+      }
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(draw);
     };
@@ -122,7 +135,7 @@ function Net({ size, sel, onSelect, pulseIn }: { size: number; sel: string | nul
   return (
     <div style={{ width: size, height: size }} className="relative mx-auto">
       <canvas ref={ref} onClick={tap} style={{ width: size, height: size, imageRendering: 'pixelated' }} />
-      <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 font-display text-[19px] font-bold leading-none text-cred drop-shadow-[0_0_8px_rgba(242,179,61,0.8)]" style={{ left: `${((CORE.x + 0.5) / G) * 100}%`, top: `${((CORE.y + 0.5) / G) * 100}%` }}>{POINTS}</div>
+      <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 font-display font-bold leading-none tracking-tight text-cred drop-shadow-[0_0_8px_rgba(242,179,61,0.8)]" style={{ fontSize: digits === 1 ? 19 : digits === 2 ? 16 : 12.5, left: `${((CORE.x + 0.5) / G) * 100}%`, top: `${((CORE.y + 0.5) / G) * 100}%` }}>{shown}</div>
     </div>
   );
 }
@@ -172,13 +185,6 @@ function Detail({ id }: { id: string }) {
   );
 }
 
-const Wallet = ({ gained }: { gained?: boolean }) => (
-  <div className="flex items-center justify-center gap-2 text-[13px]">
-    <span className="font-display text-[15px] font-bold text-cred">{POINTS}</span>
-    <span className="text-hud-dim">to spend{gained ? ' · 1 from this host' : ''}</span>
-  </div>
-);
-
 export function MockTree() {
   const [sel, setSel] = useState<string | null>('p1');
   return (
@@ -188,8 +194,7 @@ export function MockTree() {
           <span className="key flex h-10 w-10 items-center justify-center rounded-2xl"><Glyph name="back" size={16} /></span>
           <h1 className="flex-1 font-display text-[22px] font-semibold text-white">Memory</h1>
         </div>
-        <Net size={358} sel={sel} onSelect={setSel} />
-        <Wallet />
+        <Net size={358} sel={sel} onSelect={setSel} points={3} />
         {sel && <Detail id={sel} />}
       </div>
     </Screen>
@@ -205,8 +210,7 @@ export function MockDeath() {
           <h1 className="font-display text-[38px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[14px] text-hostile">Cartel Enforcer</p>
         </header>
-        <Net size={358} sel={sel} onSelect={setSel} pulseIn />
-        <Wallet gained />
+        <Net size={358} sel={sel} onSelect={setSel} pulseIn points={128} />
         {sel && <Detail id={sel} />}
       </div>
     </Screen>
