@@ -1770,14 +1770,22 @@ export function struckAt(s: FightState, action: CombatAction, playerClass: Playe
   return hit;
 }
 
+/** What the memory network adds to one of your blows on a foe: the first attack of a fight, running hot, a malfunctioning target, the blow after a defensive move, a firmware's own move. */
+function memoryLift(s: FightState, action: CombatAction, foe: Foe): number {
+  return (!s.firstStrikeUsed ? 1 + (s.perks.firstStrikeBonus ?? 0) : 1) * (s.playerHeat >= HEAT.hotAt ? 1 + (s.perks.hotHands ?? 0) : 1)
+    * (foe.malfunctioning ? 1 + (s.perks.exploit ?? 0) : 1) * (s.memo?.afterDefend ? 1 + (s.perks.afterDefend ?? 0) : 1) * (action.firmware ? 1 + (s.perks.firmwareDamage ?? 0) : 1);
+}
+/** Your flank bonus on a foe with everything kept: the tree's multiplier, and the memory's extra from the side or behind. */
+const flankWith = (s: FightState, flank: number) => (flank > 0 ? flank * s.perks.flankMult + (flank >= FLANK.back ? s.perks.flankBack ?? 0 : s.perks.flankSide ?? 0) : 0);
+
 /** What a player attack aimed at `aim` is expected to do to foe `i` (no crits): the numbers on the move buttons and the preview on its health bar. */
 export function estimateHit(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition | null, i: number) {
   const foe = s.foes[i];
   if (!foe || !action.damage) return null;
   return estimateDamage(s.player, foe.unit, action, {
     defenseBoost: foe.defenseBoost ?? 0,
-    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(s.playerHeat).dealt) * sweetSpot(action, playerClass, s.grid.playerPosition, aim, foe.pos) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
-    flankBonus: hasTrait(foe, 'alert') ? 0 : flankOn(s, s.grid.playerPosition, { kind: 'foe', i }) * s.perks.flankMult,
+    heatMultiplier: (s.overclockActive ? 2 : getHeatMultipliers(s.playerHeat).dealt) * sweetSpot(action, playerClass, s.grid.playerPosition, aim, foe.pos) * memoryLift(s, action, foe) * (action.fromImplant ? 1 + (s.perks.implantDamage ?? 0) : 1),
+    flankBonus: flankWith(s, hasTrait(foe, 'alert') ? 0 : flankOn(s, s.grid.playerPosition, { kind: 'foe', i })),
     tileDistance: chebyshev(s.grid.playerPosition, foe.pos),
     isMalfunctioning: s.playerMalfunctioning,
     bypassStructuralDefense: s.player.bypassStructuralDefense,
@@ -1981,8 +1989,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const marked = s.mark?.foe === i ? 1 + s.mark.bonus : 1;
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1 + (s.perks.coordinatedBonus || 0.2) : 1;
     // The memory network: the first attack of a fight, running hot, a malfunctioning target, the blow after a defensive move, a firmware's own move
-    const memory = (!s.firstStrikeUsed ? 1 + (s.perks.firstStrikeBonus ?? 0) : 1) * (playerHeat >= HEAT.hotAt ? 1 + (s.perks.hotHands ?? 0) : 1)
-      * (foe.malfunctioning ? 1 + (s.perks.exploit ?? 0) : 1) * (s.memo?.afterDefend ? 1 + (s.perks.afterDefend ?? 0) : 1) * (action.firmware ? 1 + (s.perks.firmwareDamage ?? 0) : 1);
+    const memory = memoryLift(s, action, foe);
     const flank = hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i });
     const quirk = quirkDamage(s, action);
     // The shape's sweet spot: some tiles of it land harder than others
@@ -1990,7 +1997,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
       (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * memory * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
-      flank > 0 ? flank * s.perks.flankMult + (flank >= FLANK.back ? s.perks.flankBack ?? 0 : s.perks.flankSide ?? 0) : 0, dist, s.playerMalfunctioning,
+      flankWith(s, flank), dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
       0.30 + (s.perks.hotCrit ?? 0),

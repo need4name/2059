@@ -34,7 +34,7 @@ import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
 import { causeOf } from '../engine/memory';
 import { NO_PERKS } from '../engine/playi';
-import { instancedItem, ITEM_POOLS, setLootLuck } from '../combat/loot';
+import { instancedItem, ITEM_POOLS, setLootLuck, rerollImplant } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf, partPerks, displayName } from '../combat/augments';
@@ -169,6 +169,10 @@ reflexMoveOpen: boolean;
 moveSpent: boolean;
 /** Holdfast has saved this host already. */
 holdfastSpent: boolean;
+/** Second chance (memory): this host has had its one re-roll of a dropped implant. */
+secondChanceSpent: boolean;
+/** Swap a part on a beaten body for another roll of the same slot and grade (Second chance: once a host). */
+rerollPart: (itemId: string) => void;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
 /** After a win: the beaten enemies' implants, to strip for parts. You keep `picks` of them; the rest are scrapped. */
 strip: Strip | null;
@@ -485,7 +489,9 @@ useRunStats.getState().add({ fightsWon: 1, credits: earned, ...(farmLevel === nu
 const xp = getXpFromBoss(level);
 // Allies: the party learns from every win
 const allies = useAllies.getState();
-const allyLevelUps = allies.gainXp(Math.round(get().perks.allyXpMult));
+// Shared memory: a part-point of ally experience comes as a chance of a whole one
+const allyXp = get().perks.allyXpMult, allyWhole = Math.floor(allyXp);
+const allyLevelUps = allies.gainXp(Math.max(1, allyWhole + (allyXp > allyWhole && random() < allyXp - allyWhole ? 1 : 0)));
 // A level can bring out a line of an ally's story: it goes into the journal
 for (const id of allyLevelUps) {
 const def = allyDef(id), lv = useAllies.getState().progress(id).level;
@@ -505,7 +511,7 @@ const held = farmLevel === null ? firmwareHeldAt(activeChapter().id, level) : nu
 const firmwareFound = held && !useFirmware.getState().opened.includes(held) ? [held] : [];
 for (const cls of firmwareFound) useFirmware.getState().open(cls);
 // The loaded firmware learns from every room fight won (elites and bosses teach it more)
-const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, firmwareXpFor(level)) : null;
+const firmwareUp = farmLevel === null ? useFirmware.getState().gain(get().playerClass, Math.round(firmwareXpFor(level) * (get().perks.fwPointRate ?? 1))) : null;
 if (firmwareUp) log(`FIRMWARE -- level ${firmwareUp}: ${levelStep(get().playerClass, firmwareUp)?.text ?? ''}`);
 const pointsBefore = useAugmentTrees.getState().availablePoints;
 if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
@@ -663,7 +669,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false,
+holdfastSpent: false, secondChanceSpent: false,
 hostBestThreat: 0,
 });
 place();
@@ -815,7 +821,7 @@ const held = heldStart;
 heldStart = null;
 if (held && held.fightId === get().fightId && isFightPhase(get().phase)) held.begin();
 },
-holdfastSpent: false,
+holdfastSpent: false, secondChanceSpent: false,
 strip: null,
 combatLog: [],
 playerDefenseBoost: 0,
@@ -1140,6 +1146,15 @@ set({ strip: { ...st, taken: [...st.taken, itemId] } });
 useAudio.getState().play('cache');
 },
 
+rerollPart: (itemId) => {
+const st = get().strip;
+if (!st || get().secondChanceSpent || !usePlayi.getState().perks().secondChance || st.taken.includes(itemId)) return;
+const item = st.bodies.flatMap(b => b.items).find(i => i.id === itemId);
+if (!item || item.signature || !item.slot) return;
+const again = rerollImplant(item);
+if (!again) return;
+set({ secondChanceSpent: true, strip: { ...st, bodies: st.bodies.map(b => ({ ...b, items: b.items.map(i => (i.id === itemId ? again : i)) })) } });
+},
 returnPart: (itemId) => {
 const st = get().strip;
 if (!st || !st.taken.includes(itemId)) return;
@@ -1227,7 +1242,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false,
+holdfastSpent: false, secondChanceSpent: false,
 hostBestThreat: 0,
 });
 },

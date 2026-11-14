@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
+import { usePlayi } from '@/lib/stores/usePlayi';
 import { AUGMENTATION_SLOT_NAMES } from '@/lib/combat/types';
 import { Screen, Card, Label, Btn, Chip, Footprint, Glyph, SlotIcon, RARITY_TEXT, RARITY_GLOW, cx } from '../hud';
 import { actionForItem, partsText, quirkOf } from '@/lib/combat/augments';
@@ -14,7 +15,9 @@ import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
 
 export function VictoryScreen() {
-  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, returnPart, playerClass } = useCombat();
+  const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, returnPart, playerClass, rerollPart, secondChanceSpent } = useCombat();
+  // Second chance (memory): once a host, one part here can be swapped for another roll
+  const canReroll = usePlayi(s => s.perks)().secondChance && !secondChanceSpent;
   // What's fitted now, to compare each part with (and fit a taken one in its place)
   const { equippedAugmentations, equipAugmentation } = useInventory();
   const items = currentLoot?.items ?? [];
@@ -136,6 +139,9 @@ export function VictoryScreen() {
                           </span>
                         )}
                       </button>
+                      {canReroll && !taken && !gone && !item.signature && (
+                        <button onClick={() => rerollPart(item.id)} className="key rounded-full px-3 py-1.5 text-[12px] font-semibold text-hud-text">Another roll</button>
+                      )}
                       {/* Against what's fitted in that slot: what changes, and (once taken) fit it here */}
                       {now && !gone && (
                         <div className="flex flex-wrap items-center gap-1.5 px-1.5">

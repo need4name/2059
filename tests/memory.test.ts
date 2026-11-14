@@ -156,3 +156,30 @@ test('Cold blood mends at the end of a cool turn; Fail-safe keeps more of broken
   assert.equal(Fight.mendAmount(broken), 0);
   assert.ok(Fight.mendAmount({ ...broken, perks: { ...NO_PERKS, sealed: 0.3 } }) > 0);
 });
+
+test('every effect a neuron grants is read somewhere in the game (nothing bought does nothing)', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const files: string[] = [];
+  const walk = (dir: string) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p); else if (/\.tsx?$/.test(f) && !/^(playi|memory)\.ts$|MemoryMockup/.test(f)) files.push(p); } };
+  walk('client/src');
+  const src = files.map(f => readFileSync(f, 'utf8')).join('\n');
+  const perks = new Set(M.NEURONS.flatMap(n => [...n.fx, ...(n.specs ?? []).flatMap(s => s.fx)].map(f => f.perk)));
+  for (const perk of Array.from(perks)) assert.ok(new RegExp(`\\.${perk}\\b`).test(src), `${perk} is used by the game`);
+});
+
+test('Second chance rolls another part for the same slot at the same grade', async () => {
+  const { rerollImplant, rollCarried } = await import('../client/src/lib/combat/loot');
+  seedRandom(11);
+  const [part] = rollCarried(6, 1, 'normal');
+  const again = rerollImplant(part)!;
+  assert.ok(again && again.id !== part.id);
+  assert.equal(again.slot, part.slot); assert.equal(again.rarity, part.rarity);
+});
+
+test('the preview of a blow counts what the memory adds to it', () => {
+  const base = fight({ firstStrikeUsed: true });
+  const plain = Fight.estimateHit(base, hit, 'none', base.foes[0].pos, 0)!;
+  const lifted = Fight.estimateHit({ ...base, firstStrikeUsed: false, perks: { ...NO_PERKS, firstStrikeBonus: 0.5 } }, hit, 'none', base.foes[0].pos, 0)!;
+  assert.ok(lifted.max > plain.max);
+});

@@ -107,6 +107,16 @@ export const CARRIED_QUALITY_LAG = 6;
 
 export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
 
+/** Another roll of an implant: a different part for the same slot at the same grade (Second chance). */
+export function rerollImplant(item: Item): Item | null {
+  if (!item.slot || !item.rarity) return null;
+  for (let tries = 0; tries < 6; tries++) {
+    const t = getRandomItemFromPool(item.rarity, ITEM_POOLS, item.slot as AugmentationSlot);
+    if (t && (tries === 5 || t.name !== item.name)) return instancedItem({ ...t, condition: item.condition });
+  }
+  return null;
+}
+
 // Luck (the memory network): the chance each implant an enemy wears comes a grade rarer.
 // Set by the combat store before a fight's enemies are made; no extra rolls while it's zero.
 let luck = 0;
