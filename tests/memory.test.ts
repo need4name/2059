@@ -102,10 +102,10 @@ const lost = (a: FightState, b: FightState) => (a.foes[0].unit.currentHp + a.foe
 test('First strike, Hot hands and Exploit lift the blows they should', () => {
   const base = fight();
   const plain = lost(base, Fight.resolvePlayerAttack({ ...base, firstStrikeUsed: true }, hit, 'none').state);
-  const first = fight({ perks: { ...NO_PERKS, firstStrikeBonus: 0.3 } });
+  const first = { ...base, perks: { ...NO_PERKS, firstStrikeBonus: 0.3 } };
   assert.ok(lost(first, Fight.resolvePlayerAttack(first, hit, 'none').state) > lost(base, Fight.resolvePlayerAttack(base, hit, 'none').state));
   assert.equal(lost(first, Fight.resolvePlayerAttack({ ...first, firstStrikeUsed: true }, hit, 'none').state), plain, 'only the first');
-  const hot = fight({ perks: { ...NO_PERKS, hotHands: 0.5 }, firstStrikeUsed: true });
+  const hot = { ...base, perks: { ...NO_PERKS, hotHands: 0.5 }, firstStrikeUsed: true };
   assert.equal(lost(hot, Fight.resolvePlayerAttack(hot, hit, 'none').state), plain, 'not while cool');
 });
 
