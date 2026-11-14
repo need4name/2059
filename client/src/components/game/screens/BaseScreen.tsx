@@ -26,6 +26,8 @@ import { roomById, hasFight } from '@/lib/engine/map';
 import { RoomPanel } from './RoomPanel';
 import { nextChapter } from '@/lib/combat/chapters';
 import { AlliesTab } from './AlliesTab';
+import { MemoryNet } from './MemoryNet';
+import * as Mem from '@/lib/engine/memory';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { useStrain } from '@/lib/stores/useStrain';
@@ -33,7 +35,7 @@ import { firstLifeAt } from '@/lib/daily';
 import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
 import { moveTiles, attackPatternOf, SPEED, implantDrive, hotText, targetsText } from '@/lib/engine/fight';
 
-type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain';
+type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain' | 'memory';
 
 /** The implant (and its body slot) a move comes from, if any. */
 export function moveSource(a: LoadoutAction): { item: Item; slot: AugmentationSlot } | null {
@@ -642,7 +644,7 @@ function StatusTab() {
   );
 }
 
-const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies', strain: 'Strain' };
+const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies', strain: 'Strain', memory: 'Memory' };
 
 function Dock({ icon, title, alert, onClick }: { icon: GlyphName; title: string; alert?: boolean; onClick: () => void }) {
   return (
@@ -670,6 +672,8 @@ export function BaseScreen() {
   const met = useAllies(s => s.met);
   const strainOpen = useStrain(s => s.unlocked);
   const strainOn = useStrain(s => s.active.length > 0);
+  // Something in the memory can be afforded
+  const memoryWaits = usePlayi(s => Mem.NEURONS.some(n => [n.id, ...(n.specs ?? []).map(sp => sp.id)].some(id => Mem.canLearn(s, id, met.length > 0))));
 
   const installed = AUGMENTATION_SLOTS.filter(s => equippedAugmentations[s] !== null);
   // The Implants button calls when a spare fits an empty slot, or a new implant hasn't been seen yet
@@ -713,6 +717,7 @@ export function BaseScreen() {
           <Dock icon="upgrade" title="Upgrades" alert={upgradeWaits} onClick={() => setPage('upgrades')} />
           {met.length > 0 && <Dock icon="allies" title="Allies" onClick={() => setPage('allies')} />}
           {strainOpen && <Dock icon="strain" title="Strain" alert={strainOn} onClick={() => setPage('strain')} />}
+          <Dock icon="signal" title="Memory" alert={memoryWaits} onClick={() => setPage('memory')} />
           <Dock icon="status" title="Self" onClick={() => setPage('status')} />
         </nav>
 
@@ -726,6 +731,7 @@ export function BaseScreen() {
         {page === 'status' && <StatusTab />}
         {page === 'allies' && <AlliesTab />}
         {page === 'strain' && <StrainTab />}
+        {page === 'memory' && <div className="px-4 pb-8 pt-2"><MemoryNet /></div>}
       </Page>
     </Screen>
   );

@@ -6,6 +6,7 @@ import { firmwareAttack, identityOf, levelOptions } from '@/lib/engine/firmware'
 import type { PlayerClass } from '@/lib/combat/types';
 import { Screen, Label, Btn, Chip, Glyph, Footprint, cx } from '../hud';
 import { usePlayi } from '@/lib/stores/usePlayi';
+import { MemoryNet } from './MemoryNet';
 import { useAllies } from '@/lib/stores/useAllies';
 import { availableFirmware } from '@/lib/stores/useCombat';
 import { allyDef } from '@/lib/combat/allies';
@@ -56,12 +57,14 @@ export function DefeatScreen() {
         {anyFirmware && !choice ? 'Choose firmware' : 'Wake'}
       </Btn>
     }>
-      <div className="relative space-y-6 px-4 pb-6 pt-12">
-        <header className={cx('rise-in flex flex-col items-center gap-3 text-center', unlocked.length || anyFirmware || places.length > 1 ? 'pt-8' : 'pt-[28vh]')}>
-          <Glyph name="signal" size={30} className="signal-pulse text-sys" />
-          <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
+      <div className="relative space-y-5 px-4 pb-6 pt-8">
+        <header className={'rise-in flex flex-col items-center gap-2 text-center'}>
+                    <h1 className="font-display text-[36px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
         </header>
+
+        {/* What stays: the memory, one point richer */}
+        <MemoryNet />
 
         {unlocked.length > 0 && (
           <div className="space-y-2.5">

@@ -107,6 +107,12 @@ export const CARRIED_QUALITY_LAG = 6;
 
 export type EnemyRole = 'normal' | 'elite' | 'boss' | 'setpiece';
 
+// Luck (the memory network): the chance each implant an enemy wears comes a grade rarer.
+// Set by the combat store before a fight's enemies are made; no extra rolls while it's zero.
+let luck = 0;
+export const setLootLuck = (chance: number) => { luck = Math.max(0, chance); };
+const lucky = (r: ItemRarity): ItemRarity => (luck > 0 && random() < luck ? RARITY_ORDER[Math.min(RARITY_ORDER.length - 1, RARITY_ORDER.indexOf(r) + 1)] : r);
+
 /**
  * The implants an enemy carries into a fight: real items built from parts,
  * which the player can strip from the body afterwards (see the strip screen).
@@ -124,7 +130,7 @@ if (signature && (role === 'boss' || role === 'elite')) {
   const rarity = role === 'boss'
     ? (random() < Math.min(0.5, 0.15 + 0.01 * level) ? (deep ? 'legendary' : 'epic') : (deep ? 'epic' : 'rare'))
     : rarityAtLeast(rollRarity(level), ladderDepth(level) >= 25 ? 'rare' : 'uncommon');
-  const sig = signatureImplant(signature, rarity);
+  const sig = signatureImplant(signature, lucky(rarity));
   if (sig) out.push(sig);
 }
 const taken = new Set(out.map(i => i.slot));
@@ -132,7 +138,7 @@ while (out.length < count) {
   const free = AUGMENTATION_SLOTS.filter(sl => !taken.has(sl));
   const slot = pick(free.length ? free : AUGMENTATION_SLOTS);
   // Worn gear: what enemies wear rolls at the odds of six threats lower
-  const worn = rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG));
+  const worn = lucky(rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG)));
   const t = getRandomItemFromPool(role === 'elite' && !out.length ? rarityAtLeast(worn, 'uncommon') : worn, ITEM_POOLS, slot, lean);
   if (!t) break;
   taken.add(t.slot);

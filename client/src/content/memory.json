@@ -913,26 +913,26 @@
    "branch": "luck",
    "at": [141, 140],
    "name": "Scavenger",
-   "text": "+3% chance per rank that a won fight also drops a spare implant",
+   "text": "+2% chance per rank that each implant an enemy wears is a grade rarer",
    "cost": 1,
    "ranks": 5,
    "fx": [
     {
-     "perk": "dropChance",
-     "per": 0.03
+     "perk": "rarityUp",
+     "per": 0.02
     }
    ],
    "specs": [
     {
-     "id": "l1_fine_pickings",
-     "name": "Fine pickings",
-     "text": "+10% chance per rank that the spare is a grade better",
+     "id": "l1_spare_parts",
+     "name": "Spare parts",
+     "text": "+3% chance per rank that a won fight also drops a spare implant",
      "cost": 1,
      "ranks": 5,
      "fx": [
       {
-       "perk": "rarityUp",
-       "per": 0.1
+       "perk": "dropChance",
+       "per": 0.03
       }
      ]
     },

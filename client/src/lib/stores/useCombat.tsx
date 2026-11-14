@@ -34,7 +34,7 @@ import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
 import { causeOf } from '../engine/memory';
 import { NO_PERKS } from '../engine/playi';
-import { instancedItem, ITEM_POOLS } from '../combat/loot';
+import { instancedItem, ITEM_POOLS, setLootLuck } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf, partPerks, displayName } from '../combat/augments';
@@ -459,11 +459,11 @@ const loot = isKing ? generatePatchworkKingLoot() : generateLoot(level, firstRun
 // A boss's own implant is marked with its threat: it sells for a little less than calling the boss back
 const bossRoom = farmLevel === null && !!roomById(useMap.getState().room).server;
 const mark = (it: Item) => (bossRoom && it.signature ? { ...it, bossThreat: level } : it);
-// Luck (the memory network): a chance of a Bio-Stim, and of a spare implant (sometimes a grade better)
+// Luck (the memory network): a chance of a Bio-Stim, and of a spare implant
 const luck = usePlayi.getState().perks();
 if (luck.stimChance > 0 && random() < luck.stimChance) { const bio = ITEMS_2059.find(i => i.id === 'stim_bio'); if (bio) loot.items.push(instancedItem(bio)); }
 if (luck.dropChance > 0 && random() < luck.dropChance) {
-  const spare = generateMarketStock(level + (random() < luck.rarityUp ? 10 : 0)).find(i => i.type === 'augmentation');
+  const spare = generateMarketStock(level).find(i => i.type === 'augmentation');
   if (spare) loot.items.push(spare);
 }
 const direct = loot.items.map(mark);
@@ -712,6 +712,8 @@ const { player: fresh, moveRange, perks } = buildPlayer(playerClass);
 const player = farm ? fresh : { ...fresh, currentHp: healthNow(useMap.getState(), fresh.maxHp) };
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
 const strain = useStrain.getState().active;
+// Luck: enemies' implants may come a grade rarer (and so does what you strip from them)
+setLootLuck(perks.rarityUp);
 const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
 // The Count brings a copy of itself (Boss twists in DESIGN.md)
 // The Weather flies with a lead drone (Boss twists in DESIGN.md)
