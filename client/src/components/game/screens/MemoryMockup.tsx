@@ -206,3 +206,135 @@ export function MockDeath() {
     </Screen>
   );
 }
+
+
+// ── v8: zoomed out (the memory and the firmware lanes together), and the lanes up close ──
+const FW = [
+  { name: 'Enforcer', color: '#ff6b5e', points: 4, open: true, lit: 1, ranks: [2, 0, 0, 0] },
+  { name: 'Operative', color: '#7fe0ff', points: 1, open: true, lit: 0, ranks: [1, 0, 0, 0] },
+  { name: '', color: '#5b6676', points: 0, open: false, lit: 0, ranks: [0, 0, 0, 0] },
+  { name: '', color: '#5b6676', points: 0, open: false, lit: 0, ranks: [0, 0, 0, 0] },
+  { name: '', color: '#5b6676', points: 0, open: false, lit: 0, ranks: [0, 0, 0, 0] },
+];
+const FW_NODE = [['Hits harder', '+4% damage with its own move per rank', 3], ['Knocks them back', 'Its own move shoves whoever it hits one tile', 1], ['Wider swing', 'Its own move also hits the tiles either side', 1], ['Runs cooler', 'Its own move makes 2 less heat per rank', 3]] as const;
+
+function usePixels(G: number, size: number, paint: (px: (x: number, y: number, c: string, a?: number) => void, t: number, h: { dot: (x: number, y: number, r: number, c: string, a?: number) => void; ring: (x: number, y: number, r: number, c: string, a?: number) => void; line: (a: { x: number; y: number }, b: { x: number; y: number }, c: string, al: number, every?: number) => void; box: (x: number, y: number, r: number, c: string, a?: number) => void }) => void) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = ref.current!; const ctx = cv.getContext('2d')!;
+    const scale = Math.max(2, Math.floor((size * (window.devicePixelRatio || 1)) / G));
+    cv.width = G * scale; cv.height = G * scale;
+    let raf = 0;
+    const draw = () => {
+      ctx.setTransform(scale, 0, 0, scale, 0, 0); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, G, G);
+      const px = (x: number, y: number, c: string, a = 1) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1); };
+      const dot = (x: number, y: number, r: number, c: string, a = 1) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) px(x + dx, y + dy, c, a); };
+      const ring = (x: number, y: number, r: number, c: string, a = 1) => { for (let dy = -r - 1; dy <= r + 1; dy++) for (let dx = -r - 1; dx <= r + 1; dx++) if (Math.abs(Math.sqrt(dx * dx + dy * dy) - r) < 0.6) px(x + dx, y + dy, c, a); };
+      const line = (a: { x: number; y: number }, b: { x: number; y: number }, c: string, al: number, every = 1) => { const n = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y), 1); for (let i = 0; i <= n; i += every) px(Math.round(a.x + ((b.x - a.x) * i) / n), Math.round(a.y + ((b.y - a.y) * i) / n), c, al); };
+      // The firmware hub is square: hardware, not a neuron
+      const box = (x: number, y: number, r: number, c: string, a = 1) => { for (let d = -r; d <= r; d++) { if (Math.abs(d) < r) { px(x + d, y - r, c, a); px(x + d, y + r, c, a); px(x - r, y + d, c, a); px(x + r, y + d, c, a); } } };
+      paint(px, performance.now(), { dot, ring, line, box });
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  });
+  return ref;
+}
+const Num = ({ x, y, G, n, color, size = 14 }: { x: number; y: number; G: number; n: number; color: string; size?: number }) => (
+  <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 font-display font-bold leading-none" style={{ left: `${((x + 0.5) / G) * 100}%`, top: `${((y + 0.5) / G) * 100}%`, color, fontSize: size, textShadow: `0 0 8px ${color}` }}>{Math.min(999, n)}</div>
+);
+
+/** Zoomed out: the memory above, the firmware lanes hanging off one of its strands. */
+export function MockZoom() {
+  const G = 160, size = 358;
+  const mini = (n: { x: number; y: number }) => ({ x: Math.round(8 + n.x * 0.55), y: Math.round(2 + n.y * 0.55) });
+  const core = mini(CORE), hub = { x: 62, y: 112 };
+  const laneY = (k: number) => 96 + k * 11;
+  const ref = usePixels(G, size, (px, t, { dot, ring, line, box }) => {
+    for (const [p, q] of E) { const A = p === 'core' ? core : mini(by.get(p)!), B = mini(by.get(q)!), n = by.get(q)!; const both = (p === 'core' || lit(by.get(p)!)) && lit(n); line(A, B, both ? COL[n.s] : '#2f3947', n.fog ? 0.6 : 1, n.fog ? 3 : 1); }
+    for (const n of N) { const m = mini(n); if (n.fog) { px(m.x, m.y, '#4a5564', 0.9); continue; } if (lit(n)) dot(m.x, m.y, 1, COL[n.s], 1); else { dot(m.x, m.y, 1, '#0b1119', 1); ring(m.x, m.y, 1, n.locked ? '#3a4452' : '#5b6676', 1); } }
+    const beat = 0.6 + 0.4 * Math.sin(t / 500);
+    dot(core.x, core.y, 8, '#f2b33d', 0.1 * beat); dot(core.x, core.y, 6, '#0d1a22', 1); ring(core.x, core.y, 6, '#f2b33d', 0.95);
+    // The strand down to the hub
+    line(core, { x: 50, y: 84 }, '#c9d4e0', 0.9); line({ x: 50, y: 84 }, hub, '#c9d4e0', 0.9);
+    for (let r = 5; r <= 6; r++) box(hub.x, hub.y, r, '#c9d4e0', r === 6 ? 0.9 : 0.35); dot(hub.x, hub.y, 1, '#ffffff', beat);
+    FW.forEach((f, k) => {
+      const y = laneY(k), start = { x: 82, y };
+      line(hub, start, f.open ? f.color : '#2f3947', f.open ? 0.9 : 0.8);
+      line(start, { x: 152, y: y + (k - 2) }, '#2f3947', f.open ? 1 : 0.6, f.open ? 1 : 2);
+      if (f.open) { ring(start.x, start.y, 4, f.color, 0.95); dot(start.x, start.y, 3, '#0d1a22', 1); }
+      [104, 124, 142].forEach((x, i) => { const yy = Math.round(y + ((k - 2) * (x - 82)) / 70); if (!f.open) { px(x, yy, '#4a5564', 0.9); return; } if (i < f.lit) dot(x, yy, 2, f.color, 1); else { dot(x, yy, 2, '#0b1119', 1); ring(x, yy, 2, i === f.lit ? '#f2b33d' : '#5b6676', 1); } });
+    });
+  });
+  return (
+    <Screen>
+      <div className="space-y-3 px-4 pb-8 pt-6">
+        <div className="flex items-center gap-3">
+          <span className="key flex h-10 w-10 items-center justify-center rounded-2xl"><Glyph name="back" size={16} /></span>
+          <h1 className="flex-1 font-display text-[22px] font-semibold text-white">Memory</h1>
+        </div>
+        <div style={{ width: size, height: size }} className="relative mx-auto">
+          <canvas ref={ref} style={{ width: size, height: size, imageRendering: 'pixelated' }} />
+          <Num x={core.x} y={core.y} G={G} n={12} color="#f2b33d" size={13} />
+          {FW.map((f, k) => f.open && <Num key={k} x={82} y={laneY(k)} G={G} n={f.points} color={f.color} size={10} />)}
+        </div>
+        <p className="text-center text-[12px] text-hud-faint">Tap a cluster to go in</p>
+      </div>
+    </Screen>
+  );
+}
+
+/** The firmware lanes up close: a lane a firmware, each with its own points. */
+export function MockFirmware() {
+  const G = 160, size = 358, hub = { x: 14, y: 80 }, cols = [62, 90, 118, 146];
+  const laneY = (k: number) => 24 + k * 28;
+  const [sel, setSel] = useState<[number, number]>([0, 1]);
+  const ref = usePixels(G, size, (px, t, { dot, ring, line, box }) => {
+    const beat = 0.6 + 0.4 * Math.sin(t / 400);
+    // Stages: what each chapter opens
+    cols.slice(1).forEach(x => { for (let y = 8; y < 152; y += 3) px(x - 14, y, '#2a3340', 0.9); });
+    for (let r = 6; r <= 7; r++) box(hub.x, hub.y, r, '#c9d4e0', r === 7 ? 0.9 : 0.35); dot(hub.x, hub.y, 1, '#ffffff', beat);
+    FW.forEach((f, k) => {
+      const y = laneY(k), start = { x: 36, y };
+      line(hub, start, f.open ? f.color : '#2f3947', f.open ? 0.9 : 0.7);
+      line(start, { x: 156, y }, '#2f3947', f.open ? 1 : 0.6, f.open ? 1 : 2);
+      if (!f.open) { cols.forEach(x => px(x, y, '#4a5564', 0.9)); px(start.x, start.y, '#4a5564', 1); return; }
+      if (f.lit > 0) line(start, { x: cols[f.lit - 1], y }, f.color, 0.95);
+      dot(start.x, start.y, 8, f.color, 0.1 * beat); dot(start.x, start.y, 6, '#0d1a22', 1); ring(start.x, start.y, 6, f.color, 0.95);
+      cols.forEach((x, i) => {
+        const full = f.ranks[i] >= FW_NODE[i][2], has = f.ranks[i] > 0, open = i <= f.lit && !full, afford = open && f.points >= 1;
+        const r = FW_NODE[i][2] > 1 ? 4 : 3;
+        if (has) { dot(x, y, r + 1, f.color, 0.18); dot(x, y, r, f.color, full ? 1 : 0.7); px(x - 1, y - 1, '#fff', 0.8); if (afford) ring(x, y, r + 1, '#f2b33d', 0.4 + 0.5 * beat); }
+        else { if (afford) dot(x, y, r + 2, '#f2b33d', 0.16 * beat); dot(x, y, r, '#0b1119', 1); ring(x, y, r, afford ? '#f2b33d' : '#5b6676', afford ? 0.6 + 0.4 * beat : 0.9); px(x, y, f.color, 0.9); }
+        if (FW_NODE[i][2] > 1) for (let n = 0; n < FW_NODE[i][2]; n++) px(x - (FW_NODE[i][2] - 1) + n * 2, y + r + 2, n < f.ranks[i] ? '#fff' : '#5b6676', 1);
+        if (sel[0] === k && sel[1] === i) for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { px(x + sx * 8, y + sy * 8, '#fff'); px(x + sx * 7, y + sy * 8, '#fff'); px(x + sx * 8, y + sy * 7, '#fff'); }
+      });
+    });
+  });
+  const f = FW[sel[0]], nd = FW_NODE[sel[1]], have = f.ranks[sel[1]];
+  return (
+    <Screen>
+      <div className="space-y-3 px-4 pb-8 pt-6">
+        <div className="flex items-center gap-3">
+          <span className="key flex h-10 w-10 items-center justify-center rounded-2xl"><Glyph name="back" size={16} /></span>
+          <h1 className="flex-1 font-display text-[22px] font-semibold text-white">Firmware</h1>
+        </div>
+        <div style={{ width: size, height: size }} className="relative mx-auto">
+          <canvas ref={ref} onClick={() => setSel(sel)} style={{ width: size, height: size, imageRendering: 'pixelated' }} />
+          {FW.map((fw, k) => fw.open && <Num key={k} x={36} y={laneY(k)} G={G} n={fw.points} color={fw.color} size={15} />)}
+          {FW.map((fw, k) => fw.open && <div key={`n${k}`} className="pointer-events-none absolute text-[11px] font-semibold" style={{ left: `${(26 / G) * 100}%`, top: `${((laneY(k) - 15) / G) * 100}%`, color: fw.color }}>{fw.name}</div>)}
+        </div>
+        <div className="slab flex items-center gap-3 rounded-3xl px-4 py-3">
+          <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: f.color, boxShadow: `0 0 8px ${f.color}` }} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2"><span className="font-display text-[15px] font-semibold text-white">{nd[0]}</span>{nd[2] > 1 && <span className="text-[12px] text-hud-dim">{have} / {nd[2]}</span>}</div>
+            <div className="text-[13px] leading-snug text-hud-text">{nd[1]}</div>
+          </div>
+          <Buy cost={1} ok />
+        </div>
+      </div>
+    </Screen>
+  );
+}
