@@ -38,3 +38,9 @@ Firmware levels are replaced. Each firmware has its own small cluster, bought wi
 ## Open
 - Malfunction gets its own redesign conversation; the Fault branch follows it.
 - Draft each firmware's cluster from today's levels (Enforcer and Operative first: chapter one's two).
+
+## v9 mockup: everything laid out
+- The main network now has ten branches (Signal, Processing, Subroutines, Guard, Fault, Grafting, Locomotion, Network, Luck, general Firmware) and five shared neurons; every neuron, rank, specialisation and wording is in the mockup's data (`N` in MemoryMockup.tsx), which is the working list.
+- Luck: Scavenger 5r (+3% implant drop chance; > Fine pickings 5r, > Pick of the wreck (3)), Lucky find 4r (+5% Bio-Stim chance), Loose change (endless, credits), Market eye 3r (+1 item on sale), Second chance (3).
+- General firmware (memory points; its strand runs on to the hub): Tuned 5r (+2% own-move damage), Quick study 5r (firmware points 10% faster), Cold boot 3r (own move 1 less heat), Cross-load (4): carry a second firmware's own move as an ordinary move.
+- Firmware lanes (`FWS`): all six. A lane's first node is the firmware itself: given, not bought, when its holder is beaten; it holds the lane's points and shows the firmware's own move and rule. Along the lane, today's level rewards re-cut: "Hits harder"/"Runs cooler" as ranks, the level-3 reward as a big moment, the three either/or level choices as forks whose both sides can be bought. Three stages a lane, split by dotted lines (reading: later stages open with later chapters; to confirm).
