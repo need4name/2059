@@ -224,27 +224,41 @@ function ZoomCanvas({ width, onPick }: { width: number; onPick: (v: 'memory' | '
 /**
  * The memory as the player sees it: the network, the firmware lanes, or the two zoomed out together.
  * Zooming out opens with the first firmware (chapter one's threat-5 boss); until then it's the network alone.
+ * As its own page (`onClose`) it has the planned header: a square back key, the view's name, and Zoom out on the
+ * right; zoomed out, back returns to the view you came from. On the death screen (no `onClose`) only Zoom out shows.
  */
-export function MemoryPage() {
+export function MemoryPage({ onClose }: { onClose?: () => void }) {
   const anyFirmware = useFirmware(s => s.opened.length > 0);
-  const [view, setView] = useState<'memory' | 'firmware' | 'zoom'>('memory');
+  const [view, setView] = useState<'memory' | 'firmware'>('memory');
+  const [zoom, setZoom] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(358);
   useEffect(() => { const fit = fitWidth(box, setWidth); fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit); }, []);
-  const shown = anyFirmware ? view : 'memory';
-  return (
+  const zoomed = anyFirmware && zoom, shown = anyFirmware ? view : 'memory';
+  const zoomKey = anyFirmware && !zoomed && (
+    <button onClick={() => setZoom(true)} className="key flex h-10 shrink-0 items-center rounded-2xl px-3 text-[13px] font-semibold text-hud-text">Zoom out</button>
+  );
+  const body = (
     <div ref={box} className="space-y-2">
-      {anyFirmware && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-display text-[15px] font-semibold text-hud-text">{shown === 'firmware' ? 'Firmware' : shown === 'zoom' ? 'Everything kept' : 'Network'}</span>
-          {shown === 'zoom'
-            ? <span className="text-[12px] text-hud-faint">Tap one to go in</span>
-            : <button onClick={() => setView('zoom')} className="key flex items-center gap-1.5 rounded-2xl px-3 py-2 text-[13px] font-semibold text-hud-text"><Glyph name="signal" size={14} /> Zoom out</button>}
-        </div>
-      )}
-      {shown === 'memory' && <MemoryNet />}
-      {shown === 'firmware' && <FirmwareLanes />}
-      {shown === 'zoom' && <ZoomCanvas width={width} onPick={setView} />}
+      {zoomed ? <ZoomCanvas width={width} onPick={v => { setView(v); setZoom(false); }} /> : shown === 'firmware' ? <FirmwareLanes /> : <MemoryNet />}
+    </div>
+  );
+  // On the death screen: Zoom out sits in the network's top corner, so the network stays where it was planned
+  if (!onClose) return <div className="relative">{zoomKey && <div className="absolute right-0 top-0 z-10">{zoomKey}</div>}{body}</div>;
+  return (
+    <div className="fixed inset-0 z-40 flex justify-center bg-hud-bg">
+      <div className="pointer-events-none absolute inset-0 ambient" />
+      <div className="pointer-events-none absolute inset-0 scanlines" />
+      <div className="rise-in relative flex w-full max-w-[var(--col)] flex-col">
+        <header className="flex items-center gap-3 px-4 pb-2" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
+          <button onClick={zoomed ? () => setZoom(false) : onClose} aria-label="Back" className="key flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-hud-text">
+            <Glyph name="back" size={16} className="text-sys" />
+          </button>
+          <h1 className="min-w-0 flex-1 truncate font-display text-[22px] font-semibold text-white">{!zoomed && shown === 'firmware' ? 'Firmware' : 'Memory'}</h1>
+          {zoomKey}
+        </header>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-10 no-scrollbar">{body}</div>
+      </div>
     </div>
   );
 }

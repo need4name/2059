@@ -711,14 +711,15 @@ export function BaseScreen() {
         <RoomPanel />
       </div>
 
-      <Page open={page !== null} title={page ? PAGE_TITLE[page] : ''} back={roomNow.name} onClose={() => setPage(null)}>
+      {/* The memory has its own page: the network, the firmware lanes, zoomed out (its header is the planned one) */}
+      {page === 'memory' && <MemoryPage onClose={() => setPage(null)} />}
+      <Page open={page !== null && page !== 'memory'} title={page ? PAGE_TITLE[page] : ''} back={roomNow.name} onClose={() => setPage(null)}>
         {page === 'loadout' && <LoadoutTab />}
         {page === 'implants' && <Inventory />}
         {page === 'upgrades' && <UpgradesTab />}
         {page === 'status' && <StatusTab />}
         {page === 'allies' && <AlliesTab />}
         {page === 'strain' && <StrainTab />}
-        {page === 'memory' && <div className="px-4 pb-8 pt-2"><MemoryPage /></div>}
       </Page>
     </Screen>
   );
