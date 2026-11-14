@@ -387,7 +387,8 @@ function ActionBar() {
       {allyTurn !== null ? <AllyTurnPanel k={allyTurn} /> : <>
       <OverloadBar />
       <Spoils />
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(4, slots.length)}, minmax(0, 1fr))` }}>
+      {/* The bar fills the width whatever its length: three slots, or six */}
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (
           <div key={`empty-${i}`} className="well flex min-h-[64px] items-center justify-center rounded-2xl text-[11px] text-hud-faint">Empty</div>
         ))}
