@@ -24,11 +24,15 @@ Replaces the play-i tree. Mockup: `client/src/components/game/screens/MemoryMock
 **Network** (dark until an ally is linked): Handshake 5r allies +5% health (> Stand together (2)). Shared memory 4r allies +25% xp (> Coordinated 4r +5% on enemies your ally hit).
 **Shared**: Cold blood (Signal/Processing) 3r; Hot hands (Processing/Subroutines) 5r; Kinship (Subroutines/Grafting) 5r; Brace for impact (Guard/Fault) 3r; Cover step (Locomotion/Network) 4r.
 
-## Endless neurons (proposed)
-Five plain stat neurons keep taking points after their listed ranks are full (drawn with a second ring): Signal strength +4 max health, Targeting +1% damage, Reinforced housings +2% structure, Practised guard +1% defensive moves, Handshake +2% ally health, per extra rank.
-- Soft cap (price): extra ranks 1-10 cost 2 points each, 11-20 cost 3, 21 and on cost 4.
-- Hard caps: 10 extra ranks per chapter reached, 50 in all, on each.
+## Endless neurons (agreed direction)
+Plain stat neurons (Signal strength, Targeting, Reinforced housings, Practised guard, Handshake, and a credits one in Luck) never fill: points always have somewhere to go. No hard caps. Two soft caps work together: each rank gives less than the last, and each rank costs more. The first 3-5 ranks are very strong, then a steep drop; far along, a rank costs 10+ points for an amount you can't notice. Example (Signal strength): ranks 1-3 +12/+10/+8 health at 1 point; 4-5 +6/+4 at 2; 6-10 +3 at 3; 11-20 +2 at 5; 21-40 +1 at 8; 41+ +0.5 at 12, climbing. Specialisations open at rank 5.
+
+## Luck (new branch, to draft)
+Drop rates: implant drop chance, rarity, credits, stim finds, market stock. Pick of the wreck moves here.
+
+## Firmware (agreed direction)
+Firmware levels are replaced. Each firmware has its own small cluster, bought with that firmware's own points, earned only by playing as it; its neurons evolve its starting move and rule (today's level rewards and forks, re-cut as neurons). A general firmware cluster affects every firmware (currency to confirm: memory points).
 
 ## Open
 - Malfunction gets its own redesign conversation; the Fault branch follows it.
-- A firmware tree (small, expensive, upgrades each firmware's starting move from mid-game): to design; must be squared with today's firmware levels and forks.
+- Draft each firmware's cluster from today's levels (Enforcer and Operative first: chapter one's two).
