@@ -850,3 +850,83 @@ export function drawBreaking(ctx: Ctx, x: number, y: number, w: number, h: numbe
   ctx.stroke();
   ctx.restore();
 }
+
+// ── Status marks ─────────────────────────────────────────────────────────────
+// A row of small pixel marks under a unit's bars, one per state it's in, each its own
+// colour and shape, with a pip for every turn it has left (never a number).
+export type StatusMark = 'burning' | 'stunned' | 'bleeding' | 'slowed' | 'hasted' | 'malfunction' | 'enraged' | 'spotted' | 'guard';
+const MARKS: Record<StatusMark, { color: string; rows: string[] }> = {
+  burning:     { color: '#ff7a2e', rows: ['...#...', '...##..', '..###..', '.#####.', '.##.##.', '.#...#.', '..###..'] },
+  stunned:     { color: '#ffe14a', rows: ['...#...', '...#...', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'] },
+  bleeding:    { color: '#ff3b4a', rows: ['...#...', '...#...', '..###..', '.#####.', '.#####.', '.#####.', '..###..'] },
+  slowed:      { color: '#5aa8ff', rows: ['#######', '.#...#.', '..#.#..', '...#...', '..#.#..', '.#####.', '#######'] },
+  hasted:      { color: '#4ade80', rows: ['.......', '#..#...', '.#..#..', '..#..#.', '.#..#..', '#..#...', '.......'] },
+  malfunction: { color: '#ffa04a', rows: ['....##.', '...##..', '..####.', '....#..', '..#....', '.##....', '.#.....'] },
+  enraged:     { color: '#ff4a3a', rows: ['...#...', '..###..', '.#.#.#.', '...#...', '..###..', '.#.#.#.', '...#...'] },
+  spotted:     { color: '#d8b4fe', rows: ['.......', '..###..', '.#...#.', '#..#..#', '.#...#.', '..###..', '.......'] },
+  guard:       { color: '#7fe9ff', rows: ['#######', '#.....#', '#.....#', '#.....#', '.#...#.', '..#.#..', '...#...'] },
+};
+/** The marks in a row centred on cx, top at y; `tile` sizes them. */
+export function drawStatusMarks(ctx: Ctx, cx: number, y: number, tile: number, marks: { kind: StatusMark; turns?: number }[], now: number) {
+  if (!marks.length) return;
+  const p = Math.max(1, Math.round(tile * 0.03)), cell = p * 7, pad = p * 2, step = cell + pad * 2 + p;
+  const w = marks.length * step - p;
+  let x = Math.round(cx - w / 2);
+  ctx.save();
+  for (const m of marks) {
+    const def = MARKS[m.kind];
+    // A dark round plate, rimmed in the mark's colour
+    const pw = cell + pad * 2, ph = cell + pad * 2, r = pw * 0.4;
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + pw, y, x + pw, y + ph, r); ctx.arcTo(x + pw, y + ph, x, y + ph, r); ctx.arcTo(x, y + ph, x, y, r); ctx.arcTo(x, y, x + pw, y, r); ctx.closePath();
+    ctx.fillStyle = 'rgba(4,7,12,0.88)'; ctx.fill();
+    ctx.strokeStyle = `${def.color}88`; ctx.lineWidth = Math.max(1, p * 0.75); ctx.stroke();
+    // Malfunction flickers; the rest hold still
+    ctx.globalAlpha = m.kind === 'malfunction' && Math.floor(now / 90) % 9 === 0 ? 0.35 : 1;
+    ctx.fillStyle = def.color;
+    def.rows.forEach((row, j) => { for (let i = 0; i < 7; i++) if (row[i] === '#') ctx.fillRect(x + pad + i * p, y + pad + j * p, p, p); });
+    ctx.globalAlpha = 1;
+    // Pips under it: turns left
+    const n = Math.min(4, m.turns ?? 0);
+    for (let k = 0; k < n; k++) { ctx.fillStyle = def.color; ctx.fillRect(Math.round(x + pw / 2 - (n * 2 - 1) * p / 2 + k * p * 2), y + ph + p, p, p); }
+    x += step;
+  }
+  ctx.restore();
+}
+
+/** Low health: the board's edge pulses red in a heartbeat, in stepped pixel bands. */
+export function drawLowHealthEdge(ctx: Ctx, w: number, h: number, share: number, now: number) {
+  if (share >= 0.3) return;
+  const t = (now % 1100) / 1100, beat = Math.max(0, Math.sin(t * Math.PI * 2 * 2)) * (t < 0.5 ? 1 : 0);
+  const k = (0.55 + 0.45 * beat) * (1 - share / 0.3) + 0.25;
+  const band = Math.max(4, Math.round(Math.min(w, h) * 0.016));
+  ctx.save();
+  [0.55, 0.32, 0.16, 0.07].forEach((a, i) => {
+    ctx.fillStyle = `rgba(220,30,50,${a * k})`;
+    const o = i * band;
+    ctx.fillRect(o, o, w - o * 2, band); ctx.fillRect(o, h - o - band, w - o * 2, band);
+    ctx.fillRect(o, o + band, band, h - o * 2 - band * 2); ctx.fillRect(w - o - band, o + band, band, h - o * 2 - band * 2);
+  });
+  ctx.restore();
+}
+
+/** Running hot: steam lifting off the body and the air above it shimmering. */
+export function drawHeatHaze(ctx: Ctx, cx: number, top: number, size: number, heat: number, now: number) {
+  if (heat < 61) return;
+  const p = Math.max(2, Math.round(size / 24)), hot = Math.min(1, (heat - 61) / 39);
+  ctx.save();
+  for (let i = 0; i < 7; i++) {
+    const k = ((now / 1300) + i / 7) % 1;
+    ctx.globalAlpha = (0.45 + 0.35 * hot) * (1 - k);
+    const s = Math.round(p * (1.2 + k * 1.8)), sx = Math.round(cx + Math.sin(i * 2.4 + now / 500) * size * 0.2), sy = Math.round(top + size * 0.25 - k * size * 0.45);
+    // A soft grey edge so the puff reads on a pale floor
+    ctx.fillStyle = '#7a8692'; ctx.fillRect(sx - 1, sy - 1, s + 2, s + 2);
+    ctx.fillStyle = i % 3 === 0 ? '#ffd2a8' : '#f4f8fb'; ctx.fillRect(sx, sy, s, s);
+  }
+  // Shimmer: short bright dashes that wave above the head
+  ctx.globalAlpha = 0.35 + 0.3 * hot; ctx.fillStyle = '#ffb36a';
+  for (let j = 0; j < 3; j++) for (let i = -3; i <= 3; i++) {
+    const yy = Math.round(top - p * (1 + j * 2) + Math.sin(now / 160 + i * 0.9 + j) * p * 0.6);
+    if ((i + j) % 2) ctx.fillRect(Math.round(cx + i * p * 1.5), yy, p, Math.max(1, p / 2));
+  }
+  ctx.restore();
+}

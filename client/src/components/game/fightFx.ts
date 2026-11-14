@@ -29,7 +29,7 @@ interface Scene {
   landed: boolean;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; g: number; life: number; born: number; color: string; size: number; floor?: number }
-interface Number_ { key: string; text: string; color: string; born: number; big: boolean }
+interface Number_ { key: string; text: string; color: string; born: number; big: boolean; /** Pops in bigger and settles: a hit from the side or behind. */ pop?: number }
 interface Chunk { from: number; to: number; born: number; sFrom: number; sTo: number }
 
 const keyOf = (b: FxStrike['by']) => (b.kind === 'player' ? 'player' : b.kind === 'foe' ? `foe:${b.i}` : `ally:${b.k}`);
@@ -154,7 +154,8 @@ export class FxDirector {
         if (strike) { const dx = Math.sign(at.col - strike.from.col), dy = Math.sign(at.row - strike.from.row); this.recoils.set(c.key, { dx, dy, start: t0 }); }
         this.burst(c.key, at, color, lost > 0 ? 10 + Math.min(14, Math.round(lost / 6)) : 6, t0, 0);
         this.chunks.set(c.key, { from: c.hp[0] / Math.max(1, c.maxHp), to: c.hp[1] / Math.max(1, c.maxHp), born: t0, sFrom: c.structure[0] / Math.max(1, c.maxStructure), sTo: c.structure[1] / Math.max(1, c.maxStructure) });
-        if (lost > 0) this.numbers.push({ key: c.key, text: `-${lost}`, color: p.crit ? '#ffd34a' : '#ffffff', born: t0, big: p.crit });
+        // Red when it's you bleeding, white when it's them, gold for a crit
+        if (lost > 0) this.numbers.push({ key: c.key, text: `-${lost}`, color: p.crit ? '#ffd34a' : c.key === 'player' ? '#ff5a4a' : '#ffffff', born: t0, big: p.crit });
         else if (sLost > 0) this.numbers.push({ key: c.key, text: `-${sLost}`, color: '#a8b8c8', born: t0, big: false });
         if (c.key === 'player') bigHit = Math.max(bigHit, lost / Math.max(1, c.maxHp));
         if (c.maxStructure > 0 && c.structure[0] > 0 && c.structure[1] <= 0) this.numbers.push({ key: c.key, text: 'MALFUNCTION', color: '#ffa04a', born: t0 + 220, big: false });
@@ -326,7 +327,7 @@ export class FxDirector {
   guarding(key: string, now: number): number | null { const t = this.guardsUp.get(key); if (t === undefined) return null; const k = (now - t) / 650; if (k > 1) { this.guardsUp.delete(key); return null; } return Math.max(0, k); }
 
   /** Over the bodies: shots in flight, sparks, numbers. */
-  drawOver(ctx: CanvasRenderingContext2D, now: number, drawNumber: (text: string, x: number, y: number, alpha: number, color: string, big: boolean) => void) {
+  drawOver(ctx: CanvasRenderingContext2D, now: number, drawNumber: (text: string, x: number, y: number, alpha: number, color: string, big: boolean, scale?: number) => void) {
     const T = this.tile;
     if (now < this.flashUntil) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 0.45 * ((this.flashUntil - now) / 240); ctx.fillStyle = '#eafcff'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore(); }
     for (const sh of this.shots) {
@@ -375,7 +376,9 @@ export class FxDirector {
       const c = this.toScreen(tile.row, tile.col), k = t / FX.numbers;
       // Pops up fast, hangs, then drifts and fades
       const rise = (1 - Math.pow(1 - Math.min(1, k * 3), 3)) * T * 0.55 + k * T * 0.25;
-      drawNumber(n.text, c.x, c.y - T * 0.75 - rise, k < 0.7 ? 1 : (1 - k) / 0.3, n.color, n.big);
+      // A crit punches in; a hit from the side or behind pops bigger and settles
+      const punch = (n.big ? 0.35 * Math.max(0, 1 - t / 160) : 0) + (n.pop ?? 0) * (0.35 + 0.65 * Math.max(0, 1 - t / 260));
+      drawNumber(n.text, c.x, c.y - T * 0.75 - rise, k < 0.7 ? 1 : (1 - k) / 0.3, n.color, n.big, 1 + punch);
     }
   }
 }

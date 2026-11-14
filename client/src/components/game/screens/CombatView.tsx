@@ -160,6 +160,8 @@ function SlotButton({ action, gold }: { action: LoadoutAction; gold?: boolean })
   const crit = action.type === 'attack' ? CRIT_PCT[getHeatPhase(playerHeat)] : 0;
   const heat = action.heatGenerated ?? 0;
   const tone = actionColor(action);
+  // A broken body's implant moves may misfire: the card crackles
+  const shaky = s.playerMalfunctioning && !!action.fromImplant;
 
   return (
     <button
@@ -167,9 +169,10 @@ function SlotButton({ action, gold }: { action: LoadoutAction; gold?: boolean })
       disabled={phase !== 'player_turn' || inputLocked || stepOnly || !usable}
       aria-pressed={selected}
       className={cx('relative flex min-h-[64px] flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl px-1 pb-1.5 pt-3 text-center',
-        selected ? 'key key-selected' : gold ? 'key key-gold' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale')}
+        selected ? 'key key-selected' : gold ? 'key key-gold' : 'key', (stepOnly || !usable) && 'opacity-45 grayscale', shaky && 'misfire-card')}
     >
-      <span className={`line-clamp-2 w-full font-display text-[13px] font-semibold leading-tight ${tone}`}>{action.name}</span>
+      {shaky && <MisfireMark />}
+      <span className={cx('line-clamp-2 w-full font-display text-[13px] font-semibold leading-tight', tone, shaky && 'misfire-name')}>{action.name}</span>
       {isAttack ? (
         <span className="flex items-center gap-1 text-[10px] text-hud-faint">
           <Footprint action={action} playerClass={s.playerClass} />
@@ -193,6 +196,16 @@ function SlotButton({ action, gold }: { action: LoadoutAction; gold?: boolean })
         : ammo === 0 ? <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Empty</span>
         : isAttack && !inRange && <span className="absolute inset-x-0 top-0 bg-white/[0.07] text-[9px] font-semibold leading-[13px] text-hud-dim">Nobody in reach</span>}
     </button>
+  );
+}
+
+/** The broken-bolt mark (as on the board) in a card's corner: this move may misfire. */
+function MisfireMark() {
+  const rows = ['....##.', '...##..', '..####.', '....#..', '..#....', '.##....', '.#.....'];
+  return (
+    <svg className="misfire-mark absolute right-1.5 top-1.5" width="14" height="14" viewBox="0 0 7 7" shapeRendering="crispEdges" aria-label="may misfire">
+      {rows.flatMap((r, y) => r.split('').map((c, x) => c === '#' ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="#ffa04a" /> : null))}
+    </svg>
   );
 }
 
@@ -380,7 +393,10 @@ function ActionBar() {
   const [bag, setBag] = useState(false);
   const stims = items.filter(i => i.type === 'consumable');
   const myTurn = phase === 'player_turn' && !inputLocked;
-  const status = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special' || selectedAction.defend) ? statusText(selectedAction) : null;
+  const shown = selectedAction && (selectedAction.type === 'attack' || selectedAction.type === 'special' || selectedAction.defend) ? statusText(selectedAction) : null;
+  // A broken body: an implant move may misfire, and the button says so first
+  const misfire = !!selectedAction && useCombat.getState().playerMalfunctioning && !!(selectedAction as any).fromImplant;
+  const status = misfire ? ['may misfire', shown].filter(Boolean).join(' · ') : shown;
 
   return (
     <div className="slab-solid relative z-10 rounded-t-[28px] px-3 pt-2.5" style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>

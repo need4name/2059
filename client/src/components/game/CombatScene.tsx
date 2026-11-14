@@ -6,7 +6,8 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
-import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, type StatusMark } from '@/lib/rendering/board';
+import { wearOf, drawWearFx, drawMisfire } from '@/lib/rendering/wear';
 import { drawDoll } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
@@ -200,6 +201,7 @@ const allyAnimator = useRef(new SpriteAnimator(false));
 const fx = useRef<FxDirector | null>(null);
 if (!fx.current) fx.current = new FxDirector();
 const director = fx.current;
+if (import.meta.env.DEV) (window as any).__director = director;
 
 // Each enemy has its own animator, slide animation and damage tracking
 interface FoeVisual { animator: SpriteAnimator; moveAnim: MovementAnim | null; prevPos: { row: number; col: number }; prevHp: number }
@@ -1092,10 +1094,17 @@ depth.push({ y: playerPos.y, draw: () => {
 drawFootShadow(ctx, playerPos.x, playerPos.y + tileH * 0.36, tileW);
 // The host: its firmware's body, wearing what it has fitted
 const owned = useAugmentTrees.getState().owned;
-const hostSpec = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0);
+const pWear = wearOf(director.shown('player')?.structure ?? player.currentStructuralHp, player.maxStructuralHp);
+const hostSpec = { ...hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, any>, it => owned[it.id]?.length ?? 0), wear: pWear };
 const pTop = dollTop(playerPos.y, spriteSize);
 const pFall = director.falling('player', now);
-drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerAnimator.current.getState(), playerAnimator.current.getFrame(), playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0 });
+const pState = playerAnimator.current.getState(), pFrame = playerAnimator.current.getFrame();
+drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, pState, pFrame, playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0 });
+// Its implants as the structure bar stands: sparks, smoke and glitching once they're failing
+if (pFall === null) drawWearFx(ctx, hostSpec, pWear, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, now, 11, dx => drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2 + dx, pTop, spriteSize, pState, pFrame, playerFacingLeft));
+// Mockup: a misfire from the front arm
+{ const mk = (window as any).__fxMock, mt = mk?.misfireAt !== undefined ? now - mk.misfireAt : mk?.misfire; if (mt !== undefined) drawMisfire(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, mt, { x: 33, y: 24 }); }
+drawHeatHaze(ctx, playerPos.x, pTop, spriteSize, useCombat.getState().playerHeat, now);
 // The signal leaving: the host's shape, pale, rising out of the body and thinning away
 const leave = director.leaving(now);
 if (leave !== null) { ctx.save(); ctx.globalAlpha = 0.55 * (1 - leave); drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop - leave * tileH * 1.1, spriteSize, 'idle', 0, playerFacingLeft, { white: true }); ctx.restore(); }
@@ -1118,6 +1127,15 @@ const pShown = director.shown('player');
 const playerSf = player.maxStructuralHp > 0 ? (pShown?.structure ?? player.currentStructuralHp) / player.maxStructuralHp : null;
 drawUnitBar(ctx, playerPos.x, barY, barWidth, pShown ? pShown.hp / player.maxHp : playerHpPercent, '#4ade80', playerSf);
 drawChunk(ctx, playerPos.x, barY, barWidth, director.chunk('player', now));
+{ const st = useCombat.getState(), marks: { kind: StatusMark; turns?: number }[] = [];
+  if (st.playerBurning > 0) marks.push({ kind: 'burning', turns: st.playerBurning });
+  if (st.playerBleeding) marks.push({ kind: 'bleeding', turns: st.playerBleeding });
+  if (st.playerStunned) marks.push({ kind: 'stunned' });
+  if (st.playerSlowed) marks.push({ kind: 'slowed', turns: st.playerSlowed });
+  if (st.playerHasted) marks.push({ kind: 'hasted', turns: st.playerHasted });
+  if (st.playerDefenseBoost > 0) marks.push({ kind: 'guard' });
+  if (player.maxStructuralHp > 0 && player.currentStructuralHp <= 0) marks.push({ kind: 'malfunction' });
+  drawStatusMarks(ctx, playerPos.x, barY + UNIT_BAR.h + UNIT_BAR.gap + UNIT_BAR.s + 4, tileW, marks, now); }
 const gain = defendGain.get('player');
 if (gain) {
   drawGainFlash(ctx, playerPos.x, barY, barWidth, UNIT_BAR.h, playerHpPercent, gain.now, gain.later, now);
@@ -1256,8 +1274,12 @@ ctx.save();
 // Dreaming, the First Sleeper is barely there: nothing reaches it
 if (f.dreaming) ctx.globalAlpha = 0.45 + 0.1 * Math.sin(now / 500);
 if (stumble.rot !== 0) { ctx.translate(fp.x, fp.y); ctx.rotate(stumble.rot); ctx.translate(-fp.x, -fp.y); }
-drawDoll(ctx, foeDoll(f.unit, f.parts), fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
+const fWear = wearOf(director.shown(fKey)?.structure ?? f.unit.currentStructuralHp, f.unit.maxStructuralHp);
+const fSpec = { ...foeDoll(f.unit, f.parts), wear: fWear };
+drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0 });
+if (fFall === null) drawWearFx(ctx, fSpec, fWear, fp.x - size / 2 + stumble.x, fTop + stumble.y, size, fFacingLeft, now, 23 + i * 7,
+  dx => drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x + dx, fTop + stumble.y, size, v.animator.getState(), v.animator.getFrame(), fFacingLeft));
 ctx.restore();
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
 { const rise = director.guarding(fKey, now); if (fFall === null && (rise !== null || f.defenseBoost > 0)) drawGuard(ctx, fp.x, fp.y, tileW, f.pos.col > grid.playerPosition.col, now, rise, '#ff9a7a'); }
@@ -1265,10 +1287,36 @@ if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.
 } });
 overlay.push(() => {
 if (fFall !== null) return;
+// A broken enemy's wound-up heavy may fizzle: its locked tiles crackle orange
+if (f.malfunctioning && f.pendingTiles) for (const t of f.pendingTiles) {
+  const tp = gridToScreen(t.row, t.col, width, height), g2 = Math.max(2, tileW * 0.05);
+  ctx.save();
+  ctx.strokeStyle = '#ffa04a'; ctx.lineWidth = Math.max(2, tileW * 0.045);
+  ctx.globalAlpha = Math.floor(now / 70 + t.col * 3 + t.row) % 7 === 0 ? 0.25 : 0.9;
+  ctx.setLineDash([tileW * 0.12, tileW * 0.07, tileW * 0.04, tileW * 0.09]); ctx.lineDashOffset = Math.floor(now / 120) * tileW * 0.05;
+  roundRectPath(ctx, tp.x - tileW / 2 + g2, tp.y - tileH / 2 + g2, tileW - g2 * 2, tileH - g2 * 2, tileW * 0.14); ctx.stroke();
+  // A spark jumping along the edge
+  const k = ((now / 500) + t.col * 0.37 + t.row * 0.21) % 1, sz = Math.max(2, Math.round(tileW * 0.05));
+  ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = k < 0.5 ? '#fff3b0' : '#ffd24a';
+  const ex = tp.x - tileW / 2 + g2 + (tileW - g2 * 2) * (k < 0.5 ? k * 2 : 1), ey = tp.y - tileH / 2 + g2 + (tileH - g2 * 2) * (k < 0.5 ? 0 : (k - 0.5) * 2);
+  ctx.fillRect(Math.round(ex - sz / 2), Math.round(ey - sz / 2), sz, sz);
+  ctx.restore();
+}
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
 const fShown = director.shown(fKey);
 drawUnitBar(ctx, fp.x, barY, barW, (fShown?.hp ?? f.unit.currentHp) / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444', f.unit.maxStructuralHp > 0 ? (fShown?.structure ?? f.unit.currentStructuralHp) / f.unit.maxStructuralHp : null);
 drawChunk(ctx, fp.x, barY, barW, director.chunk(fKey, now));
+{ const st = useCombat.getState(), marks: { kind: StatusMark; turns?: number }[] = [];
+  if (f.burning > 0) marks.push({ kind: 'burning', turns: f.burning });
+  if (f.bleeding) marks.push({ kind: 'bleeding', turns: f.bleeding });
+  if (f.stunned) marks.push({ kind: 'stunned' });
+  if (f.slowed) marks.push({ kind: 'slowed', turns: f.slowed });
+  if (f.hasted) marks.push({ kind: 'hasted', turns: f.hasted });
+  if (f.defenseBoost > 0) marks.push({ kind: 'guard' });
+  if (f.malfunctioning) marks.push({ kind: 'malfunction' });
+  if (f.enraged) marks.push({ kind: 'enraged' });
+  if ((st as any).spotted === i) marks.push({ kind: 'spotted' });
+  drawStatusMarks(ctx, fp.x, barY + UNIT_BAR.h + UNIT_BAR.gap + UNIT_BAR.s + 4, tileW, marks, now); }
 // The health this hit will take flashes on the bar: bright for what it will surely take, faint for what it might
 const pv = phase === 'player_turn' ? hitPreview.get(i) : undefined;
 if (pv && f.unit.maxHp > 0) {
@@ -1320,13 +1368,15 @@ director.drawUnder(ctx, now);
 depth.sort((a, b) => a.y - b.y).forEach(d => d.draw());
 overlay.forEach(o => o());
 // Shots in flight, sparks and numbers over everything
-director.drawOver(ctx, now, (text, x, y, alpha, color, big) => {
+director.drawOver(ctx, now, (text, x, y, alpha, color, big, scale = 1) => {
   ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
-  ctx.font = `800 ${Math.round(tileW * (text.length > 5 ? 0.19 : big ? 0.42 : 0.3))}px Sora, Manrope, sans-serif`;
+  ctx.font = `800 ${Math.round(tileW * (text.length > 5 ? 0.19 : big ? 0.42 : 0.3) * scale)}px Sora, Manrope, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineWidth = Math.max(3, tileW * 0.07); ctx.strokeStyle = 'rgba(8,10,14,0.9)'; ctx.strokeText(text, x, y);
   ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
 });
+// Low health: the board's edge beats red
+drawLowHealthEdge(ctx, width, height, player.currentHp / Math.max(1, player.maxHp), now);
 
 // Draw damage numbers
 // (now: the frame time set at the top of the frame)

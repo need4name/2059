@@ -38,6 +38,8 @@ export interface DollSpec {
   kingParts?: string[];
   /** A boss's own signature pieces, by its name (see SIGNATURES). */
   signature?: string;
+  /** How worn its implants look, from its structure bar: 0 whole, 1 cracked, 2 failing, 3 broken (see wearOf). */
+  wear?: 0 | 1 | 2 | 3;
 }
 
 // ── Makers: plastic colours ─────────────────────────────────────────────────
@@ -304,8 +306,19 @@ function paintDrone(g: Grid, P: Painter, spec: DollSpec, pose: Pose) {
   P.rect(cx, cy + 9, 1, 4, '#5a646e'); P.px(cx - 1, cy + 13, '#c8ccd0'); P.px(cx + 1, cy + 13, '#c8ccd0');
 }
 
-/** Paint one pose of a character into a pixel grid. */
+/** Paint one pose of a character into a pixel grid (worn as its structure bar says). */
 export function paintDoll(spec: DollSpec, state: AnimationState, frame: number): Grid {
+  if (!spec.wear) return paintBody(spec, state, frame);
+  const { wear, ...whole } = spec;
+  const g = paintBody(whole, state, frame);
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const bare = F.drone || F.special ? null : paintBody({ ...whole, parts: {} }, state, frame);
+  const pose = poseOf(state, frame);
+  applyWear(g, bare, wear, seedOf(whole), pose.dx, pose.by, frame);
+  return g;
+}
+
+function paintBody(spec: DollSpec, state: AnimationState, frame: number): Grid {
   const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
   const g = makeGrid(F.S), P = api(g);
   const pose = poseOf(state, frame);
@@ -711,4 +724,108 @@ export function hologram(spec: DollSpec): { S: number; c: (string | null)[][] } 
     out[y][x] = edge ? (lit ? '#6ee8fa' : '#2896af') : y % 4 === 0 ? '#18465a' : (x + y) % 2 ? '#10303c' : '#123542';
   }
   return { S, c: out };
+}
+
+// ── Wear: what a falling structure bar does to the implants ────────────────
+// The implants are what the structure bar is, so as it empties they show it: cracks
+// first, then chips and dimming lights, and broken they go dull with a fault light
+// blinking. Only implant pixels wear (whatever the bare body doesn't have); a machine
+// is all implant. Positions are measured from the body, so cracks don't jump between frames.
+
+const CRACK = '#14181c';
+const isSolid = (v: string | null) => !!v && v !== OUTLINE && v.length === 7;
+/** A steady number for a body's look, so the same body always cracks the same way. */
+function seedOf(spec: DollSpec): number { const s = JSON.stringify(spec); let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function noise(a: number, b: number, s: number): number {
+  let h = (a * 374761393 + b * 668265263 + s * 982451653) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function dull(hex: string, k: number): string {
+  if (hex.length !== 7) return hex;
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, m = (r + g + b) / 3;
+  const f = (c: number) => Math.round(c + (m - c) * k).toString(16).padStart(2, '0');
+  return `#${f(r)}${f(g)}${f(b)}`;
+}
+/** Which pixels of a painted body are implant (not the bare body), or every solid pixel of a machine. */
+function implantMask(g: Grid, bare: Grid | null): boolean[][] {
+  const m = g.c.map((row, y) => row.map((v, x) => isSolid(v) && (!bare || bare.c[y]?.[x] !== v)));
+  // A body with little or nothing fitted wears its frame instead, so its state still reads
+  if (bare && m.flat().filter(Boolean).length < 40) return g.c.map(row => row.map(v => isSolid(v)));
+  return m;
+}
+
+function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox: number, oy: number, frame: number) {
+  const m = implantMask(g, bare);
+  const at = (x: number, y: number) => !!m[y]?.[x];
+  const spots: { x: number; y: number; n: number }[] = [];
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (m[y][x]) spots.push({ x, y, n: noise(x - ox, y - oy, seed) });
+  if (!spots.length) return;
+  spots.sort((a, b) => a.n - b.n);
+  // Failing: scorched patches (blotches two pixels wide, so they read at fight size)
+  if (wear >= 2) for (const p of spots) if (noise(Math.floor((p.x - ox) / 2), Math.floor((p.y - oy) / 2), seed + 9) < (wear === 2 ? 0.3 : 0.34)) g.c[p.y][p.x] = shade(g.c[p.y][p.x]!, -0.38);
+  // Broken: the plastic goes dull and dark
+  if (wear === 3) for (const p of spots) g.c[p.y][p.x] = dull(shade(g.c[p.y][p.x]!, -0.2), 0.55);
+  // Lights on the implants: failing, they stutter (dark every other frame); broken, they're dead
+  g.glow = g.glow.filter(gl => {
+    if (!at(gl.x, gl.y) || wear === 1) return true;
+    if (wear === 2 && frame % 2 === 0) { gl.r *= 0.6; return true; }
+    g.c[gl.y][gl.x] = '#2a1a16';
+    return false;
+  });
+  // Cracks: jagged dark lines with a lit lip, started inside the plastic and spread apart
+  const inner = spots.filter(p => at(p.x - 1, p.y) && at(p.x + 1, p.y) && at(p.x, p.y - 1) && at(p.x, p.y + 1));
+  const pool = inner.length >= 4 ? inner : spots;
+  const want = Math.min([0, 3, 5, 8][wear], Math.max(1, Math.floor(spots.length / 9)));
+  const seeds: { x: number; y: number }[] = [];
+  for (const p of pool) { if (seeds.length >= want) break; if (seeds.every(q => Math.abs(q.x - p.x) + Math.abs(q.y - p.y) >= 4)) seeds.push(p); }
+  const len = [0, 4, 5, 6][wear];
+  seeds.forEach((sd, i) => {
+    let { x, y } = sd;
+    const dir = noise(i, 3, seed) < 0.5 ? -1 : 1;
+    for (let k = 0; k < len && at(x, y); k++) {
+      const under = g.c[y][x]!;
+      g.c[y][x] = CRACK;
+      if (at(x - dir, y) && g.c[y][x - dir] !== CRACK) g.c[y][x - dir] = shade(under, 0.4);
+      y += 1; if (noise(i, k, seed + 1) < 0.6) x += dir;
+    }
+  });
+  // Chips: notches knocked out of the edges
+  if (wear >= 2) {
+    let left = wear === 3 ? 6 : 3;
+    for (const p of spots) {
+      if (left <= 0) break;
+      const edge = !at(p.x - 1, p.y) || !at(p.x + 1, p.y) || !at(p.x, p.y - 1);
+      if (edge && p.n > 0.4) { g.c[p.y][p.x] = OUTLINE; left--; }
+    }
+  }
+  // Broken: one fault light blinking red
+  if (wear === 3) {
+    const f = (inner.length ? inner : spots).slice(0, 12).sort((a, b) => a.y - b.y)[0];
+    const on = frame % 2 === 0;
+    g.c[f.y][f.x] = on ? '#ff3a2a' : '#5a1410';
+    if (on) g.glow.push({ x: f.x, y: f.y, col: '#ff3a2a', r: 2.5 });
+  }
+}
+
+/** Where a body's implants are (grid pixels, standing still): where sparks and smoke come from. */
+const spotCache = new Map<string, { x: number; y: number }[]>();
+export function implantSpots(spec: DollSpec): { x: number; y: number }[] {
+  const { wear: _w, ...whole } = spec;
+  const key = JSON.stringify(whole);
+  const hit = spotCache.get(key); if (hit) return hit;
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const g = paintBody(whole, 'idle', 0), bare = F.drone || F.special ? null : paintBody({ ...whole, parts: {} }, 'idle', 0);
+  const m = implantMask(g, bare), out: { x: number; y: number }[] = [];
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (m[y][x]) out.push({ x, y });
+  if (spotCache.size > 200) spotCache.clear();
+  spotCache.set(key, out);
+  return out;
+}
+
+/** A grid pixel of a body drawn with drawDoll(x, y, size, faceLeft), on screen. */
+export function dollPoint(spec: DollSpec, x: number, y: number, size: number, faceLeft: boolean, gx: number, gy: number): { x: number; y: number; unit: number } {
+  const S = FRAMES[spec.frame].S, unit = size / 48, w = (S + PAD * 2) * unit;
+  const left = x + size / 2 - w / 2, topY = y + size - (S + PAD) * unit;
+  return { x: faceLeft ? left + w - (gx + PAD + 0.5) * unit : left + (gx + PAD + 0.5) * unit, y: topY + (gy + PAD + 0.5) * unit, unit };
 }
