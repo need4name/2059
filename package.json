@@ -11,6 +11,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "sim": "tsx scripts/sim.ts",
     "check:content": "tsx scripts/check-content.ts",
+    "sim:expert": "EXPERT=1 ONLYCH1=1 CH1RUNS=0 RUNS=40 tsx scripts/sim.ts",
     "verify": "tsc --noEmit && tsx scripts/check-content.ts && npm test && tsx scripts/sim.ts --check",
     "db:push": "drizzle-kit push",
     "build:pages": "vite build --base=/2059/"

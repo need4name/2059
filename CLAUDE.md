@@ -59,6 +59,7 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 - `npx tsc --noEmit` — typecheck (keep at 0 errors)
 - `npm test` — rule tests (Node's built-in runner, files in `tests/`)
 - `npm run sim` — balance simulator report (seeded, same result every run); `npm run sim -- --check` fails if a number leaves its range
+- `npm run sim:expert` — chapter one played by a strong bot (flanks, focuses, shoves into hazards); host count is the score, so it should get past the King in about 4 hosts where the average bot takes about 8
 - `npm run check:content` — checks the content files (shapes, allowed values, ids, cross-references)
 - `npm run verify` — typecheck + content check + tests + simulator check; the publish workflow runs this before deploying
 - `npm run build` — production build

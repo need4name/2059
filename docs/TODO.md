@@ -31,7 +31,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 Rules: strategy first (chapters get harder by asking for better play); death is the signal waking up (more to do, a little more strength); the player should feel they got better; host count is the score, not a gate; difficulty settings.
 
-1. Re-aim the balance: a spread by skill (strong player past the King in about 3 hosts, average about 8, struggling by about 15) instead of one target.
+1. Re-aim the balance: a spread by skill. Measured with the expert bot (`npm run sim:expert`): King on host 5 against 8 for the average bot. The scripted first death stays and counts. Still to do: a struggling-player measure, and tuning toward expert about 4.
 2. Audit the memory network: options over numbers. List first, changes after the owner has seen it.
 3. End-of-story count: hosts it took, marked with the difficulty it was earned on; best kept per chapter. Mockups first.
 4. Difficulty: Easy and Normal from the start, Hard after beating Normal; they change the enemies, never the player's rules.

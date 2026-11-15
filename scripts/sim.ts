@@ -137,6 +137,61 @@ function allyTurnBot(k: number) {
 // SMART=1: a careful player who never stands where a hit can land, even if it means not attacking (kiting)
 const SMART = !!process.env.SMART;
 // ── One player turn: aim, dodge telegraphs (most of the time), get in range, hit
+// EXPERT=1: a strong player. It weighs every tile it can reach with every move it has: what the blow will
+// really do there (flanks and sweet spots included, from the game's own preview), kills first, the weakest
+// enemy next, shoves into the sea, a hazard or a fuel drum, against what standing there will cost it;
+// and it braces when broken, burning hot or cornered with nothing worth hitting.
+const EXPERT = !!process.env.EXPERT;
+function expertTurn(): boolean {
+  const s = C.getState() as any; const cls = s.playerClass;
+  const slots = L.getState().slots.filter(Boolean) as any[];
+  const spoils = F.kingSpoils(s).map((a: any, n: number) => ({ ...a, key: `spoil-${a.spoil}-${n}` }));
+  const atks = [...spoils, ...slots.filter(a => a.type !== 'brace' && a.damage)];
+  const brace = slots.find(a => a.type === 'brace');
+  const g = s.grid, level = s.bossLevel ?? 1;
+  const cost = F.dangerInfo(s, level, F.doubleTurns(s, s.clock, 'player'));
+  const locked = new Set<string>(); for (const f of s.foes) if (f.unit.currentHp > 0) for (const t of f.pendingTiles ?? []) locked.add(`${t.row},${t.col}`);
+  const hook = s.crane?.at; if (hook) locked.add(`${hook.row},${hook.col}`);
+  const opts = s.playerHeat >= 100 ? [g.playerPosition] : [g.playerPosition, ...Array.from(G.getPlayerReach(g.playerPosition, g, s.playerMoveRange)).map((k: any) => { const [row, col] = k.split(',').map(Number); return { row, col }; })];
+  const hp = s.player.currentHp;
+  const stand = (p: any) => { const k = `${p.row},${p.col}`; let c = cost.get(k)?.damage ?? 0; if (locked.has(k)) c += hp * 0.6; const t = g.tiles[p.row][p.col]; if (t.type === 'hazard') c += Math.max(8, s.player.maxHp * 0.08); return c >= hp ? 1e6 : c * (hp < s.player.maxHp * 0.4 ? 1.6 : 1); };
+  let best: { v: number; pos: any; act: any } = { v: -1e9, pos: g.playerPosition, act: null };
+  for (const pos of opts) {
+    const at = { ...s, grid: { ...g, playerPosition: pos } };
+    const safe = -stand(pos);
+    // Doing nothing here (or bracing)
+    const braceV = brace ? safe * 0.55 + (s.playerHeat >= 85 ? 30 : 0) + (s.playerMalfunctioning ? 12 : 0) + (hp < s.player.maxHp * 0.35 ? 8 : 0) : -1e9;
+    if (braceV > best.v) best = { v: braceV, pos, act: brace };
+    for (const a of atks) {
+      if (F.gunEmpty(s, a)) continue;
+      const aim = F.bestAim(at, a, cls); if (!aim) continue;
+      const struck = F.struckAt(at, a, cls, aim); if (!struck.length) continue;
+      let v = safe - (s.playerHeat + (a.heatGenerated ?? 0) >= 100 ? 40 : 0);
+      if (F.mayMisfire(s, a)) v -= 0; // weighed below
+      for (const i of struck) {
+        const f = s.foes[i], e = F.estimateHit(at, a, cls, aim, i); if (!e) continue;
+        const dmg = (e.min + e.max) / 2, left = f.unit.currentHp + (a.physicalRatio === 0 ? 0 : f.unit.currentStructuralHp * 0.5);
+        v += Math.min(dmg, left) + (dmg >= f.unit.currentHp + f.unit.currentStructuralHp * (a.physicalRatio ?? 0.7) ? 45 : 0) + 12 * (1 - f.unit.currentHp / f.unit.maxHp);
+        if (a.effects?.knock || a.attackPattern === 'knockback') {
+          const to = { row: f.pos.row + Math.sign(f.pos.row - pos.row), col: f.pos.col + Math.sign(f.pos.col - pos.col) }, tt = g.tiles[to.row]?.[to.col];
+          v += F.intoSea(g, to) ? 22 : tt?.type === 'hazard' ? 14 : tt?.type === 'obstacle' ? (tt.art === 'fuel' ? 24 : 12) : 0;
+        }
+      }
+      if (F.mayMisfire(s, a)) v = safe + (v - safe) * (1 - F.misfireChance(s));
+      if (v > best.v) best = { v, pos, act: a };
+    }
+  }
+  // Nothing to hit from anywhere: close in on the weakest enemy by the safest tile
+  if (!best.act || (best.act === brace && best.v < -5 && s.playerHeat < 85)) {
+    const prey = s.foes.filter((f: any) => f.unit.currentHp > 0 && !f.swimming).sort((a: any, b: any) => a.unit.currentHp - b.unit.currentHp)[0];
+    if (prey) { const p = opts.slice().sort((a, b) => (stand(a) + G.chebyshev(a, prey.pos) * 6) - (stand(b) + G.chebyshev(b, prey.pos) * 6))[0]; if (!best.act || stand(p) < 1e5) best = { v: 0, pos: p, act: best.act === brace ? brace : null }; }
+  }
+  if (best.pos.row !== g.playerPosition.row || best.pos.col !== g.playerPosition.col) C.getState().moveTentatively(best.pos);
+  if (best.act) { C.getState().setSelectedAction(best.act); if (best.act.damage) { attackTurns++; if (best.act.gun) gunShots++; } }
+  C.getState().endTurn();
+  return true;
+}
+
 function playerTurn(skill: number) {
   // After attacking without moving (Reflex), the game waits for a step or a pass: the bot passes
   if (C.getState().reflexMoveOpen) { C.getState().endTurn(); return; }
@@ -146,6 +201,7 @@ function playerTurn(skill: number) {
   const stims = I.getState().items.filter((i: any) => i.type === 'consumable');
   if (s.player.currentHp < s.player.maxHp * 0.35) { const bio = stims.find((i: any) => i.consumableEffect === 'bio_stim'); if (bio) { s.useConsumableItem(bio.id); return; } }
   const living = s.foes.map((f, i) => ({ f, i })).filter(x => x.f.unit.currentHp > 0);
+  if (EXPERT && expertTurn()) return;
   // Parts torn off the King are one-use moves: the bot spends them first
   const spoils = F.kingSpoils(s as any).map((a, n) => ({ ...a, key: `spoil-${a.spoil}-${n}` }));
   const atks = [...spoils, ...slots.filter(a => a.type !== 'brace' && a.damage).sort((a, b) => (b.damage || 0) - (a.damage || 0))];
@@ -691,8 +747,14 @@ if (!process.env.CHAPTER && mid12.n >= 30) checks.push([`threats 4-9 with 1-2 ho
 if (!process.env.CHAPTER && !process.env.RUSH) {
   const mid = (xs: (number | null)[]) => med(xs.map(x => x ?? 99));
   const b5 = mid(boss5), k = mid(king);
-  checks.push([`chapter one's first boss first beaten on host 3-5 (median ${b5})`, b5 >= 3 && b5 <= 5]);
-  checks.push([`the King first beaten on host 7-11 (median ${k}; aim 8-10)`, k >= 7 && k <= 11]);
+  // Host count is the score, not a gate: a strong player (EXPERT=1) gets through in far fewer hosts than an average one
+  if (EXPERT) {
+    checks.push([`expert: chapter one's first boss first beaten on host 2-3 (median ${b5})`, b5 >= 2 && b5 <= 3]);
+    checks.push([`expert: the King first beaten on host 3-6 (median ${k}; aim 4)`, k >= 3 && k <= 6]);
+  } else {
+    checks.push([`chapter one's first boss first beaten on host 3-5 (median ${b5})`, b5 >= 3 && b5 <= 5]);
+    checks.push([`the King first beaten on host 7-11 (median ${k}; aim 8-10)`, k >= 7 && k <= 11]);
+  }
   if (withFw.n >= 30 && noFw.n >= 30) checks.push([`threats 6-9: firmware wins at least 10 points more than none (${pct(withFw.rate)} vs ${pct(noFw.rate)})`, withFw.rate - noFw.rate >= 0.1]);
 }
 // (88%+: chapter one stays hard until the King, about 8 hosts in, so a signal 5 hosts in is still climbing)
