@@ -293,7 +293,7 @@ export function generateBattlefield(bossLevel: number, needs: ArenaNeeds = DEFAU
 // Arena characters pick a slot in the chapter's tileset (content/chapters.json), so each chapter draws its own
 const COVER_SLOT: Record<string, number> = { '#': 0, d: 1, n: 2, p: 3 };
 const HAZARD_SLOT: Record<string, number> = { f: 0, c: 1, b: 2, h: 3 };
-export const ARENA_CHARS = '.~#dnp?fcbhmoPE123';
+export const ARENA_CHARS = '.~#dnp?fcbhmoFPE123';
 
 /** Build a board from a drawn layout (see the map file's notes for the characters). */
 export function buildArena(layout: string[], tilesetOf?: string): CombatGrid {
@@ -313,6 +313,8 @@ export function buildArena(layout: string[], tilesetOf?: string): CombatGrid {
     // Lashed raft that breaks away when the King loses a part (the Nth part breaks ring N)
     if (ch === '1' || ch === '2' || ch === '3') return { type: 'empty', breaks: Number(ch) };
     if (ch === 'o') return { type: 'obstacle', art: 'pod', name: 'Cold pod', cold: true };
+    // A fuel drum: cover that bursts into fire when struck or slammed into (engine burstDrum)
+    if (ch === 'F') return { type: 'obstacle', art: 'fuel', name: 'Fuel drum' };
     if (ch === '?') {
       if (random() >= 0.5) return { type: 'empty' };
       const o = randomOf(cover);

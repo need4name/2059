@@ -311,6 +311,10 @@ tidal?: boolean;
 cold?: boolean;
 /** Lashed raft: this tile breaks away into the sea when the King loses his Nth part (1, 2, 3). */
 breaks?: number;
+/** A fire: rounds it has left to burn (engine FIRE); then it's scorched deck. */
+burns?: number;
+/** Burnt-out deck where a fire was: safe, and it shows. */
+scorched?: boolean;
 }
 
 export interface CombatGrid {
@@ -327,6 +331,8 @@ bossPosition: TilePosition;
 occupied?: TilePosition[];
 /** The board's open edges are a drop into the sea (chapter one): a body knocked off one goes in, like onto `~`. Otherwise the edge stops it. */
 seaEdges?: boolean;
+/** It's raining (the weather this host woke to): fires burn out sooner. */
+rain?: boolean;
 tiles: TileData[][];
 }
 

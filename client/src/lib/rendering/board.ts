@@ -401,6 +401,7 @@ type Px = (x: number, y: number, c: string) => void;
 type Ramp = readonly [string, string, string, string, string];
 
 const BLUE: Ramp = ['#a9d8f5', '#62a6d6', '#3c7fb3', '#295e8a', '#173c5c'];
+const FUEL_RED: Ramp = ['#f6a08a', '#e0563e', '#b8382a', '#8a2418', '#5e160e'];
 const GREY: Ramp = ['#c7d0d6', '#97a4ad', '#707e88', '#505c65', '#333c43'];
 const IRON: Ramp = ['#8a857d', '#66625b', '#4b4842', '#35322e', '#211f1c'];
 const SLATE: Ramp = ['#a7b4c0', '#7d8b98', '#5d6a77', '#444f5a', '#2b333b'];
@@ -562,6 +563,14 @@ const COVER: Record<string, Paint> = {
     for (const y0 of [6, 11]) for (let x = 4; x < 13; x += 2) px(x - (y0 === 11 ? 1 : 0), y0, BLUE[4]); // holes
     rect(px, 5, 12, 5, 1, BLUE[4]); px(5, 13, BLUE[2]); // handle slot
     for (let y = 2; y < 15; y++) px(9, y, y === 4 ? '#ffe68a' : y > 12 ? '#a8862a' : '#e0b83e');
+  },
+  fuel: px => {
+    // A red fuel drum: dented, a yellow band with a flame stamped on it, a dribble down the side
+    cylinder(px, 8, 1, 5, 14, 2, FUEL_RED);
+    for (let x = 3; x < 13; x++) { px(x, 7, '#f0c048'); px(x, 8, '#f0c048'); px(x, 9, '#c89a2a'); }
+    px(8, 7, '#b8382a'); px(7, 8, '#b8382a'); px(8, 8, '#e8503a'); px(9, 8, '#b8382a');
+    px(11, 10, '#3a1a10'); px(11, 11, '#3a1a10'); px(11, 12, '#3a1a10'); px(10, 13, '#3a1a10');
+    px(5, 2, '#f6d0c0'); px(6, 2, '#b8382a'); px(10, 3, '#5e160e');
   },
   drum: px => {
     // A blue plastic drum, sun-faded, two bungs on the lid
@@ -927,6 +936,20 @@ export function drawHeatHaze(ctx: Ctx, cx: number, top: number, size: number, he
   for (let j = 0; j < 3; j++) for (let i = -3; i <= 3; i++) {
     const yy = Math.round(top - p * (1 + j * 2) + Math.sin(now / 160 + i * 0.9 + j) * p * 0.6);
     if ((i + j) % 2) ctx.fillRect(Math.round(cx + i * p * 1.5), yy, p, Math.max(1, p / 2));
+  }
+  ctx.restore();
+}
+
+/** Scorched deck where a fire burnt out: black char, ragged, a few grey ash flecks. Safe to stand on. */
+export function drawScorch(ctx: Ctx, x: number, y: number, w: number, h: number, row: number, col: number) {
+  const p = Math.max(2, Math.round(w / 16)), n = Math.floor(w / p);
+  const hh = (a: number, b: number) => { let v = Math.imul(a * 73856093 ^ b * 19349663 ^ (row * 31 + col) * 83492791, 0x27d4eb2f); v ^= v >>> 15; return ((v >>> 0) % 1000) / 1000; };
+  ctx.save();
+  for (let j = 1; j < n - 1; j++) for (let i = 1; i < n - 1; i++) {
+    const d = Math.hypot(i - n / 2, j - n / 2) / (n / 2), v = hh(i, j);
+    if (d + v * 0.45 > 1.05) continue;
+    ctx.globalAlpha = 0.75 - d * 0.3; ctx.fillStyle = v > 0.93 ? '#8a8f94' : v > 0.5 ? '#14110f' : '#241c18';
+    ctx.fillRect(Math.round(x + i * p), Math.round(y + j * p), p, p);
   }
   ctx.restore();
 }

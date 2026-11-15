@@ -103,7 +103,7 @@ const chapterFile = z.object({
 }).strict();
 const DIRS = ['north', 'south', 'east', 'west', 'up', 'down', 'in', 'out'] as const;
 /** A drawn arena: rectangular, known characters, one player start, enemy starts the player can reach. */
-function arenaProblems(id: string, rows?: string[]): string[] {
+function arenaProblems(id: string, rows?: string[], sources = false): string[] {
   if (!rows) return [`map ${id}: a fight room needs an arena`];
   const out: string[] = [];
   const w = rows[0].length;
@@ -115,7 +115,7 @@ function arenaProblems(id: string, rows?: string[]): string[] {
   if (P.length !== 1) out.push(`map ${id}: arena needs exactly one P`);
   if (!E.length) out.push(`map ${id}: arena needs at least one E`);
   if (out.length) return out;
-  const solid = (r: number, c: number) => '~#dnp?o'.includes(rows[r][c]);
+  const solid = (r: number, c: number) => '~#dnp?oF'.includes(rows[r][c]);
   const seen = new Set([P[0].join(',')]); const queue = [P[0]];
   while (queue.length) {
     const [r, c] = queue.shift()!;
@@ -126,6 +126,12 @@ function arenaProblems(id: string, rows?: string[]): string[] {
     }
   }
   for (const e of E) if (!seen.has(e.join(','))) out.push(`map ${id}: enemy start ${e.join(',')} can't be reached from P`);
+  if (!sources) return out;
+  // Chapter one: hazards sit by what makes them: fire within 2 tiles of a fuel drum (F), live cable within 2 of a pump (p), bilge pooled (touching more bilge)
+  const near = (r: number, c: number, ch: string, d: number) => at(ch).some(([rr, cc]) => Math.max(Math.abs(rr - r), Math.abs(cc - c)) <= d);
+  for (const [r, c] of at('f')) if (!near(r, c, 'F', 2)) out.push(`map ${id}: fire at ${r},${c} needs a fuel drum (F) within 2 tiles`);
+  for (const [r, c] of at('c')) if (!near(r, c, 'p', 2)) out.push(`map ${id}: live cable at ${r},${c} needs a pump (p) within 2 tiles`);
+  for (const [r, c] of at('b')) if (!at('b').some(([rr, cc]) => Math.abs(rr - r) + Math.abs(cc - c) === 1)) out.push(`map ${id}: bilge at ${r},${c} should pool (touch more bilge)`);
   return out;
 }
 const OPPOSITE: Record<string, string> = { up: 'down', down: 'up', north: 'south', south: 'north', east: 'west', west: 'east', in: 'out', out: 'in' };
@@ -417,7 +423,7 @@ export function checkContent(): string[] {
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
       if (r.server && (r.threat === undefined || r.threat % 5 !== 0 || r.id === m.end)) problems.push(`map ${r.id}: a server belongs in a boss room (threat 5, 10 or 20; it wakes once the boss is beaten), not the chapter's end`);
       if (r.server && !r.quiet) problems.push(`map ${r.id}: a boss room with a server needs quiet text for once the boss is beaten`);
-      if (r.threat !== undefined) { problems.push(...arenaProblems(r.id, r.arena)); (r.arenas ?? []).forEach((a, k) => problems.push(...arenaProblems(`${r.id} (layout ${k + 2})`, a))); }
+      if (r.threat !== undefined) { const src = mapName === 'indian-ocean'; problems.push(...arenaProblems(r.id, r.arena, src)); (r.arenas ?? []).forEach((a, k) => problems.push(...arenaProblems(`${r.id} (layout ${k + 2})`, a, src))); }
       else if (r.arena || r.arenas) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);
       if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);

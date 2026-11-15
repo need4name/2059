@@ -30,3 +30,9 @@ The working list. Chapter one first; everything from chapter two on is framework
 ## To talk about (after the combat-feel pass and the drop analysis)
 
 - **Intrinsic and extrinsic motivation:** what makes the player want to keep playing for its own sake, against what the game hands out (points, parts, unlocks). A conversation before anything is built.
+
+## Hazards, next
+
+- Generated boards (fights outside map rooms) still scatter hazards without sources.
+- Enemies don't yet shove you into fuel drums on purpose.
+- Chapter two on: pumps shorting into live cable, decks cracking under heavy blows, bodies going through split decking into the sea.

@@ -1837,3 +1837,31 @@ test('at sea the board edge is a drop: knocked off it you go in; elsewhere the e
   const out = Fight.playerConditions(sea);
   assert.ok(out.state.grid.playerPosition.row < base.grid.rows && !out.state.playerSwimming);
 });
+
+test('fuel drums burst into fire when slammed into or struck; fires burn out, sooner in rain', () => {
+  const b0 = fight({ grid: arena([6, 3], [4, 3]) });
+  const drum = (s: FightState, r: number, c: number) => ({ ...s, grid: { ...s.grid, tiles: s.grid.tiles!.map((row, ri) => row.map((t, ci) => (ri === r && ci === c ? { type: 'obstacle' as const, art: 'fuel', name: 'Fuel drum' } : t))) } });
+  const base = { ...b0, foes: [{ ...b0.foes[0], unit: { ...b0.foes[0].unit, traits: [], maxHp: 400, currentHp: 400 } }] };
+  // The enemy at 4,3 is knocked up into a drum at 3,3: the drum goes up, and the deck beside it
+  const s = drum(base, 3, 3);
+  const events: Fight.FightEvent[] = [];
+  const after = Fight.knockBack(s, { row: 5, col: 3 }, { kind: 'foe', i: 0 }, 20, events);
+  assert.ok(events.some(e => e.kind === 'burst'));
+  assert.equal(after.grid.tiles![3][3].type, 'hazard');
+  assert.equal(after.grid.tiles![3][2].type, 'hazard', 'fire spills onto open deck beside it');
+  assert.equal(after.grid.tiles![4][3].type, 'hazard', 'and under whoever was slammed into it');
+  assert.ok(after.foes[0].burning > 0, 'who is caught in it');
+  // A blow whose shape lands on a drum bursts it too
+  const hit: CombatAction = { type: 'attack', name: 'Sweep', description: '', damage: 10, accuracy: 'precise', attackPattern: 'sweep_arc' };
+  const struck = Fight.resolvePlayerAttack(drum({ ...base, grid: { ...base.grid, playerPosition: { row: 5, col: 3 } } }, 4, 2), hit, 'none');
+  if (struck.events.some(e => e.kind === 'strike' && e.tiles.some(t => t.row === 4 && t.col === 2))) assert.equal(struck.state.grid.tiles![4][2].type, 'hazard');
+  // Burning out: FIRE.spill rounds, then scorched deck; rain is twice as fast
+  let dry: FightState = after, wet: FightState = { ...after, grid: { ...after.grid, rain: true } };
+  for (let k = 0; k < Fight.FIRE.spill; k++) dry = Fight.fireTick(dry).state;
+  assert.equal(dry.grid.tiles![3][3].type, 'empty'); assert.ok(dry.grid.tiles![3][3].scorched);
+  for (let k = 0; k < Math.ceil(Fight.FIRE.spill / 2); k++) wet = Fight.fireTick(wet).state;
+  assert.equal(wet.grid.tiles![3][3].type, 'empty', 'rain puts it out sooner');
+  // A room's own fires last longer
+  const lit = Fight.lightFires(arena([6, 3], [4, 3], [2, 2, 8]));
+  assert.equal(lit.tiles![2][2].burns, undefined, 'a hazard with no fire art has no clock');
+});
