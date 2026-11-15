@@ -89,7 +89,17 @@ export interface Perks {
   feedback: number;           // heat added to an enemy whose structure you break
   failSafe: number;           // share of their strength your implants keep while your structure is broken
   steadyHands: number;        // this much less chance of a misfire while malfunctioning
-  shortCircuit: boolean;      // your misfire shocks every enemy beside you
+  shortCircuit: boolean;
+  triage: number;             // a turn you don't attack heals this share of max health
+  lastWord: boolean;          // whatever killed your last host starts its next fight with half its structure
+  ventStep: boolean;          // bracing hot lets you step after
+  controlledBurn: boolean;    // once a fight, overheating sets enemies beside you alight
+  backstabStep: boolean;      // a kill from behind gives a free step
+  braceShove: boolean;        // Brace pushes enemies beside you back
+  riposte: boolean;           // after a defensive move, no parting blow next turn
+  jam: boolean;               // hitting a malfunctioning enemy makes its next move misfire
+  carry: boolean;             // ending beside a knocked-out ally gets it up next round
+  stripTwice: boolean;        // once per host, one more part from a won fight      // your misfire shocks every enemy beside you
   reboot: number;             // once a fight, this share of structure comes back the turn after it breaks
   sealed: number;             // share of normal mending you keep with structure broken
   climbMult: number;          // what climbing out of the water costs
@@ -127,7 +137,7 @@ export const NO_PERKS: Perks = {
   specialHeatTakenMult: 1, startOverload: 0, partSpeed: 0,
   secondWind: 0, mendRepairs: false, hotCrit: 0, burnoutMult: 1, firstStrikeBonus: 0, flankSide: 0, flankBack: 0, critDamage: 0,
   defendMult: 1, defendCool: 0, afterDefend: 0, braceGuard: 0, braceFree: false,
-  structureDamage: 0, exploit: 0, seizeUp: false, feedback: 0, failSafe: 0, steadyHands: 0, shortCircuit: false, reboot: 0, sealed: 0, climbMult: 1,
+  structureDamage: 0, exploit: 0, seizeUp: false, feedback: 0, failSafe: 0, steadyHands: 0, shortCircuit: false, triage: 0, lastWord: false, ventStep: false, controlledBurn: false, backstabStep: false, braceShove: false, riposte: false, jam: false, carry: false, stripTwice: false, reboot: 0, sealed: 0, climbMult: 1,
   allyGetUp: 0, coordinatedBonus: 0, dropChance: 0, rarityUp: 0, stimChance: 0, creditMult: 1, marketExtra: 0, secondChance: false,
   firmwareDamage: 0, firmwareHeatCut: 0, fwPointRate: 1, crossLoad: false, coldBlood: 0, hotHands: 0, coverStep: 0,
 };

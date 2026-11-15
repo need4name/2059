@@ -173,6 +173,8 @@ moveSpent: boolean;
 holdfastSpent: boolean;
 /** Second chance (memory): this host has had its one re-roll of a dropped implant. */
 secondChanceSpent: boolean;
+/** Strip twice (memory) used by this host. */
+stripTwiceSpent: boolean;
 /** Swap a part on a beaten body for another roll of the same slot and grade (Second chance: once a host). */
 rerollPart: (itemId: string) => void;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
@@ -442,6 +444,8 @@ const { runSeed, progression } = get();
 {
   const s = get(), last = s.fx[s.fx.length - 1]?.strikes[0];
   const tile = s.grid.tiles?.[s.grid.playerPosition.row]?.[s.grid.playerPosition.col];
+  // Last word (memory): remember what did it
+  { const k = s.actingFoe !== null ? s.foes[s.actingFoe] : s.foes.find(f => Fight.isAlive(f)); usePlayi.getState().rememberKiller(k?.unit.name ?? null); }
   usePlayi.getState().hostLost(causeOf({
     heat: s.playerHeat, by: s.playerSwimming ? 'sea' : tile?.type === 'hazard' ? 'hazard' : last?.heavy ? 'heavy' : 'other',
     structureBroken: s.player.maxStructuralHp > 0 && s.player.currentStructuralHp <= 0, rounds: s.round, allyDown: s.allies.some(a => !Fight.allyAlive(a)),
@@ -475,7 +479,10 @@ if (luck.dropChance > 0 && random() < luck.dropChance) {
 const direct = loot.items.map(mark);
 // Strip the bodies: every beaten enemy's implants, to choose from (two picks with Pick of the wreck)
 const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteColor, items: (f.unit.carried ?? []).map(mark) })).filter(b => b.items.length);
-const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + strainPicks(useStrain.getState().active), taken: [] } : null;
+// Strip twice (memory): once per host, one more part
+const stripBonus = bodies.length > 0 && usePlayi.getState().perks().stripTwice && !get().stripTwiceSpent;
+if (stripBonus) set({ stripTwiceSpent: true });
+const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + (stripBonus ? 1 : 0) + strainPicks(useStrain.getState().active), taken: [] } : null;
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
@@ -527,6 +534,8 @@ useAudio.getState().playSuccess();
 
 // After the player's action resolves: hazard tick, then either a bonus
 // action (double action) or the enemy's turn.
+// The step a Reflex loop opens ends the action; after a Brace (Vent step) it earns no second action
+let reflexDouble = true;
 const finishPlayerAction = (allowDouble: boolean) => {
 if (overAt === get().fightId) return; // the fight is over: only its ending plays
 set({ reflexMoveOpen: false });
@@ -674,7 +683,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false, secondChanceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
 hostBestThreat: 0,
 });
 place();
@@ -727,7 +736,9 @@ const strain = useStrain.getState().active;
 setLootLuck(perks.rarityUp);
 // No repeats while there's something new to find: what you already own (fitted or spare) is far less likely to turn up
 { const inv = useInventory.getState(); setLootOwned([...Object.values(inv.equippedAugmentations), ...inv.items].flatMap(i => (i && i.type === 'augmentation' ? [i.templateId ?? i.id] : []))); }
-const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
+const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain))
+  // Last word (memory): whatever killed the last host comes into this fight with half its structure
+  .map(u => (perks.lastWord && u.name === usePlayi.getState().lastKiller ? { ...u, currentStructuralHp: Math.ceil(u.maxStructuralHp / 2) } : u));
 // The Count brings a copy of itself (Boss twists in DESIGN.md)
 // The Weather flies with a lead drone (Boss twists in DESIGN.md)
 if (planned.some(u => u.name === 'The Weather')) planned.push(createBoss(level, false, 'Seeding Drone', 'normal'));
@@ -834,7 +845,7 @@ const held = heldStart;
 heldStart = null;
 if (held && held.fightId === get().fightId && isFightPhase(get().phase)) held.begin();
 },
-holdfastSpent: false, secondChanceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
 strip: null,
 combatLog: [],
 playerDefenseBoost: 0,
@@ -980,7 +991,7 @@ endTurn: () => {
 const { selectedAction, phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
 if (get().allyTurn !== null) { log(`-- ${get().allies[get().allyTurn!]?.unit.name ?? 'Ally'} waits --`); endAllyTurn(); return; }
-if (get().reflexMoveOpen) { set({ inputLocked: true }); finishPlayerAction(true); return; }
+if (get().reflexMoveOpen) { set({ inputLocked: true }); const d = reflexDouble; reflexDouble = true; finishPlayerAction(d); return; }
 if (!selectedAction) {
 set({ inputLocked: true });
 log('-- PASS --');
@@ -1023,7 +1034,11 @@ if (action.defend && !Fight.canDefend(fightState(), action, get().hasMoved)) ret
 const aimAt = get().aim;
 set({ inputLocked: true, selectedAction: null });
 doer = { kind: 'player', move: action.name };
+const hotBrace = action.type === 'brace' && get().playerHeat >= Fight.HEAT.ventAt;
 if (!apply(action.defend ? Fight.resolveDefend(fightState(), action, aimAt) : Fight.resolveBrace(fightState(), action))) save(Fight.reloadGun(fightState()));
+else return;
+// Vent step (memory): bracing hot, you may step a tile after
+if (get().perks.ventStep && hotBrace) { log('VENT STEP -- step 1 tile, or pass'); reflexDouble = false; set({ reflexMoveOpen: true, inputLocked: false }); return; }
 finishPlayerAction(false);
 return;
 }
@@ -1046,7 +1061,9 @@ return;
 // Reflex loop: attacked without moving? Step one tile, or pass
 // (Hit and fade: an attack made while warm, 36-60, opens the step too, moved or not)
 const fade = get().perks.hitAndFade && heatBefore >= 36 && heatBefore <= 60;
-if ((get().perks.reflexMove && !get().hasMoved) || fade) {
+// (Backstab step: a kill from behind opens the step as well)
+const backstab = step.events.some(e => e.kind === 'freeStep');
+if ((get().perks.reflexMove && !get().hasMoved) || fade || backstab) {
 log('REFLEX LOOP -- step 1 tile, or pass');
 set({ reflexMoveOpen: true, inputLocked: false });
 return;
@@ -1259,7 +1276,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false, secondChanceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
 hostBestThreat: 0,
 });
 },

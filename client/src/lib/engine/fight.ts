@@ -131,6 +131,8 @@ export interface Foe {
   hasted?: number;
   /** A boss has passed its half-health turn. */
   enraged: boolean;
+  /** Jam (memory): its next move misfires for certain. */
+  jammed?: boolean;
   /** The Patchwork King only: the parts still bolted on (see The Patchwork King). */
   parts?: KingPartId[];
   /** A boss's twist (Boss twists in DESIGN.md): 'fade' falls back a tile after each of its turns when you're close. */
@@ -248,7 +250,7 @@ export interface FightState {
   /** The enemy Ghostline has spotted this round: your hits (and allies') land on it as if from behind. */
   spotted?: number | null;
   /** Once-a-fight things the memory network gives: Second wind spent, Reboot owed or spent, the next attack lifted by a defensive move. */
-  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean };
+  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean; /** Attacked this turn (Triage). */ attacked?: boolean; /** Riposte: armed by a defensive move, ready on the next turn. */ riposte?: 'armed' | 'ready'; /** Controlled burn used. */ burned?: boolean };
   /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
   king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -286,6 +288,8 @@ export type FightEvent =
   | { kind: 'misfire'; by: Body }
   /** A fuel drum burst here (for the screen and the sound). */
   | { kind: 'burst'; at: TilePosition }
+  /** Backstab step (memory): a kill from behind earned a free step. */
+  | { kind: 'freeStep' }
   /** For the screen only: a blow thrown, by whom, from where, at what, over which tiles, in which shape (the fight plays it back). */
   | { kind: 'strike'; by: Body; from: TilePosition; aim: TilePosition; tiles: TilePosition[]; pattern: AttackPatternType; physical: number; name: string; heavy?: boolean };
 
@@ -1427,6 +1431,16 @@ export function startAllyTurn(s: FightState, k: number): Step & { skipTurn: bool
  *  lifts the stun guard (a stun that cost this turn keeps it on through the next one). */
 export function endPlayerTurn(s0: FightState): FightState {
   let s = s0;
+  // Triage (memory): a turn without an attack mends a little (and the frame with it, with Knitting frame)
+  if ((s.perks.triage ?? 0) > 0 && !s.memo?.attacked && s.player.currentHp > 0) {
+    const heal = Math.min(s.player.maxHp - s.player.currentHp, Math.max(1, Math.round(s.player.maxHp * s.perks.triage)));
+    const fix = s.perks.mendRepairs ? Math.min(s.player.maxStructuralHp - s.player.currentStructuralHp, Math.max(1, Math.round(s.player.maxHp * s.perks.triage))) : 0;
+    s = { ...s, player: { ...s.player, currentHp: s.player.currentHp + Math.max(0, heal), currentStructuralHp: s.player.currentStructuralHp + Math.max(0, fix) }, playerMalfunctioning: s.playerMalfunctioning && s.player.currentStructuralHp + fix <= 0 };
+  }
+  // Carry (memory): a knocked-out ally you end beside gets up next round
+  if (s.perks.carry && !s.playerSwimming) s = { ...s, allies: s.allies.map(a => (!allyAlive(a) && chebyshev(a.pos, s.grid.playerPosition) === 1 ? { ...a, downed: 1 } : a)) };
+  // Riposte (memory): armed by a defensive move this turn, it's ready for the next; unused, it's gone
+  s = { ...s, memo: { ...s.memo, attacked: false, riposte: s.memo?.riposte === 'armed' ? 'ready' : undefined } };
   // Cold blood (memory): end a turn cool and mend a little
   if ((s.perks.coldBlood ?? 0) > 0 && s.playerHeat <= 35 && s.player.currentHp > 0 && s.player.currentHp < s.player.maxHp)
     s = { ...s, player: { ...s.player, currentHp: Math.min(s.player.maxHp, s.player.currentHp + Math.max(1, Math.round(s.player.maxHp * s.perks.coldBlood))) } };
@@ -1466,6 +1480,12 @@ export function burnout(s: FightState, events: FightEvent[]): FightState {
   const hurt = Math.max(1, Math.round(s.player.maxHp * HEAT.burnoutHp * s.perks.damageTakenMult * (s.perks.burnoutMult ?? 1)));
   events.push(say(`BURNOUT -- -${hurt} health, heat bursts out`, 'critical'));
   let state = heatBurst(s, HEAT.burnoutVent, events, 'Burnout');
+  // Controlled burn (memory): once a fight, the burst sets everyone beside you alight
+  if (s.perks.controlledBurn && !s.memo?.burned) {
+    state.foes.forEach((f, i) => { if (isAlive(f) && !f.swimming && chebyshev(f.pos, state.grid.playerPosition) === 1) state = setFoe(state, i, { burning: BURN.turns }); });
+    state = { ...state, memo: { ...state.memo, burned: true } };
+    events.push(say('Controlled burn: everything beside you catches', 'critical'));
+  }
   const hp = Math.max(0, state.player.currentHp - hurt);
   if (hp <= 0) events.push({ kind: 'playerDown' });
   state = { ...state, player: { ...state.player, currentHp: hp }, playerHeat: HEAT.burnoutLeft, playerStunned: s.perks.runaway ? state.playerStunned : true };
@@ -1520,10 +1540,16 @@ export function resolveBrace(s: FightState, action: CombatAction): Step {
     playerDefenseBoost: Math.round((action.defenseBoost || 8) * (s.perks.defendMult ?? 1)) + (s.perks.braceGuard ?? 0),
     playerMalfunctioning: player.maxStructuralHp > 0 && structure <= 0,
     playerHeat: clampHeat(heat - (s.perks.defendCool ?? 0)),
-    memo: s.perks.afterDefend > 0 ? { ...s.memo, afterDefend: true } : s.memo,
+    memo: { ...s.memo, ...(s.perks.afterDefend > 0 ? { afterDefend: true } : {}), ...(s.perks.riposte ? { riposte: 'armed' as const } : {}) },
   };
   // Venting from high heat: the heat let out hits every enemy beside you
   if (s.playerHeat >= HEAT.ventAt && s.playerHeat > heat) state = afterFoeChanges(heatBurst(state, (s.playerHeat - heat) * s.perks.ventMult, events, 'Vent burst'), events);
+  // Brace and shove (memory): everyone beside you goes back a tile
+  if (s.perks.braceShove) {
+    const me = state.grid.playerPosition;
+    state.foes.forEach((f, i) => { if (isAlive(state.foes[i]) && !f.swimming && chebyshev(state.foes[i].pos, me) === 1) state = knockBack(state, me, { kind: 'foe', i }, 0, events); });
+    state = afterFoeChanges(state, events);
+  }
   // Holding your ground builds toward the Surge
   state = gainOverload(state, BRACE_OVERLOAD);
   return { state, events };
@@ -1698,7 +1724,7 @@ export function resolveDefend(s: FightState, action: CombatAction, aim: TilePosi
   if (d.cleanse) said.push('bleeding and burning stopped');
   events.push(say(`${action.name}${said.length ? ` -- ${said.join(', ')}` : ''}`, said.length ? 'heal' : 'info'));
   // Cool head and Counterweight (memory): any defensive move sheds a little heat and lifts the next attack
-  state = { ...state, playerHeat: clampHeat(state.playerHeat + (action.heatGenerated ?? 0) - (s.perks.defendCool ?? 0)), memo: (s.perks.afterDefend ?? 0) > 0 ? { ...state.memo, afterDefend: true } : state.memo };
+  state = { ...state, playerHeat: clampHeat(state.playerHeat + (action.heatGenerated ?? 0) - (s.perks.defendCool ?? 0)), memo: { ...state.memo, ...((s.perks.afterDefend ?? 0) > 0 ? { afterDefend: true } : {}), ...(s.perks.riposte ? { riposte: 'armed' as const } : {}) } };
   if (d.haste) state = { ...state, playerHasted: 2 };
   if (d.overload) state = gainOverload(state, d.overload);
   const to = defendStep(s, action);
@@ -2048,6 +2074,7 @@ function resolvePlayerAttackRaw(s: FightState, action: CombatAction, playerClass
     state = setFoe(state, i, {
       unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure },
       malfunctioning: structure <= 0, defenseBoost: 0, heat, ...(broke && s.perks.seizeUp && hp > 0 ? { stunned: true } : {}),
+      ...(s.perks.jam && foe.malfunctioning && hp > 0 ? { jammed: true } : {}),
     });
     if (broke && s.perks.seizeUp && hp > 0) events.push(say(`${foe.unit.name} seizes up`, 'critical'));
     state = gainOverload(state, (dmg.bioDamage / Math.max(1, foe.unit.maxHp)) * OVERLOAD.dealt);
@@ -2331,7 +2358,7 @@ export function secondGoDamage(s: FightState, level: number, twice: number[]): n
 
 /** What walking from `from` to `to` costs in parting blows (enemies beside you that you'd step away from). */
 export function partingDamage(s: FightState, from: TilePosition, to: TilePosition, level: number): number {
-  if (s.noParting) return 0;
+  if (s.noParting || s.memo?.riposte === 'ready') return 0;
   let total = 0;
   for (const i of partingFoes(s, from, to)) {
     const f = s.foes[i];
@@ -2574,8 +2601,8 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
 /** The foe's action itself, once start-of-turn effects are done. */
 function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
   // Broken, its moves misfire: whatever it was about to do fizzles (a wound-up heavy is lost), and it can only walk
-  if (s.foes[i].malfunctioning && random() < (s.foes[i].unit.elite || s.foes[i].unit.enrage ? MISFIRE.boss : MISFIRE.foe)) {
-    const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null, pendingAim: null });
+  if (s.foes[i].jammed || (s.foes[i].malfunctioning && random() < (s.foes[i].unit.elite || s.foes[i].unit.enrage ? MISFIRE.boss : MISFIRE.foe))) {
+    const state = setFoe(s, i, { jammed: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null, pendingAim: null });
     return { state, events: [say(`${s.foes[i].unit.name}: MISFIRE`, 'malfunction'), { kind: 'misfire', by: { kind: 'foe', i } }], walkAfter: true };
   }
   if (s.foes[i].pendingAction) {
@@ -2740,7 +2767,7 @@ export function partingFoes(s: FightState, from: TilePosition, to: TilePosition)
 export function partingBlows(s: FightState, from: TilePosition, level: number): Step {
   let state = s;
   const events: FightEvent[] = [];
-  if (s.noParting) return { state, events };
+  if (s.noParting || s.memo?.riposte === 'ready') return { state, events };
   for (const i of partingFoes(s, from, s.grid.playerPosition)) {
     if (!isAlive(state.foes[i])) continue;
     events.push(say(`${state.foes[i].unit.name} catches you as you pull away`, 'critical'));
@@ -3156,7 +3183,12 @@ function withBursts(step: Step): Step {
   return state === step.state ? step : { state, events };
 }
 export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
-  return withBursts(resolvePlayerAttackRaw(s, action, playerClass, aim));
+  const step = withBursts(resolvePlayerAttackRaw(s, action, playerClass, aim));
+  if (step.events.some(e => e.kind === 'misfire')) return step;
+  const events = [...step.events];
+  // Backstab step (memory): a kill from behind earns a free step
+  if (s.perks.backstabStep && s.foes.some((f, i) => isAlive(f) && step.state.foes[i] && !isAlive(step.state.foes[i]) && flankOn(s, s.grid.playerPosition, { kind: 'foe', i }) >= FLANK.back)) events.push({ kind: 'freeStep' });
+  return { state: { ...step.state, memo: { ...step.state.memo, attacked: true } }, events };
 }
 export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i), aim: TilePosition | null = null): Step {
   return withBursts(resolveFoeActionRaw(s, i, action, level, victim, aim));

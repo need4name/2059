@@ -77,7 +77,7 @@ test('what the last host taught is a point cheaper, never free', () => {
   assert.equal(M.priceOf(withPoints(5, {}, 'combat'), 'c5'), 3);
   assert.equal(M.priceOf(withPoints(5, {}, 'heat'), 'c5'), 4);
   assert.equal(M.priceOf(withPoints(5, {}, 'heat'), 'p1'), 1, 'a one-point neuron stays one');
-  assert.equal(M.priceOf(withPoints(5, { j2: 0 }, 'combat'), 'j2'), 1);
+  assert.equal(M.priceOf(withPoints(5, { j1: 0 }, 'guard'), 'j1'), 1);
 });
 
 test('kept ranks add up to perks', () => {
@@ -184,4 +184,35 @@ test('the preview of a blow counts what the memory adds to it', () => {
   const plain = Fight.estimateHit(base, hit, 'none', base.foes[0].pos, 0)!;
   const lifted = Fight.estimateHit({ ...base, firstStrikeUsed: false, perks: { ...NO_PERKS, firstStrikeBonus: 0.5 } }, hit, 'none', base.foes[0].pos, 0)!;
   assert.ok(lifted.max > plain.max);
+});
+
+test('options over numbers: Triage, Brace and shove, Riposte, Jam, Controlled burn, Carry, Backstab step', () => {
+  const brace: CombatAction = { type: 'brace', name: 'Brace', description: '', defenseBoost: 8, heatGenerated: -25 };
+  // Triage: a turn without an attack mends
+  const hurt = fight({ perks: { ...NO_PERKS, triage: 0.05 } });
+  const low = { ...hurt, player: { ...hurt.player, currentHp: 50 } };
+  assert.ok(Fight.endPlayerTurn(low).player.currentHp > 50);
+  assert.equal(Fight.endPlayerTurn({ ...low, memo: { attacked: true } }).player.currentHp, 50, 'not after attacking');
+  // Brace and shove: an enemy beside you goes back a tile
+  const s = fight({ perks: { ...NO_PERKS, braceShove: true } });
+  const me = s.grid.playerPosition, beside = { row: me.row - 1, col: me.col };
+  const near = { ...s, foes: [{ ...s.foes[0], pos: beside }] };
+  assert.equal(Fight.resolveBrace(near, brace).state.foes[0].pos.row, beside.row - 1);
+  // Riposte: armed by a defensive move, ready next turn, then gone
+  const r = Fight.resolveBrace(fight({ perks: { ...NO_PERKS, riposte: true } }), brace).state;
+  assert.equal(r.memo?.riposte, 'armed');
+  const next = Fight.endPlayerTurn(r);
+  assert.equal(next.memo?.riposte, 'ready');
+  assert.equal(Fight.partingFoes({ ...next, foes: [{ ...next.foes[0], pos: beside }] }, me, { row: me.row + 2, col: me.col }).length > 0 && Fight.partingBlows({ ...next, foes: [{ ...next.foes[0], pos: beside }] }, me, 1).events.length, 0, 'no parting blow');
+  assert.equal(Fight.endPlayerTurn(next).memo?.riposte, undefined);
+  // Jam: hitting a malfunctioning enemy makes its next move misfire for certain
+  const j = fight({ perks: { ...NO_PERKS, jam: true } });
+  const broken = { ...j, foes: [{ ...j.foes[0], pos: beside, malfunctioning: true, unit: { ...j.foes[0].unit, currentStructuralHp: 0, maxHp: 500, currentHp: 500 } }] };
+  const hitIt = Fight.resolvePlayerAttack({ ...broken, firstStrikeUsed: true }, hit, 'none').state;
+  assert.ok(hitIt.foes[0].jammed);
+  for (let n = 0; n < 10; n++) { seedRandom(n + 1); assert.ok(Fight.foeTurn(hitIt, 0, 1).events.some(e => e.kind === 'misfire')); }
+  // Controlled burn: once a fight, a burnout sets everyone beside you alight
+  const b = fight({ playerHeat: 100, perks: { ...NO_PERKS, controlledBurn: true } });
+  const out = Fight.burnout({ ...b, foes: [{ ...b.foes[0], pos: beside, unit: { ...b.foes[0].unit, maxHp: 500, currentHp: 500 } }] }, []);
+  assert.ok(out.foes[0].burning > 0 && out.memo?.burned);
 });

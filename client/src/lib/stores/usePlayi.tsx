@@ -16,12 +16,17 @@ interface PlayiState extends M.MemoryState {
   /** The implants the last host was wearing when the signal left it (the Echo wears them). */
   lastBody: Item[];
   rememberBody: (items: Item[]) => void;
+  /** What killed the last host (Last word). */
+  lastKiller: string | null;
+  rememberKiller: (name: string | null) => void;
   reset: () => void;
 }
 
 export const usePlayi = create<PlayiState>()(persist((set, get) => ({
   ...M.newMemory(),
   lastBody: [],
+  lastKiller: null,
+  rememberKiller: (name) => set({ lastKiller: name }),
 
   hostLost: (cause) => set(M.hostLost({ points: get().points, ranks: get().ranks, taught: get().taught }, cause)),
   learn: (id, hasAlly) => {
@@ -34,7 +39,7 @@ export const usePlayi = create<PlayiState>()(persist((set, get) => ({
   perks: () => M.memoryPerks(get().ranks),
 
   rememberBody: (items) => set({ lastBody: items }),
-  reset: () => set({ ...M.newMemory(), lastBody: [] }),
+  reset: () => set({ ...M.newMemory(), lastBody: [], lastKiller: null }),
 }), {
   name: '2059-playi', storage: createJSONStorage(() => saveStorage), version: 3,
   // Version 3 is the memory network: the old tree's cards don't carry over

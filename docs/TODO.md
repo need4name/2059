@@ -32,7 +32,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 Rules: strategy first (chapters get harder by asking for better play); death is the signal waking up (more to do, a little more strength); the player should feel they got better; host count is the score, not a gate; difficulty settings.
 
 1. Re-aim the balance: a spread by skill. Measured with the expert bot (`npm run sim:expert`): King on host 5 against 8 for the average bot. The scripted first death stays and counts. Still to do: a struggling-player measure, and tuning toward expert about 4.
-2. Audit the memory network: options over numbers. List first, changes after the owner has seen it.
+2. Memory network, options over numbers: ten swaps built. Seven more need a button or a screen, so mockups first: Bleed off (spend health to act again), Old debts (trade a spare at the Grey Lane), Opening read (see where enemies will stand), Follow through (turn to face after a kill), Manual override (one move can't misfire), Switch (swap places with an ally), On my mark (an ally acts right after you). Also halve the early steps of the six endless neurons.
 3. End-of-story count: hosts it took, marked with the difficulty it was earned on; best kept per chapter. Mockups first.
 4. Difficulty: Easy and Normal from the start, Hard after beating Normal; they change the enemies, never the player's rules.
 5. Challenge mode (grows out of Strain): challenges with unlock conditions that open modifiers (limited hosts, double damage, no firmware). Draft list, then mockups.
