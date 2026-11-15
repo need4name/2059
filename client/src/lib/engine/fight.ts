@@ -2606,10 +2606,10 @@ function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: bo
 }
 
 /**
- * The second half: after attacking (or when nothing reached), foe i walks. It
- * hunts: of the tiles it can reach, it ends where its attacks cover its
- * victim's tile and the tiles the victim could step to, so getting out of the
- * red takes cover or a kill rather than one free step.
+ * The second half: after attacking (or when nothing reached), foe i walks. An
+ * ordinary enemy gets into reach of its victim with the least walking; an elite
+ * or boss hunts: it ends where its attacks also cover the tiles the victim could
+ * step to, so getting out of its red takes cover or a kill.
  */
 export function foeWalk(s: FightState, i: number): Step {
   const foe = s.foes[i];
@@ -2644,12 +2644,15 @@ export function foeWalk(s: FightState, i: number): Step {
     const near = spots.filter(p => !same(p, goal)).sort((a, b) => Math.max(KING.refit, chebyshev(a, goal)) - Math.max(KING.refit, chebyshev(b, goal)) || (covers(b, prey) ? 1 : 0) - (covers(a, prey) ? 1 : 0))[0];
     if (near && chebyshev(near, goal) < chebyshev(foe.pos, goal)) return { state: setFoe(s, i, { pos: near }), events: [] };
   }
+  const hunts = !!(foe.unit.elite || foe.unit.enrage);
   let best = foe.pos, bestScore = -Infinity, onPrey = false;
   // Mud that floods at the start of next round is a bad place to stop
   const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
   for (const p of spots) {
     const hitsPrey = covers(p, prey);
-    const hits = escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0);
+    // Elites and bosses hunt: they end where they also cover the tiles you could step to. Ordinary enemies
+    // just get into reach with the least walking, so stepping out of the red is a real choice (HUNTERS).
+    const hits = hunts ? escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0) : (hitsPrey ? 10 : 0) - chebyshev(p, foe.pos) * 0.3;
     const hazard = s.grid.tiles?.[p.row]?.[p.col]?.type === 'hazard' && !hasTrait(foe, 'filtered') ? 2 : 0;
     const mud = flooding && s.grid.tiles?.[p.row]?.[p.col]?.tidal ? 12 : 0;
     const score = hits - hazard - mud - chebyshev(p, prey) * 0.05 - (same(p, foe.pos) ? 0 : 0.01);

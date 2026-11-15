@@ -5,7 +5,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 ## Combat feel (one pass: report, proposals, then build in stages)
 
 1. ~~Fights drag at the end~~ Done: enemy toughness moved into structure, broken enemies take more, misfire in. Watch it in playtests.
-2. **Enemy attack range covers too many tiles.** Too much red leaves no real choice of where to stand.
+2. **Enemy attack range.** Ordinary enemies no longer hunt the tiles you could step to (red within 2 steps of you: 29% to 22%). If it still feels too red in playtests, the next lever is narrowing shooters' shapes (bolt, pierce and ranged cover every line out to range: 26 tiles from mid-board, against 8-12 for melee).
 3. **Enemy AI.** Write down what enemies do now, then give each type its own behaviour.
 4. **Damaging tiles feel half-baked.** Each hazard needs a clear effect worth playing around.
 
@@ -18,3 +18,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 10. Chapter one balance from playtests.
 11. Story text: room text and chapter goals are placeholders.
+
+## To talk about (after the combat-feel pass)
+
+- **Intrinsic and extrinsic motivation:** what makes the player want to keep playing for its own sake, against what the game hands out (points, parts, unlocks). A conversation before anything is built.
