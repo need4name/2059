@@ -503,6 +503,34 @@ if (process.env.REDCHECK) {
   });
 }
 
+// FEEL=1: how chapter one's fights feel turn by turn: how much of the board is red, and how long enemies last
+// (and how hard they hit) before and after their structure breaks.
+const feel = { turns: 0, redShare: 0, redNear: 0, nearN: 0, wholeTurns: 0, brokenTurns: 0, lostWhole: 0, lostBroken: 0, roundsWhole: 0, roundsBroken: 0, hp: 0, st: 0, foes: 0, healed: 0, repaired: 0, lastTurns: 0, lastN: 0 };
+if (process.env.FEEL) {
+  let hpAtTurn = 0, mode: 'whole' | 'broken' | 'mixed' | null = null, seen = new WeakSet<object>(), soloTurns = 0;
+  C.subscribe((st, prev) => {
+    if (CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter) !== 0) return;
+    for (let i = 0; i < st.foes.length; i++) { const f = st.foes[i], b = prev.foes[i]; if (!b || b.unit.name !== f.unit.name || f.unit.currentHp <= 0) continue; if (f.unit.currentHp > b.unit.currentHp) feel.healed += f.unit.currentHp - b.unit.currentHp; if (f.unit.currentStructuralHp > b.unit.currentStructuralHp) feel.repaired += f.unit.currentStructuralHp - b.unit.currentStructuralHp; }
+    if ((st.phase === 'victory' || st.phase === 'defeat') && prev.phase !== st.phase) { feel.lastTurns += soloTurns; feel.lastN++; soloTurns = 0; }
+    if (!(st.phase === 'player_turn' && st.allyTurn === null && (prev.phase !== 'player_turn' || prev.allyTurn !== null))) return;
+    for (const f of st.foes) if (!seen.has(f.unit) && f.unit.currentHp === f.unit.maxHp && st.foes.every(x => x.unit.currentHp === x.unit.maxHp)) { seen.add(f.unit); feel.foes++; feel.hp += f.unit.maxHp; feel.st += f.unit.maxStructuralHp; }
+    // what the last round cost, by the state the enemies were in when it began
+    if (mode === 'whole') { feel.lostWhole += Math.max(0, hpAtTurn - st.player.currentHp) / st.player.maxHp; feel.roundsWhole++; }
+    if (mode === 'broken') { feel.lostBroken += Math.max(0, hpAtTurn - st.player.currentHp) / st.player.maxHp; feel.roundsBroken++; }
+    const live = st.foes.filter(f => f.unit.currentHp > 0);
+    if (!live.length) { mode = null; return; }
+    const broken = live.filter(f => f.unit.maxStructuralHp > 0 && f.unit.currentStructuralHp <= 0).length;
+    mode = broken === 0 ? 'whole' : broken === live.length ? 'broken' : 'mixed';
+    if (mode === 'whole') feel.wholeTurns++; if (mode === 'broken') feel.brokenTurns++;
+    soloTurns = live.length === 1 && mode === 'broken' ? soloTurns + 1 : 0;
+    hpAtTurn = st.player.currentHp;
+    const red = F.dangerTiles(st as any, false, F.doubleTurns(st as any, st.clock, 'player'));
+    let open = 0, near = 0, nearRed = 0; const pp = st.grid.playerPosition;
+    st.grid.tiles.forEach((row, r) => row.forEach((t, c) => { if (t.type === 'void' || t.type === 'obstacle') return; open++; if (Math.abs(r - pp.row) + Math.abs(c - pp.col) <= 2) { near++; if (red.has(`${r},${c}`)) nearRed++; } }));
+    feel.turns++; feel.redShare += red.size / Math.max(1, open); feel.redNear += nearRed / Math.max(1, near); feel.nearN++;
+  });
+}
+
 // ── Run and report ─────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const RUNS = Number(process.env.RUNS ?? 20), FIGHTS = Number(process.env.FIGHTS ?? 250), SKILL = Number(process.env.SKILL ?? 0.8);
@@ -668,3 +696,13 @@ if (!process.env.CHAPTER && !process.env.RUSH) {
 if (!process.env.CHAPTER && mid5.n >= 30) checks.push([`threats 4-9 with 5+ hosts lost won 88%+ (got ${pct(mid5.rate)})`, mid5.rate >= 0.88]);
 for (const [label, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
 if (args.includes('--check') && checks.some(([, ok]) => !ok)) process.exit(1);
+
+if (process.env.FEEL) {
+  const p2 = (n: number) => `${Math.round(n * 100)}%`;
+  console.log(`\nFEEL (chapter one)`);
+  console.log(`red share of open tiles, avg per turn: ${p2(feel.redShare / feel.turns)}; of tiles within 2 steps of you: ${p2(feel.redNear / feel.nearN)}`);
+  console.log(`turns with every enemy whole: ${feel.wholeTurns}; with every living enemy broken: ${feel.brokenTurns} (${p2(feel.brokenTurns / feel.turns)} of all turns)`);
+  console.log(`health you lose a round: enemies whole ${p2(feel.lostWhole / feel.roundsWhole)}; all broken ${p2(feel.lostBroken / feel.roundsBroken)}`);
+  console.log(`enemy avg health ${Math.round(feel.hp / feel.foes)}, structure ${Math.round(feel.st / feel.foes)}; enemy healing all told ${feel.healed}, structure repaired ${feel.repaired} over ${feel.foes} enemies`);
+  console.log(`turns spent at the end of a fight on one last broken enemy: ${(feel.lastTurns / feel.lastN).toFixed(1)} a fight`);
+}
