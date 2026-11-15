@@ -1757,3 +1757,28 @@ test('misfire: a broken host\'s implant moves can fizzle; Strike never does; Ste
   assert.ok(Fight.misfireChance({ ...broken, perks: { ...broken.perks, steadyHands: 0.2 } }) < Fight.misfireChance(broken));
   assert.equal(Fight.BROKEN_TAKES, 1.5);
 });
+
+test('hazards: each kind does its own thing on top of the damage, to you and to enemies', () => {
+  const b0 = fight();
+  // An enemy without a nose filter, so hazards reach it
+  const base = { ...b0, foes: [{ ...b0.foes[0], unit: { ...b0.foes[0].unit, traits: [] } }] };
+  const on = (s: FightState, art: string, at: { row: number; col: number }) => ({ ...s, grid: { ...s.grid, tiles: s.grid.tiles!.map((r, ri) => r.map((t, ci) => (ri === at.row && ci === at.col ? { ...t, type: 'hazard' as const, art, name: art, hazardDamage: 4 } : t))) } });
+  const pp = base.grid.playerPosition, fp = base.foes[0].pos;
+  // Damage is a share of max health (or the tile's own, if more)
+  const hurt = Fight.applyPlayerHazard(on(base, 'hole', pp)).state;
+  assert.equal(base.player.currentHp - hurt.player.currentHp, Math.max(4, Math.round(base.player.maxHp * Fight.HAZARD.share)));
+  assert.ok((Fight.applyPlayerHazard(on(base, 'fire', pp)).state.playerBurning ?? 0) > 0, 'fire sets you alight');
+  assert.ok(Fight.applyPlayerHazard(on(base, 'cable', pp)).state.playerStunned, 'a live cable stuns');
+  assert.ok((hurt.playerSlowed ?? 0) > 0, 'split decking slows');
+  const eaten = Fight.applyPlayerHazard(on({ ...base, player: withImplants() }, 'chem', pp)).state;
+  assert.ok(eaten.player.currentStructuralHp < 10, 'bilge eats structure');
+  assert.ok(eaten.playerMalfunctioning, 'and can break it');
+  // Enemies too
+  const fs = Fight.applyFoeHazard(on(base, 'cable', fp), 0).state;
+  assert.ok(fs.foes[0].stunned);
+  const fc = Fight.applyFoeHazard(on(base, 'chem', fp), 0).state;
+  assert.ok(fc.foes[0].unit.currentStructuralHp < base.foes[0].unit.currentStructuralHp);
+  // Sealed: no damage, no effect
+  const sealed = Fight.applyPlayerHazard(on({ ...base, perks: { ...base.perks, hazardMult: 0 } }, 'cable', pp)).state;
+  assert.ok(!sealed.playerStunned);
+});

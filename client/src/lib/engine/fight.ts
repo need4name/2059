@@ -1279,18 +1279,16 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
     const moved = who.kind === 'player' ? { ...s, grid: { ...s.grid, playerPosition: to } }
       : who.kind === 'foe' ? setFoe(s, who.i, { pos: to })
       : { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, pos: to } : x)) };
-    // Thrown onto a damaging tile: it hits at once, as hard as slamming into something (no stun), and fire sets them alight
+    // Thrown onto a damaging tile: it hits at once, as hard as slamming into something (no stun of its own), and does what that hazard does
     const tile = tileAt(to, s.grid);
     if (tile?.type === 'hazard' && !(who.kind === 'foe' && hasTrait(s.foes[who.i], 'filtered'))) {
       const base = Math.max(hazardDamageAt(to, s.grid), Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
       const dmg = Math.round(base * (who.kind === 'player' ? s.perks.hazardMult : 1));
-      const fire = BURNING_ART.includes(tile.art ?? '');
-      events.push(say(`${who.kind === 'player' ? 'You are' : `${nameOf(s, who)} is`} thrown onto ${tile.name ?? 'the hazard'}: -${dmg}${fire ? (who.kind === 'player' ? ', you catch fire' : ', catches fire') : ''}`, 'critical'), { kind: 'collide' });
+      events.push(say(`${who.kind === 'player' ? 'You are' : `${nameOf(s, who)} is`} thrown onto ${tile.name ?? 'the hazard'}: -${dmg}${hazardWords(tile.art, who.kind === 'player')}`, 'critical'), { kind: 'collide' });
       const hurtState = hurt(moved, who, dmg, events);
-      if (!fire) return hurtState;
-      if (who.kind === 'player') return { ...hurtState, playerBurning: BURN.turns };
-      if (who.kind === 'foe') return setFoe(hurtState, who.i, { burning: BURN.turns });
-      return { ...hurtState, allies: hurtState.allies.map((x, n) => (n === who.k ? { ...x, burning: BURN.turns } : x)) };
+      // Sealed (no hazard damage) keeps the effect off you too
+      if (who.kind === 'player' && s.perks.hazardMult <= 0) return hurtState;
+      return hazardEffect(hurtState, who, tile.art);
     }
     events.push(say(who.kind === 'player' ? 'Knocked back a tile' : `${nameOf(s, who)} is knocked back`));
     return moved;
@@ -2988,31 +2986,64 @@ export const kingSpoils = (s: FightState): CombatAction[] =>
 
 /** Hazard art that sets whoever ends a turn on it alight (fuel fire, burning oil). */
 export const BURNING_ART = ['fire', 'oil', 'light'];
+/**
+ * What each kind of hazard does to whoever ends a turn on it or is thrown onto it, besides the damage.
+ * burn: alight (BURN); shock: stunned, loses its next turn; corrode: eats HAZARD.corrode of the structure
+ * bar; snare: a leg goes through, slowed for SPEED.statusRounds. Kinds not listed only hurt.
+ */
+export const HAZARD_FX: Record<string, 'burn' | 'shock' | 'corrode' | 'snare'> = {
+  fire: 'burn', oil: 'burn', light: 'burn', cable: 'shock', chem: 'corrode', sump: 'corrode', hole: 'snare',
+};
+/** Ending a turn on a hazard hurts this share of max health (or the tile's own number, if more); corrode eats this share of structure. */
+export const HAZARD = { share: 0.06, corrode: 0.3 };
+const HAZARD_WORDS = { burn: ['you catch fire', 'catches fire'], shock: ['you are stunned', 'is stunned'], corrode: ['it eats your structure', 'its structure corrodes'], snare: ['your leg goes through', 'is caught'] } as const;
+const hazardKind = (art: string | undefined) => (art ? HAZARD_FX[art] : undefined);
+/** A hazard's effect on a body (not its damage). */
+function hazardEffect(s: FightState, who: Body, art: string | undefined): FightState {
+  const k = hazardKind(art);
+  if (!k) return s;
+  if (k === 'burn') return who.kind === 'player' ? { ...s, playerBurning: BURN.turns } : who.kind === 'foe' ? setFoe(s, who.i, { burning: BURN.turns }) : { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, burning: BURN.turns } : x)) };
+  if (k === 'shock') return stun(s, who);
+  if (k === 'snare') return who.kind === 'player' ? { ...s, playerSlowed: SPEED.statusRounds } : who.kind === 'foe' ? setFoe(s, who.i, { slowed: SPEED.statusRounds }) : s;
+  // corrode
+  if (who.kind === 'player') {
+    const p = s.player, st = Math.max(0, p.currentStructuralHp - Math.ceil(p.maxStructuralHp * HAZARD.corrode));
+    return { ...s, player: { ...p, currentStructuralHp: st }, playerMalfunctioning: p.maxStructuralHp > 0 && st <= 0 };
+  }
+  if (who.kind === 'foe') {
+    const u = s.foes[who.i].unit, st = Math.max(0, u.currentStructuralHp - Math.ceil(u.maxStructuralHp * HAZARD.corrode));
+    return setFoe(s, who.i, { unit: { ...u, currentStructuralHp: st }, malfunctioning: u.maxStructuralHp > 0 && st <= 0 });
+  }
+  const a = s.allies[who.k].unit, st = Math.max(0, a.currentStructuralHp - Math.ceil(a.maxStructuralHp * HAZARD.corrode));
+  return { ...s, allies: s.allies.map((x, n) => (n === who.k ? { ...x, unit: { ...x.unit, currentStructuralHp: st } } : x)) };
+}
+const hazardWords = (art: string | undefined, player: boolean) => { const k = hazardKind(art); return k ? `, ${HAZARD_WORDS[k][player ? 0 : 1]}` : ''; };
+/** What ending a turn on this tile costs a body with this much health. */
+const hazardHit = (pos: TilePosition, grid: CombatGrid, maxHp: number) => { const base = hazardDamageAt(pos, grid); return base > 0 ? Math.max(base, Math.round(maxHp * HAZARD.share)) : 0; };
 
 /** Damage to the player from the tile they end their turn on. */
 export function applyPlayerHazard(s: FightState): Step {
   const pos = s.grid.playerPosition;
-  const dmg = Math.round(hazardDamageAt(pos, s.grid) * s.perks.hazardMult);
+  const dmg = Math.round(hazardHit(pos, s.grid, s.player.maxHp) * s.perks.hazardMult);
   if (dmg <= 0) return { state: s, events: [] };
-  const name = tileAt(pos, s.grid)?.name ?? 'Hazard';
-  const fire = BURNING_ART.includes(tileAt(pos, s.grid)?.art ?? '');
-  const events: FightEvent[] = [say(`${name}: -${dmg} HP${fire ? ', you catch fire' : ''}`, 'damage')];
+  const tile = tileAt(pos, s.grid), name = tile?.name ?? 'Hazard';
+  const events: FightEvent[] = [say(`${name}: -${dmg} HP${hazardWords(tile?.art, true)}`, 'damage')];
   const held = holdOn(s, Math.max(0, s.player.currentHp - dmg), events);
   if (held.hp <= 0) events.push({ kind: 'playerDown' });
-  return { state: { ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady, playerBurning: fire ? BURN.turns : s.playerBurning }, events };
+  return { state: hazardEffect({ ...s, player: { ...s.player, currentHp: held.hp }, holdfastReady: held.holdfastReady }, { kind: 'player' }, tile?.art), events };
 }
 
 /** Damage to foe i from the tile it ends its turn on. */
 export function applyFoeHazard(s: FightState, i: number): Step {
   const foe = s.foes[i];
   if (!foe || !isAlive(foe)) return { state: s, events: [] };
-  const dmg = hasTrait(foe, 'filtered') ? 0 : hazardDamageAt(foe.pos, s.grid);
+  const dmg = hasTrait(foe, 'filtered') ? 0 : hazardHit(foe.pos, s.grid, foe.unit.maxHp);
   if (dmg <= 0) return { state: s, events: [] };
-  const name = tileAt(foe.pos, s.grid)?.name ?? 'Hazard';
-  const fire = BURNING_ART.includes(tileAt(foe.pos, s.grid)?.art ?? '');
+  const tile = tileAt(foe.pos, s.grid), name = tile?.name ?? 'Hazard';
   const hp = Math.max(0, foe.unit.currentHp - dmg);
-  const events: FightEvent[] = [say(`${foe.unit.name} on ${name}: -${dmg}${fire ? ', catches fire' : ''}`, 'damage')];
-  let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp }, ...(fire ? { burning: BURN.turns } : {}) });
+  const events: FightEvent[] = [say(`${foe.unit.name} on ${name}: -${dmg}${hazardWords(tile?.art, false)}`, 'damage')];
+  let state = setFoe(s, i, { unit: { ...foe.unit, currentHp: hp } });
+  if (hp > 0) state = hazardEffect(state, { kind: 'foe', i }, tile?.art);
   if (hp <= 0) { events.push({ kind: 'foeDown', foe: i }); state = afterFoeChanges(state, events); }
   return { state, events };
 }
