@@ -3080,7 +3080,7 @@ function hazardEffect(s: FightState, who: Body, art: string | undefined): FightS
 }
 const hazardWords = (art: string | undefined, player: boolean) => { const k = hazardKind(art); return k ? `, ${HAZARD_WORDS[k][player ? 0 : 1]}` : ''; };
 /** What ending a turn on this tile costs a body with this much health. */
-const hazardHit = (pos: TilePosition, grid: CombatGrid, maxHp: number) => { const base = hazardDamageAt(pos, grid); return base > 0 ? Math.max(base, Math.round(maxHp * HAZARD.share)) : 0; };
+export const hazardHit = (pos: TilePosition, grid: CombatGrid, maxHp: number) => { const base = hazardDamageAt(pos, grid); return base > 0 ? Math.max(base, Math.round(maxHp * HAZARD.share)) : 0; };
 
 /** Damage to the player from the tile they end their turn on. */
 export function applyPlayerHazard(s: FightState): Step {

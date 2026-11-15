@@ -1002,8 +1002,8 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.font = `800 ${Math.max(9, Math.floor(tileW * 0.17))}px Manrope, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.strokeText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
-    ctx.fillText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
+    ctx.strokeText(`-${Math.round(Fight.hazardHit({ row, col }, grid, player.maxHp) * perks.hazardMult)}`, pos.x, pos.y + tileH * 0.47);
+    ctx.fillText(`-${Math.round(Fight.hazardHit({ row, col }, grid, player.maxHp) * perks.hazardMult)}`, pos.x, pos.y + tileH * 0.47);
   } else if (tile?.type === 'obstacle') {
     // Obstacle: a dark block with a soft X
     roundRectPath(ctx, pos.x - tileW / 2 + gap * 2, pos.y - tileH / 2 + gap * 2, tileW - gap * 4, tileH - gap * 4, radius);
@@ -1037,7 +1037,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     ctx.fillStyle = '#ffb066';
     ctx.font = `700 ${Math.max(9, Math.floor(tileW * 0.16))}px Manrope, sans-serif`;
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`-${tile.hazardDamage ?? 0}`, pos.x, pos.y + tileH * 0.47);
+    ctx.fillText(`-${Math.round(Fight.hazardHit({ row, col }, grid, player.maxHp) * perks.hazardMult)}`, pos.x, pos.y + tileH * 0.47);
   }
 }
 
