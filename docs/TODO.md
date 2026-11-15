@@ -27,9 +27,15 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 - **Part drops.** Done (stages 1-3): no repeats while something new is left, chapter one white and green (5% to 40% green), commons vary (any shape, sometimes a mod, sometimes a trait). Stage 4 done: 70 commons, seven a slot.
 
-## To talk about (after the combat-feel pass and the drop analysis)
+## Motivation (agreed direction)
 
-- **Intrinsic and extrinsic motivation:** what makes the player want to keep playing for its own sake, against what the game hands out (points, parts, unlocks). A conversation before anything is built.
+Rules: strategy first (chapters get harder by asking for better play); death is the signal waking up (more to do, a little more strength); the player should feel they got better; host count is the score, not a gate; difficulty settings.
+
+1. Re-aim the balance: a spread by skill (strong player past the King in about 3 hosts, average about 8, struggling by about 15) instead of one target.
+2. Audit the memory network: options over numbers. List first, changes after the owner has seen it.
+3. End-of-story count: hosts it took, marked with the difficulty it was earned on; best kept per chapter. Mockups first.
+4. Difficulty: Easy and Normal from the start, Hard after beating Normal; they change the enemies, never the player's rules.
+5. Challenge mode (grows out of Strain): challenges with unlock conditions that open modifiers (limited hosts, double damage, no firmware). Draft list, then mockups.
 
 ## Hazards, next
 
