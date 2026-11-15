@@ -769,7 +769,7 @@ function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox
 
   // Torn plating: blobs of shell gone (two offset grids of 3-pixel cells, so the holes aren't square),
   // more of it the lower the bar. At least one tear shows from the first stage.
-  const share = [0, 0.16, 0.36, 0.62][wear];
+  const share = [0, 0.16, 0.36, 0.8][wear];
   const cellA = (x: number, y: number) => noise(Math.floor(bx(x) / 3), Math.floor(by(y) / 3), seed + 21);
   const cellB = (x: number, y: number) => noise(Math.floor((bx(x) + 1) / 3), Math.floor((by(y) + 2) / 3), seed + 22);
   const hole = m.map((row, y) => row.map((on, x) => on && (cellA(x, y) < share * 0.6 || cellB(x, y) < share * 0.6)));
@@ -793,6 +793,11 @@ function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox
     if (!hole[y][x]) continue;
     const wire = noise(Math.floor(bx(x) / 3), by(y), seed + 33);
     g.c[y][x] = wire < 0.13 ? WIRES[Math.floor(noise(Math.floor(bx(x) / 3), by(y), seed + 34) * 3)] : (bx(x) + by(y)) % 4 === 0 ? INNARD_LIT : INNARD;
+    // Broken: the grafts have torn open to the body under them: raw flesh, a fleck of bone, blood running down
+    if (wear === 3) {
+      const meat = noise(Math.floor(bx(x) / 2), Math.floor(by(y) / 2), seed + 51), fleck = noise(bx(x), by(y), seed + 52);
+      if (meat < 0.5) g.c[y][x] = fleck < 0.07 ? '#e8dcc0' : fleck < 0.4 ? '#b02a2a' : fleck < 0.75 ? '#7a1818' : '#4a0e0e';
+    }
   }
 
   // Lights on the implants: failing, they stutter (dark every other frame); broken, they're dead
@@ -820,6 +825,24 @@ function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox
         if (!empty(x, e.y + k)) break;
         g.c[e.y + k][x] = k === len ? (frame % 2 === 0 ? '#ffe48a' : WIRES[0]) : k % 2 ? '#1a1d20' : '#3a4048';
       }
+    }
+  }
+
+  // Broken: blood runs down from the tears over whatever is below, and bites are gone from the outline
+  if (wear === 3) {
+    let runs = 0;
+    for (const p of spots) {
+      if (runs >= 5) break;
+      if (!isHole(p.x, p.y) || isHole(p.x, p.y + 1) || !isSolid(g.c[p.y + 1]?.[p.x] ?? null) || p.n > 0.5) continue;
+      const len = 3 + Math.floor(p.n * 10);
+      for (let k = 1; k <= len && isSolid(g.c[p.y + k]?.[p.x] ?? null); k++) g.c[p.y + k][p.x] = k === len ? '#d03030' : '#8a1a1a';
+      runs++;
+    }
+    let bites = 4;
+    for (const p of spots) {
+      if (bites <= 0) break;
+      if (p.n < 0.6 || !isHole(p.x, p.y)) continue;
+      if (g.c[p.y]?.[p.x + 1] === OUTLINE || g.c[p.y]?.[p.x - 1] === OUTLINE) { g.c[p.y][p.x] = OUTLINE; bites--; }
     }
   }
 

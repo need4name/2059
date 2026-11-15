@@ -55,18 +55,37 @@ export function drawWearFx(ctx: CanvasRenderingContext2D, spec: DollSpec, wear: 
     spray(ctx, p.x, p.y, p.unit, now - start, wear === 3 ? 6 : 4, ev * 13 + seed);
   }
   if (wear === 3) {
-    // Smoke: a thin grey thread from the highest implant
+    const u = size / 48, px = Math.max(1, Math.round(u)), feetY = y + size - u * 2, cx = x + size / 2;
+    // A dark pool spreading under it, and drops falling into it
+    ctx.globalAlpha = 0.85;
+    for (let r = 0; r < 3; r++) { const w = size * (0.34 - r * 0.09) * (0.9 + 0.1 * Math.sin(now / 900 + r)); ctx.fillStyle = r === 2 ? '#a02424' : r ? '#6a1414' : '#3a0a0a'; ctx.fillRect(Math.round(cx - w / 2 + (r - 1) * u), Math.round(feetY + (r === 0 ? 0 : r === 1 ? px : 0) ), Math.round(w), px * (r === 0 ? 3 : 1)); }
+    for (let i = 0; i < 4; i++) {
+      const k = ((now / 800) + i * 0.27) % 1, p0 = at(hash(i, seed + 61));
+      if (p0.y > feetY - u * 6) continue;
+      ctx.globalAlpha = 0.95; ctx.fillStyle = '#c02a2a';
+      ctx.fillRect(Math.round(p0.x), Math.round(p0.y + (feetY - p0.y) * k * k), px, px * 2);
+    }
+    // Arcs: electricity jumping between two torn parts for a moment
+    const arcTick = Math.floor(now / 90);
+    if (hash(arcTick, seed + 71) < 0.3) {
+      const a = at(hash(arcTick, seed + 72)), b = at(hash(arcTick, seed + 73));
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#bff6ff'; ctx.lineWidth = Math.max(1, u * 0.9); ctx.beginPath(); ctx.moveTo(a.x, a.y);
+      for (let j = 1; j < 4; j++) ctx.lineTo(a.x + (b.x - a.x) * j / 4 + (hash(arcTick, seed + 74 + j) - 0.5) * u * 7, a.y + (b.y - a.y) * j / 4 + (hash(arcTick, seed + 78 + j) - 0.5) * u * 7);
+      ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(a.x - px), Math.round(a.y - px), px * 2, px * 2); ctx.fillRect(Math.round(b.x - px), Math.round(b.y - px), px * 2, px * 2);
+    }
+    // Smoke: a thick dark column from the highest implant
     const top = spots.reduce((m, s) => (s.y < m.y ? s : m), spots[0]);
     const o = dollPoint(spec, x, y, size, faceLeft, top.x, top.y);
-    for (let i = 0; i < 5; i++) {
-      const k = ((now / 1700) + i / 5) % 1, r = Math.max(1, Math.round(o.unit * (1 + k * 2.2)));
-      ctx.globalAlpha = 0.38 * (1 - k);
-      ctx.fillStyle = i % 2 ? '#4a4f55' : '#5c6268';
+    for (let i = 0; i < 9; i++) {
+      const k = ((now / 1700) + i / 9) % 1, r = Math.max(1, Math.round(o.unit * (1.5 + k * 4)));
+      ctx.globalAlpha = 0.6 * (1 - k);
+      ctx.fillStyle = i % 3 === 0 ? '#22262a' : i % 2 ? '#3a3f45' : '#555b62';
       ctx.fillRect(Math.round(o.x + Math.sin(now / 420 + i * 1.7) * o.unit * 2 - r / 2), Math.round(o.y - k * size * 0.55 - r / 2), r, r);
     }
     // Glitch: now and then a band of the picture slips sideways for a moment
     const tick = Math.floor(now / 130);
-    if (redraw && hash(tick, seed + 3) < 0.13) {
+    if (redraw && hash(tick, seed + 3) < 0.26) {
       const unit = size / 48, band = size * (0.08 + 0.1 * hash(tick, seed + 4)), by = y + size * (0.15 + 0.65 * hash(tick, seed + 5));
       const dx = (hash(tick, seed + 6) < 0.5 ? -1 : 1) * Math.round(unit * (2 + 2 * hash(tick, seed + 8)));
       ctx.globalAlpha = 1;
