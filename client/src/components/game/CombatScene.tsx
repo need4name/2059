@@ -7,7 +7,7 @@ import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
 import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
-import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, type StatusMark } from '@/lib/rendering/board';
+import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, drawScorch, type StatusMark } from '@/lib/rendering/board';
 import { wearOf, drawWearFx, drawWearUnder, drawMisfire } from '@/lib/rendering/wear';
 import { lightOf, litTileset, litCanvas, drawWeather, type Light } from '@/lib/rendering/atmosphere';
 import { wakeNow } from '@/lib/engine/clock';
@@ -796,6 +796,14 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (grid.tiles?.[row]?.[col]?.art === 'mud') drawMudTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, floodNext, now);
   else drawDeckTile(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, row, col, tileset);
   // The King's raft: the ring that breaks away when he next loses a part
+  const tile0 = grid.tiles?.[row]?.[col];
+  if (tile0?.scorched) drawScorch(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, row, col);
+  // Aimed at a fuel drum: it and the open deck beside it will go up (an orange ring on each)
+  if (isAimed && tile0?.type === 'obstacle' && tile0.art === 'fuel') for (const [dr, dc] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    const q = grid.tiles?.[row + dr]?.[col + dc]; if (!q || (dr || dc) && q.type !== 'empty') continue;
+    const qp = gridToScreen(row + dr, col + dc, width, height);
+    overlay.push(() => { ctx.save(); ctx.strokeStyle = '#ff8a3a'; ctx.lineWidth = Math.max(2, tileW * 0.05); ctx.globalAlpha = 0.6 + 0.35 * Math.sin(now / 200); ctx.setLineDash([tileW * 0.1, tileW * 0.07]); roundRectPath(ctx, qp.x - tileW / 2 + 3, qp.y - tileH / 2 + 3, tileW - 6, tileH - 6, tileW * 0.14); ctx.stroke(); ctx.restore(); });
+  }
   if (kingNow && kingNow.rings < 3 && grid.tiles?.[row]?.[col]?.breaks === kingNow.rings + 1) drawBreaking(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, open, cornerR, now);
   const tint = isHovered && phase === 'player_turn' ? 'rgba(255,240,200,0.25)'
     : isAimed ? attackColors.fill
@@ -1020,7 +1028,14 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
     // Drawn as what it is, standing up, in depth order with the units
     const art = tile.art, x = pos.x, y = pos.y;
     depth.push({ y, draw: () => { drawLitObstacle(ctx, art, x, y, tileW, wakeLight); } });
-  } else if (tile?.type === 'hazard' && drawHazard(ctx, tile.art, pos.x, pos.y, tileW, now)) {
+  } else if (tile?.type === 'hazard' && (() => {
+    // A fire on its last round burns low
+    const low = tile.burns !== undefined && tile.burns <= (grid.rain ? 2 : 1);
+    if (!low) return drawHazard(ctx, tile.art, pos.x, pos.y, tileW, now);
+    drawScorch(ctx, pos.x - tileW / 2, pos.y - tileH / 2, tileW, tileH, row, col);
+    ctx.save(); ctx.globalAlpha = 0.75; const ok = drawHazard(ctx, tile.art, pos.x, pos.y + tileH * 0.16, tileW * 0.6, now); ctx.restore();
+    return ok;
+  })()) {
     ctx.fillStyle = '#ffd2a0';
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
     ctx.lineWidth = 3;

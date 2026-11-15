@@ -31,6 +31,8 @@ export interface FxPacket {
   guards: string[];
   /** Bodies whose move misfired this step. */
   misfires: string[];
+  /** Fuel drums that burst this step. */
+  bursts: TilePosition[];
 }
 
 let seq = 0;
@@ -56,9 +58,10 @@ export function buildFx(before: FightState, after: FightState, events: FightEven
   after.foes.forEach((f, i) => { if (f.defenseBoost > (before.foes[i]?.defenseBoost ?? 0)) guards.push(`foe:${i}`); });
   after.allies.forEach((a, k) => { if (a.defenseBoost > (before.allies[k]?.defenseBoost ?? 0) || (!!a.ward && !before.allies[k]?.ward)) guards.push(`ally:${k}`); });
   const misfires = events.flatMap(e => (e.kind === 'misfire' ? [e.by.kind === 'player' ? 'player' : e.by.kind === 'foe' ? `foe:${e.by.i}` : `ally:${e.by.k}`] : []));
-  if (!strikes.length && !changes.length && !windups.length && !guards.length && !misfires.length) return null;
+  const bursts = events.flatMap(e => (e.kind === 'burst' ? [e.at] : []));
+  if (!strikes.length && !changes.length && !windups.length && !guards.length && !misfires.length && !bursts.length) return null;
   return {
-    id: ++seq, strikes, changes, windups, guards, misfires,
+    id: ++seq, strikes, changes, windups, guards, misfires, bursts,
     crit: events.some(e => e.kind === 'log' && /CRITICAL/.test(e.message)),
     collide: events.some(e => e.kind === 'collide'),
     surge: events.some(e => e.kind === 'surge'),

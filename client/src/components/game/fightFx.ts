@@ -108,6 +108,8 @@ export class FxDirector {
       }
       for (const w of sc.p.windups) this.burst(`foe:${w}`, null, '#ff8a3a', 14, now, -1.2);
       for (const g of sc.p.guards ?? []) this.guardsUp.set(g, now);
+      // A fuel drum going up: a white flash, then fire and black smoke thrown out
+      for (const b of sc.p.bursts ?? []) { this.flashUntil = now + 160; this.shakeUntil = now + FX.shake; this.shakeAmp = Math.max(this.shakeAmp, 5); this.burst('', b, '#ff8a3a', 34, now, -1.6); this.burst('', b, '#ffd24a', 16, now + 40, -2.2); this.burst('', b, '#2a2420', 14, now + 120, -1); }
       // A misfire: the burst plays on the body and the word floats up
       for (const m of sc.p.misfires ?? []) { this.misfired.set(m, now); this.numbers.push({ key: m, text: 'MISFIRE', color: '#ffa04a', born: now + 120, big: false }); }
     }

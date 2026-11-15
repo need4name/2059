@@ -30,6 +30,7 @@ import { gunItem, magazineOf } from '../combat/guns';
 
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import { hostDoll } from '../rendering/dollSpecs';
+import { wakeNow } from '../engine/clock';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
@@ -564,6 +565,8 @@ if (apply(Fight.decoyShuffle(fightState()))) return;
 if (apply(Fight.beatTick(fightState()))) return;
 if (apply(Fight.frontTick(fightState()))) return;
 // The Unlogged Technician patches itself; the Pass's light comes down
+// Fires burn down a round
+if (apply(Fight.fireTick(fightState()))) return;
 if (apply(Fight.repairTick(fightState()))) return;
 if (apply(Fight.lightTick(fightState()))) return;
 // The crane drops its hook, or swings it over you (chapter one's threat-5 boss)
@@ -738,7 +741,9 @@ const layouts = fightRoom?.arena ? [fightRoom.arena, ...(fightRoom.arenas ?? [])
 const drawn = layouts.length > 1 ? layouts[Math.floor(random() * layouts.length)] : layouts[0];
 const grid0 = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 // At sea, the board's open edges are a drop into the water (Knockback in DESIGN.md)
-const grid = activeChapter().rules?.seaEdges ? { ...grid0, seaEdges: true } : grid0;
+// Fires start with their rounds to burn; in rain (the weather this host woke to) they burn out sooner
+const grid1 = Fight.lightFires(wakeNow(useMap.getState().clock).weather === 'rain' ? { ...grid0, rain: true } : grid0);
+const grid = activeChapter().rules?.seaEdges ? { ...grid1, seaEdges: true } : grid1;
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;

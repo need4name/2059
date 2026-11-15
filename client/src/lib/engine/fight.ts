@@ -284,6 +284,8 @@ export type FightEvent =
   | { kind: 'collide' } | { kind: 'burn' } | { kind: 'telegraph' } | { kind: 'surge' }
   /** A broken body's move fizzled. */
   | { kind: 'misfire'; by: Body }
+  /** A fuel drum burst here (for the screen and the sound). */
+  | { kind: 'burst'; at: TilePosition }
   /** For the screen only: a blow thrown, by whom, from where, at what, over which tiles, in which shape (the fight plays it back). */
   | { kind: 'strike'; by: Body; from: TilePosition; aim: TilePosition; tiles: TilePosition[]; pattern: AttackPatternType; physical: number; name: string; heavy?: boolean };
 
@@ -1261,7 +1263,7 @@ export const stun = (s: FightState, b: Body): FightState =>
 /** Would a body pushed onto `to` go into the sea? A sea tile does; so does going off the board where its edges are a drop (seaEdges). */
 export const intoSea = (grid: CombatGrid, to: TilePosition) => (inBounds(to, grid) ? tileAt(to, grid)?.type === 'void' : !!grid.seaEdges);
 
-export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
+function knockBackRaw(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
   // Bale doesn't move
   if (who.kind === 'ally' && s.allies[who.k]?.rule === 'anchor') { events.push(say(`${s.allies[who.k].unit.name} doesn't budge`)); return s; }
   const at = posOf(s, who);
@@ -1980,7 +1982,7 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
 }
 
 /** An attack or special aimed at a tile (the best aim if none is given). Everyone on the struck tiles is hit. */
-export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
+function resolvePlayerAttackRaw(s: FightState, action: CombatAction, playerClass: PlayerClass, aim: TilePosition | null): Step {
   // A part torn off the King is used up
   if (action.spoil && s.king) { const k = s.king.spoils.indexOf(action.spoil); if (k >= 0) s = { ...s, king: { ...s.king, spoils: s.king.spoils.filter((_, n) => n !== k) } }; }
   { const mf = playerMisfire(s, action); if (mf) return mf; }
@@ -2419,7 +2421,7 @@ export function releaseHeavy(s: FightState, i: number): Step & { action: CombatA
 }
 
 /** Foe i's attack or shield landing. `level` scales its move damage. */
-export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i), aim: TilePosition | null = null): Step {
+function resolveFoeActionRaw(s: FightState, i: number, action: CombatAction, level: number, victim: number, aim: TilePosition | null): Step {
   const foe = s.foes[i];
   const { player, grid } = s;
   // Enemy shapes have sweet spots too: where you stand in it decides how hard it lands
@@ -3110,3 +3112,70 @@ export function applyFoeHazard(s: FightState, i: number): Step {
 }
 
 export const isOver = (step: Step) => step.events.some(e => e.kind === 'playerDown' || e.kind === 'allFoesDown');
+
+// ── Fuel drums and fire ─────────────────────────────────────────────────────
+// A fuel drum is cover until a blow's shape lands on it or a body is slammed into it: then it bursts
+// into fire, there and on the open deck beside it (bodies standing there are caught at once; a drum
+// beside it goes too). Fire doesn't last: a spill burns FIRE.spill rounds, a room's own fires
+// FIRE.standing, twice as fast in rain; what's left is scorched deck, safe to stand on.
+export const FIRE = { spill: 3, standing: 8, rainSpeed: 2, damage: 8 };
+const isFuel = (s: FightState, p: TilePosition) => { const t = tileAt(p, s.grid); return t?.type === 'obstacle' && t.art === 'fuel'; };
+const withTile = (s: FightState, p: TilePosition, tile: FightState['grid']['tiles'][number][number]): FightState =>
+  ({ ...s, grid: { ...s.grid, tiles: s.grid.tiles.map((row, r) => (r === p.row ? row.map((t, c) => (c === p.col ? tile : t)) : row)) } });
+const fireTile = (burns: number) => ({ type: 'hazard' as const, art: 'fire', name: 'Fuel fire', hazardDamage: FIRE.damage, burns });
+
+/** A fight's standing fires start with their rounds to burn. */
+export function lightFires(grid: FightState['grid']): FightState['grid'] {
+  return { ...grid, tiles: grid.tiles.map(row => row.map(t => (t.type === 'hazard' && BURNING_ART.includes(t.art ?? '') && t.burns === undefined ? { ...t, burns: FIRE.standing } : t))) };
+}
+
+export function burstDrum(s: FightState, at: TilePosition, events: FightEvent[]): FightState {
+  if (!isFuel(s, at)) return s;
+  events.push(say('A fuel drum bursts', 'critical'), { kind: 'burst', at }, { kind: 'collide' });
+  let state = withTile(s, at, fireTile(FIRE.spill));
+  for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    const p = { row: at.row + dr, col: at.col + dc };
+    if (!inBounds(p, state.grid)) continue;
+    if (isFuel(state, p)) { state = burstDrum(state, p, events); continue; }
+    if (tileAt(p, state.grid)?.type !== 'empty') continue;
+    state = withTile(state, p, fireTile(FIRE.spill));
+    // Whoever stands there is caught in it
+    const b = bodyAt(state, p);
+    if (!b || (b.kind === 'foe' && hasTrait(state.foes[b.i], 'filtered')) || (b.kind === 'player' && state.perks.hazardMult <= 0)) continue;
+    const dmg = Math.round(hazardHit(p, state.grid, maxHpOf(state, b)) * (b.kind === 'player' ? state.perks.hazardMult : 1));
+    events.push(say(`${b.kind === 'player' ? 'You are' : `${nameOf(state, b)} is`} caught in the fire: -${dmg}`, 'damage'));
+    state = hazardEffect(hurt(state, b, dmg, events), b, 'fire');
+  }
+  return afterFoeChanges(state, events);
+}
+
+/** Any drum a blow's shape landed on bursts. */
+function withBursts(step: Step): Step {
+  let state = step.state; const events = [...step.events];
+  for (const e of step.events) if (e.kind === 'strike') for (const t of e.tiles) if (isFuel(state, t)) state = burstDrum(state, t, events);
+  return state === step.state ? step : { state, events };
+}
+export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
+  return withBursts(resolvePlayerAttackRaw(s, action, playerClass, aim));
+}
+export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i), aim: TilePosition | null = null): Step {
+  return withBursts(resolveFoeActionRaw(s, i, action, level, victim, aim));
+}
+/** A knockback; a body slammed into a fuel drum bursts it. */
+export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
+  const at = posOf(s, who), to = { row: at.row + Math.sign(at.row - from.row), col: at.col + Math.sign(at.col - from.col) };
+  const out = knockBackRaw(s, from, who, hit, events, crush);
+  return inBounds(to, s.grid) && isFuel(out, to) ? burstDrum(out, to, events) : out;
+}
+
+/** A new round: every fire burns down a round (two in rain); a spent one leaves scorched deck. */
+export function fireTick(s: FightState): Step {
+  let changed = false;
+  const tiles = s.grid.tiles.map(row => row.map(t => {
+    if (t.type !== 'hazard' || t.burns === undefined) return t;
+    changed = true;
+    const left = t.burns - (s.grid.rain ? FIRE.rainSpeed : 1);
+    return left > 0 ? { ...t, burns: left } : { type: 'empty' as const, scorched: true };
+  }));
+  return { state: changed ? { ...s, grid: { ...s.grid, tiles } } : s, events: [] };
+}
