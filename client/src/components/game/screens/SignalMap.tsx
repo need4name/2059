@@ -300,8 +300,13 @@ export function SignalMap() {
             const n = noise(r.id, x - cx0, y - cy0), clump = noise(r.id, (x - cx0) >> 1, (y - cy0) >> 1);
             const d = Math.hypot(x - seed.x, (y - seed.y) * 1.7) / span;
             const v = d * 0.8 + clump * 0.3 + n * 0.15;
-            if (v < cover * 1.05) px(x, y, v < cover * 0.6 ? C.bloodDark : C.blood);
-            else if (v < cover * 1.05 + 0.06 && n > 0.75) px(x, y, C.blood);
+            // Mockup: blood dries with time (wet red, then brown, then a faint stain)
+            const age = ((window as any).__bloodAge?.[r.id] ?? 'now') as string;
+            const B = age === 'fresh' ? { lit: '#b02a2a', dark: '#5a1010' } : age === 'days' ? { lit: '#6e3a24', dark: '#46241a' } : age === 'weeks' ? { lit: '#4c4640', dark: '#3e3a36' } : { lit: C.blood, dark: C.bloodDark };
+            if (age === 'weeks' && n < 0.35) continue;
+            if (v < cover * 1.05) px(x, y, v < cover * 0.6 ? B.dark : B.lit);
+            else if (v < cover * 1.05 + 0.06 && n > 0.75) px(x, y, B.lit);
+            if (age === 'fresh' && n > 0.97 && v < cover * 0.9 && Math.floor(now / 600) % 2) px(x, y, '#ff8a8a');
           }
         }
         if (r.corpse) {
@@ -312,7 +317,10 @@ export function SignalMap() {
             if (ch === '.') return;
             for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if ((SKULL[j + dy]?.[i + dx] ?? '.') === '.') px(gx + i + dx, gy + j + dy, C.out);
           }));
-          SKULL.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') px(gx + i, gy + j, ch === 'o' ? C.out : '#efe6d2'); }));
+          const sAge = ((window as any).__bloodAge?.[r.id] ?? 'now') as string;
+          const bone = sAge === 'days' ? '#cdbf9e' : sAge === 'weeks' ? '#a3aa92' : '#efe6d2';
+          SKULL.forEach((row, j) => row.split('').forEach((ch, i) => { if (ch !== '.') px(gx + i, gy + j, ch === 'o' ? C.out : bone); }));
+          if (sAge === 'weeks') { px(gx + 1, gy + 1, '#48c8dc'); px(gx + 3, gy + 3, '#e8503a'); }
           if (r.part && Math.floor(now / 380) % 3 !== 2) px(gx + 4, gy - 1, C.credLit);
         }
         if (r.mark && !mine) mark(r.mark, c.x, c.y, r.ally ? allyDef(r.ally)?.color : undefined, r.mark === 'ally' || r.mark === 'server' ? now : 0);

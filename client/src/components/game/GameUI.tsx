@@ -7,6 +7,8 @@ import { dailyDay } from '@/lib/daily';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { useLoadoutSync } from './useActionPool';
+import { WakeBeat } from './WakeBeat';
+import { useEffect } from 'react';
 
 // Test tools load only in development builds, so players never download them
 const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel }))) : () => null;
@@ -16,6 +18,9 @@ export function GameUI() {
   const phase = useCombat(s => s.phase);
   const [showDebug, setShowDebug] = useState(false);
   useLoadoutSync();
+  // Mockup: the wake beat, set off from the test script
+  const [beat, setBeat] = useState<any>(null);
+  useEffect(() => { const on = (e: any) => setBeat(e.detail); window.addEventListener('mock-wake', on); return () => window.removeEventListener('mock-wake', on); }, []);
 
   let screen;
   switch (phase) {
@@ -30,6 +35,7 @@ export function GameUI() {
   return (
     <>
       {screen}
+      {beat && <WakeBeat key={`${beat.dayPart}-${beat.weather}-${beat.n}`} dayPart={beat.dayPart} weather={beat.weather} onDone={() => setBeat(null)} />}
       {/* Test tools, only in development builds */}
       {import.meta.env.DEV && phase === 'menu' && (
         <>

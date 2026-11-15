@@ -876,3 +876,40 @@ export function dollPoint(spec: DollSpec, x: number, y: number, size: number, fa
   const left = x + size / 2 - w / 2, topY = y + size - (S + PAD) * unit;
   return { x: faceLeft ? left + w - (gx + PAD + 0.5) * unit : left + (gx + PAD + 0.5) * unit, y: topY + (gy + PAD + 0.5) * unit, unit };
 }
+
+// ── The last body, aged ─────────────────────────────────────────────────────
+// What's left of a host where it fell, by how long it's been (engine/clock.ts): fresh (pale, the part
+// still bright), days (grey-green, gone dull), weeks (down to bone in places, the cloth rotted, plastic
+// grown over it, the implants rusted). No team rim: it isn't anyone's now.
+export type CorpseAge = 'fresh' | 'days' | 'weeks';
+const BONES = ['#e2d9c2', '#c9bfa6', '#a89f88'];
+const PLASTIC = ['#e8503a', '#48c8dc', '#f0c048', '#e8e0d0', '#5a9a5a'];
+const RUST = ['#8a5a3a', '#6e4630', '#5e7a62'];
+export function paintCorpse(spec: DollSpec, age: CorpseAge): { S: number; c: (string | null)[][]; glint: { x: number; y: number } | null } {
+  const { wear: _w, ...whole } = spec;
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const g = paintBody({ ...whole, team: 'you' }, 'idle', 0), bare = F.drone || F.special ? null : paintBody({ ...whole, team: 'you', parts: {} }, 'idle', 0);
+  const m = implantMask(g, bare);
+  const skins = new Set([F.skin, shade(F.skin, -0.3), F.skin2].filter(Boolean) as string[]);
+  const seed = seedOf(whole);
+  const c = g.c.map(r => r.slice());
+  let glint: { x: number; y: number } | null = null;
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) {
+    const v = c[y][x];
+    if (!v) continue;
+    if (v.length === 9) { c[y][x] = null; continue; } // the team rim
+    if (v === OUTLINE) continue;
+    const n = noise(x, y, seed + 3), skin = skins.has(v), implant = m[y][x];
+    if (age === 'fresh') c[y][x] = skin ? dull(shade(v, 0.12), 0.5) : implant ? v : shade(v, -0.08);
+    else if (age === 'days') c[y][x] = skin ? dull(shade(v, -0.1), 0.6).replace(/^#(..)(..)(..)$/, (_s, r, gg, b) => `#${r}${Math.min(255, parseInt(gg, 16) + 14).toString(16).padStart(2, '0')}${b}`) : implant ? dull(shade(v, -0.15), 0.45) : shade(v, -0.25);
+    else {
+      if (skin) c[y][x] = n < 0.62 ? BONES[Math.floor(noise(x, y, seed + 4) * 3)] : n < 0.8 ? '#3a2a22' : null;
+      else if (implant) c[y][x] = RUST[Math.floor(noise(x, y, seed + 5) * 3)];
+      else c[y][x] = n < 0.55 ? shade(dull(v, 0.5), -0.45) : null;
+      // Plastic grows over what's left: specks of bottle and net
+      if (c[y][x] && noise(x, y, seed + 6) < 0.05) c[y][x] = PLASTIC[Math.floor(noise(x, y, seed + 7) * PLASTIC.length)];
+    }
+    if (implant && !glint && noise(x, y, seed + 8) < 0.04) glint = { x, y };
+  }
+  return { S: g.S, c, glint: age === 'weeks' ? null : glint };
+}

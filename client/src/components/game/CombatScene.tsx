@@ -8,6 +8,7 @@ import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, type StatusMark } from '@/lib/rendering/board';
 import { wearOf, drawWearFx, drawWearUnder, drawMisfire } from '@/lib/rendering/wear';
+import { drawAtmosphere } from '@/lib/rendering/atmosphere';
 import { drawDoll, slotAnchors } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
@@ -1368,6 +1369,15 @@ ctx.fillText(label, fp.x, ly);
 director.drawUnder(ctx, now);
 // Back to front: whatever stands nearer the bottom covers what's behind it
 depth.sort((a, b) => a.y - b.y).forEach(d => d.draw());
+// Mockup: the light and weather this host woke to (time passing between hosts)
+{ const wk = (window as any).__wake as { dayPart: any; weather: any } | undefined;
+  if (wk) {
+    const lights: { x: number; y: number; r: number; color: string }[] = [];
+    grid.tiles?.forEach((row, r) => row.forEach((t, c) => { if (t.type === 'hazard' && ['fire', 'oil', 'light'].includes(t.art ?? '')) { const q = gridToScreen(r, c, width, height); lights.push({ x: q.x, y: q.y, r: tileW * 1.3, color: '#ff8a3a' }); } }));
+    const pp = gridToScreen(grid.playerPosition.row, grid.playerPosition.col, width, height); lights.push({ x: pp.x, y: pp.y - tileH * 0.5, r: tileW * 0.7, color: '#5fe0ff' });
+    living.forEach(({ f }) => { const q = gridToScreen(f.pos.row, f.pos.col, width, height); lights.push({ x: q.x, y: q.y - tileH * 0.5, r: tileW * 0.6, color: '#ff5a4a' }); });
+    drawAtmosphere(ctx, width, height, wk.dayPart, wk.weather, now, lights, Math.max(1, Math.round(tileW / 24)));
+  } }
 overlay.forEach(o => o());
 // Shots in flight, sparks and numbers over everything
 director.drawOver(ctx, now, (text, x, y, alpha, color, big, scale = 1) => {
