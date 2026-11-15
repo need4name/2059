@@ -4,7 +4,7 @@
 // before and after the step, so the board can show the hit landing before the
 // numbers move. For the screen only: nothing here touches the rules.
 
-import type { FightEvent, FightState } from '../engine/fight';
+import { flankOn, type FightEvent, type FightState } from '../engine/fight';
 import type { TilePosition } from './types';
 
 export type FxStrike = Extract<FightEvent, { kind: 'strike' }>;
@@ -14,6 +14,8 @@ export interface FxChange {
   hp: [number, number]; structure: [number, number]; maxHp: number; maxStructure: number;
   pos: [TilePosition, TilePosition];
   down: boolean; wet: boolean;
+  /** The flank bonus the blow that did this got (0 from the front): numbers pop for hits from the side or behind. */
+  flank?: number;
 }
 export interface FxPacket {
   id: number;
@@ -42,6 +44,10 @@ export function buildFx(before: FightState, after: FightState, events: FightEven
   after.foes.forEach((f, i) => { const b = before.foes[i]; if (b) add(`foe:${i}`, b.unit, f.unit, b.pos, f.pos, !!b.swimming, !!f.swimming); });
   after.allies.forEach((a, k) => { const b = before.allies[k]; if (b) add(`ally:${k}`, b.unit, a.unit, b.pos, a.pos, !!b.swimming, !!a.swimming); });
   const strikes = events.filter((e): e is FxStrike => e.kind === 'strike');
+  if (strikes[0]) for (const c of changes) {
+    const who = c.key === 'player' ? { kind: 'player' as const } : c.key.startsWith('foe:') ? { kind: 'foe' as const, i: +c.key.slice(4) } : { kind: 'ally' as const, k: +c.key.slice(5) };
+    if (!same(strikes[0].from, c.pos[0])) c.flank = flankOn(before, strikes[0].from, who);
+  }
   const windups = after.foes.map((f, i) => (f.pendingAction && !before.foes[i]?.pendingAction ? i : -1)).filter(i => i >= 0);
   const guards: string[] = [];
   if (after.playerDefenseBoost + after.allyGuard > before.playerDefenseBoost + before.allyGuard || (!!after.ward && !before.ward)) guards.push('player');

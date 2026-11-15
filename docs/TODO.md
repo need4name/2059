@@ -15,10 +15,9 @@ The working list. Chapter one first; everything from chapter two on is framework
 6. **Fight boards feel repetitive and cramped.** More layouts, more room.
 7. **Knocking enemies off the arena is inconsistent.** One predictable rule, shown before you commit.
 
-## Visuals (mockups on branch `fx-mockup`)
+## Visuals
 
-8. **Structure damage on bodies** (torn plating; broken is torn open, bleeding, arcing).
-9. **Status marks, damage number colours, heat steam, low-health edge, misfire move cards.**
+8. Misfire's look (the fizzle, the move cards, crackling telegraphs) comes with the misfire rule. Mockups on branch `fx-mockup`.
 
 ## Ongoing
 

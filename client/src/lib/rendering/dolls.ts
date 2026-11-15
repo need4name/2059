@@ -38,6 +38,8 @@ export interface DollSpec {
   kingParts?: string[];
   /** A boss's own signature pieces, by its name (see SIGNATURES). */
   signature?: string;
+  /** How worn its implants look, from its structure bar: 0 whole, 1 cracked, 2 failing, 3 broken (see wearOf). */
+  wear?: 0 | 1 | 2 | 3;
 }
 
 // ── Makers: plastic colours ─────────────────────────────────────────────────
@@ -304,8 +306,19 @@ function paintDrone(g: Grid, P: Painter, spec: DollSpec, pose: Pose) {
   P.rect(cx, cy + 9, 1, 4, '#5a646e'); P.px(cx - 1, cy + 13, '#c8ccd0'); P.px(cx + 1, cy + 13, '#c8ccd0');
 }
 
-/** Paint one pose of a character into a pixel grid. */
+/** Paint one pose of a character into a pixel grid (worn as its structure bar says). */
 export function paintDoll(spec: DollSpec, state: AnimationState, frame: number): Grid {
+  if (!spec.wear) return paintBody(spec, state, frame);
+  const { wear, ...whole } = spec;
+  const g = paintBody(whole, state, frame);
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const bare = F.drone || F.special ? null : paintBody({ ...whole, parts: {} }, state, frame);
+  const pose = poseOf(state, frame);
+  applyWear(g, bare, wear, seedOf(whole), pose.dx, pose.by, frame);
+  return g;
+}
+
+function paintBody(spec: DollSpec, state: AnimationState, frame: number): Grid {
   const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
   const g = makeGrid(F.S), P = api(g);
   const pose = poseOf(state, frame);
@@ -711,4 +724,155 @@ export function hologram(spec: DollSpec): { S: number; c: (string | null)[][] } 
     out[y][x] = edge ? (lit ? '#6ee8fa' : '#2896af') : y % 4 === 0 ? '#18465a' : (x + y) % 2 ? '#10303c' : '#123542';
   }
   return { S, c: out };
+}
+
+// ── Wear: what a falling structure bar does to the implants ────────────────
+// The implants are what the structure bar is, so as it empties they show it: cracks
+// first, then chips and dimming lights, and broken they go dull with a fault light
+// blinking. Only implant pixels wear (whatever the bare body doesn't have); a machine
+// is all implant. Positions are measured from the body, so cracks don't jump between frames.
+
+const isSolid = (v: string | null) => !!v && v !== OUTLINE && v.length === 7;
+/** A steady number for a body's look, so the same body always cracks the same way. */
+function seedOf(spec: DollSpec): number { const s = JSON.stringify(spec); let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function noise(a: number, b: number, s: number): number {
+  let h = (a * 374761393 + b * 668265263 + s * 982451653) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function dull(hex: string, k: number): string {
+  if (hex.length !== 7) return hex;
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, m = (r + g + b) / 3;
+  const f = (c: number) => Math.round(c + (m - c) * k).toString(16).padStart(2, '0');
+  return `#${f(r)}${f(g)}${f(b)}`;
+}
+/** Which pixels of a painted body are implant (not the bare body), or every solid pixel of a machine. */
+function implantMask(g: Grid, bare: Grid | null): boolean[][] {
+  const m = g.c.map((row, y) => row.map((v, x) => isSolid(v) && (!bare || bare.c[y]?.[x] !== v)));
+  // A body with little or nothing fitted wears its frame instead, so its state still reads
+  if (bare && m.flat().filter(Boolean).length < 40) return g.c.map(row => row.map(v => isSolid(v)));
+  return m;
+}
+
+// What's under the plating: a dark frame threaded with bright wires
+const INNARD = '#16191d', INNARD_LIT = '#2c3238';
+const WIRES = ['#e8503a', '#f0c048', '#48c8dc'];
+
+function applyWear(g: Grid, bare: Grid | null, wear: 1 | 2 | 3, seed: number, ox: number, oy: number, frame: number) {
+  const m = implantMask(g, bare);
+  const at = (x: number, y: number) => !!m[y]?.[x];
+  const spots: { x: number; y: number; n: number }[] = [];
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (m[y][x]) spots.push({ x, y, n: noise(x - ox, y - oy, seed) });
+  if (!spots.length) return;
+  spots.sort((a, b) => a.n - b.n);
+  const bx = (x: number) => x - ox, by = (y: number) => y - oy;
+
+  // Torn plating: blobs of shell gone (two offset grids of 3-pixel cells, so the holes aren't square),
+  // more of it the lower the bar. At least one tear shows from the first stage.
+  const share = [0, 0.16, 0.36, 0.8][wear];
+  const cellA = (x: number, y: number) => noise(Math.floor(bx(x) / 3), Math.floor(by(y) / 3), seed + 21);
+  const cellB = (x: number, y: number) => noise(Math.floor((bx(x) + 1) / 3), Math.floor((by(y) + 2) / 3), seed + 22);
+  const hole = m.map((row, y) => row.map((on, x) => on && (cellA(x, y) < share * 0.6 || cellB(x, y) < share * 0.6)));
+  if (!hole.some(r => r.some(Boolean))) {
+    // Too little was torn: tear the 3x3 round the first good spot
+    const f = spots.find(p => at(p.x - 1, p.y) && at(p.x + 1, p.y) && at(p.x, p.y + 1)) ?? spots[0];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(f.x + dx, f.y + dy)) hole[f.y + dy][f.x + dx] = true;
+  }
+  const isHole = (x: number, y: number) => !!hole[y]?.[x];
+
+  // What's left of the plating: darker each stage, dull and near black once broken
+  for (const p of spots) {
+    if (isHole(p.x, p.y)) continue;
+    const c = g.c[p.y][p.x]!;
+    g.c[p.y][p.x] = wear === 3 ? dull(shade(c, -0.45), 0.65) : wear === 2 ? shade(c, -0.18) : c;
+    // A torn edge throws a shadow onto the plating below it
+    if (isHole(p.x, p.y - 1)) g.c[p.y][p.x] = shade(g.c[p.y][p.x]!, -0.4);
+  }
+  // The insides: dark, with short runs of bright wire
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) {
+    if (!hole[y][x]) continue;
+    const wire = noise(Math.floor(bx(x) / 3), by(y), seed + 33);
+    g.c[y][x] = wire < 0.13 ? WIRES[Math.floor(noise(Math.floor(bx(x) / 3), by(y), seed + 34) * 3)] : (bx(x) + by(y)) % 4 === 0 ? INNARD_LIT : INNARD;
+    // Broken: the grafts have torn open to the body under them: raw flesh, a fleck of bone, blood running down
+    if (wear === 3) {
+      const meat = noise(Math.floor(bx(x) / 2), Math.floor(by(y) / 2), seed + 51), fleck = noise(bx(x), by(y), seed + 52);
+      if (meat < 0.5) g.c[y][x] = fleck < 0.07 ? '#e8dcc0' : fleck < 0.4 ? '#b02a2a' : fleck < 0.75 ? '#7a1818' : '#4a0e0e';
+    }
+  }
+
+  // Lights on the implants: failing, they stutter (dark every other frame); broken, they're dead
+  g.glow = g.glow.filter(gl => {
+    if (!at(gl.x, gl.y) || wear === 1) return true;
+    if (wear === 2 && frame % 2 === 0) { gl.r *= 0.6; return true; }
+    if (!isHole(gl.x, gl.y)) g.c[gl.y][gl.x] = '#2a1a16';
+    return false;
+  });
+
+  // Loose wires hanging off the edge of the implants, a spark at the tip now and then
+  if (wear >= 2) {
+    const empty = (x: number, y: number) => x >= 0 && y >= 0 && x < g.S && y < g.S && (!g.c[y][x] || g.c[y][x] === OUTLINE || g.c[y][x]!.length === 9);
+    const ends = spots.filter(p => empty(p.x, p.y + 1) && empty(p.x, p.y + 2) && p.y < g.S - 6);
+    const used: number[] = [];
+    let n = wear === 3 ? 2 : 1;
+    for (const e of ends) {
+      if (n <= 0) break;
+      if (used.some(x => Math.abs(x - e.x) < 5)) continue;
+      used.push(e.x); n--;
+      const len = 4 + Math.floor(noise(e.x, e.y, seed + 41) * 3), sway = frame % 2 ? 1 : 0, side = noise(e.x, 0, seed) < 0.5 ? -1 : 1;
+      let x = e.x;
+      for (let k = 1; k <= len; k++) {
+        if (k === Math.ceil(len / 2) + sway) x += side;
+        if (!empty(x, e.y + k)) break;
+        g.c[e.y + k][x] = k === len ? (frame % 2 === 0 ? '#ffe48a' : WIRES[0]) : k % 2 ? '#1a1d20' : '#3a4048';
+      }
+    }
+  }
+
+  // Broken: blood runs down from the tears over whatever is below, and bites are gone from the outline
+  if (wear === 3) {
+    let runs = 0;
+    for (const p of spots) {
+      if (runs >= 5) break;
+      if (!isHole(p.x, p.y) || isHole(p.x, p.y + 1) || !isSolid(g.c[p.y + 1]?.[p.x] ?? null) || p.n > 0.5) continue;
+      const len = 3 + Math.floor(p.n * 10);
+      for (let k = 1; k <= len && isSolid(g.c[p.y + k]?.[p.x] ?? null); k++) g.c[p.y + k][p.x] = k === len ? '#d03030' : '#8a1a1a';
+      runs++;
+    }
+    let bites = 4;
+    for (const p of spots) {
+      if (bites <= 0) break;
+      if (p.n < 0.6 || !isHole(p.x, p.y)) continue;
+      if (g.c[p.y]?.[p.x + 1] === OUTLINE || g.c[p.y]?.[p.x - 1] === OUTLINE) { g.c[p.y][p.x] = OUTLINE; bites--; }
+    }
+  }
+
+  // Broken: a fault light blinking red on what's left
+  if (wear === 3) {
+    const f = spots.filter(p => !isHole(p.x, p.y)).slice(0, 12).sort((a, b) => a.y - b.y)[0] ?? spots[0];
+    const on = frame % 2 === 0;
+    g.c[f.y][f.x] = on ? '#ff3a2a' : '#5a1410';
+    if (on) g.glow.push({ x: f.x, y: f.y, col: '#ff3a2a', r: 2.5 });
+  }
+}
+
+/** Where a body's implants are (grid pixels, standing still): where sparks and smoke come from. */
+const spotCache = new Map<string, { x: number; y: number }[]>();
+export function implantSpots(spec: DollSpec): { x: number; y: number }[] {
+  const { wear: _w, ...whole } = spec;
+  const key = JSON.stringify(whole);
+  const hit = spotCache.get(key); if (hit) return hit;
+  const F: Frame = { ...FRAMES[spec.frame], ...(spec.look ?? {}) };
+  const g = paintBody(whole, 'idle', 0), bare = F.drone || F.special ? null : paintBody({ ...whole, parts: {} }, 'idle', 0);
+  const m = implantMask(g, bare), out: { x: number; y: number }[] = [];
+  for (let y = 0; y < g.S; y++) for (let x = 0; x < g.S; x++) if (m[y][x]) out.push({ x, y });
+  if (spotCache.size > 200) spotCache.clear();
+  spotCache.set(key, out);
+  return out;
+}
+
+/** A grid pixel of a body drawn with drawDoll(x, y, size, faceLeft), on screen. */
+export function dollPoint(spec: DollSpec, x: number, y: number, size: number, faceLeft: boolean, gx: number, gy: number): { x: number; y: number; unit: number } {
+  const S = FRAMES[spec.frame].S, unit = size / 48, w = (S + PAD * 2) * unit;
+  const left = x + size / 2 - w / 2, topY = y + size - (S + PAD) * unit;
+  return { x: faceLeft ? left + w - (gx + PAD + 0.5) * unit : left + (gx + PAD + 0.5) * unit, y: topY + (gy + PAD + 0.5) * unit, unit };
 }
