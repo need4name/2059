@@ -135,7 +135,9 @@ test('Second wind heals once a fight under a third; Reboot returns structure the
 test('Brace: Braced adds guard, Practised guard scales it, Cool head sheds heat, Counterweight lifts the next blow', () => {
   const brace: CombatAction = { type: 'brace', name: 'Brace', description: '', defenseBoost: 8, heatGenerated: -25 };
   const s = fight({ playerHeat: 60, perks: { ...NO_PERKS, braceGuard: 3, defendMult: 1.5, defendCool: 4, afterDefend: 0.5 } });
-  const b = Fight.resolveBrace(s, brace).state;
+  const b0 = Fight.resolveBrace(s, brace).state;
+  // A sturdy enemy, so neither blow is cut short by killing it
+  const b = { ...b0, foes: b0.foes.map(f => ({ ...f, unit: { ...f.unit, maxHp: 500, currentHp: 500 } })) };
   assert.equal(b.playerDefenseBoost, 12 + 3);
   assert.equal(b.playerHeat, 60 - 25 - 4);
   assert.ok(b.memo?.afterDefend);

@@ -28,10 +28,9 @@ test('defence mitigation: 40 defence halves damage, 0 changes nothing', () => {
   assert.ok(mitigate(100, 400) > 0);
 });
 
-test('accuracy ranges stay ordered and malfunction is the harshest', () => {
+test('accuracy ranges stay ordered', () => {
   assert.deepEqual(ACCURACY_RANGE.precise, [1, 1]);
   for (const [lo, hi] of Object.values(ACCURACY_RANGE)) assert.ok(lo > 0 && lo <= hi && hi <= 1);
-  assert.ok(ACCURACY_RANGE.malfunction[1] < ACCURACY_RANGE.variable[1]);
   assert.ok(ACCURACY_RANGE.unreliable[1] >= ACCURACY_RANGE.variable[1], 'an unreliable hit can match a good roll');
 });
 

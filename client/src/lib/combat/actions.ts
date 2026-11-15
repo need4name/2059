@@ -198,10 +198,9 @@ accuracy: 'precise',
  * Share of the rolled damage that lands, per accuracy tier. Unreliable moves
  * can match a precise hit on a good roll; malfunctioning hardware can't.
  */
-// `malfunction`: an enemy whose structure is broken hits badly (breaking it is the reward); `hostBroken`: your own broken
-// structure costs you less, so you can still fight your way back
-export const ACCURACY_RANGE: Record<'precise' | 'variable' | 'unreliable' | 'malfunction' | 'hostBroken', [number, number]> = {
-precise: [1, 1], variable: [0.7, 0.95], unreliable: [0.5, 1.0], malfunction: [0.25, 0.6], hostBroken: [0.55, 0.8],
+// A broken structure bar doesn't change how hard a blow lands: it makes implant moves misfire (MISFIRE in fight.ts)
+export const ACCURACY_RANGE: Record<'precise' | 'variable' | 'unreliable', [number, number]> = {
+precise: [1, 1], variable: [0.7, 0.95], unreliable: [0.5, 1.0],
 };
 
 export const DEFENSE_K = 40;
@@ -260,7 +259,7 @@ playerHeat: number = 0,
 bypassStructuralDefense: boolean = false,
 criticalCrit: number = 0.30,
 // The memory network's lifts for the host's own blows: harder crits, a higher floor while broken, implants that fade less
-extra: { critDamage?: number; brokenLift?: number; fadeFloor?: number } = {},
+extra: { critDamage?: number; fadeFloor?: number } = {},
 ): DamageResult {
 attacker = liveStats(attacker, extra.fadeFloor ?? 0); defender = liveStats(defender);
 // Two kinds of damage. Physical (Attack vs Defence) is soaked by structure first, like
@@ -308,10 +307,9 @@ strDamage  = Math.floor(strDamage  * rangeMult);
 // Accuracy-tier variance (malfunction has its own, harsher range)
 // Evasion shifts the variance floor down per point, capped at -0.30
 const evasionPenalty = Math.min(0.30, (defender.evasion || 0) * 0.015);
-const tier = isMalfunctioning ? (attacker.id === 'player' ? 'hostBroken' : 'malfunction') : (action.accuracy ?? 'variable');
+const tier = action.accuracy ?? 'variable';
 let [lo, hi] = ACCURACY_RANGE[tier];
 if (tier !== 'precise') { lo = Math.max(0.10, lo - evasionPenalty); }
-if (tier === 'hostBroken') lo = Math.min(hi, lo + (extra.brokenLift ?? 0));
 const variance = lo + random() * (hi - lo);
 physDamage = Math.floor(physDamage * variance);
 strDamage  = Math.floor(strDamage  * variance);
@@ -354,7 +352,7 @@ let str  = Math.max(0, Math.floor(mitigate(baseStr, strDef)));
 const mult = (1 + (opts.flankBonus ?? 0)) * (opts.heatMultiplier ?? 1)
 * (action.rangeOptimal ? getRangeBand(opts.tileDistance ?? 1, action.rangeOptimal) : 1);
 phys = Math.floor(phys * mult); str = Math.floor(str * mult);
-const tier = opts.isMalfunctioning ? (attacker.id === 'player' ? 'hostBroken' : 'malfunction') : (action.accuracy ?? 'variable');
+const tier = action.accuracy ?? 'variable';
 const [lo, hi] = ACCURACY_RANGE[tier];
 const at = (v: number) => Math.max(3, Math.floor(phys * v) + Math.floor(str * v));
 // What reaches health: physical past whatever structure is left, plus all the special
@@ -557,11 +555,14 @@ export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 /** The Patchwork King ends chapter one: on top of the set-piece wall, he takes a host with fresh firmware a few tries. */
 export const KING_EXTRA = { hp: 1.2, atk: 1.05 };
 
+/** How an enemy's toughness splits: shares of what its health alone used to be (walls like the King keep their own). */
+export const ENEMY_FRAME = { hp: 0.64, bossHp: 1, structure: 0.4 };
+
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
 const base = createBoss(10, false, 'Helix Continuity Warden');
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
-const hp = Math.round(base.maxHp * KING_MULT.hp * KING_EXTRA.hp), shp = Math.max(8, (pDef + sDef) * 3);
+const hp = Math.round(base.maxHp / ENEMY_FRAME.bossHp * KING_MULT.hp * KING_EXTRA.hp), shp = Math.max(8, (pDef + sDef) * 3);
 // He wears the Patchwork Crown (rare, or epic a third of the time: the first rung up the ladder) over his frame's own implants
 const crown = signatureImplant('sig_patchwork_crown', random() < 0.35 ? 'epic' : 'rare');
 const carried = [...(crown ? [crown] : []), ...(base.carried ?? [])].slice(0, 3);
@@ -575,7 +576,7 @@ physicalDefense: pDef, structuralDefense: sDef };
 export function createSetPiece(name: string, level = 10): Character {
 const base = createBoss(level, false, name);
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
-const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+const hp = Math.round(base.maxHp / ENEMY_FRAME.bossHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
 return { ...base, maxHp: hp, currentHp: hp, maxStructuralHp: shp, currentStructuralHp: shp,
 physicalAttack: Math.round(base.physicalAttack * KING_MULT.atk), structuralAttack: Math.round(base.structuralAttack * KING_MULT.atk),
 physicalDefense: pDef, structuralDefense: sDef };
@@ -605,7 +606,7 @@ const moves: CombatAction[] = strongest ? [
 ] : own;
 const slots = carried.flatMap(i => (i.slot ? [i.slot] : []));
 const pDef = Math.round(base.physicalDefense * KING_MULT.def), sDef = Math.round(base.structuralDefense * KING_MULT.def);
-const hp = Math.round(base.maxHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
+const hp = Math.round(base.maxHp / ENEMY_FRAME.bossHp * KING_MULT.hp), shp = Math.max(8, (pDef + sDef) * 3);
 return { ...base, carried, moves, implantSlots: slots,
 implants: carried.map(i => `${i.signature ? '' : `${modelOf(i)} `}${i.name.replace(/^\[[A-Z]+\]\s*/, '').replace(/\s*\([LR]\)/, '').trim()}`),
 traits: slots.map(sl => TRAIT_OF_SLOT[sl]).filter((t, n, all) => t && all.indexOf(t) === n),
@@ -737,10 +738,12 @@ bonusHp   += Math.max(0, Math.round((aug.hpBonus || 0) * k));
 pAtk += bonusPAtk; sAtk += bonusSAtk;
 pDef += bonusPDef; sDef += bonusSDef;
 let finalHp = bossHp + bonusHp;
-const structuralHp = Math.max(8, (pDef + sDef) * 3);
 // Elites, bosses and the first-life set piece are tougher; everything grows level on level
 const g = growth(level, firstRun);
 finalHp = Math.round(finalHp * ROLE_MULT[role].hp * g.hp);
+// Most of an enemy's toughness is its frame: the structure bar is long, the health under it short, so breaking it comes late and the kill soon after
+const structuralHp = Math.max(8, Math.round(finalHp * ENEMY_FRAME.structure));
+finalHp = Math.round(finalHp * (role === 'normal' ? ENEMY_FRAME.hp : ENEMY_FRAME.bossHp));
 pAtk = Math.round(pAtk * ROLE_MULT[role].atk * g.atk); sAtk = Math.round(sAtk * ROLE_MULT[role].atk * g.atk);
 
 return {
@@ -750,6 +753,7 @@ maxHp: finalHp,
 currentHp: finalHp,
 maxStructuralHp: structuralHp,
 currentStructuralHp: structuralHp,
+...(role !== 'normal' ? { elite: true } : {}),
 physicalAttack:    pAtk,
 structuralAttack:  sAtk,
 physicalDefense:   pDef,

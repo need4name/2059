@@ -7,8 +7,8 @@ import { getPlayerReach } from '@/lib/combat/grid';
 import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, type StatusMark } from '@/lib/rendering/board';
-import { wearOf, drawWearFx, drawWearUnder } from '@/lib/rendering/wear';
-import { drawDoll } from '@/lib/rendering/dolls';
+import { wearOf, drawWearFx, drawWearUnder, drawMisfire } from '@/lib/rendering/wear';
+import { drawDoll, slotAnchors } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
 import { useInventory } from '@/lib/stores/useInventory';
@@ -1102,6 +1102,7 @@ if (pFall === null) drawWearUnder(ctx, pWear, playerPos.x - spriteSize / 2, pTop
 drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, pState, pFrame, playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0 });
 // Its implants as the structure bar stands: sparks, smoke and glitching once they're failing
 if (pFall === null) drawWearFx(ctx, hostSpec, pWear, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, now, 11, dx => drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2 + dx, pTop, spriteSize, pState, pFrame, playerFacingLeft));
+{ const mt = director.misfire('player', now); if (mt !== null) drawMisfire(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, mt, slotAnchors(hostSpec).right_arm); }
 drawHeatHaze(ctx, playerPos.x, pTop, spriteSize, useCombat.getState().playerHeat, now);
 // The signal leaving: the host's shape, pale, rising out of the body and thinning away
 const leave = director.leaving(now);
@@ -1279,6 +1280,7 @@ drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
 v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0 });
 if (fFall === null) drawWearFx(ctx, fSpec, fWear, fp.x - size / 2 + stumble.x, fTop + stumble.y, size, fFacingLeft, now, 23 + i * 7,
   dx => drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x + dx, fTop + stumble.y, size, v.animator.getState(), v.animator.getFrame(), fFacingLeft));
+{ const mt = director.misfire(fKey, now); if (mt !== null) drawMisfire(ctx, fSpec, fp.x - size / 2, fTop, size, fFacingLeft, mt, slotAnchors(fSpec).right_arm); }
 ctx.restore();
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
 { const rise = director.guarding(fKey, now); if (fFall === null && (rise !== null || f.defenseBoost > 0)) drawGuard(ctx, fp.x, fp.y, tileW, f.pos.col > grid.playerPosition.col, now, rise, '#ff9a7a'); }
@@ -1286,6 +1288,16 @@ if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.
 } });
 overlay.push(() => {
 if (fFall !== null) return;
+// A broken enemy's wound-up heavy may fizzle: its locked tiles crackle orange
+if (f.malfunctioning && f.pendingTiles) for (const t of f.pendingTiles) {
+  const tp = gridToScreen(t.row, t.col, width, height), g2 = Math.max(2, tileW * 0.05);
+  ctx.save();
+  ctx.strokeStyle = '#ffa04a'; ctx.lineWidth = Math.max(2, tileW * 0.045);
+  ctx.globalAlpha = Math.floor(now / 70 + t.col * 3 + t.row) % 7 === 0 ? 0.25 : 0.9;
+  ctx.setLineDash([tileW * 0.12, tileW * 0.07, tileW * 0.04, tileW * 0.09]); ctx.lineDashOffset = Math.floor(now / 120) * tileW * 0.05;
+  roundRectPath(ctx, tp.x - tileW / 2 + g2, tp.y - tileH / 2 + g2, tileW - g2 * 2, tileH - g2 * 2, tileW * 0.14); ctx.stroke();
+  ctx.restore();
+}
 const barW = tileW * 0.9, barY = fp.y + tileH / 2 + 5;
 const fShown = director.shown(fKey);
 drawUnitBar(ctx, fp.x, barY, barW, (fShown?.hp ?? f.unit.currentHp) / f.unit.maxHp, living.length > 1 ? (f.unit.spriteColor || '#ef4444') : '#ef4444', f.unit.maxStructuralHp > 0 ? (fShown?.structure ?? f.unit.currentStructuralHp) / f.unit.maxStructuralHp : null);

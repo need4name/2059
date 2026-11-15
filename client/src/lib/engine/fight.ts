@@ -282,6 +282,8 @@ export type FightEvent =
   | { kind: 'allyDown'; ally: number }
   /** Sound cues only: a body thrown into something, a burn tick, a heavy wound up, a Surge. */
   | { kind: 'collide' } | { kind: 'burn' } | { kind: 'telegraph' } | { kind: 'surge' }
+  /** A broken body's move fizzled. */
+  | { kind: 'misfire'; by: Body }
   /** For the screen only: a blow thrown, by whom, from where, at what, over which tiles, in which shape (the fight plays it back). */
   | { kind: 'strike'; by: Body; from: TilePosition; aim: TilePosition; tiles: TilePosition[]; pattern: AttackPatternType; physical: number; name: string; heavy?: boolean };
 
@@ -298,7 +300,9 @@ const hittable = (f: Foe) => isAlive(f) && !f.swimming;
 /** Does this enemy carry an implant that gives it this trait? */
 export const hasTrait = (f: Foe | undefined, t: string) => !!f?.unit.traits?.includes(t);
 /** Damage an enemy takes: a spine brace cuts it. */
-const takenBy = (f: Foe) => (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1)
+/** A broken enemy comes apart: everything hits it this much harder. */
+export const BROKEN_TAKES = 1.5, BROKEN_TAKES_BOSS = 1.2;
+const takenBy = (f: Foe) => (f.malfunctioning ? (f.unit.elite || f.unit.enrage ? BROKEN_TAKES_BOSS : BROKEN_TAKES) : 1) * (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1)
   * (f.twist === 'dream' ? (f.dreaming ? 0 : DREAM.awake) : 1);
 /** What a foe's blows are worth: an arm graft lands them harder; the Count's copy at half. */
 const dealtBy = (f: Foe) => (hasTrait(f, 'armed') ? 1.1 : 1) * (f.twist === 'decoy' ? DECOY.hits : 1);
@@ -1623,9 +1627,32 @@ export function defendAmounts(s: FightState, action: CombatAction, mult: number)
 }
 
 /** Use a defensive implant move: heal, repair, guard, counter, anchor, step back, on you and whoever it covers. */
+/**
+ * Misfire: a broken structure bar makes moves fail. Your implant moves (never Strike, Brace, firmware, guns or stims)
+ * fizzle this often while you're broken, and the turn is spent; a broken enemy's every move does, a wound-up heavy included
+ * (a boss, anything that enrages, half as often).
+ * `shock`: Short circuit (memory) turns your misfire into this share of the move's damage on every enemy beside you.
+ */
+export const MISFIRE = { you: 1 / 3, foe: 0.5, boss: 0.25, shock: 0.5 };
+export const misfireChance = (s: FightState) => Math.max(0, MISFIRE.you - (s.perks.steadyHands ?? 0));
+/** Could this move misfire right now? (The card and the Execute button say so.) */
+export const mayMisfire = (s: FightState, action: CombatAction) => s.playerMalfunctioning && !!action.fromImplant && misfireChance(s) > 0;
+function playerMisfire(s: FightState, action: CombatAction): Step | null {
+  if (!mayMisfire(s, action) || random() >= misfireChance(s)) return null;
+  const events: FightEvent[] = [say(`MISFIRE -- ${action.name} fizzles`, 'malfunction'), { kind: 'misfire', by: { kind: 'player' } }];
+  let state = s;
+  if (s.perks.shortCircuit) {
+    const dmg = Math.max(1, Math.round((action.damage ?? 10) * MISFIRE.shock));
+    s.foes.forEach((f, i) => { if (isAlive(f) && !f.swimming && !f.dreaming && chebyshev(f.pos, s.grid.playerPosition) === 1) { events.push(say(`Short circuit: ${f.unit.name} -${dmg}`, 'damage')); state = hurt(state, { kind: 'foe', i }, dmg, events); } });
+    state = afterFoeChanges(state, events);
+  }
+  return { state, events };
+}
+
 export function resolveDefend(s: FightState, action: CombatAction, aim: TilePosition | null): Step {
   const d = action.defend;
   if (!d) return resolveBrace(s, action);
+  { const mf = playerMisfire(s, action); if (mf) return mf; }
   const events: FightEvent[] = [];
   const { who, mult } = defendTargets(s, action, aim);
   const roll = d.roll ? d.roll[0] + random() * (d.roll[1] - d.roll[0]) : 1;
@@ -1949,6 +1976,7 @@ function applyHitEffects(state: FightState, before: FightState, action: CombatAc
 export function resolvePlayerAttack(s: FightState, action: CombatAction, playerClass: PlayerClass = 'none', aim: TilePosition | null = bestAim(s, action, playerClass)): Step {
   // A part torn off the King is used up
   if (action.spoil && s.king) { const k = s.king.spoils.indexOf(action.spoil); if (k >= 0) s = { ...s, king: { ...s.king, spoils: s.king.spoils.filter((_, n) => n !== k) } }; }
+  { const mf = playerMisfire(s, action); if (mf) return mf; }
   const events0: FightEvent[] = [];
   const { player, grid, playerHeat } = s;
   const heatMult = getHeatMultipliers(playerHeat);
@@ -1969,7 +1997,6 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
 
   const events: FightEvent[] = [...events0];
   if (kizunaFiredNow) events.push(say('KIZUNA ACTIVE -- cold-start precision lock'));
-  if (s.playerMalfunctioning) events.push(say('MALFUNCTION', 'malfunction'));
 
   let state: FightState = s;
   const struck = foesStruck(s, action, playerClass, aim);
@@ -2001,7 +2028,7 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
       0.30 + (s.perks.hotCrit ?? 0),
-      { critDamage: s.perks.critDamage ?? 0, brokenLift: s.perks.steadyHands ?? 0, fadeFloor: s.perks.failSafe ?? 0 },
+      { critDamage: s.perks.critDamage ?? 0, fadeFloor: s.perks.failSafe ?? 0 },
     );
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     dealtTotal += foe.unit.currentHp - hp;
@@ -2528,6 +2555,11 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
 
 /** The foe's action itself, once start-of-turn effects are done. */
 function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
+  // Broken, its moves misfire: whatever it was about to do fizzles (a wound-up heavy is lost), and it can only walk
+  if (s.foes[i].malfunctioning && random() < (s.foes[i].unit.elite || s.foes[i].unit.enrage ? MISFIRE.boss : MISFIRE.foe)) {
+    const state = setFoe(s, i, { chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null, pendingAim: null });
+    return { state, events: [say(`${s.foes[i].unit.name}: MISFIRE`, 'malfunction'), { kind: 'misfire', by: { kind: 'foe', i } }], walkAfter: true };
+  }
   if (s.foes[i].pendingAction) {
     const rel = releaseHeavy(s, i);
     let state = rel.state;

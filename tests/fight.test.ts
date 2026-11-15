@@ -1741,3 +1741,19 @@ test('the Pass\'s light burns its row, the Pass too, and sweeps on', () => {
   assert.ok(after.foes[0].unit.currentHp < pass.unit.currentHp, 'it burns the Pass too');
   assert.equal(after.light!.row, 1);
 });
+
+test('misfire: a broken host\'s implant moves can fizzle; Strike never does; Steady hands lowers the odds; a broken enemy takes more', () => {
+  const base = fight();
+  const broken = { ...base, playerMalfunctioning: true, player: { ...base.player, currentStructuralHp: 0 } };
+  const implant: CombatAction = { type: 'attack', name: 'Graft', description: '', damage: 10, attackPattern: 'melee', fromImplant: true };
+  const strike: CombatAction = { type: 'attack', name: 'Strike', description: '', damage: 10, attackPattern: 'melee' };
+  assert.ok(Fight.mayMisfire(broken, implant));
+  assert.ok(!Fight.mayMisfire(broken, strike));
+  assert.ok(!Fight.mayMisfire(base, implant), 'a whole body never misfires');
+  let fizzled = 0;
+  for (let n = 0; n < 300; n++) { seedRandom(n + 1); if (Fight.resolvePlayerAttack(broken, implant, 'none').events.some(e => e.kind === 'misfire')) fizzled++; }
+  assert.ok(fizzled > 60 && fizzled < 140, `about a third misfire (got ${fizzled}/300)`);
+  for (let n = 0; n < 50; n++) { seedRandom(n + 1); assert.ok(!Fight.resolvePlayerAttack(broken, strike, 'none').events.some(e => e.kind === 'misfire')); }
+  assert.ok(Fight.misfireChance({ ...broken, perks: { ...broken.perks, steadyHands: 0.2 } }) < Fight.misfireChance(broken));
+  assert.equal(Fight.BROKEN_TAKES, 1.5);
+});

@@ -621,13 +621,28 @@
    "branch": "fault",
    "at": [107, 161],
    "name": "Steady hands",
-   "text": "While malfunctioning, your weakest hits are 4% stronger per rank",
+   "text": "While malfunctioning, your implant moves are 4% less likely to misfire per rank",
    "cost": 1,
    "ranks": 5,
    "fx": [
     {
      "perk": "steadyHands",
      "per": 0.04
+    }
+   ],
+   "specs": [
+    {
+     "id": "f4_short_circuit",
+     "name": "Short circuit",
+     "text": "When your move misfires, the sparks hit every enemy beside you",
+     "cost": 3,
+     "ranks": 1,
+     "fx": [
+      {
+       "perk": "shortCircuit",
+       "on": true
+      }
+     ]
     }
    ]
   },

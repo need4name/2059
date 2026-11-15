@@ -6,6 +6,8 @@ name: string;
 maxHp: number;
 currentHp: number;
 maxStructuralHp: number;
+/** An elite or boss: it misfires less when broken and comes apart more slowly (MISFIRE.boss, BROKEN_TAKES_BOSS). */
+elite?: boolean;
 currentStructuralHp: number;
 /** What its implants (and their trees) add to its stats: they fade as the structure bar empties (actions.ts liveStats). */
 implantStats?: { pa: number; sa: number; pd: number; sd: number };

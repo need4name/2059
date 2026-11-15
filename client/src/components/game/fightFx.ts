@@ -54,6 +54,7 @@ export class FxDirector {
   private numbers: Number_[] = [];
   private waves: { tiles: TilePosition[]; born: number; rising: boolean; c0: number; c1: number }[] = [];
   private guardsUp = new Map<string, number>();
+  private misfired = new Map<string, number>();
   private flashUntil = 0;
   private shakeUntil = 0;
   private leftAt = 0;
@@ -107,6 +108,8 @@ export class FxDirector {
       }
       for (const w of sc.p.windups) this.burst(`foe:${w}`, null, '#ff8a3a', 14, now, -1.2);
       for (const g of sc.p.guards ?? []) this.guardsUp.set(g, now);
+      // A misfire: the burst plays on the body and the word floats up
+      for (const m of sc.p.misfires ?? []) { this.misfired.set(m, now); this.numbers.push({ key: m, text: 'MISFIRE', color: '#ffa04a', born: now + 120, big: false }); }
     }
   }
 
@@ -324,6 +327,8 @@ export class FxDirector {
   }
 
   /** A guard going up on someone just now (0..1 through it), or null. */
+  /** Milliseconds since this body's move misfired, while its burst is still playing. */
+  misfire(key: string, now: number): number | null { const t = this.misfired.get(key); if (t === undefined) return null; if (now - t > 950) { this.misfired.delete(key); return null; } return now - t; }
   guarding(key: string, now: number): number | null { const t = this.guardsUp.get(key); if (t === undefined) return null; const k = (now - t) / 650; if (k > 1) { this.guardsUp.delete(key); return null; } return Math.max(0, k); }
 
   /** Over the bodies: shots in flight, sparks, numbers. */
