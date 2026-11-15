@@ -19,6 +19,10 @@ The working list. Chapter one first; everything from chapter two on is framework
 10. Chapter one balance from playtests.
 11. Story text: room text and chapter goals are placeholders.
 
+## Story and feel
+
+- **Time passes between hosts.** Waking in a new host should feel like time has gone by since the last one fell, shown entirely diegetically (nothing told: the world shows it). Plan first, then mockups.
+
 ## Drops (analysis before the motivation talk)
 
 - **Part drops: variety, variability and rarity.** Identical implants come up far too often, and chapter one, being mostly white and green, should have the widest variety in the game. Work out how parts and implants are generated and picked, measure it, and compare with similar games.
