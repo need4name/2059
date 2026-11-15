@@ -31,6 +31,7 @@ Story and setting live in the owner's universe notes, which stay out of this pub
 - **Location types** give rooms their feel: raft clusters (islands and 1-wide bridges over water), gantries (tall and narrow, long open lines), container yards and holds (mazes of cover), foundries and smelters (fire channels), hulls and pump rooms (wide, pillars), the chapel (symmetric, open centre), ambush pockets (the barge and archive: you start near enemies on two sides), and boss stages (the throne hall, the foundry floor, the ring of deck round the drowned spire's water).
 - The content check rejects arenas with ragged rows, unknown characters, no or several P, no E, or an E the player can't walk to; every fight room must have one.
 - Farm fights (no room) still roll an arena: portrait, 7x9 growing with movement and bodies up to 9x13, one of four outlines (open, corridor, L-shape, cross) with scattered cover and hazards.
+- **The board's edge at sea** (`seaEdges` in a chapter's `rules`, `intoSea` in `fight.ts`; chapter one): every open edge is a drop, like a `~` tile, so a body knocked off it goes into the water and hangs there at the edge until it climbs out. Elsewhere the edge stops a body like cover (a slam and a stun). Shove previews show what happens: the arrow on a body you'll shove is blue into the sea, orange onto a hazard, white otherwise, with a stop bar only where something solid is in the way.
 - **Open water:** a body knocked into the sea takes collision damage (30% of the hit, at least 4) but doesn't drown. While it's in the water it can't be hit or targeted, makes no threat and draws no parting blow; on its next turn it climbs out onto the nearest open deck tile, and that's its whole turn, and the cold and the climb cost it 5% of its max health (at least 3; `WATER`), whoever it is. The log says "climbs out of the sea: -N, turn lost". The player in the sea is left alone by enemies and spends their next turn climbing out.
 
 ### Attack shapes
@@ -63,7 +64,8 @@ Each shape has one job and one way to beat it (`client/src/lib/combat/patterns.t
   - **Flanker** (Non-Continuous Raider): ends at your side or back where it can, so its next blow lands harder.
   - **Shover** (Pump-Fleet Cadre): lines up its knock so it would send you into the sea, onto a hazard or into something solid.
   - **Hauler** (SALV Boarder): lines up its hook so it would drag you onto a hazard beside it. Being dragged onto a hazard bites like being thrown there (either way: your hooks too).
-  - **Shooter** (none yet in chapter one): keeps 3 to 4 tiles off.
+  - **Shooter** (Ghost-MIL Infiltrator, IOA Interdiction Officer): keeps 3 to 4 tiles off.
+  - Volkov Operators are shovers; Helix Continuity Wardens brawlers.
   - **Mender** (CBN Extraction Surgeon): a shooter that, once broken, falls back as far as it can; at the start of its turn, broken with nobody within 3 tiles (`MENDER`), it spends the turn patching 40% of its structure bar. Chase it down.
   - **Cover** (Tianxia Compliance Unit): a shooter that stands with cover on your side of it, so you have to work round it.
 - **Heavy attacks lock their tiles.** The enemy winds up where it stands, aimed at where its target stands; the striped red tiles are exactly the tiles that fire next turn. Anyone on them then is hit (allies included), anyone off them is safe, wherever they are. If the shape can't reach its target from there, the heavy isn't wound up. Enemies only use heavies when their own heat is **50 or more** (see Heat).

@@ -26,6 +26,8 @@ export interface Cast {
 }
 /** Board rules that hold in every fight of a chapter. */
 export interface ChapterRules {
+  /** At sea: the board's open edges are a drop, so a body knocked off one goes into the water. */
+  seaEdges?: boolean;
   /** The alarm trips early in each fight and the whole board heats up every round (cold pods help). */
   alarm?: boolean;
   /** Hosts still have a dreamer inside, who may flinch once a fight and move you a tile. */

@@ -1258,6 +1258,9 @@ export const stun = (s: FightState, b: Body): FightState =>
  * it (see swimming). If something solid is there (cover, the rail, another body) it slams into it instead: collision
  * damage and a stun, and a body it hits takes the same damage.
  */
+/** Would a body pushed onto `to` go into the sea? A sea tile does; so does going off the board where its edges are a drop (seaEdges). */
+export const intoSea = (grid: CombatGrid, to: TilePosition) => (inBounds(to, grid) ? tileAt(to, grid)?.type === 'void' : !!grid.seaEdges);
+
 export function knockBack(s: FightState, from: TilePosition, who: Body, hit: number, events: FightEvent[], crush = 1): FightState {
   // Bale doesn't move
   if (who.kind === 'ally' && s.allies[who.k]?.rule === 'anchor') { events.push(say(`${s.allies[who.k].unit.name} doesn't budge`)); return s; }
@@ -1265,8 +1268,8 @@ export function knockBack(s: FightState, from: TilePosition, who: Body, hit: num
   const step = { row: Math.sign(at.row - from.row), col: Math.sign(at.col - from.col) };
   const to = { row: at.row + step.row, col: at.col + step.col };
   const other = inBounds(to, s.grid) ? bodyAt(s, to) : null;
-  // Open water: in it goes. It hurts, and it spends its next turn climbing out (unhittable meanwhile)
-  if (inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' && !other) {
+  // Open water (a sea tile, or off an open edge at sea): in it goes. It hurts, and it spends its next turn climbing out (unhittable meanwhile)
+  if (intoSea(s.grid, to) && !other) {
     const dmg = Math.max(COLLISION.min, Math.round(hit * COLLISION.share * crush * (who.kind === 'foe' ? s.perks.collisionMult : 1)));
     events.push(say(`${who.kind === 'player' ? 'You go' : `${nameOf(s, who)} goes`} into the sea: -${dmg}`, 'critical'), { kind: 'collide' });
     const wet = hurt(s, who, dmg, events);
@@ -2685,7 +2688,7 @@ export function foeWalk(s: FightState, i: number): Step {
       case 'shover': {
         if (!hitsPrey || !coversWith(p, prey, a => !!a.effects?.knock || a.attackPattern === 'knockback')) return base - moved * 0.3;
         const st = stepFrom(p, prey), to = { row: prey.row + st.row, col: prey.col + st.col };
-        const land = inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' ? 5 : inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'hazard' ? 4 : solidAt(to, p) ? 3 : 0;
+        const land = intoSea(s.grid, to) ? 5 : inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'hazard' ? 4 : solidAt(to, p) ? 3 : 0;
         return base + land - moved * 0.3;
       }
       // Lines up its hook so it drags you onto a hazard beside it

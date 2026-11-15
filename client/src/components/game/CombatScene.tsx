@@ -251,8 +251,11 @@ const gridHeight = bounds.rows * tileH;
 const offsetX = leftReserved + (canvasWidth - leftReserved - rightReserved - gridWidth) / 2;
 const offsetY = topReserved + (availableHeight - gridHeight) / 2;
 
-const x = offsetX + (col - bounds.c0) * tileW + tileW / 2;
-const y = offsetY + (row - bounds.r0) * tileH + tileH / 2;
+// Off the board (knocked into the sea past an edge): drawn hanging in the water at the edge, still in view
+const c = Math.max(bounds.c0 - 0.42, Math.min(bounds.c0 + bounds.cols - 0.58, col));
+const r = Math.max(bounds.r0 - 0.42, Math.min(bounds.r0 + bounds.rows - 0.58, row));
+const x = offsetX + (c - bounds.c0) * tileW + tileW / 2;
+const y = offsetY + (r - bounds.r0) * tileH + tileH / 2;
 
 return { x, y, tileW, tileH };
 
@@ -519,10 +522,13 @@ if (allyTurn !== null && allyPicked !== null && phase === 'player_turn') {
 }
 // Into the Breach's preview: how much of each struck enemy's health this hit will take (no crits)
 // Is a tile somewhere a shoved body can't go (off the board, cover, a wall, someone standing there)?
-const blockedAt = (r: number, c: number) => r < 0 || c < 0 || r >= grid.rows || c >= grid.cols
-  || ['obstacle', 'void'].includes(grid.tiles?.[r]?.[c]?.type ?? '')
+// (The sea isn't in the way: a body shoved into it goes in, a sea tile or off an open edge at sea.)
+const blockedAt = (r: number, c: number) => !Fight.intoSea(grid, { row: r, col: c }) && (r < 0 || c < 0 || r >= grid.rows || c >= grid.cols
+  || grid.tiles?.[r]?.[c]?.type === 'obstacle'
   || living.some(x => x.f.pos.row === r && x.f.pos.col === c)
-  || (grid.playerPosition.row === r && grid.playerPosition.col === c);
+  || (grid.playerPosition.row === r && grid.playerPosition.col === c));
+/** What a shove onto (r, c) ends in, for the arrow's colour: blue the sea, orange a hazard, white anything else. */
+const shoveTone = (r: number, c: number) => Fight.intoSea(grid, { row: r, col: c }) ? '#5fd0ff' : grid.tiles?.[r]?.[c]?.type === 'hazard' ? '#ffa040' : '#ffffff';
 
 if (selectedAction && phase === 'player_turn' && (selectedAction.type === 'attack' || selectedAction.type === 'special')) {
 
@@ -805,9 +811,9 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
       const { dr, dc } = danger!.shove;
       // Where it would leave you: into the sea (blue) or onto a hazard (orange) shows on the arrow and on the tile you'd land on
       const land = { row: row + dr, col: col + dc }, lt = grid.tiles?.[land.row]?.[land.col];
-      const into = lt?.type === 'void' ? 'sea' : lt?.type === 'hazard' ? 'hazard' : null;
+      const into = Fight.intoSea(grid, land) ? 'sea' : lt?.type === 'hazard' ? 'hazard' : null;
       const tone = into === 'sea' ? '#5fd0ff' : into === 'hazard' ? '#ffa040' : '#ffffff';
-      if (into && lt) {
+      if (into) {
         const lp = gridToScreen(land.row, land.col, width, height);
         overlay.push(() => {
           ctx.save();
@@ -1339,7 +1345,7 @@ if (pv !== undefined || (struckFoes?.has(i) && phase === 'player_turn')) {
     const away = aimedMove === 'push' ? 1 : -1;
     const dx = Math.sign(f.pos.col - attackFrom.col) * away, dy = Math.sign(f.pos.row - attackFrom.row) * away;
     const c = gridToScreen(f.pos.row, f.pos.col, width, height);
-    if (dx || dy) drawMoveArrow(ctx, c.x, c.y, dx, dy, tileW, tileH, now, '#ffffff', aimedMove === 'push' && blockedAt(f.pos.row + dy, f.pos.col + dx));
+    if (dx || dy) drawMoveArrow(ctx, c.x, c.y, dx, dy, tileW, tileH, now, aimedMove === 'push' ? shoveTone(f.pos.row + dy, f.pos.col + dx) : '#ffffff', aimedMove === 'push' && blockedAt(f.pos.row + dy, f.pos.col + dx));
   }
 }
 

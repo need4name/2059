@@ -325,6 +325,8 @@ playerPosition: TilePosition;
 bossPosition: TilePosition;
 /** Other units standing on the field (blocks movement and paths). */
 occupied?: TilePosition[];
+/** The board's open edges are a drop into the sea (chapter one): a body knocked off one goes in, like onto `~`. Otherwise the edge stops it. */
+seaEdges?: boolean;
 tiles: TileData[][];
 }
 

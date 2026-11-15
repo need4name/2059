@@ -12,13 +12,17 @@ The working list. Chapter one first; everything from chapter two on is framework
 ## Maps
 
 6. **Fight boards feel repetitive and cramped.** More layouts, more room.
-7. **Knocking enemies off the arena is inconsistent.** One predictable rule, shown before you commit.
+7. ~~Knocking enemies off the arena is inconsistent~~ Done: at sea every open edge is a drop into the water; shove arrows show sea, hazard or a stop.
 
 ## Ongoing
 
 10. Chapter one balance from playtests.
 11. Story text: room text and chapter goals are placeholders.
 
-## To talk about (after the combat-feel pass)
+## Drops (analysis before the motivation talk)
+
+- **Part drops: variety, variability and rarity.** Identical implants come up far too often, and chapter one, being mostly white and green, should have the widest variety in the game. Work out how parts and implants are generated and picked, measure it, and compare with similar games.
+
+## To talk about (after the combat-feel pass and the drop analysis)
 
 - **Intrinsic and extrinsic motivation:** what makes the player want to keep playing for its own sake, against what the game hands out (points, parts, unlocks). A conversation before anything is built.

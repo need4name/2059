@@ -225,7 +225,8 @@
       "lateLines": [
         "I've logged you before. Different face. Same noise."
       ],
-      "firstSight": "Something is in that skull too. It looks out at me the way I look out at it."
+      "firstSight": "Something is in that skull too. It looks out at me the way I look out at it.",
+      "behaviour": "shooter"
     },
     "Non-Continuous Raider": {
       "color": "#f87171",
@@ -393,7 +394,8 @@
       "lateLines": [
         "Second report this week. They're not listening to me."
       ],
-      "firstSight": "It enforces a law. I cannot find the law. I can only find the gun."
+      "firstSight": "It enforces a law. I cannot find the law. I can only find the gun.",
+      "behaviour": "shooter"
     },
     "Tianxia Compliance Unit": {
       "color": "#06b6d4",
@@ -506,7 +508,8 @@
       "lateLines": [
         "Your record ends three times. How many more?"
       ],
-      "firstSight": "It guards a door with nothing behind it."
+      "firstSight": "It guards a door with nothing behind it.",
+      "behaviour": "brawler"
     },
     "Volkov Operator": {
       "color": "#ef4444",
@@ -562,7 +565,8 @@
       "lateLines": [
         "They told us to expect you. They didn't say how many."
       ],
-      "firstSight": "Its limbs are worth more than its life. It knows the price of each."
+      "firstSight": "Its limbs are worth more than its life. It knows the price of each.",
+      "behaviour": "shover"
     },
     "Cartel Enforcer": {
       "color": "#e11d48",

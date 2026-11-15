@@ -92,7 +92,7 @@ const chapterFile = z.object({
       rotation: z.array(text).min(3), elites: z.array(text).min(1).max(3), bosses: z.array(text).min(1).max(2),
       firstFight: text, setPiece: text,
     }).strict(),
-    rules: z.object({ alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional(), orders: z.boolean().optional(), machines: z.boolean().optional() }).strict().optional(),
+    rules: z.object({ seaEdges: z.boolean().optional(), alarm: z.boolean().optional(), flinch: z.boolean().optional(), wind: z.boolean().optional(), orders: z.boolean().optional(), machines: z.boolean().optional() }).strict().optional(),
     tileset: z.object({
       floor: z.object({ light: hex, dark: hex, seam: hex, pattern: z.enum(['plastic', 'boards', 'ward', 'steel', 'panel']).optional() }).strict(),
       sea: z.object({ top: hex, bottom: hex, foam: hex }).strict(),

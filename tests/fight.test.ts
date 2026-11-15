@@ -1820,3 +1820,18 @@ test('a hook that drags you onto a hazard: it bites', () => {
   assert.deepEqual(after.grid.playerPosition, { row: 3, col: 3 });
   assert.ok((after.playerBurning ?? 0) > 0, 'dragged onto fire, you burn');
 });
+
+test('at sea the board edge is a drop: knocked off it you go in; elsewhere the edge stops you', () => {
+  const base = fight({ grid: arena([8, 3], [7, 3]) });
+  const events: Fight.FightEvent[] = [];
+  // The enemy at 7,3 knocks you from 8,3 down off the bottom edge
+  const sea = Fight.knockBack({ ...base, grid: { ...base.grid, seaEdges: true } }, { row: 7, col: 3 }, { kind: 'player' }, 20, events);
+  assert.ok(sea.playerSwimming, 'in the water');
+  assert.ok(!sea.playerStunned);
+  assert.ok(Fight.intoSea(sea.grid, { row: 9, col: 3 }));
+  const wall = Fight.knockBack(base, { row: 7, col: 3 }, { kind: 'player' }, 20, []);
+  assert.ok(!wall.playerSwimming && wall.playerStunned, 'without sea edges it slams and stuns');
+  // Climbing out lands on the board again
+  const out = Fight.playerConditions(sea);
+  assert.ok(out.state.grid.playerPosition.row < base.grid.rows && !out.state.playerSwimming);
+});

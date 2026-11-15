@@ -731,7 +731,9 @@ const party = partyForFight(perks, level);
 // Map fights use the room's own drawn arena; farm fights roll one
 const fightRoom = !farm ? roomById(useMap.getState().room) : undefined;
 const drawn = fightRoom?.arena;
-const grid = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
+const grid0 = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
+// At sea, the board's open edges are a drop into the water (Knockback in DESIGN.md)
+const grid = activeChapter().rules?.seaEdges ? { ...grid0, seaEdges: true } : grid0;
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;
