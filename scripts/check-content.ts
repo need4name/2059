@@ -271,6 +271,8 @@ const enemy = z.object({
   firstSight: z.string().trim().min(1).max(110),
   traits: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).optional(),
   signature: text.optional(),
+  // How it moves (Enemy behaviour in DESIGN.md): brawler, flanker, shover, hauler, shooter, mender, cover; none is a brawler
+  behaviour: z.enum(['brawler', 'flanker', 'shover', 'hauler', 'shooter', 'mender', 'cover']).optional(),
   enrage: z.object({ at: z.number().gt(0).lt(1), gain: z.array(z.enum(['sighted', 'fast', 'armed', 'enduring', 'focused', 'alert', 'filtered', 'braced'])).min(1), line: text }).strict().optional(),
 }).strict();
 

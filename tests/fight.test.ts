@@ -1782,3 +1782,41 @@ test('hazards: each kind does its own thing on top of the damage, to you and to 
   const sealed = Fight.applyPlayerHazard(on({ ...base, perks: { ...base.perks, hazardMult: 0 } }, 'cable', pp)).state;
   assert.ok(!sealed.playerStunned);
 });
+
+test('enemy behaviours: brawlers close in, shooters keep away, flankers go round, broken menders patch up when left alone', () => {
+  // Player at 6,3 facing the foe; the foe starts at 2,3 (four rows up), plain melee and a ranged shot both in its kit
+  const mk = (behaviour: any, moves?: CombatAction[]) => {
+    const b0 = fight({ grid: arena([6, 3], [2, 3]) });
+    const u = { ...b0.foes[0].unit, traits: [], behaviour, elite: false, enrage: undefined, moves: moves ?? b0.foes[0].unit.moves };
+    return { ...b0, foes: [{ ...b0.foes[0], unit: u }] };
+  };
+  const shot: CombatAction = { type: 'attack', name: 'Dart', description: '', damage: 8, attackPattern: 'ranged' };
+  const blade: CombatAction = { type: 'attack', name: 'Blade', description: '', damage: 8, attackPattern: 'melee' };
+  const walked = (s: FightState) => Fight.foeWalk(s, 0).state.foes[0].pos;
+  const pp = { row: 6, col: 3 };
+  const dBrawl = chebyshev(walked(mk('brawler', [shot])), pp), dShoot = chebyshev(walked(mk('shooter', [shot])), pp);
+  assert.ok(dShoot > dBrawl, `a shooter keeps further off (${dShoot} vs ${dBrawl})`);
+  // A flanker that can reach your side ends there rather than in front
+  const fl = mk('flanker', [blade]);
+  const near = { ...fl, foes: [{ ...fl.foes[0], pos: { row: 4, col: 3 } }] };
+  const at = walked(near);
+  const facing = Fight.facingOf(near, { kind: 'player' });
+  assert.ok(Fight.flankFrom(at, pp, facing) > 0, `the flanker ends at your side or back (${at.row},${at.col})`);
+  // A broken mender with nobody near spends its turn patching structure; with you close it doesn't
+  const m0 = mk('mender', [shot]);
+  const broken = { ...m0, foes: [{ ...m0.foes[0], malfunctioning: true, unit: { ...m0.foes[0].unit, currentStructuralHp: 0 } }] };
+  const far = Fight.foeTurn(broken, 0, 3).state.foes[0];
+  assert.ok(far.unit.currentStructuralHp > 0 && !far.malfunctioning, 'mends when left alone');
+  const close = { ...broken, foes: [{ ...broken.foes[0], pos: { row: 5, col: 3 } }] };
+  assert.equal(Fight.foeTurn(close, 0, 3).state.foes[0].unit.currentStructuralHp, 0, 'not with you beside it');
+});
+
+test('a hook that drags you onto a hazard: it bites', () => {
+  const b0 = fight({ grid: arena([6, 3], [2, 3], [3, 3, 4]) });
+  const hook: CombatAction = { type: 'attack', name: 'Hook', description: '', damage: 6, attackPattern: 'grapple', accuracy: 'precise', effects: { pull: true } };
+  const s = { ...b0, foes: [{ ...b0.foes[0], unit: { ...b0.foes[0].unit, traits: [], moves: [hook] } }] };
+  const grid = { ...s.grid, tiles: s.grid.tiles!.map((r, ri) => r.map((t, ci) => (ri === 3 && ci === 3 ? { ...t, art: 'fire' } : t))) };
+  const after = Fight.resolveFoeAction({ ...s, grid }, 0, hook, 3, -1).state;
+  assert.deepEqual(after.grid.playerPosition, { row: 3, col: 3 });
+  assert.ok((after.playerBurning ?? 0) > 0, 'dragged onto fire, you burn');
+});

@@ -1870,9 +1870,15 @@ function pullBody(s: FightState, b: Body, toward: TilePosition, events: FightEve
   }
   if (!moved) return s;
   events.push(say(`${b.kind === 'player' ? 'You are' : `${nameOf(s, b)} is`} dragged ${moved} tile${moved > 1 ? 's' : ''}`, 'critical'));
-  if (b.kind === 'player') return { ...s, grid: { ...s.grid, playerPosition: at } };
-  if (b.kind === 'foe') return setFoe(s, b.i, { pos: at });
-  return { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, pos: at } : x)) };
+  const there = b.kind === 'player' ? { ...s, grid: { ...s.grid, playerPosition: at } } : b.kind === 'foe' ? setFoe(s, b.i, { pos: at }) : { ...s, allies: s.allies.map((x, n) => (n === b.k ? { ...x, pos: at } : x)) };
+  // Dragged onto a hazard: it bites at once, as if thrown there
+  const tile = tileAt(at, s.grid);
+  if (tile?.type !== 'hazard' || (b.kind === 'foe' && hasTrait(s.foes[b.i], 'filtered')) || (b.kind === 'player' && s.perks.hazardMult <= 0)) return there;
+  const maxHp = b.kind === 'player' ? s.player.maxHp : b.kind === 'foe' ? s.foes[b.i].unit.maxHp : s.allies[b.k].unit.maxHp;
+  const dmg = Math.round(hazardHit(at, s.grid, maxHp) * (b.kind === 'player' ? s.perks.hazardMult : 1));
+  events.push(say(`${b.kind === 'player' ? 'You land' : `${nameOf(s, b)} lands`} on ${tile.name ?? 'the hazard'}: -${dmg}${hazardWords(tile.art, b.kind === 'player')}`, 'critical'));
+  const hurtThere = hurt(there, b, dmg, events);
+  return hazardEffect(hurtThere, b, tile.art);
 }
 
 /**
@@ -2499,6 +2505,8 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
  */
 /** How much of its max health an Enduring foe heals at the start of its turn. */
 export const ENDURING = { rate: 0.01, boss: 0.005 };
+/** A broken mender with nobody within `far` tiles spends its turn patching `share` of its structure bar back. */
+export const MENDER = { far: 3, share: 0.4 };
 
 export function foeTurn(s: FightState, i: number, level: number): Step & { walkAfter: boolean } {
   if (!isAlive(s.foes[i])) return { state: s, events: [], walkAfter: false };
@@ -2538,6 +2546,13 @@ export function foeTurn(s: FightState, i: number, level: number): Step & { walkA
   if (f.swimming) {
     state = climbOut(state, { kind: 'foe', i }, events);
     if (!isAlive(state.foes[i])) state = afterFoeChanges(state, events);
+    return { state, events, walkAfter: false };
+  }
+  // A broken mender left alone (nobody within MENDER.far) patches its frame: its whole turn
+  if (f.unit.behaviour === 'mender' && f.malfunctioning && !f.stunned && [s.grid.playerPosition, ...s.allies.filter(allyAlive).map(a => a.pos)].every(p => chebyshev(p, f.pos) >= MENDER.far)) {
+    const back = Math.ceil(f.unit.maxStructuralHp * MENDER.share);
+    events.push(say(`${f.unit.name} patches its frame: +${back} structure`, 'heal'));
+    state = setFoe(state, i, { unit: { ...f.unit, currentStructuralHp: Math.min(f.unit.maxStructuralHp, f.unit.currentStructuralHp + back) }, malfunctioning: false, chargingHeavy: false, pendingAction: null, pendingVictim: null, pendingTiles: null });
     return { state, events, walkAfter: false };
   }
   if (f.stunned) {
@@ -2643,14 +2658,57 @@ export function foeWalk(s: FightState, i: number): Step {
     if (near && chebyshev(near, goal) < chebyshev(foe.pos, goal)) return { state: setFoe(s, i, { pos: near }), events: [] };
   }
   const hunts = !!(foe.unit.elite || foe.unit.enrage);
-  let best = foe.pos, bestScore = -Infinity, onPrey = false;
+  const how = foe.unit.behaviour ?? 'brawler';
   // Mud that floods at the start of next round is a bad place to stop
   const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;
+  const badFloor = (p: TilePosition) => (s.grid.tiles?.[p.row]?.[p.col]?.type === 'hazard' && !hasTrait(foe, 'filtered')) || (flooding && !!s.grid.tiles?.[p.row]?.[p.col]?.tidal);
+  // A broken mender falls back: as far from its victim as it can get, to patch itself up in peace
+  if (!hunts && how === 'mender' && foe.malfunctioning) {
+    const away = spots.filter(p => !badFloor(p)).sort((a, b) => chebyshev(b, prey) - chebyshev(a, prey) || chebyshev(a, foe.pos) - chebyshev(b, foe.pos))[0];
+    if (away && chebyshev(away, prey) > chebyshev(foe.pos, prey)) return { state: setFoe(s, i, { pos: away }), events: [say(`${foe.unit.name} falls back`)] };
+    return { state: s, events: [] };
+  }
+  const roster = foeRoster(foe).filter(a => a.type === 'attack' && !a.isHeavy);
+  const coversWith = (from: TilePosition, t: TilePosition, pick: (a: CombatAction) => boolean) =>
+    roster.filter(pick).some(a => canHitTarget(from, t, a.attackPattern ?? 'melee_long', { ...view, bossPosition: from, playerPosition: t, occupied: (view.occupied ?? []).filter(o => !same(o, t)) }));
+  const vic = victimOf(s, i), preyBody: Body = vic >= 0 && s.allies[vic] ? { kind: 'ally', k: vic } : { kind: 'player' };
+  const preyFacing = facingOf(s, preyBody);
+  const stepFrom = (a: TilePosition, b: TilePosition) => ({ row: Math.sign(b.row - a.row), col: Math.sign(b.col - a.col) });
+  const solidAt = (t: TilePosition, me: TilePosition) => !inBounds(t, s.grid) || isImpassable(t, s.grid) || (!!bodyAt(s, t) && !same(t, foe.pos)) || same(t, me);
+  /** What an ordinary enemy makes of standing at p after its go (EnemyBehaviour; DESIGN.md, Enemy behaviour). */
+  const ordinary = (p: TilePosition, hitsPrey: boolean) => {
+    const base = hitsPrey ? 10 : 0, moved = chebyshev(p, foe.pos), d = chebyshev(p, prey);
+    switch (how) {
+      // Circles to your side or back
+      case 'flanker': return base + (hitsPrey ? flankFrom(p, prey, preyFacing) * 10 : 0) - moved * 0.1;
+      // Lines up its knock so it sends you into the sea, a hazard, or something solid
+      case 'shover': {
+        if (!hitsPrey || !coversWith(p, prey, a => !!a.effects?.knock || a.attackPattern === 'knockback')) return base - moved * 0.3;
+        const st = stepFrom(p, prey), to = { row: prey.row + st.row, col: prey.col + st.col };
+        const land = inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'void' ? 5 : inBounds(to, s.grid) && tileAt(to, s.grid)?.type === 'hazard' ? 4 : solidAt(to, p) ? 3 : 0;
+        return base + land - moved * 0.3;
+      }
+      // Lines up its hook so it drags you onto a hazard beside it
+      case 'hauler': {
+        if (!hitsPrey || !coversWith(p, prey, a => !!a.effects?.pull)) return base - moved * 0.3;
+        const st = stepFrom(p, prey), land = { row: p.row + st.row, col: p.col + st.col };
+        return base + (!same(land, prey) && tileAt(land, s.grid)?.type === 'hazard' ? 4 : 0) - moved * 0.3;
+      }
+      // Shooters keep their distance; one that likes cover stands with cover on your side of it
+      case 'shooter': case 'mender': case 'cover': {
+        const behind = how === 'cover' && [-1, 0, 1].some(dr => [-1, 0, 1].some(dc => { const q = { row: p.row + dr, col: p.col + dc }; return (dr || dc) && inBounds(q, s.grid) && isImpassable(q, s.grid) && tileAt(q, s.grid)?.type !== 'void' && chebyshev(q, prey) < d; })) ? 2.5 : 0;
+        return base + Math.min(d, 4) * 1.2 + behind - moved * 0.2;
+      }
+      // Brawlers rush you
+      default: return base - d * 0.5 - moved * 0.05;
+    }
+  };
+  let best = foe.pos, bestScore = -Infinity, onPrey = false;
   for (const p of spots) {
     const hitsPrey = covers(p, prey);
     // Elites and bosses hunt: they end where they also cover the tiles you could step to. Ordinary enemies
-    // just get into reach with the least walking, so stepping out of the red is a real choice (HUNTERS).
-    const hits = hunts ? escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0) : (hitsPrey ? 10 : 0) - chebyshev(p, foe.pos) * 0.3;
+    // move by their own behaviour, so stepping out of the red is a real choice.
+    const hits = hunts ? escape.reduce((n, t, k) => n + (k > 0 && covers(p, t) ? 1 : 0), hitsPrey ? 10 : 0) : ordinary(p, hitsPrey);
     const hazard = s.grid.tiles?.[p.row]?.[p.col]?.type === 'hazard' && !hasTrait(foe, 'filtered') ? 2 : 0;
     const mud = flooding && s.grid.tiles?.[p.row]?.[p.col]?.tidal ? 12 : 0;
     const score = hits - hazard - mud - chebyshev(p, prey) * 0.05 - (same(p, foe.pos) ? 0 : 0.01);

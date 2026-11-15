@@ -1,7 +1,7 @@
 import { activeChapter, CHAPTERS, ladderDepth } from './chapters';
 import { rollCarried, signatureImplant } from './loot';
 import { firmwareAttack, firmwareHeldAt, holderOf } from '../engine/firmware';
-import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item } from './types';
+import { CombatAction, Character, CombatLog, PlayerClass, ClassStats, getHeatPhase, RangeBand, AugmentationSlot, Item, EnemyBehaviour } from './types';
 import { ITEMS_2059 } from './items2059';
 import enemyContent from '../../content/enemies.json';
 import { MIN_PLAYER_HP, actionForItem, modelOf } from './augments';
@@ -450,7 +450,7 @@ color: string; baseAttack: number; baseDefense: number; startingHeat: number;
 statSplit: { pAtkR: number; sAtkR: number; pDefR: number; sDefR: number };
 dossier: string; moves: CombatAction[];
 lines: string[]; lateLines?: string[]; firstSight: string;
-traits?: string[]; enrage?: { at: number; gain: string[]; line: string }; signature?: string;
+traits?: string[]; enrage?: { at: number; gain: string[]; line: string }; signature?: string; behaviour?: EnemyBehaviour;
 }
 const ENEMY_DATA = enemyContent as unknown as {
 enemies: Record<string, EnemyData>;
@@ -770,6 +770,7 @@ carried,
   ? { traits: [], moves: (BOSS_ATTACKS[bossType.name] ?? []).filter(m => !m.isHeavy).map(({ effects: _fx, ...m }) => m) }
   : { traits: [...(bossType.traits ?? []), ...implantSlots.map(sl => TRAIT_OF_SLOT[sl])].filter((t, n, all) => t && all.indexOf(t) === n) }),
 ...(bossType.enrage ? { enrage: bossType.enrage } : {}),
+...(bossType.behaviour ? { behaviour: bossType.behaviour } : {}),
 };
 }
 

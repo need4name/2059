@@ -51,7 +51,8 @@
       "lateLines": [
         "Another one walking. Who's buying them back?"
       ],
-      "firstSight": "They take things off the dead. I am one of the dead."
+      "firstSight": "They take things off the dead. I am one of the dead.",
+      "behaviour": "brawler"
     },
     "SALV Boarder": {
       "color": "#f59e0b",
@@ -107,7 +108,8 @@
       "lateLines": [
         "They keep coming up out of the bilge now. Same eyes."
       ],
-      "firstSight": "Its arm is a crane. I think it chose this. I think it was told it chose this."
+      "firstSight": "Its arm is a crane. I think it chose this. I think it was told it chose this.",
+      "behaviour": "hauler"
     },
     "Pump-Fleet Cadre": {
       "color": "#a3e635",
@@ -166,7 +168,8 @@
       "lateLines": [
         "Mother warned us. She said the drowned would learn to walk."
       ],
-      "firstSight": "Pumps where the heart should be. They move like they are praying."
+      "firstSight": "Pumps where the heart should be. They move like they are praying.",
+      "behaviour": "shover"
     },
     "Ghost-MIL Infiltrator": {
       "color": "#c084fc",
@@ -278,7 +281,8 @@
       "lateLines": [
         "I cut one like you open last week. It was empty."
       ],
-      "firstSight": "It has cut itself apart to sell the pieces. There is not much left to sell."
+      "firstSight": "It has cut itself apart to sell the pieces. There is not much left to sell.",
+      "behaviour": "flanker"
     },
     "CBN Extraction Surgeon": {
       "color": "#22c55e",
@@ -335,7 +339,8 @@
         "They're all walking out of my theatre now. All of them."
       ],
       "firstSight": "Clean hands. The cleanest thing I have seen here, and the most frightening.",
-      "signature": "sig_surgeon_hands"
+      "signature": "sig_surgeon_hands",
+      "behaviour": "mender"
     },
     "IOA Interdiction Officer": {
       "color": "#fb923c",
@@ -444,7 +449,8 @@
       "lateLines": [
         "Error. Error. The decommissioned are reporting for work."
       ],
-      "firstSight": "Forty bodies, one rhythm. Nobody inside is keeping time."
+      "firstSight": "Forty bodies, one rhythm. Nobody inside is keeping time.",
+      "behaviour": "cover"
     },
     "Helix Continuity Warden": {
       "color": "#e2e8f0",

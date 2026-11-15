@@ -506,10 +506,13 @@ if (process.env.REDCHECK) {
 // FEEL=1: how chapter one's fights feel turn by turn: how much of the board is red, and how long enemies last
 // (and how hard they hit) before and after their structure breaks.
 const feel = { turns: 0, redShare: 0, redNear: 0, nearN: 0, wholeTurns: 0, brokenTurns: 0, lostWhole: 0, lostBroken: 0, roundsWhole: 0, roundsBroken: 0, hp: 0, st: 0, foes: 0, healed: 0, repaired: 0, lastTurns: 0, lastN: 0 };
+const FEEL_LINES: [string, RegExp][] = [['menders patch up', /patches its frame/], ['menders fall back', /falls back/], ['dragged onto a hazard', /lands? on /], ['thrown onto a hazard', /thrown onto/], ['into the sea', /into the sea/], ['slammed (stun)', /slams? into/], ['hazard stuns', /stunned$|is stunned,|you are stunned/], ['misfires', /MISFIRE/]];
+const feelSaid = new Map<string, number>();
 if (process.env.FEEL) {
   let hpAtTurn = 0, mode: 'whole' | 'broken' | 'mixed' | null = null, seen = new WeakSet<object>(), soloTurns = 0;
   C.subscribe((st, prev) => {
     if (CH.CHAPTERS.findIndex(c => c.id === MP.getState().chapter) !== 0) return;
+    { const m = st.combatLog[st.combatLog.length - 1]?.message; if (m && m !== prev.combatLog[prev.combatLog.length - 1]?.message) for (const [k, re] of FEEL_LINES) if (re.test(m)) feelSaid.set(k, (feelSaid.get(k) ?? 0) + 1); }
     for (let i = 0; i < st.foes.length; i++) { const f = st.foes[i], b = prev.foes[i]; if (!b || b.unit.name !== f.unit.name || f.unit.currentHp <= 0) continue; if (f.unit.currentHp > b.unit.currentHp) feel.healed += f.unit.currentHp - b.unit.currentHp; if (f.unit.currentStructuralHp > b.unit.currentStructuralHp) feel.repaired += f.unit.currentStructuralHp - b.unit.currentStructuralHp; }
     if ((st.phase === 'victory' || st.phase === 'defeat') && prev.phase !== st.phase) { feel.lastTurns += soloTurns; feel.lastN++; soloTurns = 0; }
     if (!(st.phase === 'player_turn' && st.allyTurn === null && (prev.phase !== 'player_turn' || prev.allyTurn !== null))) return;
@@ -705,4 +708,5 @@ if (process.env.FEEL) {
   console.log(`health you lose a round: enemies whole ${p2(feel.lostWhole / feel.roundsWhole)}; all broken ${p2(feel.lostBroken / feel.roundsBroken)}`);
   console.log(`enemy avg health ${Math.round(feel.hp / feel.foes)}, structure ${Math.round(feel.st / feel.foes)}; enemy healing all told ${feel.healed}, structure repaired ${feel.repaired} over ${feel.foes} enemies`);
   console.log(`turns spent at the end of a fight on one last broken enemy: ${(feel.lastTurns / feel.lastN).toFixed(1)} a fight`);
+  console.log(`what happened (fight log lines): ${FEEL_LINES.map(([k]) => `${k} ${feelSaid.get(k) ?? 0}`).join(' | ')}`);
 }

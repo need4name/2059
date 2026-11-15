@@ -1,5 +1,7 @@
 export type CombatPhase = 'menu' | 'player_turn' | 'enemy_turn' | 'victory' | 'defeat' | 'shop';
 
+export type EnemyBehaviour = 'brawler' | 'flanker' | 'shover' | 'hauler' | 'shooter' | 'mender' | 'cover';
+
 export interface Character {
 id: string;
 name: string;
@@ -8,6 +10,8 @@ currentHp: number;
 maxStructuralHp: number;
 /** An elite or boss: it misfires less when broken and comes apart more slowly (MISFIRE.boss, BROKEN_TAKES_BOSS). */
 elite?: boolean;
+/** How an enemy moves (foeWalk in fight.ts); none moves like a brawler. */
+behaviour?: EnemyBehaviour;
 currentStructuralHp: number;
 /** What its implants (and their trees) add to its stats: they fade as the structure bar empties (actions.ts liveStats). */
 implantStats?: { pa: number; sa: number; pd: number; sd: number };
