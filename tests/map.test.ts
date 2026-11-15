@@ -184,14 +184,17 @@ test('a lost host leaves its part on its body; the next host can take it back on
   let s = M.newMapState('indian-ocean');
   s = { ...s, room: 'walkway' };
   s = M.newHost(s, part);
-  assert.deepEqual(s.corpse, { room: 'walkway', item: part });
+  assert.equal(s.corpse?.room, 'walkway');
+  assert.equal(s.corpse?.item, part);
   // Not from the entry room, and not while the room's fight is still waiting
   assert.equal(M.takeCorpse(s).item, null);
   s = { ...s, room: 'walkway' };
   if (M.hasFight(s)) assert.equal(M.takeCorpse(s).item, null);
   s = M.clearRoom(s);
   const r = M.takeCorpse(s);
-  assert.equal(r.item, part);
+  // It comes back the same part, aged by how long it lay there
+  assert.equal(r.item?.id, part.id);
+  assert.deepEqual(r.item, M.agedPart(part, M.corpseAge(s)));
   assert.equal(r.state.corpse, null);
   assert.equal(M.takeCorpse(r.state).item, null);
   assert.equal(M.mapView({ ...s, visited: [...s.visited, 'walkway'] }).rooms.find(x => x.id === 'walkway')?.corpse, true);
@@ -202,7 +205,8 @@ test('losing another host first loses the last body\'s part', () => {
   let s = { ...M.newMapState('indian-ocean'), room: 'walkway' };
   s = M.newHost(s, a);
   s = M.newHost({ ...s, room: 'dock' }, b);
-  assert.deepEqual(s.corpse, { room: 'dock', item: b });
+  assert.equal(s.corpse?.room, 'dock');
+  assert.equal(s.corpse?.item, b);
   assert.equal(M.newHost(s, null).corpse, null);
 });
 
@@ -318,4 +322,30 @@ test('chapter one: every fight room but the throne has at least three layouts to
   for (const r of map.rooms.filter(r => r.threat !== undefined && r.id !== 'throne')) {
     assert.ok(1 + (r.arenas?.length ?? 0) >= 3, `${r.id} has ${1 + (r.arenas?.length ?? 0)} layouts`);
   }
+});
+
+test('time passes between hosts: each wakes a gap later, the gaps shrink, and a body left long comes back worse', async () => {
+  const { gapHours, advance, startClock, ageOf, wakeNow } = await import('../client/src/lib/engine/clock');
+  // Shrinking on the whole (each gap wobbles, so compare the early ones with the late ones)
+  const early = [1, 2, 3, 4, 5].reduce((a, n) => a + gapHours(7, n), 0), late = [40, 41, 42, 43, 44].reduce((a, n) => a + gapHours(7, n), 0);
+  assert.ok(late < early / 5, `late gaps (${late.toFixed(0)}h) much shorter than early ones (${early.toFixed(0)}h)`);
+  // The same seed, the same clock
+  assert.equal(gapHours(3, 2), gapHours(3, 2));
+  let c = startClock(9); const h0 = c.hours; c = advance(c);
+  assert.ok(c.hours > h0 && c.lost === 1);
+  assert.ok(['dawn', 'day', 'dusk', 'night'].includes(wakeNow(c).dayPart));
+  assert.equal(wakeNow(null).weather, 'clear', 'the first host wakes in clear weather');
+  // Ages, and what they cost a part left on the body
+  assert.equal(ageOf(10), 'fresh'); assert.equal(ageOf(100), 'days'); assert.equal(ageOf(1000), 'weeks');
+  const part = { id: 'p', name: 'P', condition: 'pristine' } as any;
+  assert.equal(M.agedPart(part, 'fresh').condition, 'pristine');
+  assert.equal(M.agedPart(part, 'days').condition, 'worn');
+  assert.equal(M.agedPart(part, 'weeks').condition, 'degraded');
+  assert.equal(M.agedPart({ ...part, condition: 'degraded' }, 'weeks').condition, 'corroded');
+  // The map keeps the clock: a lost host moves it on, and remembers when each room last saw a death
+  let s = { ...M.newMapState('indian-ocean'), room: 'walkway' };
+  s = M.newHost(s, part, undefined, undefined, 5);
+  assert.equal(s.clock?.lost, 1);
+  assert.equal(s.fellAt?.walkway, s.corpse?.at);
+  assert.equal(M.corpseAge(s), ageOf(s.clock!.hours - s.corpse!.at!));
 });

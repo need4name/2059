@@ -29,6 +29,7 @@ import { useAugmentTrees, nodesOf } from './useAugmentTrees';
 import { gunItem, magazineOf } from '../combat/guns';
 
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
+import { hostDoll } from '../rendering/dollSpecs';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
@@ -1214,7 +1215,11 @@ const finalClass: PlayerClass = !open.length ? 'none'
 // The new corpse wakes at the chapter's entry (or a server a host reached); fights refill, memory stays.
 // The best part the lost host wore stays on its body, where it fell.
 const left = bodyLeftBehind();
-wakeNewHost(finalClass, () => useMap.getState().newHost(left, at));
+// How the lost host looked, so its body can lie where it fell; the run's seed starts the hidden clock (engine/clock.ts)
+const owned = useAugmentTrees.getState().owned;
+const look = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, Item | null>, it => owned[it.id]?.length ?? 0);
+const seed = get().runSeed;
+wakeNewHost(finalClass, () => useMap.getState().newHost(left, at, look, seed));
 },
 
 goToNextChapter: () => {

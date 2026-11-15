@@ -7,6 +7,8 @@ import deltasMap from '../../content/map-deltas.json';
 import hillsMap from '../../content/map-helix-hills.json';
 import rainMap from '../../content/map-rain-machine.json';
 import type { Item } from '../combat/types';
+import type { DollSpec } from '../rendering/dolls';
+import { advance, ageOf, startClock, type Age, type Clock } from './clock';
 import corridorMap from '../../content/map-corridor.json';
 import { activeChapter, chapterById } from '../combat/chapters';
 
@@ -49,7 +51,11 @@ export interface MapState {
   fell?: string[];
   /** The last lost host's body and the best part still fitted to it, where it fell.
    *  The next host can take it back; losing another host first loses it for good. */
-  corpse?: { room: string; item: Item } | null;
+  corpse?: { room: string; item: Item; /** Clock hours when it fell (engine/clock.ts). */ at?: number; /** How the host looked, for the room card. */ look?: DollSpec } | null;
+  /** The hidden clock (engine/clock.ts): how long has passed between hosts. Kept across chapters. */
+  clock?: Clock | null;
+  /** The clock hours of the latest host lost in each room (how dry its blood is); washed with it by a rest. */
+  fellAt?: Record<string, number>;
   /** Where the last host fell, until a host walks back into that room (the skull on the map). */
   lastFell?: string | null;
   /** Rooms whose event this host has used. A new host finds them waiting again. */
@@ -71,7 +77,7 @@ export interface MapState {
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], taken: [], done: false, fell: [], corpse: null, lastFell: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], taken: [], done: false, fell: [], fellAt: {}, corpse: null, lastFell: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -114,7 +120,7 @@ export const wakePlaces = (s: MapState): string[] => {
 export const canRest = (s: MapState, room = roomById(s.room)) => isServer(s, room) && !hasFight(s, room);
 /** Rest at the server: you heal, and every fight this host has won comes back (beaten bosses stay down). Caches and events stay used. */
 // Resting also washes the map clean of blood: it shows how hard rooms have been since the last rest, not forever
-export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [], rests: (s.rests ?? 0) + 1, fell: [] } : s);
+export const rest = (s: MapState): MapState => (canRest(s) ? { ...s, cleared: [], hurt: 0, recalled: [], rests: (s.rests ?? 0) + 1, fell: [], fellAt: {} } : s);
 /** Call the beaten boss here back for this host to fight again (for its drop). */
 export const recall = (s: MapState): MapState =>
   (canRest(s) ? { ...s, recalled: [...(s.recalled ?? []), s.room], cleared: s.cleared.filter(id => id !== s.room) } : s);
@@ -150,20 +156,39 @@ export const cacheReady = (s: MapState, room = roomById(s.room)) => !!room.cache
 export const takeCache = (s: MapState): MapState => (cacheReady(s) ? { ...s, taken: [...(s.taken ?? []), s.room] } : s);
 
 /** A new host wakes at the entry (or a server reached before, `at`): fights refill, caches restock, memory and goals stay. */
-export const newHost = (s: MapState, left: Item | null = null, at?: string): MapState => ({
+export const newHost = (s: MapState, left: Item | null = null, at?: string, look?: DollSpec, seed = 0): MapState => {
+  // The clock runs on: the next host wakes a gap after this one fell (started from the run's seed the first time)
+  const clock = s.clock ?? startClock(seed), fellHour = clock.hours;
+  return {
   ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, overload: 0, recalled: [],
   fell: [...(s.fell ?? []), s.room],
-  corpse: left ? { room: s.room, item: left } : null,
+  fellAt: { ...(s.fellAt ?? {}), [s.room]: fellHour },
+  clock: advance(clock),
+  corpse: left ? { room: s.room, item: left, at: fellHour, ...(look ? { look } : {}) } : null,
   // The skull marks the room until a host walks back in (one that wakes in it already has)
   lastFell: (at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry) === s.room ? null : s.room,
-});
+  };
+};
+
+/** How long the last body has lain (by the clock): fresh, days or weeks. A body from before the clock counts as fresh. */
+export const corpseAge = (s: MapState): Age => ageOf(s.corpse?.at === undefined || !s.clock ? 0 : s.clock.hours - s.corpse.at);
+/** A part left on a body goes off: a step worse in condition after days, two after weeks. */
+const CONDITIONS = ['pristine', 'worn', 'degraded', 'corroded'] as const;
+export const AGED_STEPS: Record<Age, number> = { fresh: 0, days: 1, weeks: 2 };
+export function agedPart(item: Item, age: Age): Item {
+  const steps = AGED_STEPS[age];
+  if (!steps) return item;
+  const k = Math.max(0, CONDITIONS.indexOf((item.condition ?? 'pristine') as typeof CONDITIONS[number]));
+  return { ...item, condition: CONDITIONS[Math.min(CONDITIONS.length - 1, k + steps)] };
+}
 
 /** The last host's body lies in this room, and nothing here is fighting you for it. */
 export const corpseHere = (s: MapState, room = roomById(s.room)) => !!s.corpse && s.corpse.room === room.id && !hasFight(s, room);
 /** Take the part back off the last host's body. */
 export function takeCorpse(s: MapState): { state: MapState; item: Item | null } {
   if (!corpseHere(s)) return { state: s, item: null };
-  return { state: { ...s, corpse: null }, item: s.corpse!.item };
+  // Left too long, it comes back the worse for it
+  return { state: { ...s, corpse: null }, item: agedPart(s.corpse!.item, corpseAge(s)) };
 }
 
 /**
@@ -173,7 +198,7 @@ export function takeCorpse(s: MapState): { state: MapState; item: Item | null } 
  */
 export type RoomMark = 'boss' | 'elite' | 'fight' | 'ally' | 'cache' | 'event' | 'server' | 'market' | 'cleared';
 /** One room as the map draws it: been in, or only glimpsed through a door (sealed if that door won't open yet). */
-export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; /** Hosts lost here since the last rest (the blood on its slab). */ deaths: number; sealed: boolean; /** Where the last host fell (a skull, until a host walks back in). */ corpse: boolean; /** Its body still holds a part (the skull glints). */ part: boolean }
+export interface MapRoom { id: string; at: [number, number]; /** Height in levels (up exits climb one). */ z: number; seen: boolean; mark: RoomMark | null; ally?: string; /** Hosts lost here since the last rest (the blood on its slab). */ deaths: number; sealed: boolean; /** Where the last host fell (a skull, until a host walks back in). */ corpse: boolean; /** Its body still holds a part (the skull glints). */ part: boolean; /** How dry its blood is, and how far gone the body (by the clock). */ age: Age }
 
 export function roomMark(s: MapState, room: Room, met: string[] = []): RoomMark | null {
   if (hasFight(s, room)) return room.threat! % 10 === 0 ? 'boss' : room.threat! % 5 === 0 ? 'elite' : 'fight';
@@ -206,7 +231,7 @@ export function mapView(s: MapState, met: string[] = []): { rooms: MapRoom[]; li
   const rooms = Array.from(shown).map(id => {
     const r = byId.get(id)!;
     const mark = seen.has(id) ? roomMark(s, r, met) : null;
-    return { id, at: r.at, z: heights[id] ?? 0, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), deaths: deaths.get(id) ?? 0, sealed: sealed.has(id), corpse: s.corpse?.room === id || s.lastFell === id, part: s.corpse?.room === id };
+    return { id, at: r.at, z: heights[id] ?? 0, seen: seen.has(id), mark, ...(mark === 'ally' ? { ally: r.ally } : {}), deaths: deaths.get(id) ?? 0, sealed: sealed.has(id), corpse: s.corpse?.room === id || s.lastFell === id, part: s.corpse?.room === id, age: ageOf(s.clock && s.fellAt?.[id] !== undefined ? s.clock.hours - s.fellAt[id] : 0) };
   });
   return { rooms, links };
 }

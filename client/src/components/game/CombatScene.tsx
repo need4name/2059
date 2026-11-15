@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
+import { useMap } from '@/lib/stores/useMap';
 import { drawDamageNumber, drawFloatingMessage, FloatingMessageType } from '@/lib/rendering/sprites';
 import { SpriteAnimator, AnimationState } from '@/lib/rendering/pixelSprites';
 import { ATTACK_PATTERNS, canHitTarget } from '@/lib/combat/patterns';
@@ -8,6 +9,8 @@ import * as Fight from '@/lib/engine/fight';
 import { moveKind, damageTypeRgb } from './hud';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, type StatusMark } from '@/lib/rendering/board';
 import { wearOf, drawWearFx, drawWearUnder, drawMisfire } from '@/lib/rendering/wear';
+import { lightOf, litTileset, litCanvas, drawWeather, type Light } from '@/lib/rendering/atmosphere';
+import { wakeNow } from '@/lib/engine/clock';
 import { drawDoll, slotAnchors } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
@@ -85,6 +88,25 @@ function drawGainFlash(ctx: CanvasRenderingContext2D, cx: number, y: number, w: 
   if (later > 0) { ctx.fillStyle = `rgba(134,239,172,${0.25 + 0.15 * blink})`; ctx.fillRect(at(cur + now), y, at(cur + now + later) - at(cur + now), h); }
   if (now > 0) { ctx.fillStyle = `rgba(187,247,208,${0.6 + 0.35 * blink})`; ctx.fillRect(at(cur), y, at(cur + now) - at(cur), h); }
   ctx.restore();
+}
+
+/** Cover drawn in the wake's light: drawn once into its own canvas, lit, and cached. */
+const obstacleCache = new Map<string, HTMLCanvasElement>();
+function drawLitObstacle(ctx: CanvasRenderingContext2D, art: string | undefined, x: number, y: number, s: number, light: Light) {
+  if (!light.steps.length) { drawObstacle(ctx, art, x, y, s); return; }
+  const dpr = window.devicePixelRatio || 1, key = `${art}|${Math.round(s)}|${dpr}`;
+  let c = obstacleCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas'); c.width = Math.ceil(s * 3 * dpr); c.height = Math.ceil(s * 3 * dpr);
+    const x2 = c.getContext('2d')!; x2.scale(dpr, dpr); x2.imageSmoothingEnabled = false;
+    drawObstacle(x2, art, s * 1.5, s * 2, s);
+    if (obstacleCache.size > 80) obstacleCache.clear();
+    obstacleCache.set(key, c);
+  }
+  const lit = litCanvas(c, `obstacle|${key}`, light);
+  const smooth = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(lit, x - s * 1.5, y - s * 2, s * 3, s * 3);
+  ctx.imageSmoothingEnabled = smooth;
 }
 
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -609,7 +631,10 @@ const width = canvas.width / dpr;
 const height = canvas.height / dpr;
 
 // === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
-const tileset = (grid.tilesetOf ? chapterById(grid.tilesetOf) : activeChapter()).tileset;
+// The light this host woke to (time passing between hosts: engine/clock.ts): the floor, sea, cover and bodies
+// are lit by it; what the board says about play (reach, red, aim) is drawn in its own colours on top
+const wakeLight = (() => { const wk = wakeNow(useMap.getState().clock); return lightOf(wk.dayPart, wk.weather); })();
+const tileset = litTileset((grid.tilesetOf ? chapterById(grid.tilesetOf) : activeChapter()).tileset, wakeLight);
 const now = Date.now();
 // The playback: take in new blows, place everyone, shake the view for a big hit
 {
@@ -994,7 +1019,7 @@ if (grid.tiles?.[row]?.[col]?.type === 'void') continue;
   if (tile?.type === 'obstacle' && hasCover(tile.art)) {
     // Drawn as what it is, standing up, in depth order with the units
     const art = tile.art, x = pos.x, y = pos.y;
-    depth.push({ y, draw: () => { drawObstacle(ctx, art, x, y, tileW); } });
+    depth.push({ y, draw: () => { drawLitObstacle(ctx, art, x, y, tileW, wakeLight); } });
   } else if (tile?.type === 'hazard' && drawHazard(ctx, tile.art, pos.x, pos.y, tileW, now)) {
     ctx.fillStyle = '#ffd2a0';
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
@@ -1105,7 +1130,7 @@ const pTop = dollTop(playerPos.y, spriteSize);
 const pFall = director.falling('player', now);
 const pState = playerAnimator.current.getState(), pFrame = playerAnimator.current.getFrame();
 if (pFall === null) drawWearUnder(ctx, pWear, playerPos.x - spriteSize / 2, pTop, spriteSize, now);
-drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, pState, pFrame, playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0 });
+drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, pState, pFrame, playerFacingLeft, { white: pJolt.white, fall: pFall ?? 0, light: wakeLight });
 // Its implants as the structure bar stands: sparks, smoke and glitching once they're failing
 if (pFall === null) drawWearFx(ctx, hostSpec, pWear, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, now, 11, dx => drawDoll(ctx, hostSpec, playerPos.x - spriteSize / 2 + dx, pTop, spriteSize, pState, pFrame, playerFacingLeft));
 { const mt = director.misfire('player', now); if (mt !== null) drawMisfire(ctx, hostSpec, playerPos.x - spriteSize / 2, pTop, spriteSize, playerFacingLeft, mt, slotAnchors(hostSpec).right_arm); }
@@ -1162,7 +1187,7 @@ if (a.unit.currentHp <= 0 && !director.visible(key)) {
     // Lying on its back (0.7 of the way through the fall: flat, not yet faded)
     // It tips over from its feet, so shift it back the other way to lie on its own tile
     const faceL = a.pos.col > grid.bossPosition.col, back = (faceL ? -1 : 1) * size * 0.32;
-    drawDoll(ctx, allyDoll(a.id, a.unit), dp.x - size / 2 + back, top - size * 0.08, size, 'idle', 0, faceL, { fall: 0.7 });
+    drawDoll(ctx, allyDoll(a.id, a.unit), dp.x - size / 2 + back, top - size * 0.08, size, 'idle', 0, faceL, { fall: 0.7, light: wakeLight });
     ctx.restore();
   } });
   overlay.push(() => {
@@ -1201,7 +1226,7 @@ const size = Math.max(tileW * DOLL, 34);
 const aTop = dollTop(ap.y, size);
 ctx.save();
 ctx.globalAlpha = a.acted ? 0.7 : 1;
-drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col, { white: aj.white, fall: aFall ?? 0 });
+drawDoll(ctx, allyDoll(a.id, a.unit), ap.x - size / 2, aTop, size, allyAnimator.current.getState(), allyAnimator.current.getFrame(), a.pos.col > grid.bossPosition.col, { white: aj.white, fall: aFall ?? 0, light: wakeLight });
 drawStatus(ctx, ap.x, aTop + size * 0.12, size * 0.8, a.burning > 0, a.stunned, now);
 { const rise = director.guarding(key, now); if (rise !== null || a.defenseBoost > 0 || a.ward) drawGuard(ctx, ap.x, ap.y, tileW, a.pos.col > grid.bossPosition.col, now, rise, a.unit.spriteColor || '#7fe9ff'); }
 if (a.swimming) drawSwimming(ctx, ap.x, aTop + size * 0.12, size * 0.8, tileset.sea, now);
@@ -1283,7 +1308,7 @@ const fWear = wearOf(director.shown(fKey)?.structure ?? f.unit.currentStructural
 const fSpec = { ...foeDoll(f.unit, f.parts), wear: fWear };
 if (fFall === null) drawWearUnder(ctx, fWear, fp.x - size / 2 + stumble.x, fTop + stumble.y, size, now);
 drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x, fTop + stumble.y, size,
-v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0 });
+v.animator.getState(), v.animator.getFrame(), fFacingLeft, { white: fj.white, fall: fFall ?? 0, light: wakeLight });
 if (fFall === null) drawWearFx(ctx, fSpec, fWear, fp.x - size / 2 + stumble.x, fTop + stumble.y, size, fFacingLeft, now, 23 + i * 7,
   dx => drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x + dx, fTop + stumble.y, size, v.animator.getState(), v.animator.getFrame(), fFacingLeft));
 { const mt = director.misfire(fKey, now); if (mt !== null) drawMisfire(ctx, fSpec, fp.x - size / 2, fTop, size, fFacingLeft, mt, slotAnchors(fSpec).right_arm); }
@@ -1368,6 +1393,16 @@ ctx.fillText(label, fp.x, ly);
 director.drawUnder(ctx, now);
 // Back to front: whatever stands nearer the bottom covers what's behind it
 depth.sort((a, b) => a.y - b.y).forEach(d => d.draw());
+// Rain, fog, and lights that carry in the dark (fires, implant lights)
+if (wakeLight.steps.length || wakeLight.weather !== 'clear') {
+  const lights: { x: number; y: number; r: number; color: string }[] = [];
+  if (wakeLight.glow > 0) {
+    grid.tiles?.forEach((row, r) => row.forEach((t, c) => { if (t.type === 'hazard' && ['fire', 'oil', 'light'].includes(t.art ?? '')) { const q = gridToScreen(r, c, width, height); lights.push({ x: q.x, y: q.y, r: tileW * 1.3, color: '#ff8a3a' }); } }));
+    const pp = gridToScreen(grid.playerPosition.row, grid.playerPosition.col, width, height); lights.push({ x: pp.x, y: pp.y - tileH * 0.5, r: tileW * 0.7, color: '#5fe0ff' });
+    living.forEach(({ f }) => { const q = gridToScreen(f.pos.row, f.pos.col, width, height); lights.push({ x: q.x, y: q.y - tileH * 0.5, r: tileW * 0.6, color: '#ff5a4a' }); });
+  }
+  drawWeather(ctx, width, height, wakeLight, now, lights, Math.max(1, Math.round(tileW / 24)));
+}
 overlay.forEach(o => o());
 // Shots in flight, sparks and numbers over everything
 director.drawOver(ctx, now, (text, x, y, alpha, color, big, scale = 1) => {

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { BaseScreen } from './screens/BaseScreen';
 import { VictoryScreen } from './screens/VictoryScreen';
@@ -7,6 +7,9 @@ import { dailyDay } from '@/lib/daily';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { useLoadoutSync } from './useActionPool';
+import { WakeBeat } from './WakeBeat';
+import { useMap } from '@/lib/stores/useMap';
+import { wakeNow, type Wake } from '@/lib/engine/clock';
 
 // Test tools load only in development builds, so players never download them
 const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel }))) : () => null;
@@ -16,6 +19,14 @@ export function GameUI() {
   const phase = useCombat(s => s.phase);
   const [showDebug, setShowDebug] = useState(false);
   useLoadoutSync();
+  // A new host wakes (the clock moves on): a few wordless seconds of the sky it woke to (WakeBeat)
+  const lost = useMap(s => s.clock?.lost ?? 0);
+  const seen = useRef(lost);
+  const [beat, setBeat] = useState<Wake | null>(null);
+  useEffect(() => {
+    if (lost > seen.current && !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)) setBeat(wakeNow(useMap.getState().clock));
+    seen.current = lost;
+  }, [lost]);
 
   let screen;
   switch (phase) {
@@ -30,6 +41,7 @@ export function GameUI() {
   return (
     <>
       {screen}
+      {beat && <WakeBeat key={beat.hours} dayPart={beat.dayPart} weather={beat.weather} onDone={() => setBeat(null)} />}
       {/* Test tools, only in development builds */}
       {import.meta.env.DEV && phase === 'menu' && (
         <>

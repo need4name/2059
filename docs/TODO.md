@@ -21,7 +21,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 ## Story and feel
 
-- **Time passes between hosts.** Waking in a new host should feel like time has gone by since the last one fell, shown entirely diegetically (nothing told: the world shows it). Plan first, then mockups.
+- ~~Time passes between hosts~~ Done: a hidden clock (gaps shrink with hosts lost), the light and weather each host wakes to, the wake beat, blood drying, the last body ageing (its part goes off). Next for it: enemy and trader lines that know how long it's been (needs writing).
 
 ## Drops (analysis before the motivation talk)
 

@@ -1,10 +1,15 @@
 import { nameOf } from '../itemText';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useMap } from '@/lib/stores/useMap';
 import { useAudio } from '@/lib/stores/useAudio';
 import { useJournal } from '@/lib/stores/useJournal';
-import { roomById, roomText, hasFight, exitState, cacheReady, corpseHere, canRest, DIR_LABEL } from '@/lib/engine/map';
+import { roomById, roomText, hasFight, exitState, cacheReady, corpseHere, corpseAge, canRest, DIR_LABEL } from '@/lib/engine/map';
+import { drawCorpseScene } from '@/lib/rendering/corpse';
+import { lightOf, litTileset } from '@/lib/rendering/atmosphere';
+import { wakeNow, type Age } from '@/lib/engine/clock';
+import { activeChapter } from '@/lib/combat/chapters';
+import type { DollSpec } from '@/lib/rendering/dolls';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
@@ -66,7 +71,8 @@ export function RoomPanel() {
         )}
         {corpseHere(map, room) && map.corpse && (
           <div className="mt-4 border-l-2 border-[#b4383f]/60 pl-3.5">
-            <p className="text-sm leading-relaxed text-hud-text/75">A body lies here. You remember wearing it. Something is still fitted to it.</p>
+            {map.corpse.look && <CorpseScene look={map.corpse.look} age={corpseAge(map)} />}
+            <p className="text-sm leading-relaxed text-hud-text/75">{CORPSE_TEXT[corpseAge(map)]}</p>
             <button onClick={() => { const it = useMap.getState().takeCorpse(); if (it) { useInventory.getState().receive([it]); useAudio.getState().play('cache'); setNews(`You take back ${nameOf(it)}.`); } }} className={cx(pill, 'mt-2.5')}>Take it back</button>
           </div>
         )}
@@ -211,4 +217,34 @@ export function RoomPanel() {
       </section>
     </div>
   );
+}
+
+/** What the last body looks like by now (engine/clock.ts), in the room's own words. */
+const CORPSE_TEXT: Record<Age, string> = {
+  fresh: 'A body lies here. You remember wearing it. Something is still fitted to it.',
+  days: 'A body lies here. The birds found it first. Something is still fitted to it.',
+  weeks: 'What is left of a body lies here. The sea has started on it. Something is still fitted to it.',
+};
+
+/** The last body where it fell: a strip of deck in the light this host woke to, the body lying on it, aged. */
+function CorpseScene({ look, age }: { look: DollSpec; age: Age }) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const clock = useMap(s => s.clock);
+  useEffect(() => {
+    const c = ref.current; if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(c.clientHeight * dpr);
+    const ctx = c.getContext('2d')!;
+    const wk = wakeNow(clock), floor = litTileset(activeChapter().tileset.floor, lightOf(wk.dayPart, wk.weather));
+    const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0, last = 0;
+    const paint = (t: number) => {
+      if (!still) raf = requestAnimationFrame(paint);
+      if (t - last < 90) return; last = t;
+      drawCorpseScene(ctx, c.width, c.height, look, age, Date.now(), floor);
+    };
+    raf = requestAnimationFrame(paint);
+    return () => cancelAnimationFrame(raf);
+  }, [look, age, clock]);
+  return <canvas ref={ref} className="mb-3 block h-[92px] w-full rounded-xl" aria-hidden />;
 }

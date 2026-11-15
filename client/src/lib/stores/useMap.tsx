@@ -5,6 +5,7 @@ import * as M from '../engine/map';
 import * as E from '../engine/events';
 import { setActiveChapter } from '../combat/chapters';
 import type { Item } from '../combat/types';
+import type { DollSpec } from '../rendering/dolls';
 
 const CHAPTER_ONE = 'indian-ocean';
 
@@ -18,7 +19,7 @@ interface MapStore extends M.MapState {
   /** The chapter's last fight is won. */
   finishChapter: () => void;
   /** A host is lost; `left` is the part that stays on its body. */
-  newHost: (left?: Item | null, at?: string) => void;
+  newHost: (left?: Item | null, at?: string, look?: DollSpec, seed?: number) => void;
   /** Rest at this room's server: this host's won fights come back. */
   rest: () => void;
   /** Call this server's beaten boss back to fight again. */
@@ -36,7 +37,7 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, lastFell: s.lastFell ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [] });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, lastFell: s.lastFell ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [], clock: s.clock ?? null, fellAt: s.fellAt ?? {} });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
@@ -44,14 +45,15 @@ export const useMap = create<MapStore>()(persist((set, get) => ({
   clearRoom: () => set(M.clearRoom(pick(get()))),
   takeCache: () => { const before = pick(get()); const after = M.takeCache(before); set(after); return after !== before; },
   finishChapter: () => set(M.finishChapter(pick(get()))),
-  newHost: (left, at) => set(M.newHost(pick(get()), left ?? null, at)),
+  newHost: (left, at, look, seed) => set(M.newHost(pick(get()), left ?? null, at, look, seed)),
   rest: () => set(M.rest(pick(get()))),
   recall: () => set(M.recall(pick(get()))),
   setHurt: (n) => set({ hurt: Math.max(0, Math.round(n)) }),
   setOverload: (n) => set({ overload: Math.max(0, Math.min(100, Math.round(n))) }),
   spendEvent: (health = 0) => set(E.scar(E.spendEvent(pick(get())), health)),
   takeCorpse: () => { const r = M.takeCorpse(pick(get())); set(r.state); return r.item; },
-  travel: (chapter) => { setActiveChapter(chapter); set(M.newMapState(chapter)); },
+  // A new chapter: a blank map, but time runs on
+  travel: (chapter) => { setActiveChapter(chapter); set({ ...M.newMapState(chapter), clock: get().clock ?? null }); },
   reset: () => { setActiveChapter(M.newMapState(CHAPTER_ONE).chapter); set(M.newMapState(CHAPTER_ONE)); },
 }), {
   name: '2059-map', storage: createJSONStorage(() => saveStorage), version: 2, partialize: pick,
