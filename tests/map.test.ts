@@ -312,3 +312,10 @@ test('the skull marks where the last host fell until a host walks back into that
   assert.equal(back.lastFell, null);
   assert.equal(M.mapView(back).rooms.find(r => r.id === 'walkway')!.corpse, false);
 });
+
+test('chapter one: every fight room but the throne has at least three layouts to pick from', async () => {
+  const map = (await import('../client/src/content/map-indian-ocean.json')).default as { rooms: { id: string; threat?: number; arena?: string[]; arenas?: string[][] }[] };
+  for (const r of map.rooms.filter(r => r.threat !== undefined && r.id !== 'throne')) {
+    assert.ok(1 + (r.arenas?.length ?? 0) >= 3, `${r.id} has ${1 + (r.arenas?.length ?? 0)} layouts`);
+  }
+});

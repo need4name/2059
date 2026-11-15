@@ -11,7 +11,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 ## Maps
 
-6. **Fight boards feel repetitive and cramped.** More layouts, more room.
+6. ~~Fight boards feel repetitive and cramped~~ Done for chapter one: every fight room but the throne has three layouts (one picked each fight), mostly 7x10 with more open space. Watch it in playtests.
 7. ~~Knocking enemies off the arena is inconsistent~~ Done: at sea every open edge is a drop into the water; shove arrows show sea, hazard or a stop.
 
 ## Ongoing

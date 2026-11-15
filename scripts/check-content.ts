@@ -139,6 +139,8 @@ const mapFile = z.object({
     tileset: z.string().regex(/^[a-z-]+$/).optional(),
     goal: z.object({ id: text, text: z.string().trim().min(1).max(200) }).strict().optional(),
     ally: text.optional(), cache: z.boolean().optional(), server: z.string().trim().min(1).max(260).optional(), event: z.string().regex(/^[a-z]+$/).optional(), enemy: text.optional(), quiet: z.string().trim().min(1).max(260).optional(), arena: z.array(z.string().min(5).max(9)).min(7).max(13).optional(),
+    // More layouts for the same fight room: one of arena + arenas is picked each fight (seeded)
+    arenas: z.array(z.array(z.string().min(5).max(9)).min(7).max(13)).min(1).max(4).optional(),
     exits: z.array(z.object({ dir: z.enum(DIRS), label: text.optional(), hint: text, to: text, requires: z.literal('goals').optional() }).strict()).min(1),
   }).strict()).min(2),
 }).strict();
@@ -415,8 +417,8 @@ export function checkContent(): string[] {
       if (r.threat !== undefined && r.market) problems.push(`map ${r.id}: a market room can't hold a fight`);
       if (r.server && (r.threat === undefined || r.threat % 5 !== 0 || r.id === m.end)) problems.push(`map ${r.id}: a server belongs in a boss room (threat 5, 10 or 20; it wakes once the boss is beaten), not the chapter's end`);
       if (r.server && !r.quiet) problems.push(`map ${r.id}: a boss room with a server needs quiet text for once the boss is beaten`);
-      if (r.threat !== undefined) problems.push(...arenaProblems(r.id, r.arena));
-      else if (r.arena) problems.push(`map ${r.id}: an arena on a room with no fight`);
+      if (r.threat !== undefined) { problems.push(...arenaProblems(r.id, r.arena)); (r.arenas ?? []).forEach((a, k) => problems.push(...arenaProblems(`${r.id} (layout ${k + 2})`, a))); }
+      else if (r.arena || r.arenas) problems.push(`map ${r.id}: an arena on a room with no fight`);
       if (r.enemy && !(r.enemy in (enemies as { enemies: Record<string, unknown> }).enemies)) problems.push(`map ${r.id}: enemy "${r.enemy}" isn't in enemies.json`);
       if (r.enemy && (r.threat === undefined || r.threat % 5 === 0)) problems.push(`map ${r.id}: only regular fight rooms name their enemy (elites and bosses come from the threat)`);
       // A way back must be the opposite way: up comes back down, north comes back south

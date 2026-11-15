@@ -732,7 +732,9 @@ const party = partyForFight(perks, level);
 // The arena makes room for how far you move and how many bodies are on it
 // Map fights use the room's own drawn arena; farm fights roll one
 const fightRoom = !farm ? roomById(useMap.getState().room) : undefined;
-const drawn = fightRoom?.arena;
+// A room with several layouts picks one each fight (seeded); one with a single layout draws no dice
+const layouts = fightRoom?.arena ? [fightRoom.arena, ...(fightRoom.arenas ?? [])] : [];
+const drawn = layouts.length > 1 ? layouts[Math.floor(random() * layouts.length)] : layouts[0];
 const grid0 = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 // At sea, the board's open edges are a drop into the water (Knockback in DESIGN.md)
 const grid = activeChapter().rules?.seaEdges ? { ...grid0, seaEdges: true } : grid0;
