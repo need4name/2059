@@ -25,7 +25,7 @@ The working list. Chapter one first; everything from chapter two on is framework
 
 ## Drops (analysis before the motivation talk)
 
-- **Part drops: variety, variability and rarity.** Identical implants come up far too often, and chapter one, being mostly white and green, should have the widest variety in the game. Work out how parts and implants are generated and picked, measure it, and compare with similar games.
+- **Part drops.** Done (stages 1-3): no repeats while something new is left, chapter one white and green (5% to 40% green), commons vary (any shape, sometimes a mod, sometimes a trait). Stage 4 waiting on the owner: a bigger common pool (draft names to review).
 
 ## To talk about (after the combat-feel pass and the drop analysis)
 

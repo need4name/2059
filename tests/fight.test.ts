@@ -502,14 +502,14 @@ test('bolts stop at the first body, pierces go through, long shots skip the near
   assert.equal(getHitTiles({ row: 5, col: 3 }, { row: 4, col: 3 }, 'burst', g).length, 8);
 });
 
-test('implant parts: commons get basic heads and no mods, legendaries get two, and the same seed rolls the same parts', async () => {
+test('implant parts: commons roll any shape and at most one mod, legendaries get two, and the same seed rolls the same parts', async () => {
   const { rollParts, HEADS, DEF_HEADS } = await import('../client/src/lib/combat/augments');
   const arm = (rarity: any, name = '[CBN] Test Arm') => ({ id: 'x', name, rarity, type: 'augmentation' as const, slot: 'right_arm' as const, icon: '' });
   for (let k = 0; k < 30; k++) {
     seedRandom(k);
     const c = rollParts(arm('common'))!;
-    assert.ok(HEADS[c.head]?.basic || c.head in DEF_HEADS, 'commons only roll basic heads (or a defensive move)');
-    assert.equal(c.mods.length, 0);
+    assert.ok(c.head in HEADS || c.head in DEF_HEADS);
+    assert.ok(c.mods.length <= 1, 'a common carries at most one mod');
     const l = rollParts(arm('legendary'))!;
     assert.ok(l.mods.length >= 1 || HEADS[l.head]?.signature, 'legendaries carry mods or a signature');
   }
@@ -1305,8 +1305,10 @@ test('an enemy that acts twice hits twice from where it stands (same tiles, both
   assert.ok(Fight.dangerTiles(stunned, false, [0]).size > 0);
   // The King: what he can use next is his coming phase, not a lone close-range strike
   const king = Fight.newFoe(createPatchworkKing(), s.foes[0].pos, 20);
-  assert.deepEqual(Fight.foeRoster(king).map(a => a.name), PATCHWORK_KING_PHASES[0].map(a => a.name));
-  assert.deepEqual(Fight.foeRoster({ ...king, parts: ['crown'] }).map(a => a.name), PATCHWORK_KING_PHASES[2].map(a => a.name));
+  // (An eye implant he happens to wear adds its optic shot, the Sighted trait: not part of his phase)
+  const phaseOf = (f: Fight.Foe) => Fight.foeRoster(f).map(a => a.name).filter(n => n !== 'Optic shot');
+  assert.deepEqual(phaseOf(king), PATCHWORK_KING_PHASES[0].map(a => a.name));
+  assert.deepEqual(phaseOf({ ...king, parts: ['crown'] }), PATCHWORK_KING_PHASES[2].map(a => a.name));
 });
 
 // ── Mending and the stun guard ───────────────────────────────────────────────

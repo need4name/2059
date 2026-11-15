@@ -34,7 +34,7 @@ import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
 import { causeOf } from '../engine/memory';
 import { NO_PERKS } from '../engine/playi';
-import { instancedItem, ITEM_POOLS, setLootLuck, rerollImplant } from '../combat/loot';
+import { instancedItem, ITEM_POOLS, setLootLuck, setLootOwned, rerollImplant } from '../combat/loot';
 import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf, partPerks, displayName } from '../combat/augments';
@@ -721,6 +721,8 @@ const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patch
 const strain = useStrain.getState().active;
 // Luck: enemies' implants may come a grade rarer (and so does what you strip from them)
 setLootLuck(perks.rarityUp);
+// No repeats while there's something new to find: what you already own (fitted or spare) is far less likely to turn up
+{ const inv = useInventory.getState(); setLootOwned([...Object.values(inv.equippedAugmentations), ...inv.items].flatMap(i => (i && i.type === 'augmentation' ? [i.templateId ?? i.id] : []))); }
 const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain));
 // The Count brings a copy of itself (Boss twists in DESIGN.md)
 // The Weather flies with a lead drone (Boss twists in DESIGN.md)

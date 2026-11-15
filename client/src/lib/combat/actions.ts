@@ -556,7 +556,7 @@ export const KING_MULT = { hp: 1.5, atk: 1.3, def: 1.25 };
 export const KING_EXTRA = { hp: 1.2, atk: 1.05 };
 
 /** How an enemy's toughness splits: shares of what its health alone used to be (walls like the King keep their own). */
-export const ENEMY_FRAME = { hp: 0.64, bossHp: 1, structure: 0.4 };
+export const ENEMY_FRAME = { hp: 0.64, bossHp: 1, eliteHp: 1.1, structure: 0.4 };
 
 export function createPatchworkKing(): Character {
 // Built from a regular level-10 frame; the King's own multipliers make him the wall
@@ -743,7 +743,7 @@ const g = growth(level, firstRun);
 finalHp = Math.round(finalHp * ROLE_MULT[role].hp * g.hp);
 // Most of an enemy's toughness is its frame: the structure bar is long, the health under it short, so breaking it comes late and the kill soon after
 const structuralHp = Math.max(8, Math.round(finalHp * ENEMY_FRAME.structure));
-finalHp = Math.round(finalHp * (role === 'normal' ? ENEMY_FRAME.hp : ENEMY_FRAME.bossHp));
+finalHp = Math.round(finalHp * (role === 'normal' ? ENEMY_FRAME.hp : role === 'elite' ? ENEMY_FRAME.eliteHp : ENEMY_FRAME.bossHp));
 pAtk = Math.round(pAtk * ROLE_MULT[role].atk * g.atk); sAtk = Math.round(sAtk * ROLE_MULT[role].atk * g.atk);
 
 return {

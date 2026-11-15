@@ -310,7 +310,9 @@ export function partsSpDef(item: Item): number {
   if (!pp) return 0;
   return Math.round((HOUSINGS[pp.housing]?.spDef ?? 0) * (SEALED_GRADE[item.rarity] ?? 1)) + (pp.trait ? TRAITS[pp.trait]?.spDef ?? 0 : 0);
 }
-export const TRAIT_CHANCE: Partial<Record<Item['rarity'], number>> = { rare: 0.35, epic: 0.6, legendary: 1 };
+export const TRAIT_CHANCE: Partial<Record<Item['rarity'], number>> = { common: 0.25, uncommon: 0.3, rare: 0.35, epic: 0.6, legendary: 1 };
+/** The chance a common attack implant carries one mod. */
+export const COMMON_MOD = 0.35;
 
 export const QUIRK_CHANCE: Partial<Record<Item['rarity'], number>> = { epic: 0.15, legendary: 0.4 };
 
@@ -393,7 +395,8 @@ export function rollParts(item: Item): Item['parts'] {
   if (maker === 'HELIX') return undefined;
   const r = item.rarity;
   const fits = (id: string) => HEADS[id].group === group && !HEADS[id].signature;
-  let pool = Object.keys(HEADS).filter(id => fits(id) && (r === 'common' || r === 'uncommon' ? HEADS[id].basic : true));
+  // Every grade can roll every shape: even a common differs in how it hits
+  let pool = Object.keys(HEADS).filter(id => fits(id));
   const sig = Object.keys(HEADS).filter(id => HEADS[id].group === group && (HEADS[id].signature === maker || HEADS[id].signature === 'any'));
   let head: string;
   // A signature implant rolls from its own heads (its signature head only at legendary)
@@ -404,7 +407,8 @@ export function rollParts(item: Item): Item['parts'] {
     const usual = pool.filter(id => MAKER_PARTS[maker].heads.includes(id));
     head = usual.length && random() < 0.6 ? pick(usual) : pick(pool);
   }
-  const count = r === 'common' ? 0 : r === 'uncommon' ? (random() < 0.5 ? 1 : 0) : r === 'rare' ? 1 : 2;
+  // Mods: a common sometimes has one, an uncommon always, a rare one, better two
+  const count = r === 'common' ? (random() < COMMON_MOD ? 1 : 0) : r === 'uncommon' || r === 'rare' ? 1 : 2;
   const mods: string[] = [];
   const modPool = MAKER_PARTS[maker].mods.filter(m => !HEADS[head].effects || !Object.keys(MODS[m].effects).some(k => k in HEADS[head].effects!));
   for (let k = 0; k < count && modPool.length; k++) {

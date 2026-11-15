@@ -69,6 +69,14 @@ if (roll <= 0) return rarity as ItemRarity;
 return 'common';
 }
 
+// No repeats while there's something else to find: a part you already own (fitted or spare), or one another
+// enemy in this fight already wears, is this much less likely. Set by the combat store before a fight's
+// enemies are made (`setLootOwned`); each part rolled for the fight joins the list.
+export const LOOT_REPEAT = 0.12;
+let noted = new Set<string>();
+export const setLootOwned = (templateIds: Iterable<string>) => { noted = new Set(templateIds); };
+const templateOf = (i: Item) => i.templateId ?? i.id;
+
 function getRandomItemFromPool(
 rarity: ItemRarity,
 pools: Record<ItemRarity, Item[]>,
@@ -80,12 +88,24 @@ let pool = pools[rarity];
 if (slot) pool = pool.filter(i => i.slot === slot);
 if (pool.length === 0) pool = pools[rarity]; // drop slot constraint if nothing found
 if (pool.length === 0) return null;
-if (lean === undefined) return pool[Math.floor(random() * pool.length)];
-// One roll either way, so seeded runs draw the same number of dice: closer to the lean, more likely
-const w = pool.map(i => 0.25 + Math.pow(1 - Math.abs(specialShare(i) - lean), 2) * 3);
+// One roll either way, so seeded runs draw the same number of dice: closer to the lean, more likely; already had, much less
+const w = pool.map(i => (lean === undefined ? 1 : 0.25 + Math.pow(1 - Math.abs(specialShare(i) - lean), 2) * 3) * (noted.has(templateOf(i)) ? LOOT_REPEAT : 1));
 let r = random() * w.reduce((a, b) => a + b, 0);
-for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) return pool[k]; }
-return pool[pool.length - 1];
+let got = pool[pool.length - 1];
+for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) { got = pool[k]; break; } }
+noted.add(templateOf(got));
+return got;
+}
+
+/**
+ * Chapter one is white and green: what enemies wear rolls here, not at the lagged ladder, with green rising
+ * from CH1_GREEN.from at threat 1 to CH1_GREEN.to by the King, along a curve.
+ */
+export const CH1_GREEN = { from: 0.05, to: 0.4, curve: 1.6 };
+function chapterOneRarity(level: number): ItemRarity {
+// Slow at first (the threat-5 boss stays a wall), then quicker toward the King
+const t = Math.pow(Math.max(0, Math.min(1, (level - 1) / 9)), CH1_GREEN.curve);
+return random() < CH1_GREEN.from + (CH1_GREEN.to - CH1_GREEN.from) * t ? 'uncommon' : 'common';
 }
 
 function pick<T>(list: T[]): T { return list[Math.floor(random() * list.length)]; }
@@ -147,8 +167,8 @@ const taken = new Set(out.map(i => i.slot));
 while (out.length < count) {
   const free = AUGMENTATION_SLOTS.filter(sl => !taken.has(sl));
   const slot = pick(free.length ? free : AUGMENTATION_SLOTS);
-  // Worn gear: what enemies wear rolls at the odds of six threats lower
-  const worn = lucky(rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG)));
+  // Worn gear: what enemies wear rolls at the odds of six threats lower (chapter one: its own white-and-green curve)
+  const worn = lucky(ladderDepth(level) <= 10 ? chapterOneRarity(level) : rollRarity(Math.max(1, level - CARRIED_QUALITY_LAG)));
   const t = getRandomItemFromPool(role === 'elite' && !out.length ? rarityAtLeast(worn, 'uncommon') : worn, ITEM_POOLS, slot, lean);
   if (!t) break;
   taken.add(t.slot);
