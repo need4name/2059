@@ -4,7 +4,7 @@ import { useAudio } from "./lib/stores/useAudio";
 import { GameUI } from "./components/game/GameUI";
 import { TitleScreen } from "./components/game/screens/TitleScreen";
 import { MockDeath, MockTree, MockZoom, MockFirmware } from "./components/game/screens/MemoryMockup";
-import { MockEnd, MockDifficulty, MockChallenge, MockFightKeys } from "./components/game/screens/ScoreMockup";
+import { MockEnd, MockDifficulty, MockChallenge, MockFightKeys, MockSaves } from "./components/game/screens/ScoreMockup";
 import { dailyDay, dailySeed } from "./lib/daily";
 import { Crashed } from "./components/game/Crashed";
 
@@ -24,6 +24,7 @@ function App() {
     s.startCombat();
   };
 
+  if (import.meta.env.DEV && location.hash === '#mock-saves') return <MockSaves />;
   if (import.meta.env.DEV && location.hash === '#mock-end') return <MockEnd />;
   if (import.meta.env.DEV && location.hash === '#mock-difficulty') return <MockDifficulty />;
   if (import.meta.env.DEV && location.hash === '#mock-challenge') return <MockChallenge />;

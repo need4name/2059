@@ -119,3 +119,40 @@ export function MockFightKeys() {
     </div>
   );
 }
+
+/** The title's three saves: each a run with its own difficulty, chapter and host count. */
+export function MockSaves() {
+  const slots = [
+    { n: 1, where: 'The Indian Ocean', room: 'Generator raft', hosts: 6, diff: 'Normal', marks: [], last: 'Played today' },
+    { n: 2, where: 'The Deltas', room: 'Scan post', hosts: 14, diff: 'Easy', marks: ['Glass'], last: 'Played 3 days ago' },
+    { n: 3 },
+  ] as { n: number; where?: string; room?: string; hosts?: number; diff?: string; marks?: string[]; last?: string }[];
+  return (
+    <Screen className="px-4">
+      <div className="pt-14 text-center"><h1 className="font-display text-[44px] font-semibold tracking-tight text-hud-text">2059</h1></div>
+      <div className="mt-10 space-y-3">
+        {slots.map(sl => sl.where ? (
+          <div key={sl.n} className={cx('rounded-[24px] p-4', sl.n === 1 ? 'key key-selected' : 'key')}>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 text-left">
+                <div className="font-display text-[17px] font-semibold text-hud-text">{sl.where}</div>
+                <div className="mt-0.5 text-[13px] text-hud-dim">{sl.room} · {sl.last}</div>
+              </div>
+              <div className="text-right"><div className="font-display text-[26px] font-semibold leading-none text-hud-text">{sl.hosts}</div><div className="text-[11px] text-hud-dim">hosts</div></div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/[0.07] px-3 py-1 text-[12px] font-semibold text-sys">{sl.diff}</span>
+              {sl.marks!.map(m => <span key={m} className="rounded-full bg-white/[0.07] px-3 py-1 text-[12px] font-semibold text-cred">{m}</span>)}
+              <span className="flex-1" />
+              <span className="text-[12px] text-hud-faint">Hold to erase</span>
+            </div>
+          </div>
+        ) : (
+          <div key={sl.n} className="well flex min-h-[92px] items-center justify-center rounded-[24px] text-[14px] font-semibold text-hud-dim">New signal</div>
+        ))}
+      </div>
+      <div className="mt-6"><Btn variant="primary" className="w-full">Continue</Btn></div>
+      <div className="mt-3 text-center text-[13px] text-hud-dim">Today's run</div>
+    </Screen>
+  );
+}
