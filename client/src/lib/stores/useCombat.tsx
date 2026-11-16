@@ -30,10 +30,11 @@ import { gunItem, magazineOf } from '../combat/guns';
 
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import { hostDoll } from '../rendering/dollSpecs';
-import { wakeNow } from '../engine/clock';
+import { wakeNow, hoursGone } from '../engine/clock';
 import { useRun } from './useRun';
 import { DIFFICULTY, difficultyUnit } from '../engine/difficulty';
-import { unlock } from '../unlocks';
+import { unlock, recordHosts } from '../unlocks';
+import type { Difficulty } from '../slots';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
@@ -49,7 +50,7 @@ import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
 import { withClass, withSplice, withResonance, firmwareXpFor, firmwarePassives, TWIN_HEAT, firmwareHeldAt, holderOf } from '../engine/firmware';
-import { firstLifeAt } from '../daily';
+import { firstLifeAt, dailyDay } from '../daily';
 import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 
 // Pacing (ms). Attacks play at ATTACK_PACE (half again as slow as they were), so each hit can be followed:
@@ -77,6 +78,8 @@ firmwareFound?: PlayerClass[];
 allyLevelUps: string[];
 /** This win finished the chapter (first time only). */
 chapterDone?: boolean;
+/** The chapter's host count, when this win finished it: the count, the run's so far, the fewest on this setting before it (null the first time; none for today's run), and the hours gone since the first wake. */
+count?: { hosts: number; total: number; fewest: number | null; hours: number; difficulty: Difficulty } | null;
 }
 
 interface CombatState extends FightState {
@@ -489,10 +492,16 @@ const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState(
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
+let count: VictorySummary['count'] = null;
 if (chapterDone) {
   useMap.getState().finishChapter(); useStrain.getState().unlock();
+  const chapter = useMap.getState().chapter, difficulty = useRun.getState().difficulty;
   // Chapter one finished on Normal or Hard opens Hard for every save on this device
-  if (useMap.getState().chapter === CHAPTERS[0].id && useRun.getState().difficulty !== 'easy') unlock({ hard: true });
+  if (chapter === CHAPTERS[0].id && difficulty !== 'easy') unlock({ hard: true });
+  // The host count: kept on the device when it's the fewest on this setting (today's run keeps its own records)
+  const hosts = useMap.getState().hosts ?? get().progression.deathCount + 1;
+  count = { hosts, total: get().progression.deathCount + 1, difficulty, hours: hoursGone(useMap.getState().clock),
+    fewest: dailyDay ? null : recordHosts(chapter, difficulty, [], hosts) };
 }
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
@@ -533,7 +542,7 @@ if (firmwareUp) log(`FIRMWARE -- +${firmwareUp} point${firmwareUp > 1 ? 's' : ''
 const pointsBefore = useAugmentTrees.getState().availablePoints;
 if (farmLevel === null) { useAugmentTrees.getState().winFight(); set({ hostBestThreat: Math.max(get().hostBestThreat, level) }); }
 const pointsGained = useAugmentTrees.getState().availablePoints - pointsBefore;
-set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone, firmwareUp, firmwareFound } });
+set({ lastVictory: { gold: loot.gold, xp, levelsGained, pointsGained, allyLevelUps, chapterDone, count, firmwareUp, firmwareFound } });
 useAudio.getState().playSuccess();
 };
 

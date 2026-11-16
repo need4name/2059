@@ -349,3 +349,31 @@ test('time passes between hosts: each wakes a gap later, the gaps shrink, and a 
   assert.equal(s.fellAt?.walkway, s.corpse?.at);
   assert.equal(M.corpseAge(s), ageOf(s.clock!.hours - s.corpse!.at!));
 });
+
+test('the chapter keeps its host count, and its end says how long has gone by', async () => {
+  const { spanText, hoursGone, startClock, advance } = await import('../client/src/lib/engine/clock');
+  const { fewestKey, recordHosts } = await import('../client/src/lib/unlocks');
+  // A chapter starts on its first host; every host lost adds one
+  let s = M.newMapState('indian-ocean');
+  assert.equal(s.hosts, 1);
+  s = M.newHost(s, null, undefined, undefined, 5); s = M.newHost(s, null, undefined, undefined, 5);
+  assert.equal(s.hosts, 3);
+  // A rest washes the blood, not the count
+  assert.equal(M.rest(s).hosts, 3);
+  // A new chapter counts from one again
+  assert.equal(M.newMapState('deltas').hosts, 1);
+  // Time, as people say it
+  assert.equal(spanText(5), 'Less than a day');
+  assert.equal(spanText(30), 'A day');
+  assert.equal(spanText(24 * 5), '5 days');
+  assert.equal(spanText(24 * 21), '3 weeks');
+  assert.equal(spanText(24 * 30.44 * 5), '5 months');
+  assert.equal(spanText(24 * 365.25 * 3), '3 years');
+  assert.equal(hoursGone(null), 0);
+  assert.ok(hoursGone(advance(startClock(4))) > 0);
+  // Counts are only compared on the same setting; challenges in any order are the same setting
+  assert.notEqual(fewestKey('indian-ocean', 'normal'), fewestKey('indian-ocean', 'easy'));
+  assert.equal(fewestKey('indian-ocean', 'hard', ['b', 'a']), fewestKey('indian-ocean', 'hard', ['a', 'b']));
+  // Without a device to keep it on, nothing was kept before
+  assert.equal(recordHosts('indian-ocean', 'normal', [], 7), null);
+});

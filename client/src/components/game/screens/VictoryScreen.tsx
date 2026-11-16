@@ -12,6 +12,7 @@ import { useAllies } from '@/lib/stores/useAllies';
 import { useMap } from '@/lib/stores/useMap';
 import { chapterMap } from '@/lib/engine/map';
 import { nextChapter } from '@/lib/combat/chapters';
+import { HostCount } from './HostCount';
 
 export function VictoryScreen() {
   const { currentLoot, lastVictory, continueFromVictory, boss, strip, takePart, returnPart, playerClass, rerollPart, secondChanceSpent } = useCombat();
@@ -30,9 +31,12 @@ export function VictoryScreen() {
   // The last chapter ends on a choice, not an explanation
   const endings = chapterMap().endings;
   const [chosen, setChosen] = useState<number | null>(null);
-  const hosts = useCombat(s => s.progression.deathCount) + 1;
+  // The chapter's host count comes first, then its salvage
+  const [counted, setCounted] = useState(false);
   const chapterAllies = chapterMap().rooms.flatMap(r => (r.ally ? [r.ally] : []));
   // Salvage: the + takes a part at once; tap it again to put it back. Whatever isn't taken is scrap.
+
+  if (ended && lastVictory?.count && !counted) return <HostCount chapter={map.chapter} {...lastVictory.count} onDone={() => setCounted(true)} />;
 
   return (
     <Screen footer={
@@ -59,7 +63,6 @@ export function VictoryScreen() {
             <div className="font-display text-lg font-semibold text-white">{chapterMap().title}</div>
             <div className="grid grid-cols-2 gap-2 text-center">
               {[
-                ['Hosts used', `${hosts}`],
                 ['Places seen', `${map.visited.length} of ${chapterMap().rooms.length}`],
                 ...(chapterAllies.length ? [['Allies linked', `${chapterAllies.filter(id => met.includes(id)).length} of ${chapterAllies.length}`]] : []),
               ].map(([k, v]) => (

@@ -55,3 +55,16 @@ export function wakeNow(c: Clock | null | undefined): Wake {
 export type Age = 'fresh' | 'days' | 'weeks';
 export const AGE = { days: 48, weeks: 504 };
 export const ageOf = (hours: number): Age => (hours < AGE.days ? 'fresh' : hours < AGE.weeks ? 'days' : 'weeks');
+
+/** Roughly how long `hours` is, the way people say it ("3 weeks", "5 months"): only the chapter's end shows it. */
+export function spanText(hours: number): string {
+  const d = Math.max(0, hours) / 24;
+  if (d < 1) return 'Less than a day';
+  if (d < 2) return 'A day';
+  if (d < 14) return `${Math.round(d)} days`;
+  if (d < 61) return `${Math.round(d / 7)} weeks`;
+  if (d < 730) { const m = Math.round(d / 30.44); return m === 1 ? 'A month' : `${m} months`; }
+  return `${Math.round(d / 365.25)} years`;
+}
+/** Hours since the first host woke. */
+export const hoursGone = (c: Clock | null | undefined) => Math.max(0, (c?.hours ?? CLOCK.startHour) - CLOCK.startHour);

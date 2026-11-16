@@ -41,6 +41,8 @@ export interface MapState {
   cleared: string[];
   /** Rooms any host has been in. The signal remembers them. */
   visited: string[];
+  /** Hosts woken in this chapter, the one awake now included (the chapter's host count). */
+  hosts?: number;
   /** Hidden goals found (kept across hosts). */
   goals: string[];
   /** Supply caches already searched by this host. */
@@ -77,7 +79,7 @@ export interface MapState {
 export const newMapState = (chapter = activeChapter().id): MapState => {
   const entry = mapOf(chapter).entry;
   // Every field, so a store that merges this in (a new game, the next chapter) forgets the old map
-  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], goals: [], taken: [], done: false, fell: [], fellAt: {}, corpse: null, lastFell: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
+  return { chapter, room: entry, cameFrom: null, cleared: [], visited: [entry], hosts: 1, goals: [], taken: [], done: false, fell: [], fellAt: {}, corpse: null, lastFell: null, spent: [], scar: 0, hurt: 0, overload: 0, lit: [], beaten: [], recalled: [] };
 };
 
 /** A room with a fight nobody has cleared yet this host. */
@@ -162,6 +164,7 @@ export const newHost = (s: MapState, left: Item | null = null, at?: string, look
   return {
   ...s, room: at && wakePlaces(s).includes(at) ? at : mapOf(s.chapter).entry, cameFrom: null, cleared: [], taken: [], spent: [], scar: 0, hurt: 0, overload: 0, recalled: [],
   fell: [...(s.fell ?? []), s.room],
+  hosts: (s.hosts ?? 1) + 1,
   fellAt: { ...(s.fellAt ?? {}), [s.room]: fellHour },
   clock: advance(clock),
   corpse: left ? { room: s.room, item: left, at: fellHour, ...(look ? { look } : {}) } : null,

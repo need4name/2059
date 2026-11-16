@@ -37,7 +37,7 @@ interface MapStore extends M.MapState {
   reset: () => void;
 }
 
-const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, goals: s.goals, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, lastFell: s.lastFell ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [], clock: s.clock ?? null, fellAt: s.fellAt ?? {} });
+const pick = (s: MapStore): M.MapState => ({ chapter: s.chapter, room: s.room, cameFrom: s.cameFrom, cleared: s.cleared, visited: s.visited, hosts: s.hosts ?? 1, goals: s.goals, taken: s.taken ?? [], done: s.done ?? false, fell: s.fell ?? [], corpse: s.corpse ?? null, lastFell: s.lastFell ?? null, spent: s.spent ?? [], scar: s.scar ?? 0, lit: s.lit ?? [], hurt: s.hurt ?? 0, overload: s.overload ?? 0, beaten: s.beaten ?? [], recalled: s.recalled ?? [], clock: s.clock ?? null, fellAt: s.fellAt ?? {} });
 
 export const useMap = create<MapStore>()(persist((set, get) => ({
   ...M.newMapState(CHAPTER_ONE),
