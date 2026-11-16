@@ -2689,7 +2689,7 @@ export function foeWalk(s: FightState, i: number): Step {
     const near = spots.filter(p => !same(p, goal)).sort((a, b) => Math.max(KING.refit, chebyshev(a, goal)) - Math.max(KING.refit, chebyshev(b, goal)) || (covers(b, prey) ? 1 : 0) - (covers(a, prey) ? 1 : 0))[0];
     if (near && chebyshev(near, goal) < chebyshev(foe.pos, goal)) return { state: setFoe(s, i, { pos: near }), events: [] };
   }
-  const hunts = !!(foe.unit.elite || foe.unit.enrage);
+  const hunts = !!(foe.unit.elite || foe.unit.enrage || s.grid.sharp);
   const how = foe.unit.behaviour ?? 'brawler';
   // Mud that floods at the start of next round is a bad place to stop
   const flooding = !!s.tide && !s.tide.high && s.tide.turnsLeft === 1;

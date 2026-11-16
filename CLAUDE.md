@@ -41,7 +41,8 @@ Mobile-first cyberpunk roguelike (React + Vite + Zustand, Express server). `docs
 
 ## Saves
 
-- Every persisted store writes into one versioned save (`client/src/lib/save.ts`, key `2059-save`) through `saveStorage`. A new persisted store must use `storage: createJSONStorage(() => saveStorage)` and be added to `SAVE_PARTS`. When a save's shape changes, bump `SAVE_VERSION` and add a step to `MIGRATIONS`. Today's run (`lib/daily.ts`) plays in its own slot (`2059-daily-save`), so it never touches the player's own save; its records live under `2059-daily`.
+- There are three saves (`client/src/lib/slots.ts`: slot 1 is `2059-save`, then `2059-save-2`, `2059-save-3`); the page plays one, and switching reloads. Each is a whole run, difficulty included. Unlocks earned across runs (Hard, challenges) live on the device (`lib/unlocks.ts`), outside every save.
+- Every persisted store writes into the playing slot's versioned save (`client/src/lib/save.ts`) through `saveStorage`. A new persisted store must use `storage: createJSONStorage(() => saveStorage)` and be added to `SAVE_PARTS`. When a save's shape changes, bump `SAVE_VERSION` and add a step to `MIGRATIONS`. Today's run (`lib/daily.ts`) plays in its own slot (`2059-daily-save`), so it never touches the player's own save; its records live under `2059-daily`.
 
 ## Randomness
 

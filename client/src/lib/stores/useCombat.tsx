@@ -18,7 +18,7 @@ import { useAudio } from './useAudio';
 import type { Sfx } from '../audio/sfx';
 import { generateBattlefield, buildArena, emptyGrid, getPlayerReach, spawnFoePositions, allySpawnPositions } from '../combat/grid';
 import { useAllies, partyForFight } from './useAllies';
-import { nextChapter, activeChapter, ladderDepth } from '../combat/chapters';
+import { nextChapter, activeChapter, ladderDepth, CHAPTERS } from '../combat/chapters';
 import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
@@ -31,6 +31,9 @@ import { gunItem, magazineOf } from '../combat/guns';
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import { hostDoll } from '../rendering/dollSpecs';
 import { wakeNow } from '../engine/clock';
+import { useRun } from './useRun';
+import { DIFFICULTY, difficultyUnit } from '../engine/difficulty';
+import { unlock } from '../unlocks';
 import * as Fight from '../engine/fight';
 import type { FightState, Step } from '../engine/fight';
 import { usePlayi } from './usePlayi';
@@ -486,7 +489,11 @@ const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState(
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
-if (chapterDone) { useMap.getState().finishChapter(); useStrain.getState().unlock(); }
+if (chapterDone) {
+  useMap.getState().finishChapter(); useStrain.getState().unlock();
+  // Chapter one finished on Normal or Hard opens Hard for every save on this device
+  if (useMap.getState().chapter === CHAPTERS[0].id && useRun.getState().difficulty !== 'easy') unlock({ hard: true });
+}
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ strip });
@@ -738,6 +745,8 @@ setLootLuck(perks.rarityUp);
 { const inv = useInventory.getState(); setLootOwned([...Object.values(inv.equippedAugmentations), ...inv.items].flatMap(i => (i && i.type === 'augmentation' ? [i.templateId ?? i.id] : []))); }
 const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain))
   // Last word (memory): whatever killed the last host comes into this fight with half its structure
+  // The run's difficulty (engine/difficulty.ts)
+  .map(u => difficultyUnit(u, useRun.getState().difficulty))
   .map(u => (perks.lastWord && u.name === usePlayi.getState().lastKiller ? { ...u, currentStructuralHp: Math.ceil(u.maxStructuralHp / 2) } : u));
 // The Count brings a copy of itself (Boss twists in DESIGN.md)
 // The Weather flies with a lead drone (Boss twists in DESIGN.md)
@@ -754,7 +763,8 @@ const grid0 = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefiel
 // At sea, the board's open edges are a drop into the water (Knockback in DESIGN.md)
 // Fires start with their rounds to burn; in rain (the weather this host woke to) they burn out sooner
 const grid1 = Fight.lightFires(wakeNow(useMap.getState().clock).weather === 'rain' ? { ...grid0, rain: true } : grid0);
-const grid = activeChapter().rules?.seaEdges ? { ...grid1, seaEdges: true } : grid1;
+const grid2 = activeChapter().rules?.seaEdges ? { ...grid1, seaEdges: true } : grid1;
+const grid = DIFFICULTY[useRun.getState().difficulty].hunt ? { ...grid2, sharp: true } : grid2;
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;

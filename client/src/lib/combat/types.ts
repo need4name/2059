@@ -333,6 +333,8 @@ occupied?: TilePosition[];
 seaEdges?: boolean;
 /** It's raining (the weather this host woke to): fires burn out sooner. */
 rain?: boolean;
+/** Hard: every enemy hunts, like elites and bosses (engine/difficulty.ts). */
+sharp?: boolean;
 tiles: TileData[][];
 }
 

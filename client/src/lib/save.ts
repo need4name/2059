@@ -4,17 +4,18 @@
 import type { StateStorage } from 'zustand/middleware';
 import { alliesUnlockedBy } from './combat/allies';
 import { dailyDay, DAILY_SAVE_KEY } from './daily';
+import { activeSlot, slotKey } from './slots';
 import upgrades from '../content/upgrades.json';
 
 export const SAVE_KEY = '2059-save';
-/** The slot this page reads and writes: the player's own game, or today's run (its own slot, see daily.ts). */
-const slot = () => (dailyDay ? DAILY_SAVE_KEY : SAVE_KEY);
+/** The slot this page reads and writes: one of the player's three saves (slots.ts), or today's run (its own slot, see daily.ts). */
+const slot = () => (dailyDay ? DAILY_SAVE_KEY : slotKey(activeSlot));
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
-export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain', '2059-firmware', '2059-stats'] as const;
+export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain', '2059-firmware', '2059-stats', '2059-run'] as const;
 
 export interface SaveFile {
   game: '2059';
@@ -187,6 +188,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
       return { ...save, parts: { ...save.parts, '2059-map': JSON.stringify({ ...part, state: { ...st, lastFell: st.lastFell ?? st.corpse?.room ?? null } }) } };
     } catch { return save; }
   },
+  // 21 -> 22: a run's difficulty (useRun); an older save plays on Normal
+  21: (save) => save,
   // 20 -> 21: the hidden clock between hosts (engine/clock.ts). An old save has none yet: it starts when the
   // next host is lost, and its blood and last body count as fresh until then.
   20: (save) => {
@@ -231,7 +234,7 @@ export function readSave(): SaveFile {
   const raw = ls?.getItem(slot());
   if (raw) {
     try { save = migrate(JSON.parse(raw) as SaveFile); } catch { save = emptySave(); }
-  } else if (ls && !dailyDay) {
+  } else if (ls && !dailyDay && activeSlot === 1) {
     // Before the single save file, each store had its own key
     for (const part of SAVE_PARTS) {
       const old = ls.getItem(part);

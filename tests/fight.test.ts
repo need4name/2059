@@ -1865,3 +1865,20 @@ test('fuel drums burst into fire when slammed into or struck; fires burn out, so
   const lit = Fight.lightFires(arena([6, 3], [4, 3], [2, 2, 8]));
   assert.equal(lit.tiles![2][2].burns, undefined, 'a hazard with no fire art has no clock');
 });
+
+test('difficulty changes the enemies, never your rules: Easy softer, Hard tougher and every enemy hunts', async () => {
+  const { difficultyUnit, DIFFICULTY } = await import('../client/src/lib/engine/difficulty');
+  const u = createBoss(4);
+  assert.deepEqual(difficultyUnit(u, 'normal'), u);
+  const e = difficultyUnit(u, 'easy'), h = difficultyUnit(u, 'hard');
+  assert.ok(e.maxHp < u.maxHp && e.physicalAttack < u.physicalAttack && e.currentHp === e.maxHp);
+  assert.ok(h.maxHp > u.maxHp && h.physicalAttack > u.physicalAttack && h.maxStructuralHp > u.maxStructuralHp);
+  assert.ok(DIFFICULTY.hard.hunt && !DIFFICULTY.normal.hunt && !DIFFICULTY.easy.hunt);
+  // Hard: an ordinary enemy ends its walk covering the tiles you could step to (it hunts)
+  const b0 = fight({ grid: arena([6, 3], [2, 3]) });
+  const blade: CombatAction = { type: 'attack', name: 'Blade', description: '', damage: 8, attackPattern: 'melee' };
+  const plain = { ...b0, foes: [{ ...b0.foes[0], unit: { ...b0.foes[0].unit, traits: [], moves: [blade], elite: false, enrage: undefined, behaviour: 'shooter' as const } }] };
+  const sharp = { ...plain, grid: { ...plain.grid, sharp: true } };
+  const covered = (s: FightState) => Fight.dangerTiles(Fight.foeWalk(s, 0).state).size;
+  assert.ok(covered(sharp) >= covered(plain), 'a hunting enemy covers at least as much of where you could go');
+});
