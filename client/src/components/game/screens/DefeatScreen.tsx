@@ -13,6 +13,11 @@ import { allyDef } from '@/lib/combat/allies';
 import { dailyDay, dailyRecords, endDaily } from '@/lib/daily';
 import { useMap } from '@/lib/stores/useMap';
 import { wakePlaces, roomById } from '@/lib/engine/map';
+import { useRun } from '@/lib/stores/useRun';
+import { hostsLeft, challengeOf } from '@/lib/challenges';
+import { eraseSlot, activeSlot } from '@/lib/slots';
+import { DIFFICULTY } from '@/lib/engine/difficulty';
+import { chapterById } from '@/lib/combat/chapters';
 
 const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
   none: 'No firmware: Strike and a clean slate. Upgrade trees cost a point less.',
@@ -24,6 +29,8 @@ const CLASS_BLURB: Partial<Record<PlayerClass, string>> = {
 
 export function DefeatScreen() {
   const { boss, playerClass, rebirth } = useCombat();
+  // A run with only so many hosts says how many are left after this one
+  const left = hostsLeft(useCombat(s => s.progression.deathCount), useRun(s => s.challenges));
   // What opened since the last host woke is new (kept in the save, so a restart keeps the tag)
   const { fresh: justOpened, points: fwPoints } = useFirmware();
   // Every firmware taken from a boss so far
@@ -61,6 +68,7 @@ export function DefeatScreen() {
         <header className={'rise-in flex flex-col items-center gap-2 text-center'}>
                     <h1 className="font-display text-[36px] font-bold leading-none tracking-tight text-white drop-shadow-[0_0_24px_rgba(240,82,79,0.35)]">Host lost</h1>
           <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
+          {left !== null && <p className="text-[13px] font-semibold text-cred">{left === 1 ? 'One host left' : `${left} hosts left`}</p>}
         </header>
 
         {/* What stays: the memory, one point richer */}
@@ -168,6 +176,32 @@ export function DailyEndScreen() {
           <div className="mt-1 font-display text-[34px] font-semibold text-white">Level {hostBestThreat}</div>
           <div className="mt-1 text-sm text-hud-faint">{newBest ? (before ? 'Your best today.' : 'Your first run today.') : `Your best today: level ${before!.best}`}</div>
         </div>
+      </div>
+    </Screen>
+  );
+}
+
+/** The last host a run had is lost (Short on bodies, One breath): the run is over, and its save goes with it. */
+export function SignalLostScreen() {
+  const { boss, progression } = useCombat();
+  const { difficulty, challenges } = useRun();
+  const map = useMap();
+  const hosts = progression.deathCount + 1;
+  return (
+    <Screen footer={<Btn variant="primary" size="lg" className="w-full" onClick={() => eraseSlot(activeSlot)}>Back to the title</Btn>}>
+      <div className="relative flex flex-col items-center gap-3 px-4 pt-[18vh] text-center">
+        <Glyph name="signal" size={30} className="text-hud-faint" />
+        <h1 className="font-display text-[44px] font-bold leading-none tracking-tight text-white">Signal lost</h1>
+        <p className="text-[15px] text-hud-dim"><span style={{ color: boss.spriteColor }}>{boss.name}</span></p>
+        <div className="slab mt-6 w-full max-w-xs rounded-[24px] p-5">
+          <div className="text-sm text-hud-dim">{chapterById(map.chapter).name} · {roomById(map.room).name}</div>
+          <div className="mt-1 font-display text-[34px] font-semibold text-white">{hosts} {hosts === 1 ? 'host' : 'hosts'}</div>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <span className="rounded-full bg-white/[0.07] px-3 py-1 text-[12px] font-semibold text-sys">{DIFFICULTY[difficulty].label}</span>
+            {challenges.map(id => <span key={id} className="rounded-full bg-white/[0.07] px-3 py-1 text-[12px] font-semibold text-cred">{challengeOf(id)?.name}</span>)}
+          </div>
+        </div>
+        <p className="mt-2 text-[13px] text-hud-faint">This save ends here. What you've earned stays.</p>
       </div>
     </Screen>
   );

@@ -30,12 +30,12 @@ import { MemoryPage } from './FirmwareLanes';
 import * as Mem from '@/lib/engine/memory';
 import { useAllies } from '@/lib/stores/useAllies';
 import { usePlayi } from '@/lib/stores/usePlayi';
-import { useStrain } from '@/lib/stores/useStrain';
 import { firstLifeAt } from '@/lib/daily';
-import { STRAIN, STRAIN_NUMBERS, strainPicks } from '@/lib/engine/strain';
+import { challengeOn, useRun } from '@/lib/stores/useRun';
+import { SHORT_HOSTS } from '@/lib/challenges';
 import { moveTiles, attackPatternOf, SPEED, implantDrive, hotText, targetsText } from '@/lib/engine/fight';
 
-type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'strain' | 'memory';
+type Tab = 'loadout' | 'implants' | 'upgrades' | 'status' | 'allies' | 'memory';
 
 /** The implant (and its body slot) a move comes from, if any. */
 export function moveSource(a: LoadoutAction): { item: Item; slot: AugmentationSlot } | null {
@@ -381,35 +381,6 @@ function SavePanel() {
   );
 }
 
-/** Strain: harder fights for better pay, switched on for the next host (unlocked by finishing a chapter). */
-function StrainTab() {
-  const { chosen, active, toggle } = useStrain();
-  const same = chosen.length === active.length && chosen.every(id => active.includes(id));
-  const credits = Math.round(STRAIN_NUMBERS.credits * 100 * chosen.length);
-  return (
-    <div className="space-y-3">
-      <p className="px-1 text-sm leading-relaxed text-hud-dim">Takes hold when your next host wakes.</p>
-      {STRAIN.map(st => {
-        const on = chosen.includes(st.id);
-        return (
-          <button key={st.id} onClick={() => toggle(st.id)} className={cx('key flex w-full items-center gap-3 rounded-[20px] p-4 text-left', on && 'key-selected')}>
-            <Glyph name="strain" size={18} className={on ? 'text-hostile' : 'text-hud-faint'} />
-            <span className="min-w-0 flex-1">
-              <span className="block font-display text-[15px] font-semibold text-hud-text">{st.name}</span>
-              <span className="block text-[13px] text-hud-dim">{st.text}</span>
-            </span>
-            <span className={cx('text-xs font-semibold', on ? 'text-hostile' : 'text-hud-faint')}>{on ? 'On' : 'Off'}</span>
-          </button>
-        );
-      })}
-      <div className="slab rounded-[20px] p-4 text-sm leading-relaxed text-hud-text/85">
-        {chosen.length ? <>+{credits}% credits from every win{strainPicks(chosen) ? ', and one more part off the bodies' : ''}.</> : 'Nothing on.'}
-        {!same && <div className="mt-1 text-xs text-hud-faint">This host still lives under {active.length ? `${active.length} switch${active.length > 1 ? 'es' : ''}` : 'none'}.</div>}
-      </div>
-    </div>
-  );
-}
-
 /** The loaded firmware: its points and how close the next is, its attack now, its rule, and what its lane has bought. */
 function FirmwarePanel() {
   const playerClass = useCombat(st => st.playerClass);
@@ -627,7 +598,7 @@ function StatusTab() {
   );
 }
 
-const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies', strain: 'Strain', memory: 'Memory' };
+const PAGE_TITLE: Record<Tab, string> = { loadout: 'Moves', implants: 'Implants', upgrades: 'Upgrades', status: 'Self', allies: 'Allies', memory: 'Memory' };
 
 function Dock({ icon, title, alert, onClick }: { icon: GlyphName; title: string; alert?: boolean; onClick: () => void }) {
   return (
@@ -644,7 +615,7 @@ export function BaseScreen() {
   const map = useMap();
   const roomNow = roomById(map.room);
   const fightHere = hasFight(map, roomNow);
-  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, firstLifeAt(progression.deathCount, roomNow.threat), roomNow.enemy) : null;
+  const foe = roomNow.threat !== undefined ? getBossPreview(roomNow.threat, firstLifeAt(progression.deathCount, roomNow.threat, challengeOn('onebreath')), roomNow.enemy) : null;
   const onward = map.done ? nextChapter(map.chapter) : null;
   const { gold, items, equippedAugmentations } = useInventory();
   const { owned: treeOwned, availablePoints } = useAugmentTrees();
@@ -653,10 +624,12 @@ export function BaseScreen() {
   const [page, setPage] = useState<Tab | null>(null);
   const pool = useActionPool();
   const met = useAllies(s => s.met);
-  const strainOpen = useStrain(s => s.unlocked);
-  const strainOn = useStrain(s => s.active.length > 0);
   // Something in the memory can be afforded
-  const memoryNetWaits = usePlayi(s => Mem.NEURONS.some(n => [n.id, ...(n.specs ?? []).map(sp => sp.id)].some(id => Mem.canLearn(s, id, met.length > 0))));
+  const runOn = useRun(s => s.challenges), bare = runOn.includes('bare');
+  // A run with only so many hosts says how many: "Host 4 of 10"
+  const hostLimit = runOn.includes('onebreath') ? 1 : runOn.includes('short') ? SHORT_HOSTS : null;
+  const netWaits = usePlayi(s => Mem.NEURONS.some(n => [n.id, ...(n.specs ?? []).map(sp => sp.id)].some(id => Mem.canLearn(s, id, met.length > 0))));
+  const memoryNetWaits = !bare && netWaits;
   // ...or a firmware's lane can grow
   const fw = useFirmware(), mapChapter = useMap(s => s.chapter);
   const laneStage = laneStageFor(CHAPTERS.findIndex(c => c.id === mapChapter));
@@ -682,7 +655,7 @@ export function BaseScreen() {
         <header className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="font-display text-[15px] font-semibold text-white">Host {progression.deathCount + 1}</span>
+              <span className="font-display text-[15px] font-semibold text-white">Host {progression.deathCount + 1}{hostLimit ? <span className="text-hud-dim"> of {hostLimit}</span> : null}</span>
               <span className="text-xs font-semibold text-sys/90">Lv {progression.level}</span>
             </div>
             {/* Health carries from fight to fight; resting at a server heals it */}
@@ -703,7 +676,6 @@ export function BaseScreen() {
           <Dock icon="implant" title="Implants" alert={fitsNow} onClick={() => setPage('implants')} />
           <Dock icon="upgrade" title="Upgrades" alert={upgradeWaits} onClick={() => setPage('upgrades')} />
           {met.length > 0 && <Dock icon="allies" title="Allies" onClick={() => setPage('allies')} />}
-          {strainOpen && <Dock icon="strain" title="Strain" alert={strainOn} onClick={() => setPage('strain')} />}
           <Dock icon="signal" title="Memory" alert={memoryWaits} onClick={() => setPage('memory')} />
           <Dock icon="status" title="Self" onClick={() => setPage('status')} />
         </nav>
@@ -719,7 +691,6 @@ export function BaseScreen() {
         {page === 'upgrades' && <UpgradesTab />}
         {page === 'status' && <StatusTab />}
         {page === 'allies' && <AlliesTab />}
-        {page === 'strain' && <StrainTab />}
       </Page>
     </Screen>
   );

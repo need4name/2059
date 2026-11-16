@@ -7,12 +7,14 @@ import { useJournal } from '@/lib/stores/useJournal';
 import { roomById, roomText, hasFight, exitState, cacheReady, corpseHere, corpseAge, canRest, DIR_LABEL } from '@/lib/engine/map';
 import { drawCorpseScene } from '@/lib/rendering/corpse';
 import { lightOf, litTileset } from '@/lib/rendering/atmosphere';
-import { wakeNow, type Age } from '@/lib/engine/clock';
+import { type Age } from '@/lib/engine/clock';
 import { activeChapter } from '@/lib/combat/chapters';
 import type { DollSpec } from '@/lib/rendering/dolls';
 import { useInventory } from '@/lib/stores/useInventory';
-import { useStrain } from '@/lib/stores/useStrain';
-import { firstLifeAt } from '@/lib/daily';
+import { firstLifeAt, dailyDay } from '@/lib/daily';
+import { countTakenBack, unlock } from '@/lib/unlocks';
+import { TAKE_BACK_NEED } from '@/lib/challenges';
+import { challengeOn, seenWake } from '@/lib/stores/useRun';
 import { eventHere, cantChoose, partToGive } from '@/lib/engine/events';
 import { powerOf } from '@/lib/combat/augments';
 import { recallCost } from '@/lib/combat/economy';
@@ -29,12 +31,11 @@ export function RoomPanel() {
   const map = useMap();
   const { progression, openMarket, openRoomCache, chooseEvent, fightsStarted } = useCombat();
   const inv = useInventory();
-  const shut = useStrain(s => s.active.includes('shut'));
   const allies = useAllies();
   const slots = usePlayi(s => s.perks)().allySlots;
   const room = roomById(map.room);
   const fight = hasFight(map, room);
-  const enemy = room.threat !== undefined ? getBossPreview(room.threat, firstLifeAt(progression.deathCount, room.threat), room.enemy) : null;
+  const enemy = room.threat !== undefined ? getBossPreview(room.threat, firstLifeAt(progression.deathCount, room.threat, challengeOn('onebreath')), room.enemy) : null;
   const [news, setNews] = useState<string | null>(null);
   const wakingHere = map.cameFrom === null && fightsStarted === 0 && map.cleared.length === 0;
   const [resting, setResting] = useState(false);
@@ -73,7 +74,7 @@ export function RoomPanel() {
           <div className="mt-4 border-l-2 border-[#b4383f]/60 pl-3.5">
             {map.corpse.look && <CorpseScene look={map.corpse.look} age={corpseAge(map)} />}
             <p className="text-sm leading-relaxed text-hud-text/75">{CORPSE_TEXT[corpseAge(map)]}</p>
-            <button onClick={() => { const it = useMap.getState().takeCorpse(); if (it) { useInventory.getState().receive([it]); useAudio.getState().play('cache'); setNews(`You take back ${nameOf(it)}.`); } }} className={cx(pill, 'mt-2.5')}>Take it back</button>
+            <button onClick={() => { const it = useMap.getState().takeCorpse(); if (it) { if (!dailyDay && countTakenBack() >= TAKE_BACK_NEED) unlock({ challenges: ['nolook'] }); useInventory.getState().receive([it]); useAudio.getState().play('cache'); setNews(`You take back ${nameOf(it)}.`); } }} className={cx(pill, 'mt-2.5')}>Take it back</button>
           </div>
         )}
         {news && <p className="mt-3 text-sm text-sys">{news}</p>}
@@ -170,14 +171,7 @@ export function RoomPanel() {
         );
       })()}
 
-      {room.market && shut && (
-        <div className="slab flex w-full items-center gap-3.5 rounded-[20px] p-4 opacity-60">
-          <Glyph name="market" size={22} className="shrink-0 text-hud-faint" />
-          <span className="min-w-0 flex-1 font-display text-[15px] font-semibold text-hud-dim">Grey Lane</span>
-          <span className="text-xs text-hud-faint">Shuttered</span>
-        </div>
-      )}
-      {room.market && !shut && (
+      {room.market && (
         <button onClick={openMarket} className="key flex w-full items-center gap-3.5 rounded-[20px] p-4 text-left"
           style={{ backgroundImage: 'linear-gradient(135deg, rgba(242,179,61,0.12), transparent 70%)' }}>
           <Glyph name="market" size={22} className="shrink-0 text-cred" />
@@ -235,7 +229,7 @@ function CorpseScene({ look, age }: { look: DollSpec; age: Age }) {
     const dpr = window.devicePixelRatio || 1;
     c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(c.clientHeight * dpr);
     const ctx = c.getContext('2d')!;
-    const wk = wakeNow(clock), floor = litTileset(activeChapter().tileset.floor, lightOf(wk.dayPart, wk.weather));
+    const wk = seenWake(clock), floor = litTileset(activeChapter().tileset.floor, lightOf(wk.dayPart, wk.weather));
     const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     let raf = 0, last = 0;
     const paint = (t: number) => {

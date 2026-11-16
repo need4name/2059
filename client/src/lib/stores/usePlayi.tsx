@@ -4,6 +4,7 @@ import { saveStorage } from '../save';
 import type { Perks } from '../engine/playi';
 import * as M from '../engine/memory';
 import type { Item } from '../combat/types';
+import { challengeOn } from './useRun';
 
 // What the signal keeps across every host: its memory (points, and the neurons they've
 // bought) and the last body's implants. Survives death; only a full save wipe clears it.
@@ -30,6 +31,8 @@ export const usePlayi = create<PlayiState>()(persist((set, get) => ({
 
   hostLost: (cause) => set(M.hostLost({ points: get().points, ranks: get().ranks, taught: get().taught }, cause)),
   learn: (id, hasAlly) => {
+    // Bare (a challenge): no memory network
+    if (challengeOn('bare')) return false;
     const now = { points: get().points, ranks: get().ranks, taught: get().taught };
     const next = M.learn(now, id, hasAlly);
     if (next === now) return false;

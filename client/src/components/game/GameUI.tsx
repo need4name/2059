@@ -2,14 +2,16 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { BaseScreen } from './screens/BaseScreen';
 import { VictoryScreen } from './screens/VictoryScreen';
-import { DefeatScreen, DailyEndScreen } from './screens/DefeatScreen';
+import { DefeatScreen, DailyEndScreen, SignalLostScreen } from './screens/DefeatScreen';
+import { runEndsOnLoss } from '@/lib/challenges';
 import { dailyDay } from '@/lib/daily';
 import { ShopScreen } from './screens/ShopScreen';
 import { CombatView } from './screens/CombatView';
 import { useLoadoutSync } from './useActionPool';
 import { WakeBeat } from './WakeBeat';
 import { useMap } from '@/lib/stores/useMap';
-import { wakeNow, type Wake } from '@/lib/engine/clock';
+import { type Wake } from '@/lib/engine/clock';
+import { seenWake, useRun } from '@/lib/stores/useRun';
 
 // Test tools load only in development builds, so players never download them
 const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel }))) : () => null;
@@ -17,6 +19,7 @@ const DebugPanel = import.meta.env.DEV ? lazy(() => import('./DebugPanel').then(
 /** Routes to the screen for the current game phase. */
 export function GameUI() {
   const phase = useCombat(s => s.phase);
+  const deathCount = useCombat(s => s.progression.deathCount), challenges = useRun(s => s.challenges);
   const [showDebug, setShowDebug] = useState(false);
   useLoadoutSync();
   // A new host wakes (the clock moves on): a few wordless seconds of the sky it woke to (WakeBeat)
@@ -24,7 +27,7 @@ export function GameUI() {
   const seen = useRef(lost);
   const [beat, setBeat] = useState<Wake | null>(null);
   useEffect(() => {
-    if (lost > seen.current && !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)) setBeat(wakeNow(useMap.getState().clock));
+    if (lost > seen.current && !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)) setBeat(seenWake(useMap.getState().clock));
     seen.current = lost;
   }, [lost]);
 
@@ -33,7 +36,8 @@ export function GameUI() {
     case 'player_turn':
     case 'enemy_turn': screen = <CombatView />; break;
     case 'victory': screen = <VictoryScreen />; break;
-    case 'defeat': screen = dailyDay ? <DailyEndScreen /> : <DefeatScreen />; break;
+    // A run with only so many hosts ends when the last is lost
+    case 'defeat': screen = dailyDay ? <DailyEndScreen /> : runEndsOnLoss(deathCount, challenges) ? <SignalLostScreen /> : <DefeatScreen />; break;
     case 'shop': screen = <ShopScreen />; break;
     default: screen = <BaseScreen />;
   }

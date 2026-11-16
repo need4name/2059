@@ -10,7 +10,7 @@ import { moveKind, damageTypeRgb } from './hud';
 import { drawSea, drawDeckTile, drawMudTile, drawLoosePart, drawBreaking, drawHazard, drawObstacle, drawStatus, drawSwimming, drawSlab, drawSeams, drawFootShadow, drawUnitBar, UNIT_BAR, hasCover, tilePath, type Open, drawStatusMarks, drawLowHealthEdge, drawHeatHaze, drawScorch, type StatusMark } from '@/lib/rendering/board';
 import { wearOf, drawWearFx, drawWearUnder, drawMisfire } from '@/lib/rendering/wear';
 import { lightOf, litTileset, litCanvas, drawWeather, type Light } from '@/lib/rendering/atmosphere';
-import { wakeNow } from '@/lib/engine/clock';
+import { seenWake } from '@/lib/stores/useRun';
 import { drawDoll, slotAnchors } from '@/lib/rendering/dolls';
 import { FxDirector, drawGuard } from './fightFx';
 import { hostDoll, allyDoll, foeDoll } from '@/lib/rendering/dollSpecs';
@@ -633,7 +633,7 @@ const height = canvas.height / dpr;
 // === BACKDROP: the chapter's ground (chapter one: open sea under the raft decks) ===
 // The light this host woke to (time passing between hosts: engine/clock.ts): the floor, sea, cover and bodies
 // are lit by it; what the board says about play (reach, red, aim) is drawn in its own colours on top
-const wakeLight = (() => { const wk = wakeNow(useMap.getState().clock); return lightOf(wk.dayPart, wk.weather); })();
+const wakeLight = (() => { const wk = seenWake(useMap.getState().clock); return lightOf(wk.dayPart, wk.weather); })();
 const tileset = litTileset((grid.tilesetOf ? chapterById(grid.tilesetOf) : activeChapter()).tileset, wakeLight);
 const now = Date.now();
 // The playback: take in new blows, place everyone, shake the view for a big hit

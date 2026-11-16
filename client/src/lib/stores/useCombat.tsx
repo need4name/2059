@@ -22,7 +22,7 @@ import { nextChapter, activeChapter, ladderDepth, CHAPTERS } from '../combat/cha
 import { withLinks, allyDef, storySoFar } from '../combat/allies';
 import { useJournal } from './useJournal';
 import { useMap } from './useMap';
-import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin } from '../engine/map';
+import { roomById, isChapterEnd, hasFight, healthNow, hurtAfterWin, mapOf } from '../engine/map';
 import { withTreePerks, setTreeDiscount, effectIn } from '../engine/upgrades';
 import { PlayerProgression, getXpForLevel, getXpFromBoss, getAwarenessMessage } from '../combat/skills';
 import { useAugmentTrees, nodesOf } from './useAugmentTrees';
@@ -30,8 +30,9 @@ import { gunItem, magazineOf } from '../combat/guns';
 
 import { random, seedRandom, mixSeed, newRunSeed, hashSeed } from '../engine/rng';
 import { hostDoll } from '../rendering/dollSpecs';
-import { wakeNow, hoursGone } from '../engine/clock';
-import { useRun } from './useRun';
+import { hoursGone } from '../engine/clock';
+import { useRun, challengeOn, seenWake } from './useRun';
+import { earnedByChapterOne, type ChallengeId } from '../challenges';
 import { DIFFICULTY, difficultyUnit } from '../engine/difficulty';
 import { unlock, recordHosts } from '../unlocks';
 import type { Difficulty } from '../slots';
@@ -45,13 +46,11 @@ import { ITEMS_2059 } from '../combat/items2059';
 import { ACTIVE_SLOTS } from '../combat/types';
 import { powerOf, partPerks, displayName } from '../combat/augments';
 import { eventHere, partToGive, cantChoose, gradeUp } from '../engine/events';
-import { useStrain } from './useStrain';
 import { useFirmware } from './useFirmware';
 import { useRunStats } from './useRunStats';
 import { tally, type Doer } from '../engine/runStats';
 import { withClass, withSplice, withResonance, firmwareXpFor, firmwarePassives, TWIN_HEAT, firmwareHeldAt, holderOf } from '../engine/firmware';
 import { firstLifeAt, dailyDay } from '../daily';
-import { strainUnit, strainHeat, strainCredits, strainPicks } from '../engine/strain';
 
 // Pacing (ms). Attacks play at ATTACK_PACE (half again as slow as they were), so each hit can be followed:
 // the pauses around an attack stretch with it; walking keeps its own pace.
@@ -79,7 +78,7 @@ allyLevelUps: string[];
 /** This win finished the chapter (first time only). */
 chapterDone?: boolean;
 /** The chapter's host count, when this win finished it: the count, the run's so far, the fewest on this setting before it (null the first time; none for today's run), and the hours gone since the first wake. */
-count?: { hosts: number; total: number; fewest: number | null; hours: number; difficulty: Difficulty } | null;
+count?: { hosts: number; total: number; fewest: number | null; hours: number; difficulty: Difficulty; challenges: ChallengeId[] } | null;
 }
 
 interface CombatState extends FightState {
@@ -488,27 +487,33 @@ const bodies = get().foes.map(f => ({ name: f.unit.name, color: f.unit.spriteCol
 // Strip twice (memory): once per host, one more part
 const stripBonus = bodies.length > 0 && usePlayi.getState().perks().stripTwice && !get().stripTwiceSpent;
 if (stripBonus) set({ stripTwiceSpent: true });
-const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + (stripBonus ? 1 : 0) + strainPicks(useStrain.getState().active), taken: [] } : null;
+const strip: Strip | null = bodies.length ? { bodies, picks: (usePlayi.getState().perks().pickOfTwo ? 2 : 1) + (stripBonus ? 1 : 0), taken: [] } : null;
 // The room on the hidden map is clear for this host; the last room ends the chapter
 const chapterDone = farmLevel === null && isChapterEnd(useMap.getState());
 if (farmLevel === null) useMap.getState().clearRoom();
 let count: VictorySummary['count'] = null;
 if (chapterDone) {
-  useMap.getState().finishChapter(); useStrain.getState().unlock();
+  useMap.getState().finishChapter();
   const chapter = useMap.getState().chapter, difficulty = useRun.getState().difficulty;
-  // Chapter one finished on Normal or Hard opens Hard for every save on this device
-  if (chapter === CHAPTERS[0].id && difficulty !== 'easy') unlock({ hard: true });
-  // The host count: kept on the device when it's the fewest on this setting (today's run keeps its own records)
+  const challenges = useRun.getState().challenges;
   const hosts = useMap.getState().hosts ?? get().progression.deathCount + 1;
-  count = { hosts, total: get().progression.deathCount + 1, difficulty, hours: hoursGone(useMap.getState().clock),
-    fewest: dailyDay ? null : recordHosts(chapter, difficulty, [], hosts) };
+  // Chapter one finished on Normal or Hard opens Hard for every save on this device, and finishing it earns challenges
+  if (chapter === CHAPTERS[0].id && !dailyDay) unlock({ hard: difficulty !== 'easy', challenges: earnedByChapterOne(hosts, difficulty, get().playerClass) });
+  // The host count: kept on the device when it's the fewest on this setting (today's run keeps its own records)
+  count = { hosts, total: get().progression.deathCount + 1, difficulty, challenges, hours: hoursGone(useMap.getState().clock),
+    fewest: dailyDay ? null : recordHosts(chapter, difficulty, challenges, hosts) };
+}
+// A boss beaten in the rain earns Bad weather (a server's boss, called back or not, or the chapter's last)
+{
+  const room = roomById(useMap.getState().room);
+  if (!dailyDay && get().grid.rain && (room.server || room.id === mapOf(useMap.getState().chapter).end)) unlock({ challenges: ['weather'] });
 }
 // Loot goes straight into the inventory so no screen can lose it
 useInventory.getState().addItems(direct);
 set({ strip });
 // Only one part to choose from: it's taken for you (tap it again to put it back)
 if (strip && strip.bodies.flatMap(b => b.items).length === 1) get().takePart(strip.bodies[0].items[0].id);
-const earned = Math.round(strainCredits(loot.gold, useStrain.getState().active) * luck.creditMult);
+const earned = Math.round(loot.gold * luck.creditMult);
 useInventory.getState().addGold(earned);
 useRunStats.getState().add({ fightsWon: 1, credits: earned, ...(farmLevel === null && (level % 10 === 0) ? { bossesKilled: 1 } : farmLevel === null && level % 5 === 0 ? { elitesKilled: 1 } : {}) });
 const xp = getXpFromBoss(level);
@@ -679,8 +684,6 @@ useFirmware.getState().woke();
 useInventory.getState().clearInventory();
 useLoadout.getState().resetLoadout();
 useAugmentTrees.getState().resetTrees();
-// The strain the player picked takes hold for this host; its numbers start from zero
-useStrain.getState().wake();
 useRunStats.getState().newHost();
 
 set({
@@ -747,12 +750,11 @@ const { player: fresh, moveRange, perks } = buildPlayer(playerClass);
 // Health carries from fight to fight (practice fights start whole)
 const player = farm ? fresh : { ...fresh, currentHp: healthNow(useMap.getState(), fresh.maxHp) };
 const isKing = !farm && level === 10 && activeChapter().cast.setPiece === 'Patchwork King';
-const strain = useStrain.getState().active;
 // Luck: enemies' implants may come a grade rarer (and so does what you strip from them)
 setLootLuck(perks.rarityUp);
 // No repeats while there's something new to find: what you already own (fitted or spare) is far less likely to turn up
 { const inv = useInventory.getState(); setLootOwned([...Object.values(inv.equippedAugmentations), ...inv.items].flatMap(i => (i && i.type === 'augmentation' ? [i.templateId ?? i.id] : []))); }
-const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level), farm, roomEnemy).map(u => strainUnit(u, strain))
+const planned = planFoes(level, !farm && firstLifeAt(get().progression.deathCount, level, challengeOn('onebreath')), farm, roomEnemy)
   // Last word (memory): whatever killed the last host comes into this fight with half its structure
   // The run's difficulty (engine/difficulty.ts)
   .map(u => difficultyUnit(u, useRun.getState().difficulty))
@@ -771,9 +773,10 @@ const drawn = layouts.length > 1 ? layouts[Math.floor(random() * layouts.length)
 const grid0 = drawn ? buildArena(drawn, fightRoom?.tileset) : generateBattlefield(level, { move: moveRange, units: 1 + units.length + party.length });
 // At sea, the board's open edges are a drop into the water (Knockback in DESIGN.md)
 // Fires start with their rounds to burn; in rain (the weather this host woke to) they burn out sooner
-const grid1 = Fight.lightFires(wakeNow(useMap.getState().clock).weather === 'rain' ? { ...grid0, rain: true } : grid0);
+const grid1 = Fight.lightFires(seenWake(useMap.getState().clock).weather === 'rain' ? { ...grid0, rain: true } : grid0);
 const grid2 = activeChapter().rules?.seaEdges ? { ...grid1, seaEdges: true } : grid1;
-const grid = DIFFICULTY[useRun.getState().difficulty].hunt ? { ...grid2, sharp: true } : grid2;
+const grid3 = DIFFICULTY[useRun.getState().difficulty].hunt ? { ...grid2, sharp: true } : grid2;
+const grid = challengeOn('glass') ? { ...grid3, glass: true } : grid3;
 const spots = spawnFoePositions(grid, units.length);
 // Boss twists that ride on the boss itself: the Courier's holder falls back (Boss twists in DESIGN.md)
 const held = firmwareHeldAt(activeChapter().id, level), holderName = held ? holderOf(held)?.enemy : undefined;
@@ -795,7 +798,7 @@ const twistOf = (name: string): Partial<Fight.Foe> => {
   if (name === 'The Count') { const copy = countSeen; countSeen = true; return copy ? { twist: 'decoy' } : {}; }
   return {};
 };
-const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], strainHeat(getBossStartingHeat(u.name), strain)), ...twistOf(u.name) })).map(f => (f.twist === 'twice' ? { ...f, unit: { ...f.unit, maxHp: Math.round(f.unit.maxHp * Fight.TWICE.hp), currentHp: Math.round(f.unit.currentHp * Fight.TWICE.hp) } } : f));
+const foes = units.slice(0, spots.length).map((u, k) => ({ ...Fight.newFoe(u, spots[k], getBossStartingHeat(u.name)), ...twistOf(u.name) })).map(f => (f.twist === 'twice' ? { ...f, unit: { ...f.unit, maxHp: Math.round(f.unit.maxHp * Fight.TWICE.hp), currentHp: Math.round(f.unit.currentHp * Fight.TWICE.hp) } } : f));
 const allySpots = allySpawnPositions(grid, party.length, foes.map(f => f.pos));
 const allies: Fight.Ally[] = party.slice(0, allySpots.length).map((a, k) => ({ ...a, pos: allySpots[k], moved: false, acted: false, taunting: false, defenseBoost: 0, burning: 0, stunned: false }));
 set({
@@ -1242,7 +1245,7 @@ set({ phase: 'menu', currentLoot: null });
 },
 
 openMarket: () => {
-if (get().phase === 'menu' && !useStrain.getState().active.includes('shut')) set({ phase: 'shop' });
+if (get().phase === 'menu') set({ phase: 'shop' });
 },
 
 completeIntro: () => set({ introCompleted: true }),
@@ -1255,7 +1258,7 @@ const finalClass: PlayerClass = !open.length ? 'none'
 : newClass && open.includes(newClass) ? newClass : open.includes(playerClass) ? playerClass : open[0];
 // The new corpse wakes at the chapter's entry (or a server a host reached); fights refill, memory stays.
 // The best part the lost host wore stays on its body, where it fell.
-const left = bodyLeftBehind();
+const left = challengeOn('nolook') ? null : bodyLeftBehind();
 // How the lost host looked, so its body can lie where it fell; the run's seed starts the hidden clock (engine/clock.ts)
 const owned = useAugmentTrees.getState().owned;
 const look = hostDoll(playerClass, useInventory.getState().equippedAugmentations as Record<string, Item | null>, it => owned[it.id]?.length ?? 0);
@@ -1273,7 +1276,6 @@ resetAll: () => {
 usePlayi.getState().reset();
 useJournal.getState().reset();
 useMap.getState().reset();
-useStrain.getState().reset();
 useFirmware.getState().reset();
 useRunStats.getState().reset();
 useAllies.getState().reset();
@@ -1367,5 +1369,8 @@ syncTreeDiscount(useCombat.getState().playerClass);
 /** The firmware a new host can wake with: each one taken from a boss, in the order they opened. Empty until
  *  the first is taken: every host runs unclassified till then, and none after (going without will be a late-game challenge). */
 export function availableFirmware(): PlayerClass[] {
+// Challenges: Unclassified offers none, Enforcer only offers the Enforcer from the first host on
+if (challengeOn('unclassified')) return [];
+if (challengeOn('enforcer')) return ['melee'];
 return useFirmware.getState().opened.filter((c, k, all) => c !== 'none' && all.indexOf(c) === k);
 }

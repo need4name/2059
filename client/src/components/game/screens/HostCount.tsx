@@ -6,14 +6,15 @@ import { spanText } from '@/lib/engine/clock';
 import { CHAPTERS } from '@/lib/combat/chapters';
 import type { Difficulty } from '@/lib/slots';
 import { dailyDay } from '@/lib/daily';
+import { challengeOf, type ChallengeId } from '@/lib/challenges';
 
 const ORDINAL = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
 /** More hosts than this and the row of bodies ends in "+N". */
 const SHOWN = 48;
 
-export interface HostCountProps { chapter: string; hosts: number; total: number; fewest: number | null; hours: number; difficulty: Difficulty; onDone: () => void }
+export interface HostCountProps { chapter: string; hosts: number; total: number; fewest: number | null; hours: number; difficulty: Difficulty; challenges?: ChallengeId[]; onDone: () => void }
 
-export function HostCount({ chapter, hosts, total, fewest, hours, difficulty, onDone }: HostCountProps) {
+export function HostCount({ chapter, hosts, total, fewest, hours, difficulty, challenges = [], onDone }: HostCountProps) {
   const n = CHAPTERS.findIndex(c => c.id === chapter);
   const name = CHAPTERS[n]?.name ?? '';
   const best = fewest === null ? hosts : Math.min(fewest, hosts);
@@ -29,7 +30,10 @@ export function HostCount({ chapter, hosts, total, fewest, hours, difficulty, on
         <div className="mt-1 font-display text-[72px] font-semibold leading-none text-hud-text">{hosts}</div>
         <div className="mt-2 text-[15px] text-hud-text/80">{hosts === 1 ? 'host' : 'hosts'}</div>
         {total > hosts && <div className="mt-1 text-[13px] text-hud-dim">{total} in all</div>}
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-semibold text-sys">{DIFFICULTY[difficulty].label}</div>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <span className="rounded-full bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-semibold text-sys">{DIFFICULTY[difficulty].label}</span>
+          {challenges.map(id => <span key={id} className="rounded-full bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-semibold text-cred">{challengeOf(id)?.name}</span>)}
+        </div>
         {/* Every host as a small body: the ones lost dark, the one that made it lit */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5" aria-hidden>
           {Array.from({ length: Math.min(hosts, SHOWN) }, (_, i) => (

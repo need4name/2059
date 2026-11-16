@@ -12,6 +12,7 @@
 // player wins ties) unless an ally is drawing fire.
 
 import type { ActionEffects, Character, CombatAction, CombatGrid, CombatLog, Item, PlayerClass, AttackPatternType, TilePosition } from '../combat/types';
+import { GLASS_MULT } from '../challenges';
 import { getHeatMultipliers } from '../combat/types';
 import {
   calculateDamage, estimateDamage, heatFromSpecial, scaleBossAction, CLASS_DEFINITIONS, BOSS_ATTACKS, getRangeBand,
@@ -311,6 +312,8 @@ export const BROKEN_TAKES = 1.5, BROKEN_TAKES_BOSS = 1.2;
 const takenBy = (f: Foe) => (f.malfunctioning ? (f.unit.elite || f.unit.enrage ? BROKEN_TAKES_BOSS : BROKEN_TAKES) : 1) * (hasTrait(f, 'braced') ? 0.9 : 1) * (f.parts?.includes('plate') ? KING.plate : 1) * (f.cornered ? FADE.cornered : 1)
   * (f.twist === 'dream' ? (f.dreaming ? 0 : DREAM.awake) : 1);
 /** What a foe's blows are worth: an arm graft lands them harder; the Count's copy at half. */
+/** Glass (a challenge): every hit from anyone is doubled. */
+const glassMult = (s: FightState) => (s.grid.glass ? GLASS_MULT : 1);
 const dealtBy = (f: Foe) => (hasTrait(f, 'armed') ? 1.1 : 1) * (f.twist === 'decoy' ? DECOY.hits : 1);
 /** An optic lets an enemy without a gun shoot: a shot at 80% of its usual hit. */
 export function foeRoster(f: Foe): CombatAction[] {
@@ -1196,7 +1199,7 @@ export function resolveSurge(s: FightState, bestDamage: number): Step {
   const targets = surgeTargets(s);
   for (const i of targets) {
     const foe = state.foes[i];
-    const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult * takenBy(foe), 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
+    const dmg = calculateDamage(s.player, foe.unit, action, foe.defenseBoost, s.perks.damageMult * takenBy(foe) * glassMult(s), 0, chebyshev(s.grid.playerPosition, foe.pos), false, 0);
     const hp = Math.max(0, foe.unit.currentHp - dmg.bioDamage);
     const structure = Math.max(0, foe.unit.currentStructuralHp - dmg.structuralDamage);
     state = setFoe(state, i, { unit: { ...foe.unit, currentHp: hp, currentStructuralHp: structure }, malfunctioning: structure <= 0, defenseBoost: 0 });
@@ -2058,7 +2061,7 @@ function resolvePlayerAttackRaw(s: FightState, action: CombatAction, playerClass
     const sweet = sweetSpot(action, playerClass, grid.playerPosition, aim, foe.pos);
     const dmg = calculateDamage(
       player, foe.unit, finalAction, foe.defenseBoost,
-      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * memory * takenBy(foe) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
+      (s.overclockActive ? 2.0 : heatMult.dealt) * s.perks.damageMult * finishing * marked * coordinated * quirk * sweet * memory * takenBy(foe) * glassMult(s) * (action.fromImplant ? 1 + s.perks.implantDamage : 1),
       flankWith(s, flank), dist, s.playerMalfunctioning,
       s.overclockActive ? 100 : playerHeat,
       player.bypassStructuralDefense ?? false,
@@ -2465,7 +2468,7 @@ function resolveFoeActionRaw(s: FightState, i: number, action: CombatAction, lev
   if (victim >= 0 && s.allies[victim]) { const r = hitAlly(s, i, victim, action, level, sweet); return { ...r, events: [strike, ...r.events] }; }
   // Enemy heat doesn't scale enemy damage, but a hot player takes more of it
   const taken = (1 + (getHeatMultipliers(s.playerHeat).received - 1) * s.perks.hotTakenMult) * s.perks.damageTakenMult * dealtBy(foe) * sweet * (walled(s, grid.playerPosition) ? ALLY_RULES.wall : 1);
-  const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken, flankOn(s, foe.pos, { kind: 'player' }), chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
+  const raw = calculateDamage(foe.unit, player, scaleBossAction(order(s) === 'precise' ? { ...action, accuracy: 'precise' } : action, level), s.playerDefenseBoost + s.allyGuard, taken * glassMult(s), flankOn(s, foe.pos, { kind: 'player' }), chebyshev(grid.playerPosition, foe.pos), foe.malfunctioning);
   const { dmg, sentBack } = wardHit(raw, s.ward, player.currentStructuralHp);
   const spill = player.maxStructuralHp > 0 ? 0 : Math.ceil(dmg.structuralDamage * NO_IMPLANT_SPILL);
   const events: FightEvent[] = [strike];
@@ -2515,7 +2518,7 @@ function hitAlly(s: FightState, i: number, k: number, action: CombatAction, leve
     return { state: setFoe(s, i, { heat: clampHeat(foe.heat + (action.heatGenerated ?? 15)) }), events: [say(`${foe.unit.name} -- ${action.name}: strikes the wrong ${ally.unit.name}`)] };
   }
   if (walled(s, ally.pos)) sweet *= ALLY_RULES.wall;
-  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, dealtBy(foe) * sweet, flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
+  const { dmg, sentBack } = wardHit(calculateDamage(foe.unit, ally.unit, scaleBossAction(action, level), ally.defenseBoost, dealtBy(foe) * sweet * glassMult(s), flankOn(s, foe.pos, { kind: 'ally', k }), chebyshev(ally.pos, foe.pos), foe.malfunctioning), ally.ward, ally.unit.currentStructuralHp);
   // Its structure bar soaks the physical part first, like yours
   const lost = dmg.bioDamage;
   const hp = Math.max(0, ally.unit.currentHp - lost);
@@ -2891,7 +2894,7 @@ export function resolveAllyMove(s: FightState, k: number, m: number): Step {
     for (const j of struck.length ? struck : [i]) {
       const f = state.foes[j];
       if (!f || !isAlive(f)) continue;
-      const dmg = calculateDamage(a.unit, f.unit, move, f.defenseBoost, takenBy(f), hasTrait(f, 'alert') ? 0 : flankOn(s, a.pos, { kind: 'foe', i: j }), chebyshev(a.pos, f.pos), false, 0);
+      const dmg = calculateDamage(a.unit, f.unit, move, f.defenseBoost, takenBy(f) * glassMult(s), hasTrait(f, 'alert') ? 0 : flankOn(s, a.pos, { kind: 'foe', i: j }), chebyshev(a.pos, f.pos), false, 0);
       const hp = Math.max(0, f.unit.currentHp - dmg.bioDamage);
       const structure = Math.max(0, f.unit.currentStructuralHp - dmg.structuralDamage);
       dealt += f.unit.currentHp - hp;

@@ -7,6 +7,8 @@ export interface Unlocks {
   challenges: string[];
   /** Fewest hosts a chapter has taken, per setting (`fewestKey`). */
   fewest: Record<string, number>;
+  /** Parts taken back from the player's own bodies, across every run (No second look). */
+  takenBack: number;
 }
 
 function ls(): Storage | null {
@@ -15,8 +17,8 @@ function ls(): Storage | null {
 export function readUnlocks(): Unlocks {
   try {
     const u = JSON.parse(ls()?.getItem(KEY) ?? '{}');
-    return { hard: !!u.hard, challenges: Array.isArray(u.challenges) ? u.challenges : [], fewest: u.fewest && typeof u.fewest === 'object' ? u.fewest : {} };
-  } catch { return { hard: false, challenges: [], fewest: {} }; }
+    return { hard: !!u.hard, challenges: Array.isArray(u.challenges) ? u.challenges : [], fewest: u.fewest && typeof u.fewest === 'object' ? u.fewest : {}, takenBack: Number(u.takenBack) || 0 };
+  } catch { return { hard: false, challenges: [], fewest: {}, takenBack: 0 }; }
 }
 function write(u: Unlocks) { ls()?.setItem(KEY, JSON.stringify(u)); }
 
@@ -36,4 +38,11 @@ export function recordHosts(chapter: string, difficulty: string, challenges: str
   const before = typeof u.fewest[k] === 'number' ? u.fewest[k] : null;
   if (ls() && (before === null || hosts < before)) write({ ...u, fewest: { ...u.fewest, [k]: hosts } });
   return before;
+}
+
+/** A part taken back from one of the player's own bodies: returns how many that makes on this device. */
+export function countTakenBack(): number {
+  const u = readUnlocks(), n = u.takenBack + 1;
+  if (ls()) write({ ...u, takenBack: n });
+  return n;
 }

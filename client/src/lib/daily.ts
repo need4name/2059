@@ -51,5 +51,5 @@ export function endDaily(level: number | null) {
   location.reload();
 }
 
-/** The first life's set piece (the Enforcer on threat 3) is skipped in a daily run: one life shouldn't end on a script. */
-export const firstLifeAt = (deathCount: number, level: number) => deathCount === 0 && !(dailyDay && level === FIRST_SET_PIECE);
+/** The first life's set piece (the Enforcer on threat 3) is skipped in a daily run (and under One breath): one life shouldn't end on a script. */
+export const firstLifeAt = (deathCount: number, level: number, oneLife = false) => deathCount === 0 && !((dailyDay || oneLife) && level === FIRST_SET_PIECE);

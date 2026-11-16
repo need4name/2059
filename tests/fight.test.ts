@@ -1882,3 +1882,19 @@ test('difficulty changes the enemies, never your rules: Easy softer, Hard toughe
   const covered = (s: FightState) => Fight.dangerTiles(Fight.foeWalk(s, 0).state).size;
   assert.ok(covered(sharp) >= covered(plain), 'a hunting enemy covers at least as much of where you could go');
 });
+
+test('Glass (a challenge) doubles every hit, both ways', () => {
+  const sturdy = (s: FightState): FightState => ({ ...s, player: { ...s.player, maxHp: 9999, currentHp: 9999 }, foes: s.foes.map(f => ({ ...f, unit: { ...f.unit, maxHp: 9999, currentHp: 9999 } })) });
+  // The same fight (the same enemy), with and without Glass
+  seedRandom(1); const plain = sturdy(fight()), glass: FightState = { ...plain, grid: { ...plain.grid, glass: true } };
+  const lost = (s: FightState) => s.foes[0].unit.currentHp + s.foes[0].unit.currentStructuralHp;
+  seedRandom(3); const a = Fight.resolvePlayerAttack(plain, { ...PLAYER_ACTIONS[0], accuracy: 'precise' });
+  seedRandom(3); const b = Fight.resolvePlayerAttack(glass, { ...PLAYER_ACTIONS[0], accuracy: 'precise' });
+  const dealt = lost(plain) - lost(a.state), dealtGlass = lost(glass) - lost(b.state);
+  assert.ok(dealtGlass >= dealt * 1.8 && dealtGlass <= dealt * 2.2, `you hit ${dealt}, under glass ${dealtGlass}`);
+  seedRandom(5); const c = Fight.resolveFoeAction(plain, 0, hitFor(30, 1), 5);
+  seedRandom(5); const d = Fight.resolveFoeAction(glass, 0, hitFor(30, 1), 5);
+  const body = (s: FightState) => s.player.currentHp + s.player.currentStructuralHp;
+  const taken = body(plain) - body(c.state), takenGlass = body(glass) - body(d.state);
+  assert.ok(takenGlass >= taken * 1.8 && takenGlass <= taken * 2.2, `you took ${taken}, under glass ${takenGlass}`);
+});

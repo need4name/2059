@@ -4,7 +4,7 @@ import { mapView, mapOf, roomHeights, type MapRoom, type RoomMark } from '@/lib/
 import type { GlyphName } from '../hud';
 import { useAllies } from '@/lib/stores/useAllies';
 import { allyDef } from '@/lib/combat/allies';
-import { wakeNow } from '@/lib/engine/clock';
+import { seenWake } from '@/lib/stores/useRun';
 import { drawAtmosphere } from '@/lib/rendering/atmosphere';
 
 // The map the signal draws as it goes, at the top of the room card: every room any host has walked into, the
@@ -338,7 +338,7 @@ export function SignalMap() {
       }
 
       // The light and weather this host woke to
-      { const wk = wakeNow(live.current.clock); if (wk.dayPart !== 'day' || wk.weather !== 'clear') drawAtmosphere(ctx, w, h, wk.dayPart, wk.weather, Date.now(), [], 1); }
+      { const wk = seenWake(live.current.clock); if (wk.dayPart !== 'day' || wk.weather !== 'clear') drawAtmosphere(ctx, w, h, wk.dayPart, wk.weather, Date.now(), [], 1); }
 
       // Darken towards the edges so the map reads as a window onto something larger
       const v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.65);

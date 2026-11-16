@@ -9,6 +9,8 @@ import { memoryPerks } from '@/lib/engine/memory';
 import { useAugmentTrees, gunMove } from '@/lib/stores/useAugmentTrees';
 import { PLAYER_ACTIONS, basicAttack, createPlayer } from '@/lib/combat/actions';
 import { useFirmware } from '@/lib/stores/useFirmware';
+import { useRun } from '@/lib/stores/useRun';
+import { BARE_SLOTS } from '@/lib/challenges';
 import type { AugmentationSlot } from '@/lib/combat/types';
 
 /** Every action the player could put in a loadout slot right now. */
@@ -58,7 +60,9 @@ export function useLoadoutSync() {
   // The play-i tree's Fifth slot, and the Wretch's own slots
   // Reflex brace (memory): Brace takes no slot. The bar is one longer and Brace is always on it
   const mem = usePlayi(st => st.ranks), memPerks = memoryPerks(mem);
-  const slotCount = BASE_SLOT_COUNT + memPerks.extraSlots + withClass(NO_PERKS, cls, fwRanks ?? {}).extraSlots + (memPerks.braceFree ? 1 : 0);
+  // Bare (a challenge): three slots, whatever else would add to them
+  const bare = useRun(st => st.challenges.includes('bare'));
+  const slotCount = bare ? BARE_SLOTS : BASE_SLOT_COUNT + memPerks.extraSlots + withClass(NO_PERKS, cls, fwRanks ?? {}).extraSlots + (memPerks.braceFree ? 1 : 0);
   // Moves that were already available last time; only genuinely new ones auto-fill,
   // so a slot you cleared on purpose stays empty
   const knownKeys = useRef<string[] | null>(null);

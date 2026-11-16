@@ -335,6 +335,8 @@ seaEdges?: boolean;
 rain?: boolean;
 /** Hard: every enemy hunts, like elites and bosses (engine/difficulty.ts). */
 sharp?: boolean;
+/** Glass (a challenge): every hit, from anyone, is twice as hard. */
+glass?: boolean;
 tiles: TileData[][];
 }
 

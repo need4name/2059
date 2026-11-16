@@ -11,11 +11,11 @@ export const SAVE_KEY = '2059-save';
 /** The slot this page reads and writes: one of the player's three saves (slots.ts), or today's run (its own slot, see daily.ts). */
 const slot = () => (dailyDay ? DAILY_SAVE_KEY : slotKey(activeSlot));
 /** Bump this and add a step to MIGRATIONS whenever the save's shape changes. */
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 const EXPORT_PREFIX = '2059SAVE:';
 
 /** The stores that make up a save (each persists under its own name). */
-export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-strain', '2059-firmware', '2059-stats', '2059-run'] as const;
+export const SAVE_PARTS = ['2059-combat', '2059-inventory', '2059-loadout', '2059-trees', '2059-market', '2059-playi', '2059-allies', '2059-journal', '2059-map', '2059-firmware', '2059-stats', '2059-run'] as const;
 
 export interface SaveFile {
   game: '2059';
@@ -190,6 +190,8 @@ const MIGRATIONS: Record<number, (save: SaveFile) => SaveFile> = {
   },
   // 21 -> 22: a run's difficulty (useRun); an older save plays on Normal
   21: (save) => save,
+  // 22 -> 23: Strain is gone (challenges, picked when a run starts, took its place)
+  22: (save) => { const { ['2059-strain']: _gone, ...parts } = save.parts; return { ...save, parts }; },
   // 20 -> 21: the hidden clock between hosts (engine/clock.ts). An old save has none yet: it starts when the
   // next host is lost, and its blood and last body count as fresh until then.
   20: (save) => {

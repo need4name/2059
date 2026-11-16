@@ -14,6 +14,7 @@ import { FIRMWARE, firmwareAttack, identityOf, laneOf, laneOpen, laneStageFor, t
 import * as M from '@/lib/engine/memory';
 import type { PlayerClass } from '@/lib/combat/types';
 import { MemoryNet } from './MemoryNet';
+import { useRun } from '@/lib/stores/useRun';
 
 const GOLD = '#f2b33d', HUB = '#8fd0c8';
 /** The firmware in the order their holders are met: chapter, then threat. */
@@ -234,13 +235,15 @@ export function MemoryPage({ onClose }: { onClose?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(358);
   useEffect(() => { const fit = fitWidth(box, setWidth); fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit); }, []);
-  const zoomed = anyFirmware && zoom, shown = anyFirmware ? view : 'memory';
-  const zoomKey = anyFirmware && !zoomed && (
+  // Bare (a challenge): no memory network, so only the firmware lanes (if any) show
+  const bare = useRun(s => s.challenges.includes('bare'));
+  const zoomed = anyFirmware && zoom && !bare, shown = bare ? (anyFirmware ? 'firmware' : 'bare') : anyFirmware ? view : 'memory';
+  const zoomKey = anyFirmware && !bare && !zoomed && (
     <button onClick={() => setZoom(true)} className="key flex h-10 shrink-0 items-center rounded-2xl px-3 text-[13px] font-semibold text-hud-text">Zoom out</button>
   );
   const body = (
     <div ref={box} className="space-y-2">
-      {zoomed ? <ZoomCanvas width={width} onPick={v => { setView(v); setZoom(false); }} /> : shown === 'firmware' ? <FirmwareLanes /> : <MemoryNet />}
+      {zoomed ? <ZoomCanvas width={width} onPick={v => { setView(v); setZoom(false); }} /> : shown === 'firmware' ? <FirmwareLanes /> : shown === 'bare' ? <div className="slab rounded-[22px] p-5 text-center text-[14px] text-hud-dim">Bare: no memory network.</div> : <MemoryNet />}
     </div>
   );
   // On the death screen: Zoom out sits in the network's top corner, so the network stays where it was planned
