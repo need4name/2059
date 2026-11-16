@@ -68,7 +68,7 @@
         84
       ],
       "name": "Signal strength",
-      "text": "+12 max health, a little less each rank",
+      "text": "+6 max health, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -81,22 +81,14 @@
         "give": [
           [
             1,
-            12
-          ],
-          [
-            2,
-            10
-          ],
-          [
-            3,
-            8
-          ],
-          [
-            4,
             6
           ],
           [
-            5,
+            2,
+            5
+          ],
+          [
+            3,
             4
           ],
           [
@@ -387,7 +379,7 @@
         102
       ],
       "name": "Targeting",
-      "text": "+5% damage, a little less each rank",
+      "text": "+2.5% damage, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -400,22 +392,14 @@
         "give": [
           [
             1,
-            0.05
+            0.025
           ],
           [
             2,
-            0.04
-          ],
-          [
-            3,
-            0.03
-          ],
-          [
-            4,
             0.02
           ],
           [
-            7,
+            3,
             0.015
           ],
           [
@@ -567,7 +551,7 @@
         74
       ],
       "name": "Practised guard",
-      "text": "Every defensive move is 6% stronger, a little less each rank",
+      "text": "Every defensive move is 3% stronger, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -580,18 +564,14 @@
         "give": [
           [
             1,
-            0.06
+            0.03
           ],
           [
             2,
-            0.05
+            0.025
           ],
           [
             3,
-            0.04
-          ],
-          [
-            5,
             0.02
           ],
           [
@@ -864,7 +844,7 @@
         126
       ],
       "name": "Reinforced housings",
-      "text": "+6% structure, a little less each rank",
+      "text": "+3% structure, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -877,22 +857,14 @@
         "give": [
           [
             1,
-            0.06
-          ],
-          [
-            2,
-            0.05
-          ],
-          [
-            3,
-            0.04
-          ],
-          [
-            5,
             0.03
           ],
           [
-            8,
+            2,
+            0.025
+          ],
+          [
+            3,
             0.02
           ],
           [
@@ -1109,7 +1081,7 @@
         113
       ],
       "name": "Handshake",
-      "text": "Allies have +6% health, a little less each rank",
+      "text": "Allies have +3% health, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -1122,15 +1094,11 @@
         "give": [
           [
             1,
-            0.06
+            0.03
           ],
           [
             3,
-            0.05
-          ],
-          [
-            4,
-            0.04
+            0.025
           ],
           [
             6,
@@ -1295,7 +1263,7 @@
         171
       ],
       "name": "Loose change",
-      "text": "+6% credits from fights, a little less each rank",
+      "text": "+3% credits from fights, a little less each rank",
       "cost": 1,
       "ranks": 5,
       "fx": [
@@ -1308,15 +1276,11 @@
         "give": [
           [
             1,
-            0.06
+            0.03
           ],
           [
             2,
-            0.05
-          ],
-          [
-            4,
-            0.03
+            0.025
           ],
           [
             7,

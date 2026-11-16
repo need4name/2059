@@ -63,7 +63,7 @@ test('an endless neuron never fills: each rank gives less and costs more, out of
   const n = M.neuron('s1')!;
   assert.ok(n.curve);
   const hp = (r: number) => M.memoryPerks({ s1: r }).maxHpBonus;
-  assert.equal(hp(1), 12); assert.equal(hp(3), 30);
+  assert.equal(hp(1), 6); assert.equal(hp(3), 15);
   assert.ok(hp(2) - hp(1) > hp(6) - hp(5) && hp(6) - hp(5) > hp(30) - hp(29), 'smaller steps as it goes');
   assert.equal(M.basePrice('s1', {}), 1);
   assert.ok(M.basePrice('s1', { s1: 20 }) > M.basePrice('s1', { s1: 5 }));
