@@ -328,3 +328,37 @@ test("an ally's wide kit attack can hit several, and a defensive implant you giv
   const healed = Fight.resolveAllyMove(hurt, 0, 2).state;
   assert.ok(healed.player.currentHp > 30, 'the most hurt in reach (you) gets it');
 });
+
+test('memory keys: Bleed off, Manual override, On my mark and Switch each do their one thing', () => {
+  const base = fight([ally('bale', [7, 4])]);
+  // Bleed off: once a fight, health for one more action
+  const bp = { ...base, perks: { ...NO_PERKS, bleedOff: true } };
+  assert.equal(Fight.canBleedOff(base), false, 'not without the neuron');
+  const b = Fight.bleedOff(bp).state;
+  assert.equal(b.doubleActionReady, true);
+  assert.equal(b.player.currentHp, bp.player.currentHp - Math.round(bp.player.maxHp * Fight.BLEED_OFF));
+  assert.equal(Fight.canBleedOff({ ...b, doubleActionReady: false }), false, 'once a fight');
+  // Manual override: a broken host's implant move can't misfire for the turn it's armed, then it's spent
+  const move = { ...PLAYER_ACTIONS[0], fromImplant: true } as CombatAction;
+  const op = { ...base, playerMalfunctioning: true, perks: { ...NO_PERKS, manualOverride: true } };
+  assert.equal(Fight.mayMisfire(op, move), true);
+  const armed = Fight.manualOverride(op).state;
+  assert.equal(Fight.mayMisfire(armed, move), false);
+  const next = Fight.startPlayerTurn(armed);
+  assert.equal(next.memo?.override, 'used');
+  assert.equal(Fight.canOverride(next), false);
+  // On my mark: the ally's next turn comes now
+  const mp = { ...base, perks: { ...NO_PERKS, onMyMark: true } };
+  const clock = Fight.startClock(mp);
+  const r = Fight.onMyMark(mp, { ...clock, now: 10, at: { ...clock.at, ally0: 400 } });
+  assert.equal(r.clock.at.ally0, 10);
+  assert.equal(Fight.markable(r.state, r.clock), null, 'once a fight');
+  // Switch: swap with the ally beside you, once a turn
+  const sp = { ...base, perks: { ...NO_PERKS, switchPlaces: true } };
+  const me = sp.grid.playerPosition, them = sp.allies[0].pos;
+  assert.equal(Fight.switchable(sp), 0);
+  const sw = Fight.switchPlaces(sp).state;
+  assert.deepEqual(sw.grid.playerPosition, them); assert.deepEqual(sw.allies[0].pos, me);
+  assert.equal(Fight.switchable(sw), null, 'once a turn');
+  assert.equal(Fight.switchable(Fight.startPlayerTurn(sw)), 0, 'back next turn');
+});

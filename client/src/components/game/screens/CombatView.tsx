@@ -386,6 +386,31 @@ function Spoils() {
   );
 }
 
+/** The once-a-fight keys some memory neurons add, in a row above the moves: a dot while each is still to use, dim once spent.
+ *  A host with none of them never sees the row. */
+function MemoryKeys() {
+  const s = useCombat();
+  const myTurn = s.phase === 'player_turn' && !s.inputLocked && s.allyTurn === null;
+  const keys: { id: string; name: string; sub: string; can: boolean; spent: boolean; lit?: boolean; tone: string; go: () => void }[] = [];
+  if (s.perks.bleedOff) keys.push({ id: 'bleed', name: 'Bleed off', sub: `act again, -${Math.round(Fight.BLEED_OFF * 100)}% health`, can: Fight.canBleedOff(s), spent: !!s.memo?.bled, tone: 'text-rose-300', go: s.bleedOff });
+  if (s.perks.manualOverride) keys.push({ id: 'override', name: 'Override', sub: s.memo?.override === 'armed' ? 'nothing misfires now' : "this turn can't misfire", can: Fight.canOverride(s), spent: s.memo?.override === 'used', lit: s.memo?.override === 'armed', tone: 'text-orange-300', go: s.manualOverride });
+  if (s.perks.onMyMark && s.allies.length) keys.push({ id: 'mark', name: 'On my mark', sub: 'an ally goes next', can: Fight.markable(s, s.clock) !== null, spent: !!s.memo?.marked, tone: 'text-teal-300', go: s.markAlly });
+  if (s.perks.switchPlaces && s.allies.length) keys.push({ id: 'switch', name: 'Switch', sub: 'swap with an ally beside you', can: Fight.switchable(s) !== null && !s.hasMoved && !s.moveSpent, spent: !!s.memo?.switched, tone: 'text-emerald-300', go: s.switchAlly });
+  if (!keys.length) return null;
+  return (
+    <div className="mb-2 flex gap-2">
+      {keys.map(k => (
+        <button key={k.id} disabled={!myTurn || (!k.can && !k.lit)} onClick={() => { if (k.can) k.go(); }} aria-pressed={k.lit} aria-label={k.name}
+          className={cx('key relative flex min-h-[50px] min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-1.5 text-center', k.lit && 'key-gold', k.spent && 'opacity-40 grayscale')}>
+          <span className={cx('max-w-full truncate font-display text-[12px] font-semibold leading-tight', k.lit ? 'text-[#1a1003]' : k.tone)}>{k.name}</span>
+          <span className={cx('max-w-full truncate text-[10px] leading-tight', k.lit ? 'text-[#1a1003]/75' : 'text-hud-faint')}>{k.sub}</span>
+          <span className={cx('absolute right-2 top-2 h-1.5 w-1.5 rounded-full', k.spent || k.lit ? 'bg-white/15' : 'bg-cred')} aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ActionBar() {
   const { phase, inputLocked, selectedAction, endTurn, hasMoved, undoMove, useConsumableItem, overclockActive, player, allyTurn } = useCombat();
   const { items } = useInventory();
@@ -402,6 +427,7 @@ function ActionBar() {
       {allyTurn !== null ? <AllyTurnPanel k={allyTurn} /> : <>
       <OverloadBar />
       <Spoils />
+      <MemoryKeys />
       {/* The bar fills the width whatever its length: three slots, or six */}
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, slots.length)}, minmax(0, 1fr))` }}>
         {slots.map((a, i) => a ? <SlotButton key={a.key} action={a} /> : (

@@ -139,6 +139,11 @@ startCombat: () => void;
 surge: () => void;
 /** Rewrite the room's order in force (once a fight, in chapters with orders). */
 rewriteOrder: (id: Fight.OrderId) => void;
+/** The once-a-fight keys some memory neurons add (Bleed off, Manual override, On my mark) and Switch, once a turn. */
+bleedOff: () => void;
+manualOverride: () => void;
+markAlly: () => void;
+switchAlly: () => void;
 /** The deepest threat this host has beaten (points come from beating deeper ones). */
 hostBestThreat: number;
 /** The enemy taking its turn right now (for the turn-order strip), or null. */
@@ -1097,6 +1102,32 @@ rewriteOrder: (id) => {
 const { phase, inputLocked } = get();
 if (phase !== 'player_turn' || inputLocked) return;
 apply(Fight.rewriteOrder(fightState(), id));
+reAim();
+},
+bleedOff: () => {
+const { phase, inputLocked, allyTurn } = get();
+if (phase !== 'player_turn' || inputLocked || allyTurn !== null) return;
+apply(Fight.bleedOff(fightState()));
+},
+manualOverride: () => {
+const { phase, inputLocked, allyTurn } = get();
+if (phase !== 'player_turn' || inputLocked || allyTurn !== null) return;
+apply(Fight.manualOverride(fightState()));
+},
+markAlly: () => {
+const { phase, inputLocked, allyTurn, clock } = get();
+if (phase !== 'player_turn' || inputLocked || allyTurn !== null) return;
+const r = Fight.onMyMark(fightState(), clock);
+if (!r.events.length) return;
+apply({ state: r.state, events: r.events });
+set({ clock: r.clock });
+},
+// Switch: a free step before you move (the swap is where this turn starts, so it draws no parting blow and Undo comes back to it)
+switchAlly: () => {
+const { phase, inputLocked, allyTurn, hasMoved, moveSpent } = get();
+if (phase !== 'player_turn' || inputLocked || allyTurn !== null || hasMoved || moveSpent) return;
+apply(Fight.switchPlaces(fightState()));
+set({ originalPosition: { ...get().grid.playerPosition } });
 reAim();
 },
 enemyTurn: () => nextActor(),

@@ -81,9 +81,9 @@ test('what the last host taught is a point cheaper, never free', () => {
 });
 
 test('kept ranks add up to perks', () => {
-  const p = M.memoryPerks({ p1: 3, p2: 2, c5: 1, s3: 5, d3: 1 });
+  const p = M.memoryPerks({ p1: 3, p2: 2, c5: 1, s3: 1, d3: 1 });
   assert.equal(p.extraCooling, 3); assert.equal(p.startHeat, 12); assert.equal(p.extraSlots, 1);
-  assert.equal(p.damageTakenMult, 0.9); assert.equal(p.braceFree, true);
+  assert.equal(p.bleedOff, true); assert.equal(p.braceFree, true);
   assert.deepEqual(M.memoryPerks({}), NO_PERKS);
 });
 

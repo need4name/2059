@@ -251,7 +251,7 @@ export interface FightState {
   /** The enemy Ghostline has spotted this round: your hits (and allies') land on it as if from behind. */
   spotted?: number | null;
   /** Once-a-fight things the memory network gives: Second wind spent, Reboot owed or spent, the next attack lifted by a defensive move. */
-  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean; /** Attacked this turn (Triage). */ attacked?: boolean; /** Riposte: armed by a defensive move, ready on the next turn. */ riposte?: 'armed' | 'ready'; /** Controlled burn used. */ burned?: boolean };
+  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean; /** Attacked this turn (Triage). */ attacked?: boolean; /** Riposte: armed by a defensive move, ready on the next turn. */ riposte?: 'armed' | 'ready'; /** Controlled burn used. */ burned?: boolean; /** Bleed off used. */ bled?: boolean; /** Manual override: armed for this turn, then used. */ override?: 'armed' | 'used'; /** On my mark used. */ marked?: boolean; /** Switch used this turn. */ switched?: boolean };
   /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
   king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -838,6 +838,64 @@ export function rewriteOrder(s: FightState, id: OrderId): Step {
   }
   return { state, events };
 }
+// ── Once-a-fight keys (memory neurons that give a choice) ───────────────────
+
+/** Bleed off: the share of max health it costs to act again. */
+export const BLEED_OFF = 0.1;
+export const canBleedOff = (s: FightState) =>
+  !!s.perks.bleedOff && !s.memo?.bled && !s.doubleActionReady && s.player.currentHp > Math.max(1, Math.round(s.player.maxHp * BLEED_OFF));
+/** Bleed off (memory): once a fight, spend some health to act again this turn. */
+export function bleedOff(s: FightState): Step {
+  if (!canBleedOff(s)) return { state: s, events: [] };
+  const cost = Math.max(1, Math.round(s.player.maxHp * BLEED_OFF));
+  return {
+    state: { ...s, player: { ...s.player, currentHp: s.player.currentHp - cost }, doubleActionReady: true, memo: { ...s.memo, bled: true } },
+    events: [say(`Bleed off: -${cost} health, one more action this turn`, 'critical')],
+  };
+}
+
+export const canOverride = (s: FightState) => !!s.perks.manualOverride && !s.memo?.override;
+/** Manual override (memory): once a fight, nothing you do this turn misfires. */
+export function manualOverride(s: FightState): Step {
+  if (!canOverride(s)) return { state: s, events: [] };
+  return { state: { ...s, memo: { ...s.memo, override: 'armed' } }, events: [say('Manual override: nothing misfires this turn', 'critical')] };
+}
+
+/** On my mark: the ally it calls (the one whose turn is furthest off), or null if none can come. */
+export function markable(s: FightState, c: Clock): number | null {
+  if (!s.perks.onMyMark || s.memo?.marked) return null;
+  const live = s.allies.map((a, k) => ({ a, k })).filter(x => allyAlive(x.a));
+  if (!live.length) return null;
+  return live.sort((x, y) => (c.at[allyActor(y.k)] ?? c.now) - (c.at[allyActor(x.k)] ?? c.now))[0].k;
+}
+/** On my mark (memory): once a fight, an ally's next turn comes right after yours. */
+export function onMyMark(s: FightState, c: Clock): { state: FightState; clock: Clock; events: FightEvent[] } {
+  const k = markable(s, c);
+  if (k === null) return { state: s, clock: c, events: [] };
+  return {
+    state: { ...s, memo: { ...s.memo, marked: true } },
+    clock: { ...c, at: { ...c.at, [allyActor(k)]: c.now } },
+    events: [say(`On my mark: ${s.allies[k].unit.name} goes next`, 'critical')],
+  };
+}
+
+/** Switch: the ally beside you it would swap with, or null. */
+export function switchable(s: FightState): number | null {
+  if (!s.perks.switchPlaces || s.memo?.switched) return null;
+  const k = s.allies.findIndex(a => allyAlive(a) && !a.swimming && chebyshev(a.pos, s.grid.playerPosition) === 1);
+  return k >= 0 ? k : null;
+}
+/** Switch (memory): once a turn, swap places with an ally beside you, as a free step. */
+export function switchPlaces(s: FightState): Step {
+  const k = switchable(s);
+  if (k === null) return { state: s, events: [] };
+  const me = s.grid.playerPosition, them = s.allies[k].pos;
+  return {
+    state: { ...s, grid: { ...s.grid, playerPosition: { ...them } }, allies: s.allies.map((a, n) => (n === k ? { ...a, pos: { ...me } } : a)), memo: { ...s.memo, switched: true } },
+    events: [say(`You swap places with ${s.allies[k].unit.name}`)],
+  };
+}
+
 /** The Signatory: a new order every round, and you may rewrite as often as you like at `cost` of your health each time. */
 export const SIGNATORY = { every: 1, cost: 0.06 };
 export const signatoryOrders = (o: FightState['orders']): FightState['orders'] => (o ? { ...o, every: SIGNATORY.every, turnsLeft: SIGNATORY.every, costly: true } : o);
@@ -1153,6 +1211,8 @@ export function startPlayerTurn(s: FightState): FightState {
     foes: s.foes.map(f => ({ ...f, heat: clampHeat(f.heat - PASSIVE_COOLING) })),
     doubleActionReady: (s.perks.doubleActionHeat > 0 && playerHeat <= s.perks.doubleActionHeat) || redline,
     redlineUsed: s.redlineUsed || redline,
+    // Manual override lasted the turn it was armed; Switch comes back each turn
+    memo: s.memo?.override === 'armed' || s.memo?.switched ? { ...s.memo, override: s.memo.override === 'armed' ? 'used' : s.memo.override, switched: false } : s.memo,
     noParting: false,
     // The turn after a stun is the full turn the guard waits for
     stunGuard: (s.stunGuard ?? 0) === 2 ? 1 : s.stunGuard ?? 0,
@@ -1668,7 +1728,7 @@ export function defendAmounts(s: FightState, action: CombatAction, mult: number)
 export const MISFIRE = { you: 1 / 3, foe: 0.5, boss: 0.25, shock: 0.5 };
 export const misfireChance = (s: FightState) => Math.max(0, MISFIRE.you - (s.perks.steadyHands ?? 0));
 /** Could this move misfire right now? (The card and the Execute button say so.) */
-export const mayMisfire = (s: FightState, action: CombatAction) => s.playerMalfunctioning && !!action.fromImplant && misfireChance(s) > 0;
+export const mayMisfire = (s: FightState, action: CombatAction) => s.playerMalfunctioning && !!action.fromImplant && misfireChance(s) > 0 && s.memo?.override !== 'armed';
 function playerMisfire(s: FightState, action: CombatAction): Step | null {
   if (!mayMisfire(s, action) || random() >= misfireChance(s)) return null;
   const events: FightEvent[] = [say(`MISFIRE -- ${action.name} fizzles`, 'malfunction'), { kind: 'misfire', by: { kind: 'player' } }];

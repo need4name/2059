@@ -212,14 +212,14 @@
         60,
         62
       ],
-      "name": "Thick skin",
-      "text": "Take 2% less damage per rank",
-      "cost": 1,
-      "ranks": 5,
+      "name": "Bleed off",
+      "text": "Once per fight, spend 10% of your health to act again this turn",
+      "cost": 3,
+      "ranks": 1,
       "fx": [
         {
-          "perk": "damageTakenMult",
-          "per": -0.02
+          "perk": "bleedOff",
+          "on": true
         }
       ]
     },
@@ -794,14 +794,14 @@
         97,
         145
       ],
-      "name": "Fail-safe",
-      "text": "While your structure is broken, your implants keep 5% more of their strength per rank",
-      "cost": 1,
-      "ranks": 5,
+      "name": "Manual override",
+      "text": "Once per fight, nothing you do for a turn can misfire",
+      "cost": 3,
+      "ranks": 1,
       "fx": [
         {
-          "perk": "failSafe",
-          "per": 0.05
+          "perk": "manualOverride",
+          "on": true
         }
       ]
     },
@@ -1196,28 +1196,28 @@
         37,
         123
       ],
-      "name": "Shared memory",
-      "text": "Allies gain experience 25% faster per rank",
-      "cost": 1,
-      "ranks": 4,
+      "name": "On my mark",
+      "text": "Once per fight, an ally takes its turn right after yours",
+      "cost": 3,
+      "ranks": 1,
       "fx": [
         {
-          "perk": "allyXpMult",
-          "per": 0.25
+          "perk": "onMyMark",
+          "on": true
         }
       ],
       "needsAlly": true,
       "specs": [
         {
-          "id": "n2_coordinated",
-          "name": "Coordinated",
-          "text": "+5% damage per rank to an enemy your ally hit this round",
-          "cost": 1,
-          "ranks": 4,
+          "id": "n2_switch",
+          "name": "Switch",
+          "text": "Once a turn, before you move, swap places with an ally beside you",
+          "cost": 2,
+          "ranks": 1,
           "fx": [
             {
-              "perk": "coordinatedBonus",
-              "per": 0.05
+              "perk": "switchPlaces",
+              "on": true
             }
           ]
         }
