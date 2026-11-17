@@ -99,6 +99,9 @@ export interface Perks {
   manualOverride: boolean;    // once a fight, nothing misfires for a turn
   onMyMark: boolean;          // once a fight, an ally acts right after you
   switchPlaces: boolean;      // once a turn, swap places with an ally beside you
+  followThrough: boolean;     // a kill makes your next attack land as if from the side
+  openingRead: boolean;       // your first turn each fight shows where every enemy will stand after its move
+  oldDebts: boolean;          // once per host, the Grey Lane takes a spare implant for any item of its grade
   braceShove: boolean;        // Brace pushes enemies beside you back
   riposte: boolean;           // after a defensive move, no parting blow next turn
   jam: boolean;               // hitting a malfunctioning enemy makes its next move misfire
@@ -141,7 +144,7 @@ export const NO_PERKS: Perks = {
   specialHeatTakenMult: 1, startOverload: 0, partSpeed: 0,
   secondWind: 0, mendRepairs: false, hotCrit: 0, burnoutMult: 1, firstStrikeBonus: 0, flankSide: 0, flankBack: 0, critDamage: 0,
   defendMult: 1, defendCool: 0, afterDefend: 0, braceGuard: 0, braceFree: false,
-  structureDamage: 0, exploit: 0, seizeUp: false, feedback: 0, failSafe: 0, steadyHands: 0, shortCircuit: false, triage: 0, lastWord: false, ventStep: false, controlledBurn: false, backstabStep: false, bleedOff: false, manualOverride: false, onMyMark: false, switchPlaces: false, braceShove: false, riposte: false, jam: false, carry: false, stripTwice: false, reboot: 0, sealed: 0, climbMult: 1,
+  structureDamage: 0, exploit: 0, seizeUp: false, feedback: 0, failSafe: 0, steadyHands: 0, shortCircuit: false, triage: 0, lastWord: false, ventStep: false, controlledBurn: false, backstabStep: false, bleedOff: false, manualOverride: false, onMyMark: false, switchPlaces: false, followThrough: false, openingRead: false, oldDebts: false, braceShove: false, riposte: false, jam: false, carry: false, stripTwice: false, reboot: 0, sealed: 0, climbMult: 1,
   allyGetUp: 0, coordinatedBonus: 0, dropChance: 0, rarityUp: 0, stimChance: 0, creditMult: 1, marketExtra: 0, secondChance: false,
   firmwareDamage: 0, firmwareHeatCut: 0, fwPointRate: 1, crossLoad: false, coldBlood: 0, hotHands: 0, coverStep: 0,
 };

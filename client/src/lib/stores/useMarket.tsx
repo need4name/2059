@@ -10,6 +10,8 @@ import { seedRandom, mixSeed, hashSeed, getRandomState } from '../engine/rng';
 import { usePlayi } from './usePlayi';
 
 /** What the Grey Lane charges you (Haggler knocks 20% off). */
+/** Old debts: a spare implant goes for any item of its grade. */
+export const canTrade = (spare: Item, item: Item) => spare.type === 'augmentation' && spare.rarity === item.rarity;
 export const marketPrice = (item: Item) => Math.max(1, Math.round(buyPrice(item) * usePlayi.getState().perks().priceMult));
 
 interface MarketState {
@@ -25,6 +27,8 @@ interface MarketState {
   buyGun: (id: string) => Weapon | null;
   buy: (itemId: string) => boolean;
   sell: (itemId: string) => boolean;
+  /** Old debts (memory): once a host, give a spare implant for any item here of the same grade. */
+  trade: (spareId: string, itemId: string) => boolean;
   reset: () => void;
 }
 
@@ -78,6 +82,17 @@ export const useMarket = create<MarketState>()(persist((set, get) => ({
     inv.addGold(sellPrice(item));
     // The points sunk into its upgrade tree come back
     useAugmentTrees.getState().forget(item);
+    return true;
+  },
+
+  trade: (spareId, itemId) => {
+    const inv = useInventory.getState(), spare = inv.items.find(i => i.id === spareId), item = get().stock.find(i => i.id === itemId);
+    if (!spare || !item || !canTrade(spare, item) || !usePlayi.getState().perks().oldDebts || useCombat.getState().oldDebtsSpent) return false;
+    inv.removeItem(spareId);
+    useAugmentTrees.getState().forget(spare);
+    inv.receive([item]);
+    set({ stock: get().stock.filter(i => i.id !== itemId) });
+    useCombat.setState({ oldDebtsSpent: true });
     return true;
   },
 

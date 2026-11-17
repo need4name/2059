@@ -240,14 +240,14 @@
         30,
         52
       ],
-      "name": "Haggling",
-      "text": "Market prices are 5% lower per rank",
-      "cost": 1,
-      "ranks": 4,
+      "name": "Old debts",
+      "text": "Once per host, the Grey Lane takes a spare implant for any one item of the same grade",
+      "cost": 3,
+      "ranks": 1,
       "fx": [
         {
-          "perk": "priceMult",
-          "per": -0.05
+          "perk": "oldDebts",
+          "on": true
         }
       ]
     },
@@ -440,28 +440,28 @@
       },
       "specs": [
         {
-          "id": "c1_finisher",
-          "name": "Finisher",
-          "text": "+5% damage per rank to enemies below 30% health",
-          "cost": 1,
-          "ranks": 5,
+          "id": "c1_follow_through",
+          "name": "Follow through",
+          "text": "A kill makes your next attack land as if from the side",
+          "cost": 2,
+          "ranks": 1,
           "fx": [
             {
-              "perk": "finisherBonus",
-              "per": 0.05
+              "perk": "followThrough",
+              "on": true
             }
           ]
         },
         {
-          "id": "c1_first_strike",
-          "name": "First strike",
-          "text": "Your first attack each fight does +10% damage per rank",
-          "cost": 1,
-          "ranks": 3,
+          "id": "c1_opening_read",
+          "name": "Opening read",
+          "text": "Your first turn each fight shows where every enemy will stand after its move",
+          "cost": 3,
+          "ranks": 1,
           "fx": [
             {
-              "perk": "firstStrikeBonus",
-              "per": 0.1
+              "perk": "openingRead",
+              "on": true
             }
           ]
         }

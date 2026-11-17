@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCombat } from '@/lib/stores/useCombat';
 import { useInventory } from '@/lib/stores/useInventory';
 import { useLoadout } from '@/lib/stores/useLoadout';
-import { useMarket, marketPrice } from '@/lib/stores/useMarket';
+import { useMarket, marketPrice, canTrade } from '@/lib/stores/useMarket';
 import { useRunStats } from '@/lib/stores/useRunStats';
 import { usePlayi } from '@/lib/stores/usePlayi';
 import { gunName, magazineOf, ROUNDS, type GunRound } from '@/lib/combat/guns';
@@ -110,6 +110,8 @@ export function ShopScreen() {
           <span className="slab shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-[15px] font-semibold text-cred">¤ {gold}</span>
         </header>
 
+        {mode === 'buy' && <OldDebts />}
+
         <Segmented value={mode} onChange={setMode} options={[{ id: 'buy', label: 'Buy' }, { id: 'sell', label: 'Sell', badge: items.length || undefined }]} />
 
         {/* Filters: what kind, then rarity as a row of coloured dots */}
@@ -212,5 +214,52 @@ export function ShopScreen() {
         )}
       </div>
     </Screen>
+  );
+}
+
+/** Old debts (memory): once a host, give a spare implant and take anything here of the same grade. */
+function OldDebts() {
+  const has = usePlayi(st => st.perks)().oldDebts;
+  const spent = useCombat(st => st.oldDebtsSpent);
+  const spares = useInventory(st => st.items).filter(i => i.type === 'augmentation');
+  const stock = useMarket(st => st.stock), trade = useMarket(st => st.trade);
+  const [open, setOpen] = useState(false);
+  const [giving, setGiving] = useState<string | null>(null);
+  if (!has || spent) return null;
+  const spare = spares.find(i => i.id === giving) ?? null;
+  const row = (it: Item, right: React.ReactNode, opts: { picked?: boolean; dim?: boolean; onClick?: () => void } = {}) => (
+    <div key={it.id} onClick={opts.onClick} className={cx('flex items-center gap-3 rounded-2xl bg-hud-panel/80 p-3 ring-1', opts.picked ? 'ring-2 ring-cred' : 'ring-white/[0.05]', opts.dim && 'opacity-35', opts.onClick && 'cursor-pointer')}>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/25"><SlotIcon slot={it.type === 'consumable' ? 'stim' : it.slot} /></span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block truncate text-sm font-semibold', RARITY_TEXT[it.rarity])}>{nameOf(it)}</span>
+        <span className="block truncate text-xs text-hud-dim">{it.type === 'consumable' ? stimInfo(it).effect : implantStats(it)}</span>
+      </span>
+      {right}
+    </div>
+  );
+  return (
+    <div className="slab space-y-3 rounded-[20px] p-4">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-[15px] font-semibold text-hud-text">Old debts</div>
+          <div className="text-[13px] text-hud-dim">{spares.length ? 'Give a spare implant, take anything here of the same grade. Once a host.' : 'Bring a spare implant to trade. Once a host.'}</div>
+        </div>
+        {spares.length > 0 && <Btn size="sm" variant="secondary" onClick={() => { setOpen(o => !o); setGiving(null); }}>{open ? 'Not now' : 'Trade'}</Btn>}
+      </div>
+      {open && (
+        <div className="rise-in space-y-2">
+          <div className="pt-1 text-[13px] font-semibold text-hud-text">1. Give a spare</div>
+          {spares.map(it => row(it, it.id === giving ? <span className="text-[12px] font-semibold text-cred">Giving</span> : null, { picked: it.id === giving, onClick: () => setGiving(it.id) }))}
+          {spare && <>
+            <div className="pt-2 text-[13px] font-semibold text-hud-text">2. Take one of its grade</div>
+            {stock.some(it => canTrade(spare, it))
+              ? stock.map(it => canTrade(spare, it)
+                ? row(it, <Btn size="sm" variant="gold" onClick={() => { if (trade(spare.id, it.id)) { setOpen(false); setGiving(null); } }}>Take</Btn>)
+                : row(it, null, { dim: true }))
+              : <div className="text-[13px] text-hud-faint">Nothing here of that grade.</div>}
+          </>}
+        </div>
+      )}
+    </div>
   );
 }

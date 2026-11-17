@@ -1328,6 +1328,17 @@ if (fFall === null) drawWearFx(ctx, fSpec, fWear, fp.x - size / 2 + stumble.x, f
   dx => drawDoll(ctx, fSpec, fp.x - size / 2 + stumble.x + dx, fTop + stumble.y, size, v.animator.getState(), v.animator.getFrame(), fFacingLeft));
 { const mt = director.misfire(fKey, now); if (mt !== null) drawMisfire(ctx, fSpec, fp.x - size / 2, fTop, size, fFacingLeft, mt, slotAnchors(fSpec).right_arm); }
 ctx.restore();
+// Opening read (memory): a pale ghost where this enemy will stand after its move, and the way it goes
+{ const gh = useCombat.getState().ghosts?.find(g => g.i === i); if (gh && f.unit.currentHp > 0 && fFall === null) {
+  const gp = gridToScreen(gh.row, gh.col, width, height), gTop = gp.y + (fTop - fp.y);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = Math.max(2, tileW * 0.04); ctx.setLineDash([tileW * 0.08, tileW * 0.08]);
+  ctx.beginPath(); ctx.moveTo(fp.x, fp.y + tileH * 0.3); ctx.lineTo(gp.x, gp.y + tileH * 0.3); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.ellipse(gp.x, gp.y + tileH * 0.32, tileW * 0.36, tileH * 0.14, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.globalAlpha = 0.32 + 0.08 * Math.sin(now / 400);
+  drawDoll(ctx, fSpec, gp.x - size / 2, gTop, size, 'idle', 0, fFacingLeft, { white: true });
+  ctx.restore();
+} }
 drawStatus(ctx, fp.x, fTop + size * 0.12, size * 0.8, f.burning > 0, f.stunned, now);
 { const rise = director.guarding(fKey, now); if (fFall === null && (rise !== null || f.defenseBoost > 0)) drawGuard(ctx, fp.x, fp.y, tileW, f.pos.col > grid.playerPosition.col, now, rise, '#ff9a7a'); }
 if (f.swimming) drawSwimming(ctx, fp.x, fTop + size * 0.12, size * 0.8, tileset.sea, now);

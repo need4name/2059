@@ -24,7 +24,7 @@ import { isImpassable, inBounds } from '../combat/grid';
 import { stepTowardAttackPosition, hazardDamageAt, chebyshev, tileAt, getReachableTiles, getPlayerReach, stepDistances } from '../combat/grid';
 import type { AllyMove } from '../combat/allies';
 import type { SurgeKind } from './playi';
-import { random } from './rng';
+import { random, getRandomState, seedRandom } from './rng';
 import { makerOf, TARGETING, type Maker } from '../combat/augments';
 import { NO_PERKS, type Perks } from './playi';
 
@@ -251,7 +251,7 @@ export interface FightState {
   /** The enemy Ghostline has spotted this round: your hits (and allies') land on it as if from behind. */
   spotted?: number | null;
   /** Once-a-fight things the memory network gives: Second wind spent, Reboot owed or spent, the next attack lifted by a defensive move. */
-  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean; /** Attacked this turn (Triage). */ attacked?: boolean; /** Riposte: armed by a defensive move, ready on the next turn. */ riposte?: 'armed' | 'ready'; /** Controlled burn used. */ burned?: boolean; /** Bleed off used. */ bled?: boolean; /** Manual override: armed for this turn, then used. */ override?: 'armed' | 'used'; /** On my mark used. */ marked?: boolean; /** Switch used this turn. */ switched?: boolean };
+  memo?: { secondWind?: boolean; reboot?: 'due' | 'used'; afterDefend?: boolean; /** Attacked this turn (Triage). */ attacked?: boolean; /** Riposte: armed by a defensive move, ready on the next turn. */ riposte?: 'armed' | 'ready'; /** Controlled burn used. */ burned?: boolean; /** Bleed off used. */ bled?: boolean; /** Manual override: armed for this turn, then used. */ override?: 'armed' | 'used'; /** On my mark used. */ marked?: boolean; /** Switch used this turn. */ switched?: boolean; /** Follow through: a kill readied the next attack. */ followThrough?: boolean };
   /** The Patchwork King's fight: parts lying loose on the raft, parts you've torn free (one use each), and how many rings of the raft have broken away. */
   king?: { loose: { id: KingPartId; pos: TilePosition }[]; spoils: KingPartId[]; rings: number } | null;
   /** This turn's move away came from a hit-and-run step: no parting blows. */
@@ -2115,7 +2115,9 @@ function resolvePlayerAttackRaw(s: FightState, action: CombatAction, playerClass
     const coordinated = s.perks.coordinated && s.allyHitFoes.includes(i) ? 1 + (s.perks.coordinatedBonus || 0.2) : 1;
     // The memory network: the first attack of a fight, running hot, a malfunctioning target, the blow after a defensive move, a firmware's own move
     const memory = memoryLift(s, action, foe);
-    const flank = hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i });
+    const flank0 = hasTrait(foe, 'alert') ? 0 : flankOn(s, grid.playerPosition, { kind: 'foe', i });
+    // Follow through (memory): after a kill, your next attack lands at least as if from the side
+    const flank = s.memo?.followThrough ? Math.max(flank0, FLANK.side) : flank0;
     const quirk = quirkDamage(s, action);
     // The shape's sweet spot: some tiles of it land harder than others
     const sweet = sweetSpot(action, playerClass, grid.playerPosition, aim, foe.pos);
@@ -2719,6 +2721,23 @@ function foeAct(s: FightState, i: number, level: number): Step & { walkAfter: bo
  * or boss hunts: it ends where its attacks also cover the tiles the victim could
  * step to, so getting out of its red takes cover or a kill.
  */
+/** Opening read (memory): where each enemy will stand after its next turn if you stay where you are.
+ *  It plays their turns on a copy and puts the dice back as they were, so the fight itself is untouched. */
+export function readAhead(s: FightState, level: number): { i: number; row: number; col: number }[] {
+  const dice = getRandomState();
+  try {
+    let t = s; const out: { i: number; row: number; col: number }[] = [];
+    for (let i = 0; i < s.foes.length; i++) {
+      if (!isAlive(t.foes[i])) continue;
+      const st = foeTurn(t, i, level); t = st.state;
+      if (st.walkAfter && isAlive(t.foes[i])) t = foeWalk(t, i).state;
+      const to = t.foes[i]?.pos, from = s.foes[i].pos;
+      if (to && (to.row !== from.row || to.col !== from.col)) out.push({ i, row: to.row, col: to.col });
+      if (t.player.currentHp <= 0) break;
+    }
+    return out;
+  } catch { return []; } finally { seedRandom(dice); }
+}
 export function foeWalk(s: FightState, i: number): Step {
   const foe = s.foes[i];
   if (!foe || !isAlive(foe) || order(s) === 'hold') return { state: s, events: [] };
@@ -3251,7 +3270,11 @@ export function resolvePlayerAttack(s: FightState, action: CombatAction, playerC
   const events = [...step.events];
   // Backstab step (memory): a kill from behind earns a free step
   if (s.perks.backstabStep && s.foes.some((f, i) => isAlive(f) && step.state.foes[i] && !isAlive(step.state.foes[i]) && flankOn(s, s.grid.playerPosition, { kind: 'foe', i }) >= FLANK.back)) events.push({ kind: 'freeStep' });
-  return { state: { ...step.state, memo: { ...step.state.memo, attacked: true } }, events };
+  // Follow through (memory): an attack spends it; a kill readies it for the next one
+  const killed = s.foes.some((f, i) => isAlive(f) && step.state.foes[i] && !isAlive(step.state.foes[i]));
+  const followThrough = !!s.perks.followThrough && killed;
+  if (followThrough && step.state.foes.some(isAlive)) events.push(say('Follow through: your next attack lands as if from the side', 'critical'));
+  return { state: { ...step.state, memo: { ...step.state.memo, attacked: true, followThrough } }, events };
 }
 export function resolveFoeAction(s: FightState, i: number, action: CombatAction, level: number, victim = victimOf(s, i), aim: TilePosition | null = null): Step {
   return withBursts(resolveFoeActionRaw(s, i, action, level, victim, aim));

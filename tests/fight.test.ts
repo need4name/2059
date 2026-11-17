@@ -1898,3 +1898,32 @@ test('Glass (a challenge) doubles every hit, both ways', () => {
   const taken = body(plain) - body(c.state), takenGlass = body(glass) - body(d.state);
   assert.ok(takenGlass >= taken * 1.8 && takenGlass <= taken * 2.2, `you took ${taken}, under glass ${takenGlass}`);
 });
+
+test('Follow through: a kill readies a side hit; Opening read predicts moves without touching the dice', async () => {
+  const { NO_PERKS } = await import('../client/src/lib/engine/playi');
+  // Two foes, the first one blow from dying
+  seedRandom(2);
+  const grid = arena([5, 3], [4, 3]);
+  const s0 = fight({ grid, perks: { ...NO_PERKS, followThrough: true } });
+  const weak = { ...s0.foes[0], unit: { ...s0.foes[0].unit, currentHp: 1, currentStructuralHp: 0 } };
+  const far = Fight.newFoe(createBoss(3), { row: 0, col: 0 }, 40);
+  const s = { ...s0, foes: [weak, far] };
+  const after = Fight.resolvePlayerAttack(s, { ...PLAYER_ACTIONS[0], accuracy: 'precise' }).state;
+  assert.equal(after.foes[0].unit.currentHp, 0);
+  assert.equal(after.memo?.followThrough, true, 'readied by the kill');
+  assert.equal(Fight.resolvePlayerAttack({ ...s, perks: NO_PERKS }, { ...PLAYER_ACTIONS[0], accuracy: 'precise' }).state.memo?.followThrough, false, 'not without the neuron');
+  // Opening read: the far foe walks toward you, and the dice come back as they were
+  const t = fight({ grid: arena([8, 3], [0, 3]) });
+  seedRandom(9); const before = random(); seedRandom(9);
+  const ghosts = Fight.readAhead(t, 3);
+  assert.equal(random(), before, 'the dice are put back');
+  assert.ok(ghosts.length === 1 && ghosts[0].row > 0, `it steps toward you: ${JSON.stringify(ghosts)}`);
+});
+
+test('Old debts trades a spare implant only for an item of the same grade', async () => {
+  const { canTrade } = await import('../client/src/lib/stores/useMarket');
+  const imp = (rarity: string, type = 'augmentation') => ({ id: rarity + type, name: 'x', type, rarity } as any);
+  assert.equal(canTrade(imp('uncommon'), imp('uncommon')), true);
+  assert.equal(canTrade(imp('uncommon'), imp('common')), false);
+  assert.equal(canTrade(imp('uncommon', 'consumable'), imp('uncommon')), false, 'only implants are given');
+});

@@ -154,6 +154,10 @@ clock: Fight.Clock;
 acting: Fight.Actor | null;
 /** The player hasn't had a turn yet this fight (the opening turn skips cooling). */
 openingTurn: boolean;
+/** Opening read (memory): where each enemy will stand after its move, shown on your first turn of a fight. Not saved. */
+ghosts: { i: number; row: number; col: number }[] | null;
+/** This fight's Opening read is spent. */
+readSpent: boolean;
 /** Rounds started this fight. */
 round: number;
 /** Search the room's supply cache: a stim or some credits, once per host. Returns what was found. */
@@ -185,6 +189,8 @@ holdfastSpent: boolean;
 secondChanceSpent: boolean;
 /** Strip twice (memory) used by this host. */
 stripTwiceSpent: boolean;
+/** Old debts (memory): this host's trade at the Grey Lane is used. */
+oldDebtsSpent: boolean;
 /** Swap a part on a beaten body for another roll of the same slot and grade (Second chance: once a host). */
 rerollPart: (itemId: string) => void;
 /** Pick of the wreck: implant drops waiting for the player to choose 1 of 2. */
@@ -620,15 +626,16 @@ const nextActor = () => {
 if (overAt === get().fightId) return; // the fight is over: only its ending plays
 let { clock } = get();
 const done = get().acting;
-if (done === 'player') save(Fight.endPlayerTurn(fightState()));
+if (done === 'player') { save(Fight.endPlayerTurn(fightState())); if (get().ghosts) set({ ghosts: null }); }
 if (done !== null) { clock = Fight.spendTurn(fightState(), clock, done); set({ clock, acting: null }); }
 const { who, at } = Fight.nextUp(fightState(), clock);
 if (Fight.roundOf(at) > get().round) { beginRound(); return; }
 set({ clock: { ...clock, now: at }, acting: who });
 if (who === 'player') {
 // The opening turn skips the start-of-turn cooling, as it always has
-if (get().openingTurn) { set({ phase: 'player_turn', inputLocked: false, actingFoe: null, openingTurn: false }); return; }
+if (get().openingTurn) { set({ phase: 'player_turn', inputLocked: false, actingFoe: null, openingTurn: false }); readAhead(); return; }
 beginPlayerTurn();
+readAhead();
 return;
 }
 const k = Fight.allyOf(who);
@@ -652,6 +659,13 @@ if (overAt === get().fightId) return; // the fight is over: only its ending play
 if (get().allyTurn === null) return;
 set({ allyTurn: null, allyPicked: null, allyMoveMode: null, allyOrigin: null, phase: 'enemy_turn', inputLocked: true });
 later(nextActor, FOE_GAP_DELAY);
+};
+
+// Opening read (memory): on your first turn of a fight, see where each enemy will stand after its move
+const readAhead = () => {
+const s = get();
+if (!s.perks.openingRead || s.readSpent || s.phase !== 'player_turn' || overAt === s.fightId) return;
+set({ readSpent: true, ghosts: Fight.readAhead(fightState(), s.farmLevel ?? s.bossLevel) });
 };
 
 // Foe i takes its turn: attack (or wind up, or walk), then walk, then whoever is next.
@@ -707,7 +721,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false, oldDebtsSpent: false,
 hostBestThreat: 0,
 });
 place();
@@ -822,7 +836,7 @@ combatLog: isKing
 save({ ...fightState(), foes, allies, mark: null, allyHitFoes: [], allyGuard: 0, ward: null, regen: null, ...gunAtStart(), playerBurning: 0, playerStunned: false, stunGuard: 0, overload: Math.min(100, (farm ? 0 : (useMap.getState().overload ?? 0)) + (get().perks?.startOverload ?? 0)), target: 0,
   memo: {}, spotted: null,
   playerSwimming: false, playerBleeding: 0, noParting: false, playerSlowed: 0, playerHasted: 0, tide: Fight.startTide(grid), king: foes.some(f => f.parts) ? { loose: [], spoils: [], rings: 0 } : null, exhaust: Fight.startExhaust(held === 'crowd'), light: Fight.startLight(foes.some(f => f.twist === 'light')), beat: Fight.startBeat(foes.some(f => f.unit.name === 'The Overseer')), front: Fight.startFront(foes.some(f => f.twist === 'leader')), dream: Fight.startDream(foes.some(f => f.twist === 'dream')), roll: Fight.startRoll(foes.some(f => f.unit.name === 'The Living Vessel')), crane: Fight.startCrane(firmwareHeldAt(activeChapter().id, level) === 'melee'), alarm: Fight.startAlarm(!!activeChapter().rules?.alarm && !grid.tilesetOf), flinchUsed: false, wind: Fight.startWind(!!activeChapter().rules?.wind), orders: foes.some(f => f.unit.name === 'The Signatory') ? Fight.signatoryOrders(Fight.startOrders(true)) : Fight.startOrders(!!activeChapter().rules?.orders), playerDrive: (CLASS_DEFINITIONS[get().playerClass] ?? CLASS_DEFINITIONS.none).baseSpeed - Fight.SPEED.base + Fight.implantDrive(equippedSlotList().map(sl => useInventory.getState().equippedAugmentations[sl]!)) + (get().perks?.partSpeed ?? 0) + firmwarePassives(get().playerClass).speed });
-set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true });
+set({ round: 0, clock: Fight.startClock(fightState()), acting: null, openingTurn: true, ghosts: null, readSpent: false });
 // The enemy sees a corpse get up. Flavour only, so it doesn't touch the seeded rolls.
 const lead = foes[0]?.unit;
 if (lead) {
@@ -862,7 +876,7 @@ allyPicked: null,
 allyOrigin: null,
 actingFoe: null,
 fx: [],
-clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0,
+clock: { now: 0, at: {} }, acting: null, openingTurn: true, round: 0, ghosts: null, readSpent: false,
 hostBestThreat: 0,
 fightIntro: null,
 dismissIntro: () => {
@@ -872,7 +886,7 @@ const held = heldStart;
 heldStart = null;
 if (held && held.fightId === get().fightId && isFightPhase(get().phase)) held.begin();
 },
-holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false, oldDebtsSpent: false,
 strip: null,
 combatLog: [],
 playerDefenseBoost: 0,
@@ -1328,7 +1342,7 @@ grid: emptyGrid(),
 fightId: get().fightId + 1,
 playerHeat: 20, doubleActionReady: false, foes: [], target: 0,
 playerMalfunctioning: false,
-holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false,
+holdfastSpent: false, secondChanceSpent: false, stripTwiceSpent: false, oldDebtsSpent: false,
 hostBestThreat: 0,
 });
 },
@@ -1363,6 +1377,7 @@ version: 1,
 // Only between-fight progress is saved. Reloading mid-fight returns you to base.
 partialize: (s) => ({
 phase: isFightPhase(s.phase) ? 'menu' : s.phase,
+oldDebtsSpent: s.oldDebtsSpent,
 boss: s.boss,
 currentLoot: s.currentLoot,
 lastVictory: s.lastVictory,
