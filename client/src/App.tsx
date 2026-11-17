@@ -11,6 +11,7 @@ import { useRun } from "./lib/stores/useRun";
 import { MockDeath, MockTree, MockZoom, MockFirmware } from "./components/game/screens/MemoryMockup";
 import { dailyDay, dailySeed } from "./lib/daily";
 import { Crashed } from "./components/game/Crashed";
+import { MockOldDebts, MockOldDebtsTrade } from "./components/game/screens/NeuronMockup";
 
 function App() {
   // Reloaded into a save from the title: carry straight on, or go to the difficulty choice for a new run
@@ -38,6 +39,8 @@ function App() {
     s.startCombat();
   };
 
+  if (import.meta.env.DEV && location.hash === '#mock-olddebts') return <MockOldDebts />;
+  if (import.meta.env.DEV && location.hash === '#mock-olddebts-trade') return <MockOldDebtsTrade />;
   if (import.meta.env.DEV && location.hash === '#mock-death') return <MockDeath />;
   if (import.meta.env.DEV && location.hash === '#mock-tree') return <MockTree />;
   if (import.meta.env.DEV && location.hash === '#mock-zoom') return <MockZoom />;
